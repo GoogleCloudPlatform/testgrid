@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package yaml2proto
+package main
 
 import (
 	"errors"
 	"fmt"
 	"io"
 
+	"github.com/ghodss/yaml"
 	"github.com/golang/protobuf/proto"
-	"gopkg.in/yaml.v2"
-	"k8s.io/test-infra/testgrid/config/pb"
+	"k8s.io/test-infra/testgrid/config"
 )
 
 type Config struct {
