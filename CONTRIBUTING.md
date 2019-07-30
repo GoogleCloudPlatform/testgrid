@@ -1,5 +1,10 @@
 # How to Contribute
 
+*NOTE*: While we're in the process of open-sourcing, things will be changing
+quickly in this repo. To avoid frustration, open an issue with a quick
+description of the change you want to make, and we'll let you know if
+anything in the works will interfere!
+
 We'd love to accept your patches and contributions to this project. There are
 just a few small guidelines you need to follow.
 
