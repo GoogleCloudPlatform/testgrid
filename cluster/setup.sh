@@ -32,4 +32,4 @@ for i in updater configurator; do
   exit 1
 done
 echo 'READY to deploy with the following command:' >&2
-echo '  bazel run //testgrid/cluster:dev.create'
+echo '  bazel run //cluster:dev.create'

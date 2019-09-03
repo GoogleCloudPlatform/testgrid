@@ -31,8 +31,8 @@ import (
 	"google.golang.org/api/iterator"
 	"vbom.ml/util/sortorder"
 
-	"k8s.io/test-infra/testgrid/metadata"
-	"k8s.io/test-infra/testgrid/metadata/junit"
+	"github.com/GoogleCloudPlatform/testgrid/metadata"
+	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
 
 // Started holds started.json data.

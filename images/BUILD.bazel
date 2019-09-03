@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//def:image.bzl", "tags")
-load("//prow:def.bzl", "prow_push")
+load("@io_k8s_test_infra//def:image.bzl", "tags")
+load("//:def.bzl", "push_image")
 
-package(default_visibility = ["//testgrid:__subpackages__"])
+package(default_visibility = ["//visibility:public"])
 
-prow_push(
+push_image(
     name = "push",
     images = tags({
-        "{STABLE_TESTGRID_REPO}/updater": "//testgrid/cmd/updater:image",
-        "{STABLE_TESTGRID_REPO}/configurator": "//testgrid/cmd/configurator:image",
-        "{STABLE_TESTGRID_REPO}/entomologist": "//testgrid/cmd/entomologist:image",
+        "{STABLE_TESTGRID_REPO}/updater": "//cmd/updater:image",
+        "{STABLE_TESTGRID_REPO}/configurator": "//cmd/configurator:image",
+        "{STABLE_TESTGRID_REPO}/entomologist": "//cmd/entomologist:image",
     }),
 )
 

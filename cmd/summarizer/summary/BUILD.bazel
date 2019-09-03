@@ -1,3 +1,4 @@
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 filegroup(
@@ -16,13 +17,29 @@ filegroup(
 
 go_library(
     name = "go_default_library",
-    srcs = ["summarizer_service.pb.go"],
-    importpath = "k8s.io/test-infra/testgrid/cmd/summarizer/summary",
+    embed = [":summarizer_service_go_proto"],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/summary",
+    visibility = ["//visibility:public"],
+)
+
+proto_library(
+    name = "summarizer_service_proto",
+    srcs = ["summarizer_service.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "//testgrid/cmd/summarizer/response:go_default_library",
-        "//testgrid/summary:go_default_library",
-        "@com_github_golang_protobuf//proto:go_default_library",
-        "@org_golang_google_grpc//:go_default_library",
+        "//cmd/summarizer/response:response_proto",
+        "//summary:summary_proto",
+    ],
+)
+
+go_proto_library(
+    name = "summarizer_service_go_proto",
+    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/summary",
+    proto = ":summarizer_service_proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cmd/summarizer/response:go_default_library",
+        "//summary:go_default_library",
     ],
 )

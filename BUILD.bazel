@@ -1,6 +1,8 @@
+# gazelle:prefix github.com/GoogleCloudPlatform/testgrid
+
 filegroup(
     name = "package-srcs",
-    srcs = glob(["**"]),
+    srcs = glob(["**"], exclude=["bazel-*/**", ".git/**"]),
     tags = ["automanaged"],
     visibility = ["//visibility:private"],
 )
@@ -9,20 +11,26 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
-        "//testgrid/cluster:all-srcs",
-        "//testgrid/cmd/configurator:all-srcs",
-        "//testgrid/cmd/entomologist:all-srcs",
-        "//testgrid/cmd/summarizer:all-srcs",
-        "//testgrid/cmd/updater:all-srcs",
-        "//testgrid/config:all-srcs",
-        "//testgrid/images:all-srcs",
-        "//testgrid/issue_state:all-srcs",
-        "//testgrid/metadata:all-srcs",
-        "//testgrid/resultstore:all-srcs",
-        "//testgrid/state:all-srcs",
-        "//testgrid/summary:all-srcs",
-        "//testgrid/util/gcs:all-srcs",
+        "//cluster:all-srcs",
+        "//cmd/configurator:all-srcs",
+        "//cmd/entomologist:all-srcs",
+        "//cmd/summarizer:all-srcs",
+        "//cmd/updater:all-srcs",
+        "//config:all-srcs",
+        "//hack:all-srcs",
+        "//images:all-srcs",
+        "//issue_state:all-srcs",
+        "//metadata:all-srcs",
+        "//resultstore:all-srcs",
+        "//state:all-srcs",
+        "//summary:all-srcs",
+        "//util/gcs:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
 )
+
+exports_files([
+    "go.mod",
+    "go.sum",
+])

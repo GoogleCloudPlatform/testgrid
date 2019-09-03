@@ -1,3 +1,4 @@
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 filegroup(
@@ -16,8 +17,20 @@ filegroup(
 
 go_library(
     name = "go_default_library",
-    srcs = ["summary.pb.go"],
-    importpath = "k8s.io/test-infra/testgrid/summary",
+    embed = [":summary_go_proto"],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/summary",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_golang_protobuf//proto:go_default_library"],
+)
+
+proto_library(
+    name = "summary_proto",
+    srcs = ["summary.proto"],
+    visibility = ["//visibility:public"],
+)
+
+go_proto_library(
+    name = "summary_go_proto",
+    importpath = "github.com/GoogleCloudPlatform/testgrid/summary",
+    proto = ":summary_proto",
+    visibility = ["//visibility:public"],
 )

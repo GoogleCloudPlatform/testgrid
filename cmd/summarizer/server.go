@@ -29,7 +29,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	grpcpb "k8s.io/test-infra/testgrid/cmd/summarizer/summary"
+	grpcpb "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/summary"
 )
 
 var (

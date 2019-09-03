@@ -22,7 +22,7 @@ TESTINFRA_ROOT=$(git rev-parse --show-toplevel)
 
 for output in gs://k8s-testgrid-canary/config gs://k8s-testgrid/config; do
   dir="$(dirname "${BASH_SOURCE}")"
-  bazel run //testgrid/cmd/configurator -- \
+  bazel run //cmd/configurator -- \
     --yaml="${TESTINFRA_ROOT}/config/testgrids" \
     --default="${TESTINFRA_ROOT}/config/testgrids/default.yaml" \
     --prow-config="${TESTINFRA_ROOT}/prow/config.yaml" \

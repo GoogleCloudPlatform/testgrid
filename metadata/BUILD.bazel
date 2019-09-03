@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = ["job.go"],
-    importpath = "k8s.io/test-infra/testgrid/metadata",
+    importpath = "github.com/GoogleCloudPlatform/testgrid/metadata",
     visibility = ["//visibility:public"],
 )
 
@@ -18,7 +18,7 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
-        "//testgrid/metadata/junit:all-srcs",
+        "//metadata/junit:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
