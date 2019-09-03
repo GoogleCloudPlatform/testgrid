@@ -27,7 +27,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 
-	"k8s.io/test-infra/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 func Unmarshal(r io.Reader) (*Configuration, error) {

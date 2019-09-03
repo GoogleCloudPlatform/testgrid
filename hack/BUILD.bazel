@@ -1,0 +1,213 @@
+package(default_visibility = ["//visibility:public"])
+
+py_test(
+    name = "coalesce_test",
+    size = "small",
+    srcs = [
+        "coalesce.py",
+        "coalesce_test.py",
+    ],
+    python_version = "PY3",
+)
+
+py_test(
+    name = "verify_boilerplate",
+    srcs = ["verify_boilerplate.py"],
+    data = ["//:all-srcs"],
+    python_version = "PY3",
+    tags = ["lint"],
+)
+
+MISSPELL = "@com_github_client9_misspell//cmd/misspell"
+
+sh_test(
+    name = "verify-spelling",
+    srcs = ["verify-spelling.sh"],
+    args = [
+        "$(location %s)" % MISSPELL,
+        "--error",
+    ],
+    data = [
+        "@//:all-srcs",
+        MISSPELL,
+    ],
+    tags = ["lint"],
+)
+
+sh_binary(
+    name = "update-spelling",
+    srcs = ["update-spelling.sh"],
+    args = [
+        "$(location %s)" % MISSPELL,
+        "-w",
+    ],
+    data = [
+        "@//:all-srcs",
+        MISSPELL,
+    ],
+    tags = ["lint"],
+)
+
+protoc = "@com_google_protobuf//:protoc"
+
+protoc_gen_go = "@com_github_golang_protobuf//protoc-gen-go"
+
+protoc_grpc = "plugins=grpc"
+
+# Use the protoc go_out plugin parameter to map the proto import path to the
+# Go package import path. Each mapping entry is prefixed with the keyword "M".
+# Reference the https://github.com/golang/protobuf "Parameters" section.
+proto_importmap = ",".join([
+    "Mconfig/config.proto=github.com/GoogleCloudPlatform/testgrid/config",
+    "Msummary/summary.proto=github.com/GoogleCloudPlatform/testgrid/summary",
+    "Mcmd/summarizer/response/types.proto=github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/response",
+])
+
+sh_binary(
+    name = "update-protos",
+    srcs = ["update-protos.sh"],
+    args = [
+        "$(location %s)" % protoc,
+        "$(location %s)" % protoc_gen_go,
+        "$(location %s)" % ":boilerplate/boilerplate.generated.go.txt",
+        protoc_grpc,
+        proto_importmap,
+    ],
+    data = [
+        ":boilerplate/boilerplate.generated.go.txt",
+        "//:all-srcs",
+        protoc,
+        protoc_gen_go,
+    ],
+    tags = ["local"],
+)
+
+sh_test(
+    name = "verify-protos",
+    srcs = ["verify-protos.sh"],
+    args = [
+        "$(location %s)" % ":update-protos",
+        "$(location %s)" % protoc,
+        "$(location %s)" % protoc_gen_go,
+        "$(location %s)" % ":boilerplate/boilerplate.generated.go.txt",
+        protoc_grpc,
+        proto_importmap,
+    ],
+    data = [
+        ":boilerplate/boilerplate.generated.go.txt",
+        ":update-protos",
+        protoc,
+        protoc_gen_go,
+        "@//:all-srcs",
+    ],
+    tags = ["lint"],
+)
+
+test_suite(
+    name = "verify-all",
+    tags = ["lint"],  # picks up all non-manual targets with this tag
+)
+
+GAZELLE = "@bazel_gazelle//cmd/gazelle"
+
+KAZEL = "@io_k8s_repo_infra//kazel"
+
+GO = "@go_sdk//:bin/go"
+
+sh_binary(
+    name = "update-deps",
+    srcs = ["update-deps.sh"],
+    args = [
+        "$(location %s)" % GO,
+        "$(location %s)" % GAZELLE,
+        "$(location %s)" % KAZEL,
+        "$(location :update-bazel)",
+    ],
+    data = [
+        GAZELLE,
+        GO,
+        KAZEL,
+        ":update-bazel",
+    ],
+)
+
+sh_test(
+    name = "verify-deps",
+    srcs = ["verify-deps.sh"],
+    args = [
+        "$(location :update-deps)",
+        "$(location %s)" % GO,
+        "$(location %s)" % GAZELLE,
+        "$(location %s)" % KAZEL,
+        "$(location :update-bazel)",
+    ],
+    data = [
+        GAZELLE,
+        GO,
+        KAZEL,
+        ":update-bazel",
+        ":update-deps",
+        "@//:all-srcs",
+    ],
+    tags = ["lint"],
+)
+
+sh_binary(
+    name = "update-bazel",
+    srcs = ["update-bazel.sh"],
+    args = [
+        "$(location %s)" % GAZELLE,
+        "$(location %s)" % KAZEL,
+    ],
+    data = [
+        GAZELLE,
+        KAZEL,
+    ],
+)
+
+sh_test(
+    name = "verify-bazel",
+    srcs = ["verify-bazel.sh"],
+    args = [
+        "$(location %s)" % GAZELLE,
+        "$(location %s)" % KAZEL,
+    ],
+    data = [
+        "@//:all-srcs",
+        GAZELLE,
+        KAZEL,
+    ],
+    tags = ["lint"],
+)
+
+sh_binary(
+    name = "update-gofmt",
+    srcs = ["update-gofmt.sh"],
+    args = ["$(location @go_sdk//:bin/gofmt)"],
+    data = ["@go_sdk//:bin/gofmt"],
+)
+
+sh_test(
+    name = "verify-gofmt",
+    srcs = ["verify-gofmt.sh"],
+    args = ["$(location @go_sdk//:bin/gofmt)"],
+    data = [
+        "@//:all-srcs",
+        "@go_sdk//:bin/gofmt",
+    ],
+    tags = ["lint"],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

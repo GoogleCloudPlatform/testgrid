@@ -32,10 +32,10 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/test-infra/testgrid/config"
-	"k8s.io/test-infra/testgrid/metadata/junit"
-	"k8s.io/test-infra/testgrid/state"
-	"k8s.io/test-infra/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
+	"github.com/GoogleCloudPlatform/testgrid/state"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
