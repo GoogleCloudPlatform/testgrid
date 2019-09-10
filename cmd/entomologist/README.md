@@ -23,7 +23,7 @@ Targets in Pull Requests won't be pinned.
 
 Entomologist can be configured with a caching proxy, such as [ghProxy](https://github.com/kubernetes/test-infra/tree/master/ghproxy),
 to minimize API token usage.
-Entomologist is writing multiple [issue_state.proto](https://github.com/kubernetes/test-infra/blob/master/testgrid/issue_state/issue_state.proto)
+Entomologist is writing multiple [issue_state.proto](https://github.com/GoogleCloudPlatform/testgrid/blob/master/issue_state/issue_state.proto)
 files to Google Cloud Storage (GCS). TestGrid consumes the information placed there.
 
 ## Required Flags

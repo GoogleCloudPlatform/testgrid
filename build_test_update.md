@@ -3,7 +3,8 @@
 If you need to add a new test that you want TestGrid to display, see [TestGrid Configuration](config.md).
 
 If you're looking to develop for TestGrid, welcome! Note that most of the inner workings of TestGrid
-are not open source. This is a [known issue](https://github.com/kubernetes/test-infra/issues/10409).
+are not open source yet. Follow [this issue](https://github.com/kubernetes/test-infra/issues/10409)
+for updates.
 
 ## YAML configuration and config.proto
 
