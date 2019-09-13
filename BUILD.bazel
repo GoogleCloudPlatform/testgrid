@@ -2,8 +2,13 @@
 
 filegroup(
     name = "package-srcs",
-    srcs = glob(["**"], exclude=["bazel-*/**", ".git/**"]),
-    tags = ["automanaged"],
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "bazel-*/**",
+            ".git/**",
+        ],
+    ),
     visibility = ["//visibility:private"],
 )
 
