@@ -22,13 +22,6 @@ if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then # Running inside bazel
 elif ! command -v bazel &>/dev/null; then
   echo "Install bazel at https://bazel.build" >&2
   exit 1
-elif ! bazel query @com_github_bazelbuild_bazel_gazelle//cmd/gazelle &>/dev/null; then
-  (
-    set -o xtrace
-    bazel run //hack:bootstrap-testinfra
-    bazel run //hack:update-bazel
-  )
-  exit 0
 else
   (
     set -o xtrace
