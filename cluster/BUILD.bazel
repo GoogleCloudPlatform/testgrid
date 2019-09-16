@@ -25,12 +25,10 @@ k8s_objects(
     ],
 )
 
-# TODO(fejta): move to variable and figure out real values
-CLUSTER = "gke_fejta-prod_us-central1-f_erick"
+CLUSTER = "{STABLE_TESTGRID_CLUSTER}"
 
-ROOT = "gcr.io/fejta-prod/testgrid"
+ROOT = "{STABLE_TESTGRID_REPO}"
 
-# TODO(fejta): wrap this in a rule like for prow
 k8s_object(
     name = "updater",
     cluster = CLUSTER,
