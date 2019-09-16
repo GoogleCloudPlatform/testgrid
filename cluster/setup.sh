@@ -20,16 +20,18 @@ echo -n 'testgrid namespace: ' >&2
 kubectl get namespaces/testgrid &>/dev/null || kubectl create namespace testgrid
 echo 'PRESENT' >&2
 # Ensure secrets exists
-for i in updater configurator; do
-  echo -n "testgrid-${i}-service-account secret: " >&2
-  kubectl get secrets/testgrid-${i}-service-account --namespace=testgrid &>/dev/null \
+for i in github-service-account testgrid-service-account; do
+  echo -n "${i} secret: " >&2
+  kubectl get secrets/${i} --namespace=testgrid &>/dev/null \
     && echo 'PRESENT' >&2 \
     && continue
   echo 'MISSING' >&2
   echo 'Fix with the following:' >&2
-  echo "  kubectl create secret generic testgrid-${i}-service-account \\" >&2
+  echo "  kubectl create secret generic ${i} \\" >&2
   echo '    --from-file=service-account.json=PATH/TO/SERVICE-ACCOUNT.json' >&2
   exit 1
 done
 echo 'READY to deploy with the following command:' >&2
-echo '  bazel run //cluster:dev.create'
+#TODO(chases2): Make this run using Bazel
+#echo '  bazel run //cluster:dev.create'
+echo '  kubectl apply -f cluster/<name of file>'

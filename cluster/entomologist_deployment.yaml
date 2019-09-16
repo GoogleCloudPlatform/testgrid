@@ -1,6 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
+  namespace: testgrid
   name: testgrid-entomologist
   labels:
     component: entomologist
@@ -43,7 +44,7 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  namespace: default
+  namespace: testgrid
   labels:
     app: ghproxy
   name: ghproxy
@@ -65,7 +66,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: default
+  namespace: testgrid
   name: ghproxy
   labels:
     app: ghproxy
