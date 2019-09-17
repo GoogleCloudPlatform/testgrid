@@ -1,10 +1,9 @@
-module github.com/chases2/testgrid
+module github.com/GoogleCloudPlatform/testgrid
 
 go 1.12
 
 require (
 	cloud.google.com/go v0.44.3
-	github.com/GoogleCloudPlatform/testgrid v0.0.0-20190828225612-e3bc8428db78
 	github.com/bazelbuild/bazel-gazelle v0.18.1
 	github.com/client9/misspell v0.3.4
 	github.com/golang/protobuf v1.3.2
