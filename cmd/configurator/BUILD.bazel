@@ -9,7 +9,12 @@ go_binary(
     pure = "on",
 )
 
-make_image(name = "image")
+make_image(
+    name = "image",
+    directory = "/",
+    files = [":configurator"],
+    visibility = ["//visibility:public"],
+)
 
 go_test(
     name = "go_default_test",

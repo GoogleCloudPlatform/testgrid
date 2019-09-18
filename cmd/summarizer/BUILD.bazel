@@ -9,6 +9,8 @@ gazelle(
 
 make_image(
     name = "image",
+    directory = "/",
+    files = [":summarizer"],
     visibility = ["//visibility:public"],
 )
 

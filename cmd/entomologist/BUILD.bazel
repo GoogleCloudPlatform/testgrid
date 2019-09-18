@@ -55,5 +55,7 @@ filegroup(
 
 make_image(
     name = "image",
+    directory = "/",
+    files = [":entomologist"],
     visibility = ["//visibility:public"],
 )
