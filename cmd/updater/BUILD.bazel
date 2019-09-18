@@ -10,6 +10,8 @@ go_binary(
 
 make_image(
     name = "image",
+    directory = "/",
+    files = [":updater"],
     visibility = ["//visibility:public"],
 )
 
