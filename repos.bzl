@@ -56,14 +56,6 @@ def go_repositories():
         version = "v0.0.0-20190120104749-174420ebee6c",
     )
     go_repository(
-        name = "com_github_apache_thrift",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/apache/thrift",
-        sum = "h1:pODnxUFNcjP9UTLZGTdeh+j16A8lJbRvD3rOtrk/7bs=",
-        version = "v0.12.0",
-    )
-    go_repository(
         name = "com_github_armon_consul_api",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -494,8 +486,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "github.com/golang/groupcache",
-        sum = "h1:u4bArs140e9+AfE52mFHOXVFnOSBJBRlzTHrOPLOIhE=",
-        version = "v0.0.0-20180513044358-24b0969c4cb7",
+        sum = "h1:ZgQEtGgCBiWRM39fZuwSd1LwSqqSW0hOdXCYYDX0R3I=",
+        version = "v0.0.0-20190702054246-869f871628b6",
     )
     go_repository(
         name = "com_github_golang_mock",
@@ -1218,8 +1210,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "github.com/prometheus/procfs",
-        sum = "h1:CTwfnzjQ+8dS6MhHHu4YswVAD99sL2wjPqP+VkURmKE=",
-        version = "v0.0.3",
+        sum = "h1:3+auTFlqw+ZaQYJARz6ArODtkaIwtvBTx3N2NehQlL8=",
+        version = "v0.0.5",
     )
     go_repository(
         name = "com_github_prometheus_tsdb",
@@ -1262,8 +1254,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "github.com/rogpeppe/go-internal",
-        sum = "h1:RR9dF3JtopPvtkroDZuVD7qquD0bnHlKSqaQhgwt8yk=",
-        version = "v1.3.0",
+        sum = "h1:XU784Pr0wdahMY2bYcyK6N1KuaRAdLtqD4qd8D18Bfs=",
+        version = "v1.3.2",
     )
     go_repository(
         name = "com_github_russross_blackfriday",
@@ -1380,8 +1372,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "github.com/spf13/pflag",
-        sum = "h1:zPAT6CGy6wXeQ7NtTnaTerfKOsV6V6F8agHXFiazDkg=",
-        version = "v1.0.3",
+        sum = "h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=",
+        version = "v1.0.5",
     )
     go_repository(
         name = "com_github_spf13_viper",
@@ -1652,8 +1644,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "k8s.io/kubernetes",
-        sum = "h1:t8Q3aaWanmiariBBr3qYIcAL9o0pv4MB5tZtfbILJGk=",
-        version = "v1.14.6",
+        sum = "h1:wJx/r2HuPVaaBeCUk/P47GSK0eyrj3mI/kESRFBp6/A=",
+        version = "v1.14.7",
     )
     go_repository(
         name = "io_k8s_repo_infra",
@@ -1684,8 +1676,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "go.opencensus.io",
-        sum = "h1:C9hSCOW830chIVkdja34wa6Ky+IzWllkUinR+BtRZd4=",
-        version = "v0.22.0",
+        sum = "h1:8dP3SGL7MPB94crU3bEPplMPe83FI4EouesJUeFHv50=",
+        version = "v0.22.1",
     )
     go_repository(
         name = "ml_vbom_util",
@@ -1708,8 +1700,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "google.golang.org/appengine",
-        sum = "h1:QzqyMA1tlu6CgqCDUtU9V+ZKhLFT2dkJuANu5QaxI3I=",
-        version = "v1.6.1",
+        sum = "h1:j8RI1yW0SkI+paT6uGwMlrMI/6zwYA6/CFil8rxOzGI=",
+        version = "v1.6.2",
     )
     go_repository(
         name = "org_golang_google_genproto",
@@ -1724,8 +1716,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "google.golang.org/grpc",
-        sum = "h1:AzbTB6ux+okLTzP8Ru1Xs41C303zdcfEht7MQnYJt5A=",
-        version = "v1.23.0",
+        sum = "h1:q4XQuHFC6I28BKZpo6IYyb3mNO+l7lSOxRuYTCiDfXk=",
+        version = "v1.23.1",
     )
     go_repository(
         name = "org_golang_x_crypto",
@@ -1756,8 +1748,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "golang.org/x/net",
-        sum = "h1:gkKoSkUmnU6bpS/VhkuO27bzQeSA51uaEfbOW5dNb68=",
-        version = "v0.0.0-20190812203447-cdfb69ac37fc",
+        sum = "h1:k7pJ2yAPLPgbskkFdhRCsA77k2fySZ1zf2zCjvQCiIM=",
+        version = "v0.0.0-20190827160401-ba9fcec4b297",
     )
     go_repository(
         name = "org_golang_x_oauth2",
