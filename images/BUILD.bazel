@@ -21,7 +21,6 @@ push_image(
     name = "push",
     images = tags({
         "{STABLE_TESTGRID_REPO}/updater": "//cmd/updater:image",
-        "{STABLE_TESTGRID_REPO}/configurator": "//cmd/configurator:image",
         "{STABLE_TESTGRID_REPO}/entomologist": "//cmd/entomologist:image",
     }),
 )
