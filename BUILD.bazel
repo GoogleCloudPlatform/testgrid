@@ -17,7 +17,6 @@ filegroup(
     srcs = [
         ":package-srcs",
         "//cluster:all-srcs",
-        "//cmd/configurator:all-srcs",
         "//cmd/entomologist:all-srcs",
         "//cmd/summarizer:all-srcs",
         "//cmd/updater:all-srcs",

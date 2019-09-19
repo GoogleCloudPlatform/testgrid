@@ -24,7 +24,6 @@ require (
 	k8s.io/kubernetes v1.14.7 // indirect
 	k8s.io/repo-infra v0.0.0-20190806171332-9f4571ad7242
 	k8s.io/test-infra v0.0.0-20190903215859-58805cb8c6c4
-	sigs.k8s.io/yaml v1.1.0
 	vbom.ml/util v0.0.0-20180919145318-efcd4e0f9787
 )
 

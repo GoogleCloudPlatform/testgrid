@@ -1,7 +1,5 @@
 # Updating TestGrid
 
-If you need to add a new test that you want TestGrid to display, see [TestGrid Configuration](config.md).
-
 If you're looking to develop for TestGrid, welcome! Note that most of the inner workings of TestGrid
 are not open source yet. Follow [this issue](https://github.com/kubernetes/test-infra/issues/10409)
 for updates.
@@ -13,7 +11,8 @@ read YAML. Instead, it expects configuration data in [`config.proto`]. This file
 is commented, and should be treated as the authoritative "input" schema to
 TestGrid.
 
-[`config.proto`] is generated primarily with [Configurator](cmd/configurator).
+[`config.proto`] is generated primarily with
+[Configurator](https://github.com/kubernetes/test-infra/testgrid/cmd/configurator).
 Updates to the [testgrid.k8s.io config] are automatically Configurated when a change is
 merged.
 
@@ -42,11 +41,8 @@ to verify.
 
 ## Testing
 
-Run `bazel test //testgrid/...` to run all unit tests in TestGrid. Note that this does not validate
+Run `bazel test //...` to run all unit tests in TestGrid. Note that this does not validate
 the [testgrid.k8s.io config]; those tests are in `bazel test //config/tests/testgrids/...`
 
-Run `bazel test //...` for repository-wide testing, such as ensuring that
-every job in our CI system appears somewhere in testgrid, etc.
-
 [`config.proto`]: ./config/config.proto
-[testgrid.k8s.io config]: /config/testgrids
+[testgrid.k8s.io config]: https://github.com/kubernetes/test-infra/config/testgrids
