@@ -23,8 +23,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/testgrid/config"
-	"github.com/GoogleCloudPlatform/testgrid/issue_state"
+	"github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/issue_state"
 	"k8s.io/test-infra/pkg/io"
 
 	"k8s.io/test-infra/prow/flagutil"

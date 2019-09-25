@@ -27,8 +27,8 @@ proto_library(
     srcs = ["summarizer_service.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "//cmd/summarizer/response:response_proto",
-        "//summary:summary_proto",
+        "//pb/response:response_proto",
+        "//pb/summary:summary_proto",
     ],
 )
 
@@ -39,7 +39,7 @@ go_proto_library(
     proto = ":summarizer_service_proto",
     visibility = ["//visibility:public"],
     deps = [
-        "//cmd/summarizer/response:go_default_library",
-        "//summary:go_default_library",
+        "//pb/response:go_default_library",
+        "//pb/summary:go_default_library",
     ],
 )

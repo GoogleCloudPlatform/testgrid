@@ -27,15 +27,16 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-func Unmarshal(r io.Reader) (*Configuration, error) {
+func Unmarshal(r io.Reader) (*configpb.Configuration, error) {
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config: %v", err)
 	}
-	var cfg Configuration
+	var cfg configpb.Configuration
 	if err = proto.Unmarshal(buf, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse: %v", err)
 	}
@@ -43,9 +44,7 @@ func Unmarshal(r io.Reader) (*Configuration, error) {
 }
 
 // ReadGCS reads the config from gcs and unmarshals it into a Configuration struct.
-//
-// Configuration is defined in config.Proto
-func ReadGCS(ctx context.Context, obj *storage.ObjectHandle) (*Configuration, error) {
+func ReadGCS(ctx context.Context, obj *storage.ObjectHandle) (*configpb.Configuration, error) {
 	r, err := obj.NewReader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config: %v", err)
@@ -54,7 +53,7 @@ func ReadGCS(ctx context.Context, obj *storage.ObjectHandle) (*Configuration, er
 }
 
 // ReadPath reads the config from the specified local file path.
-func ReadPath(path string) (*Configuration, error) {
+func ReadPath(path string) (*configpb.Configuration, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open: %v", err)
@@ -65,7 +64,7 @@ func ReadPath(path string) (*Configuration, error) {
 // Read will read the Configuration proto message from a local or gs:// path.
 //
 // The ctx and client are only relevant when path refers to GCS.
-func Read(path string, ctx context.Context, client *storage.Client) (*Configuration, error) {
+func Read(path string, ctx context.Context, client *storage.Client) (*configpb.Configuration, error) {
 	if strings.HasPrefix(path, "gs://") {
 		var gcsPath gcs.Path
 		if err := gcsPath.Set(path); err != nil {
@@ -76,7 +75,7 @@ func Read(path string, ctx context.Context, client *storage.Client) (*Configurat
 	return ReadPath(path)
 }
 
-func (cfg Configuration) FindTestGroup(name string) *TestGroup {
+func FindTestGroup(name string, cfg *configpb.Configuration) *configpb.TestGroup {
 	for _, tg := range cfg.TestGroups {
 		if tg.Name == name {
 			return tg
@@ -85,7 +84,7 @@ func (cfg Configuration) FindTestGroup(name string) *TestGroup {
 	return nil
 }
 
-func (cfg Configuration) FindDashboard(name string) *Dashboard {
+func FindDashboard(name string, cfg *configpb.Configuration) *configpb.Dashboard {
 	for _, d := range cfg.Dashboards {
 		if d.Name == name {
 			return d
