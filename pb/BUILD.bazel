@@ -1,0 +1,20 @@
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//pb/config:all-srcs",
+        "//pb/issue_state:all-srcs",
+        "//pb/response:all-srcs",
+        "//pb/state:all-srcs",
+        "//pb/summary:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

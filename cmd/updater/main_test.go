@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
-	"github.com/GoogleCloudPlatform/testgrid/state"
+	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
 
 func TestExtractRows(t *testing.T) {

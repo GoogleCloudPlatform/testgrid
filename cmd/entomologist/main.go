@@ -34,7 +34,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
-	"github.com/GoogleCloudPlatform/testgrid/issue_state"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/issue_state"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/test-infra/pkg/io"
 	"k8s.io/test-infra/prow/config/secret"
@@ -260,7 +261,7 @@ func fullIssuePath(path, testGroupName string) string {
 }
 
 // Returns a map containing every test group as a key, with nil as a value
-func getTestGroups(tgConfig *config.Configuration) map[string]*issue_state.IssueState {
+func getTestGroups(tgConfig *configpb.Configuration) map[string]*issue_state.IssueState {
 	if tgConfig == nil {
 		return nil
 	}

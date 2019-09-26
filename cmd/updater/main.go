@@ -34,7 +34,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
-	"github.com/GoogleCloudPlatform/testgrid/state"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
 	"cloud.google.com/go/storage"
@@ -266,7 +267,7 @@ type nameConfig struct {
 	parts  []string
 }
 
-func makeNameConfig(tnc *config.TestNameConfig) nameConfig {
+func makeNameConfig(tnc *configpb.TestNameConfig) nameConfig {
 	if tnc == nil {
 		return nameConfig{
 			format: "%s",
@@ -581,7 +582,7 @@ func ReadBuild(build Build) (*Column, error) {
 }
 
 // Headers returns the list of ColumnHeader ConfigurationValues for this group.
-func Headers(group config.TestGroup) []string {
+func Headers(group configpb.TestGroup) []string {
 	var extra []string
 	for _, h := range group.ColumnHeader {
 		extra = append(extra, h.ConfigurationValue)
@@ -599,7 +600,7 @@ func (r Rows) Less(i, j int) bool {
 }
 
 // ReadBuilds will asynchronously construct a Grid for the group out of the specified builds.
-func ReadBuilds(parent context.Context, group config.TestGroup, builds Builds, max int, dur time.Duration, concurrency int) (*state.Grid, error) {
+func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds, max int, dur time.Duration, concurrency int) (*state.Grid, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, fmt.Errorf("zero readers for %s", group.Name)
@@ -746,7 +747,7 @@ func main() {
 	}
 	log.Printf("Found %d groups", len(cfg.TestGroups))
 
-	groups := make(chan config.TestGroup)
+	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
 
 	for i := 0; i < opt.groupConcurrency; i++ {
@@ -771,7 +772,7 @@ func main() {
 		// gs://kubernetes-jenkins/logs/ci-kubernetes-test-go
 		// gs://kubernetes-jenkins/pr-logs/pull-ingress-gce-e2e
 		o := opt.group
-		tg := cfg.FindTestGroup(o)
+		tg := config.FindTestGroup(o, cfg)
 		if tg == nil {
 			log.Fatalf("Failed to find %s in %s", o, opt.config)
 		}
@@ -785,7 +786,7 @@ func main() {
 	wg.Wait()
 }
 
-func updateGroup(ctx context.Context, client *storage.Client, tg config.TestGroup, gridPath gcs.Path, concurrency int, write bool) error {
+func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool) error {
 	o := tg.Name
 
 	var tgPath gcs.Path

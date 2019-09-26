@@ -16,8 +16,8 @@ limitations under the License.
 
 syntax = "proto3";
 
-import "summary/summary.proto";
-import "cmd/summarizer/response/types.proto";
+import "pb/summary/summary.proto";
+import "pb/response/types.proto";
 
 service SummarizerService {
   rpc GetSummary(SummarizerRequest) returns (SummarizerResponse) {}

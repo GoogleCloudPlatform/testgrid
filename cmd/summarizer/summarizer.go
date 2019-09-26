@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net/url"
 
-	responsepb "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/response"
-	summarypb "github.com/GoogleCloudPlatform/testgrid/summary"
+	responsepb "github.com/GoogleCloudPlatform/testgrid/pb/response"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 )
 
 // TableToSummary converts the input queryData collected from test results to

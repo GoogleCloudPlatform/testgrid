@@ -17,8 +17,8 @@ limitations under the License.
 syntax = "proto3";
 option go_package = "response";
 
-import "config/config.proto";
-import "summary/summary.proto";
+import "pb/config/config.proto";
+import "pb/summary/summary.proto";
 
 // PhaseTimer times the duration of each update cycle.
 message PhaseTimer {

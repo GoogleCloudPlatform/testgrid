@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	responsepb "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/response"
-	configpb "github.com/GoogleCloudPlatform/testgrid/config"
-	summarypb "github.com/GoogleCloudPlatform/testgrid/summary"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	responsepb "github.com/GoogleCloudPlatform/testgrid/pb/response"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 
 	"github.com/google/go-cmp/cmp"
 )

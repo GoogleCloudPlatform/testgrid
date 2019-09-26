@@ -1,13 +1,12 @@
-load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
     srcs = ["config.go"],
-    embed = [":config_go_proto"],
     importpath = "github.com/GoogleCloudPlatform/testgrid/config",
     visibility = ["//visibility:public"],
     deps = [
+        "//pb/config:go_default_library",
         "//util/gcs:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
         "@com_google_cloud_go//storage:go_default_library",
@@ -25,18 +24,5 @@ filegroup(
     name = "all-srcs",
     srcs = [":package-srcs"],
     tags = ["automanaged"],
-    visibility = ["//visibility:public"],
-)
-
-proto_library(
-    name = "config_proto",
-    srcs = ["config.proto"],
-    visibility = ["//visibility:public"],
-)
-
-go_proto_library(
-    name = "config_go_proto",
-    importpath = "github.com/GoogleCloudPlatform/testgrid/config",
-    proto = ":config_proto",
     visibility = ["//visibility:public"],
 )
