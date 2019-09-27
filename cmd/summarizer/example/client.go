@@ -30,8 +30,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	responsepb "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/response"
 	grpcpb "github.com/GoogleCloudPlatform/testgrid/cmd/summarizer/summary"
+	responsepb "github.com/GoogleCloudPlatform/testgrid/pb/response"
 )
 
 // options configures the server
