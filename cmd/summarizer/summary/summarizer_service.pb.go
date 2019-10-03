@@ -22,11 +22,11 @@ package summarizer_service
 import (
 	context "context"
 	fmt "fmt"
+	response "github.com/GoogleCloudPlatform/testgrid/pb/response"
+	summary "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
 	math "math"
-	response "pb/response"
-	summary "pb/summary"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
