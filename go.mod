@@ -7,8 +7,6 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.3.1
 	github.com/google/uuid v1.1.1
-	github.com/onsi/ginkgo v1.7.0 // indirect
-	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/prometheus/procfs v0.0.5 // indirect
 	github.com/rogpeppe/go-internal v1.3.2 // indirect
 	github.com/sirupsen/logrus v1.4.2
