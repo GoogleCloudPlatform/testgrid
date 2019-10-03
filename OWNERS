@@ -1,10 +1,16 @@
 # See the OWNERS docs at https://go.k8s.io/owners
 
-approvers:
-- michelle192837
-- spiffxp
-- wojtek-t
-- shyamjvs
+reviewers:
 - chases2
+- fejta
+- michelle192837
+
+approvers:
+- BenTheElder
+- chases2
+- cjwagner
+- fejta
+- Katharine
+- michelle192837
 labels:
 - area/testgrid
