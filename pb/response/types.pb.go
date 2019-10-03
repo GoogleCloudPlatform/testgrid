@@ -21,10 +21,10 @@ package response
 
 import (
 	fmt "fmt"
+	config "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	summary "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
-	config "pb/config"
-	summary "pb/summary"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
