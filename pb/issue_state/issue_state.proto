@@ -2,15 +2,26 @@
 
 syntax = "proto3";
 
+message TargetAndMethods {
+  string target_name = 1;
+  repeated string method_names = 2;
+}
+
 message IssueInfo {
   string issue_id = 1;
   string title = 2;  // Issue title or description.
-
-  reserved 3, 4;
-
+  bool is_autobug = 3; // True if auto-created by TestGrid.
+  double last_modified = 4; // In seconds since epoch.
   repeated string row_ids = 5;  // Associated row IDs (mentioned in the issue).
 
-  reserved 6, 7;
+  // Run IDs used to associate this issue with a particular target (in case of repeats, or across
+  // runs on different dashboards).
+  repeated string run_ids = 6;
+
+  // Targets + methods associated with this issue.
+  // Only set if test group's `link_bugs_by_test_methods` is True, else all targets + methods will
+  // be linked to this issue.
+  repeated TargetAndMethods targets_and_methods = 7;
 }
 
 message IssueState {
