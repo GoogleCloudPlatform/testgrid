@@ -269,10 +269,12 @@ message Configuration {
   repeated DashboardGroup dashboard_groups = 3;
 }
 
+// The DefaultConfiguration Proto is deprecated, and will be deleted after Nov 1, 2019
+// For defaulting behavior, use the yamlcfg library instead.
 message DefaultConfiguration {
   // A default testgroup with default initialization data
-  TestGroup default_test_group = 1;
+  TestGroup default_test_group = 1 [deprecated=true];
 
   // A default dashboard tab with default initialization data
-  DashboardTab default_dashboard_tab = 2;
+  DashboardTab default_dashboard_tab = 2 [deprecated=true];
 }

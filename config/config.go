@@ -31,6 +31,28 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
+// MissingFieldError is an error that includes the missing field.
+type MissingFieldError struct {
+	Field string
+}
+
+func (e MissingFieldError) Error() string {
+	return fmt.Sprintf("field missing or unset: %s", e.Field)
+}
+
+// Validate checks that a configuration is well-formed, having test groups and dashboards set.
+func Validate(c configpb.Configuration) error {
+	if len(c.TestGroups) == 0 {
+		return MissingFieldError{"TestGroups"}
+	}
+	if len(c.Dashboards) == 0 {
+		return MissingFieldError{"Dashboards"}
+	}
+
+	return nil
+}
+
+// Unmarshal reads a protocol buffer into memory
 func Unmarshal(r io.Reader) (*configpb.Configuration, error) {
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -41,6 +63,24 @@ func Unmarshal(r io.Reader) (*configpb.Configuration, error) {
 		return nil, fmt.Errorf("failed to parse: %v", err)
 	}
 	return &cfg, nil
+}
+
+// MarshalText writes a text version of the parsed configuration to the supplied io.Writer.
+// Returns an error if config is invalid or writing failed.
+func MarshalText(c configpb.Configuration, w io.Writer) error {
+	if err := Validate(c); err != nil {
+		return err
+	}
+	return proto.MarshalText(w, &c)
+}
+
+// MarshalBytes returns the wire-encoded protobuf data for the parsed configuration.
+// Returns an error if config is invalid or encoding failed.
+func MarshalBytes(c configpb.Configuration) ([]byte, error) {
+	if err := Validate(c); err != nil {
+		return nil, err
+	}
+	return proto.Marshal(&c)
 }
 
 // ReadGCS reads the config from gcs and unmarshals it into a Configuration struct.
