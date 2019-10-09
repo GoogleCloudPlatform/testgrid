@@ -54,3 +54,19 @@ def push_image(
         bundle = ":" + bundle_name,
         format = "Docker",  # TODO(fejta): consider OCI?
     )
+
+# tags appends default tags to name
+#
+# In particular, names is a {image_prefix: image_target} mapping, which gets
+# expanded into three full image paths:
+#   image_prefix:latest
+#   image_prefix:latest-{BUILD_USER}
+#   image_prefix:{DOCKER_TAG}
+# (See hack/print-workspace-status.sh for how BUILD_USER and DOCKER_TAG are created.
+def tags(targets):
+    outs = {}
+    for img, target in targets.items():
+        outs["%s:{DOCKER_TAG}" % img] = target
+        outs["%s:latest-{BUILD_USER}" % img] = target
+        outs["%s:latest" % img] = target
+    return outs

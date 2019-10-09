@@ -14,6 +14,7 @@ filegroup(
         "//pb/response:all-srcs",
         "//pb/state:all-srcs",
         "//pb/summary:all-srcs",
+        "//pb/test_status:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
