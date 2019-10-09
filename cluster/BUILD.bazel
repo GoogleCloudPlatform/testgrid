@@ -14,7 +14,6 @@
 
 load("@io_bazel_rules_k8s//k8s:object.bzl", "k8s_object")
 load("@io_bazel_rules_k8s//k8s:objects.bzl", "k8s_objects")
-load("@io_k8s_test_infra//def:configmap.bzl", "k8s_configmap")
 
 k8s_objects(
     name = "dev",
