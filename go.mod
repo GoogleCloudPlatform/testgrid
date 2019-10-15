@@ -25,6 +25,7 @@ require (
 	k8s.io/apimachinery v0.0.0-20190816221834-a9f1d8a9c101
 	k8s.io/code-generator v0.0.0-20190831074504-732c9ca86353
 	k8s.io/repo-infra v0.0.0-20190806171332-9f4571ad7242
+	sigs.k8s.io/yaml v1.1.0
 	vbom.ml/util v0.0.0-20180919145318-efcd4e0f9787
 )
 
