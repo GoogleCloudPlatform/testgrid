@@ -26,6 +26,8 @@ import (
 	summary "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -179,6 +181,14 @@ func (c *summarizerServiceClient) GetSummary(ctx context.Context, in *Summarizer
 // SummarizerServiceServer is the server API for SummarizerService service.
 type SummarizerServiceServer interface {
 	GetSummary(context.Context, *SummarizerRequest) (*SummarizerResponse, error)
+}
+
+// UnimplementedSummarizerServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedSummarizerServiceServer struct {
+}
+
+func (*UnimplementedSummarizerServiceServer) GetSummary(ctx context.Context, req *SummarizerRequest) (*SummarizerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSummary not implemented")
 }
 
 func RegisterSummarizerServiceServer(s *grpc.Server, srv SummarizerServiceServer) {
