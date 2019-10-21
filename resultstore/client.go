@@ -331,8 +331,9 @@ func (i Invocations) Update(inv Invocation, fields ...string) error {
 }
 
 // Finish an invocation, preventing further updates.
+// TODO(fejta): consider renaming this to Finalize()
 func (i Invocations) Finish(name string) error {
-	_, err := i.up.FinishInvocation(i.ctx, &resultstore.FinishInvocationRequest{
+	_, err := i.up.FinalizeInvocation(i.ctx, &resultstore.FinalizeInvocationRequest{
 		Name:               name,
 		AuthorizationToken: i.token,
 	})
