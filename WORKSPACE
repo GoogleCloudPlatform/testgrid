@@ -1,14 +1,15 @@
 # gazelle:repository_macro repos.bzl%go_repositories
 workspace(name = "com_github_googlecloudplatform_testgrid")
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-git_repository(
+http_archive(
     name = "io_k8s_repo_infra",
-    commit = "e7bd7a7c8b3f900d5344bf5909c60f890f9719aa",
-    remote = "https://github.com/kubernetes/repo-infra.git",
-    shallow_since = "1571503417 -0700",
-    # tag = "v0.0.1-alpha.1",
+    sha256 = "5ee2a8e306af0aaf2844b5e2c79b5f3f53fc9ce3532233f0615b8d0265902b2a",
+    strip_prefix = "repo-infra-0.0.1-alpha.1",
+    urls = [
+        "https://github.com/kubernetes/repo-infra/archive/v0.0.1-alpha.1.tar.gz",
+    ],
 )
 
 load("@io_k8s_repo_infra//:load.bzl", "repositories")
@@ -22,8 +23,6 @@ configure()
 load("//:repos.bzl", "go_repositories")
 
 go_repositories()
-
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "io_bazel_rules_docker",
@@ -39,6 +38,8 @@ _container_repositories()
 load("@io_bazel_rules_docker//go:image.bzl", _go_repositories = "repositories")
 
 _go_repositories()
+
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 git_repository(
     name = "io_bazel_rules_k8s",
