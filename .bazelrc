@@ -2,15 +2,6 @@
 build --workspace_status_command=./hack/print-workspace-status.sh
 run --workspace_status_command=./hack/print-workspace-status.sh
 
-# https://github.com/kubernetes/test-infra/issues/13140
-build --incompatible_disable_deprecated_attr_params=false
-query --incompatible_disable_deprecated_attr_params=false
-
-# https://github.com/kubernetes/test-infra/issues/13239
-# https://github.com/bazelbuild/rules_docker/issues/842
-# https://github.com/bazelbuild/bazel/issues/7899
-build --host_force_python=PY2
-
 # enable data race detection
 test --features=race --test_output=errors
 
@@ -25,8 +16,8 @@ test:lint --test_tag_filters=lint
 # bazel test //... --config=unit
 test:unit --test_tag_filters=-lint
 
-# Note needs an instance name
-# See --config=remote-fejta for a concrete example
+# you can build remotely by specifying the following in a .bazelrc:
+# build --config=remote --remote_instance_name=<build_instance>
 # https://github.com/bazelbuild/bazel-toolchains/blob/master/bazelrc/bazel-0.27.0.bazelrc
 build:remote --jobs=500
 build:remote --host_javabase=@rbe_default//java:jdk
@@ -45,31 +36,21 @@ build:remote --define=EXECUTOR=remote
 build:remote --remote_executor=grpcs://remotebuildexecution.googleapis.com
 build:remote --remote_timeout=3600
 
-# Minimize what is downloaded
-build:inmemory --experimental_inmemory_jdeps_files
-build:inmemory --experimental_inmemory_dotd_files
-
-# Minimize what is downloaded
-build:toplevel --config=inmemory
-build:toplevel --experimental_remote_download_outputs=toplevel
-
-build:minimal --config=inmemory
-build:minimal --experimental_remote_download_outputs=minimal
-
 # --google_credentials=some_file.json
 build:remote --google_default_credentials=true
 build:remote --config=toplevel
 
 run:remote --experimental_remote_download_outputs=all --noexperimental_inmemory_jdeps_files --noexperimental_inmemory_dotd_files
 
-# Compose the remote configs with an instance name
-# A couple examples below:
+# configs to minimize what is downloaded
+build:inmemory --experimental_inmemory_jdeps_files
+build:inmemory --experimental_inmemory_dotd_files
 
-# --config=ci-instance adds the instance name
-build:ci-instance --remote_instance_name=projects/k8s-prow-builds/instances/default_instance
+build:toplevel --config=inmemory
+build:toplevel --experimental_remote_download_outputs=toplevel
 
-# Config we want to use in ci
-build:ci --config=remote --config=ci-instance
+build:minimal --config=inmemory
+build:minimal --experimental_remote_download_outputs=minimal
 
 # https://github.com/bazelbuild/rules_go/pull/2110#issuecomment-508713878
 build --stamp=true
