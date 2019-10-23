@@ -8,14 +8,6 @@ test --features=race --test_output=errors
 # only build tests when testing
 test --build_tests_only
 
-# you can run only lint tests with:
-# bazel test //... --config=lint
-test:lint --test_tag_filters=lint
-
-# you can run non-lint tests with:
-# bazel test //... --config=unit
-test:unit --test_tag_filters=-lint
-
 # you can build remotely by specifying the following in a .bazelrc:
 # build --config=remote --remote_instance_name=<build_instance>
 # https://github.com/bazelbuild/bazel-toolchains/blob/master/bazelrc/bazel-0.27.0.bazelrc
@@ -51,6 +43,9 @@ build:toplevel --experimental_remote_download_outputs=toplevel
 
 build:minimal --config=inmemory
 build:minimal --experimental_remote_download_outputs=minimal
+
+# Used for non-interactive ci builds
+build:ci --noshow_progress
 
 # https://github.com/bazelbuild/rules_go/pull/2110#issuecomment-508713878
 build --stamp=true
