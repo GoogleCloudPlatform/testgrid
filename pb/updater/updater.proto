@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+import "pb/config/config.proto";
+import "pb/summary/summary.proto";
+import "pb/state/state.proto";
+
+// An identifier of a dashboard tab, i.e., the name of the dashboard and tab.
+message DashboardTabIdentifier {
+  // The name of a dashboard containing the dashboard tab.
+  string dashboard_name = 1;
+
+  // The dashboard tab to update.
+  DashboardTab dashboard_tab = 2;
+}
+
+// An updater request to update a test group.
+message UpdateRequest {
+  // The test group configuration to update.
+  TestGroup test_group = 1;
+
+  // A list of dashboards tabs backed by the group being updated.
+  repeated DashboardTabIdentifier dashboard_tab_identifiers = 2;
+}
+
+// An updater response after updating a test group.
+message UpdateResponse {
+  // The time taken to perform the update in milliseconds.
+  uint32 update_time_millis = 1;
+
+  // The size of the compressed output file in bytes.
+  uint32 output_size_bytes = 2;
+
+  // Summaries of dashboard tabs associated with this group.
+  repeated DashboardTabSummary dashboard_tab_summaries = 3;
+
+  // Metrics associated with the update for this group.
+  UpdateInfo update_entry = 4;
+}
+
+// An updater server updates test groups upon request.
+service Updater {
+  // Updates a test group state object either incrementally or by creating it.
+  rpc Update(UpdateRequest) returns (UpdateResponse) {}
+
+  // Updates a bug state object for a given test group.
+  rpc UpdateBugs(UpdateRequest) returns (UpdateResponse) {}
+}

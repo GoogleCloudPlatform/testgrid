@@ -2,28 +2,33 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 
 proto_library(
-    name = "state_proto",
-    srcs = ["state.proto"],
+    name = "updater_proto",
+    srcs = ["updater.proto"],
     visibility = ["//visibility:public"],
     deps = [
         "//pb/config:config_proto",
+        "//pb/state:state_proto",
+        "//pb/summary:summary_proto",
     ],
 )
 
 go_proto_library(
-    name = "state_go_proto",
-    importpath = "github.com/GoogleCloudPlatform/testgrid/pb/state",
-    proto = ":state_proto",
+    name = "updater_go_proto",
+    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/pb/updater",
+    proto = ":updater_proto",
     visibility = ["//visibility:public"],
     deps = [
         "//pb/config:go_default_library",
+        "//pb/state:go_default_library",
+        "//pb/summary:go_default_library",
     ],
 )
 
 go_library(
     name = "go_default_library",
-    embed = [":state_go_proto"],
-    importpath = "github.com/GoogleCloudPlatform/testgrid/pb/state",
+    embed = [":updater_go_proto"],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/pb/updater",
     visibility = ["//visibility:public"],
 )
 

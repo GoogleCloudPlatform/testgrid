@@ -59,10 +59,12 @@ protoc_grpc = "plugins=grpc"
 # Reference the https://github.com/golang/protobuf "Parameters" section.
 proto_importmap = ",".join([
     "Mpb/config/config.proto=github.com/GoogleCloudPlatform/testgrid/pb/config",
-    "Mpb/summary/summary.proto=github.com/GoogleCloudPlatform/testgrid/pb/summary",
-    "Mpb/response/types.proto=github.com/GoogleCloudPlatform/testgrid/pb/response",
     "Mpb/custom_evaluator/custom_evaluator.proto=github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator",
+    "Mpb/response/types.proto=github.com/GoogleCloudPlatform/testgrid/pb/response",
+    "Mpb/state/state.proto=github.com/GoogleCloudPlatform/testgrid/pb/state",
+    "Mpb/summary/summary.proto=github.com/GoogleCloudPlatform/testgrid/pb/summary",
     "Mpb/test_status/test_status.proto=github.com/GoogleCloudPlatform/testgrid/pb/test_status",
+    "Mpb/updater/updater.proto=github.com/GoogleCloudPlatform/testgrid/pb/updater",
 ])
 
 sh_binary(

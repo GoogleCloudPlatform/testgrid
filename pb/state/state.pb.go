@@ -21,6 +21,7 @@ package state
 
 import (
 	fmt "fmt"
+	config "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
 )
@@ -73,67 +74,14 @@ func (x Row_Result) String() string {
 }
 
 func (Row_Result) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_a888679467bb7853, []int{2, 0}
+	return fileDescriptor_a888679467bb7853, []int{6, 0}
 }
 
-type Column struct {
-	Build                string   `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
-	Started              float64  `protobuf:"fixed64,3,opt,name=started,proto3" json:"started,omitempty"`
-	Extra                []string `protobuf:"bytes,4,rep,name=extra,proto3" json:"extra,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Column) Reset()         { *m = Column{} }
-func (m *Column) String() string { return proto.CompactTextString(m) }
-func (*Column) ProtoMessage()    {}
-func (*Column) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a888679467bb7853, []int{0}
-}
-
-func (m *Column) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Column.Unmarshal(m, b)
-}
-func (m *Column) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Column.Marshal(b, m, deterministic)
-}
-func (m *Column) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Column.Merge(m, src)
-}
-func (m *Column) XXX_Size() int {
-	return xxx_messageInfo_Column.Size(m)
-}
-func (m *Column) XXX_DiscardUnknown() {
-	xxx_messageInfo_Column.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Column proto.InternalMessageInfo
-
-func (m *Column) GetBuild() string {
-	if m != nil {
-		return m.Build
-	}
-	return ""
-}
-
-func (m *Column) GetStarted() float64 {
-	if m != nil {
-		return m.Started
-	}
-	return 0
-}
-
-func (m *Column) GetExtra() []string {
-	if m != nil {
-		return m.Extra
-	}
-	return nil
-}
-
+// A metric and its values for each test cycle.
 type Metric struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Sparse encoding of values. So given:
+	// Sparse encoding of values. Indices is a list of pairs of <index, count> that
+	// details columns with metric values. So given:
 	//   Indices: [0, 2, 6, 4]
 	//   Values: [0.1,0.2,6.1,6.2,6.3,6.4]
 	// Decoded 12-value equivalent is:
@@ -149,7 +97,7 @@ func (m *Metric) Reset()         { *m = Metric{} }
 func (m *Metric) String() string { return proto.CompactTextString(m) }
 func (*Metric) ProtoMessage()    {}
 func (*Metric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a888679467bb7853, []int{1}
+	return fileDescriptor_a888679467bb7853, []int{0}
 }
 
 func (m *Metric) XXX_Unmarshal(b []byte) error {
@@ -191,6 +139,360 @@ func (m *Metric) GetValues() []float64 {
 	return nil
 }
 
+type UpdatePhaseData struct {
+	// The name for a part of the update cycle.
+	PhaseName string `protobuf:"bytes,1,opt,name=phase_name,json=phaseName,proto3" json:"phase_name,omitempty"`
+	// Time taken for a part of the update cycle, in seconds.
+	PhaseSeconds         float64  `protobuf:"fixed64,2,opt,name=phase_seconds,json=phaseSeconds,proto3" json:"phase_seconds,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *UpdatePhaseData) Reset()         { *m = UpdatePhaseData{} }
+func (m *UpdatePhaseData) String() string { return proto.CompactTextString(m) }
+func (*UpdatePhaseData) ProtoMessage()    {}
+func (*UpdatePhaseData) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{1}
+}
+
+func (m *UpdatePhaseData) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UpdatePhaseData.Unmarshal(m, b)
+}
+func (m *UpdatePhaseData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UpdatePhaseData.Marshal(b, m, deterministic)
+}
+func (m *UpdatePhaseData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdatePhaseData.Merge(m, src)
+}
+func (m *UpdatePhaseData) XXX_Size() int {
+	return xxx_messageInfo_UpdatePhaseData.Size(m)
+}
+func (m *UpdatePhaseData) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdatePhaseData.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdatePhaseData proto.InternalMessageInfo
+
+func (m *UpdatePhaseData) GetPhaseName() string {
+	if m != nil {
+		return m.PhaseName
+	}
+	return ""
+}
+
+func (m *UpdatePhaseData) GetPhaseSeconds() float64 {
+	if m != nil {
+		return m.PhaseSeconds
+	}
+	return 0
+}
+
+// Info on time taken to update test results during the last update cycle.
+type UpdateInfo struct {
+	// Metrics for how long parts of the update cycle take.
+	UpdatePhaseData      []*UpdatePhaseData `protobuf:"bytes,1,rep,name=update_phase_data,json=updatePhaseData,proto3" json:"update_phase_data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
+}
+
+func (m *UpdateInfo) Reset()         { *m = UpdateInfo{} }
+func (m *UpdateInfo) String() string { return proto.CompactTextString(m) }
+func (*UpdateInfo) ProtoMessage()    {}
+func (*UpdateInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{2}
+}
+
+func (m *UpdateInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UpdateInfo.Unmarshal(m, b)
+}
+func (m *UpdateInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UpdateInfo.Marshal(b, m, deterministic)
+}
+func (m *UpdateInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateInfo.Merge(m, src)
+}
+func (m *UpdateInfo) XXX_Size() int {
+	return xxx_messageInfo_UpdateInfo.Size(m)
+}
+func (m *UpdateInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateInfo proto.InternalMessageInfo
+
+func (m *UpdateInfo) GetUpdatePhaseData() []*UpdatePhaseData {
+	if m != nil {
+		return m.UpdatePhaseData
+	}
+	return nil
+}
+
+// Info on a failing test row about the failure.
+type AlertInfo struct {
+	// Number of results that have failed.
+	FailCount int32 `protobuf:"varint,1,opt,name=fail_count,json=failCount,proto3" json:"fail_count,omitempty"`
+	// The build ID the test first failed at.
+	FailBuildId string `protobuf:"bytes,2,opt,name=fail_build_id,json=failBuildId,proto3" json:"fail_build_id,omitempty"`
+	// The test ID for the first test failure.
+	FailTestId string `protobuf:"bytes,4,opt,name=fail_test_id,json=failTestId,proto3" json:"fail_test_id,omitempty"`
+	// The build ID the test last passed at.
+	PassBuildId string `protobuf:"bytes,5,opt,name=pass_build_id,json=passBuildId,proto3" json:"pass_build_id,omitempty"`
+	// A snippet explaining the failure.
+	FailureMessage string `protobuf:"bytes,7,opt,name=failure_message,json=failureMessage,proto3" json:"failure_message,omitempty"`
+	// Link to search for build changes, internally a code-search link.
+	BuildLink string `protobuf:"bytes,8,opt,name=build_link,json=buildLink,proto3" json:"build_link,omitempty"`
+	// Text for option to search for build changes.
+	BuildLinkText string `protobuf:"bytes,9,opt,name=build_link_text,json=buildLinkText,proto3" json:"build_link_text,omitempty"`
+	// Text to display for link to search for build changes.
+	BuildUrlText         string   `protobuf:"bytes,10,opt,name=build_url_text,json=buildUrlText,proto3" json:"build_url_text,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AlertInfo) Reset()         { *m = AlertInfo{} }
+func (m *AlertInfo) String() string { return proto.CompactTextString(m) }
+func (*AlertInfo) ProtoMessage()    {}
+func (*AlertInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{3}
+}
+
+func (m *AlertInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AlertInfo.Unmarshal(m, b)
+}
+func (m *AlertInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AlertInfo.Marshal(b, m, deterministic)
+}
+func (m *AlertInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AlertInfo.Merge(m, src)
+}
+func (m *AlertInfo) XXX_Size() int {
+	return xxx_messageInfo_AlertInfo.Size(m)
+}
+func (m *AlertInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_AlertInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AlertInfo proto.InternalMessageInfo
+
+func (m *AlertInfo) GetFailCount() int32 {
+	if m != nil {
+		return m.FailCount
+	}
+	return 0
+}
+
+func (m *AlertInfo) GetFailBuildId() string {
+	if m != nil {
+		return m.FailBuildId
+	}
+	return ""
+}
+
+func (m *AlertInfo) GetFailTestId() string {
+	if m != nil {
+		return m.FailTestId
+	}
+	return ""
+}
+
+func (m *AlertInfo) GetPassBuildId() string {
+	if m != nil {
+		return m.PassBuildId
+	}
+	return ""
+}
+
+func (m *AlertInfo) GetFailureMessage() string {
+	if m != nil {
+		return m.FailureMessage
+	}
+	return ""
+}
+
+func (m *AlertInfo) GetBuildLink() string {
+	if m != nil {
+		return m.BuildLink
+	}
+	return ""
+}
+
+func (m *AlertInfo) GetBuildLinkText() string {
+	if m != nil {
+		return m.BuildLinkText
+	}
+	return ""
+}
+
+func (m *AlertInfo) GetBuildUrlText() string {
+	if m != nil {
+		return m.BuildUrlText
+	}
+	return ""
+}
+
+// Info on default test metadata for a dashboard tab.
+type TestMetadata struct {
+	// Name of the test with associated test metadata.
+	TestName string `protobuf:"bytes,1,opt,name=test_name,json=testName,proto3" json:"test_name,omitempty"`
+	// Default bug component.
+	BugComponent int32 `protobuf:"varint,2,opt,name=bug_component,json=bugComponent,proto3" json:"bug_component,omitempty"`
+	// Default owner.
+	Owner string `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	// Default list of cc's.
+	Cc []string `protobuf:"bytes,4,rep,name=cc,proto3" json:"cc,omitempty"`
+	// When present, only file a bug for failed tests with same error type.
+	// Otherwise, always file a bug.
+	ErrorType            string   `protobuf:"bytes,5,opt,name=error_type,json=errorType,proto3" json:"error_type,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TestMetadata) Reset()         { *m = TestMetadata{} }
+func (m *TestMetadata) String() string { return proto.CompactTextString(m) }
+func (*TestMetadata) ProtoMessage()    {}
+func (*TestMetadata) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{4}
+}
+
+func (m *TestMetadata) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TestMetadata.Unmarshal(m, b)
+}
+func (m *TestMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TestMetadata.Marshal(b, m, deterministic)
+}
+func (m *TestMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TestMetadata.Merge(m, src)
+}
+func (m *TestMetadata) XXX_Size() int {
+	return xxx_messageInfo_TestMetadata.Size(m)
+}
+func (m *TestMetadata) XXX_DiscardUnknown() {
+	xxx_messageInfo_TestMetadata.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TestMetadata proto.InternalMessageInfo
+
+func (m *TestMetadata) GetTestName() string {
+	if m != nil {
+		return m.TestName
+	}
+	return ""
+}
+
+func (m *TestMetadata) GetBugComponent() int32 {
+	if m != nil {
+		return m.BugComponent
+	}
+	return 0
+}
+
+func (m *TestMetadata) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *TestMetadata) GetCc() []string {
+	if m != nil {
+		return m.Cc
+	}
+	return nil
+}
+
+func (m *TestMetadata) GetErrorType() string {
+	if m != nil {
+		return m.ErrorType
+	}
+	return ""
+}
+
+// TestGrid columns (also known as TestCycle).
+type Column struct {
+	// Build ID.
+	Build string `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
+	// Name associated with the column (such as the run/invocation ID).No two
+	// columns should have the same build_id and name. The name field allows the
+	// display of multiple columns with the same build_id.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Timestamp for the column, typically the earliest timestamp of any test
+	// result in the column.
+	Started float64 `protobuf:"fixed64,3,opt,name=started,proto3" json:"started,omitempty"`
+	// Additional custom column labels, displayed below the standard column
+	// headers of build_id, date, and time.
+	Extra []string `protobuf:"bytes,4,rep,name=extra,proto3" json:"extra,omitempty"`
+	// Custom hotlist ids.
+	HotlistIds           string   `protobuf:"bytes,5,opt,name=hotlist_ids,json=hotlistIds,proto3" json:"hotlist_ids,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Column) Reset()         { *m = Column{} }
+func (m *Column) String() string { return proto.CompactTextString(m) }
+func (*Column) ProtoMessage()    {}
+func (*Column) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{5}
+}
+
+func (m *Column) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Column.Unmarshal(m, b)
+}
+func (m *Column) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Column.Marshal(b, m, deterministic)
+}
+func (m *Column) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Column.Merge(m, src)
+}
+func (m *Column) XXX_Size() int {
+	return xxx_messageInfo_Column.Size(m)
+}
+func (m *Column) XXX_DiscardUnknown() {
+	xxx_messageInfo_Column.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Column proto.InternalMessageInfo
+
+func (m *Column) GetBuild() string {
+	if m != nil {
+		return m.Build
+	}
+	return ""
+}
+
+func (m *Column) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *Column) GetStarted() float64 {
+	if m != nil {
+		return m.Started
+	}
+	return 0
+}
+
+func (m *Column) GetExtra() []string {
+	if m != nil {
+		return m.Extra
+	}
+	return nil
+}
+
+func (m *Column) GetHotlistIds() string {
+	if m != nil {
+		return m.HotlistIds
+	}
+	return ""
+}
+
+// TestGrid rows (also known as TestRow)
 type Row struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Id   string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
@@ -200,21 +502,32 @@ type Row struct {
 	//   [5, 1] -> [5]
 	//   [1, 5] -> [1, 1, 1, 1, 1]
 	// The decoded values are Result enums
-	Results              []int32   `protobuf:"varint,3,rep,packed,name=results,proto3" json:"results,omitempty"`
-	CellIds              []string  `protobuf:"bytes,4,rep,name=cell_ids,json=cellIds,proto3" json:"cell_ids,omitempty"`
-	Messages             []string  `protobuf:"bytes,5,rep,name=messages,proto3" json:"messages,omitempty"`
-	Metrics              []*Metric `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`
-	Icons                []string  `protobuf:"bytes,9,rep,name=icons,proto3" json:"icons,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	Results []int32 `protobuf:"varint,3,rep,packed,name=results,proto3" json:"results,omitempty"`
+	// Test IDs for each test result in this test case. If used, there is one
+	// test ID per cycle with a non-empty status (where status is not NO_RESULT).
+	CellIds []string `protobuf:"bytes,4,rep,name=cell_ids,json=cellIds,proto3" json:"cell_ids,omitempty"`
+	// Text messages for each test result in this test case. There is one text
+	// message per cycle with a non-empty status (where status is not NO_RESULT).
+	Messages []string `protobuf:"bytes,5,rep,name=messages,proto3" json:"messages,omitempty"`
+	// Names of metrics associated with this test case. Stored separate from
+	// metric info (which may be omitted).
+	Metric  []string  `protobuf:"bytes,7,rep,name=metric,proto3" json:"metric,omitempty"`
+	Metrics []*Metric `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	Icons   []string  `protobuf:"bytes,9,rep,name=icons,proto3" json:"icons,omitempty"`
+	// IDs for bugs associated with results in this test case.
+	BugId []string `protobuf:"bytes,10,rep,name=bug_id,json=bugId,proto3" json:"bug_id,omitempty"`
+	// An alert for the failure if there's a recent failure for this test case.
+	AlertInfo            *AlertInfo `protobuf:"bytes,11,opt,name=alert_info,json=alertInfo,proto3" json:"alert_info,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *Row) Reset()         { *m = Row{} }
 func (m *Row) String() string { return proto.CompactTextString(m) }
 func (*Row) ProtoMessage()    {}
 func (*Row) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a888679467bb7853, []int{2}
+	return fileDescriptor_a888679467bb7853, []int{6}
 }
 
 func (m *Row) XXX_Unmarshal(b []byte) error {
@@ -270,6 +583,13 @@ func (m *Row) GetMessages() []string {
 	return nil
 }
 
+func (m *Row) GetMetric() []string {
+	if m != nil {
+		return m.Metric
+	}
+	return nil
+}
+
 func (m *Row) GetMetrics() []*Metric {
 	if m != nil {
 		return m.Metrics
@@ -284,19 +604,53 @@ func (m *Row) GetIcons() []string {
 	return nil
 }
 
+func (m *Row) GetBugId() []string {
+	if m != nil {
+		return m.BugId
+	}
+	return nil
+}
+
+func (m *Row) GetAlertInfo() *AlertInfo {
+	if m != nil {
+		return m.AlertInfo
+	}
+	return nil
+}
+
+// A single table of test results backing a dashboard tab.
 type Grid struct {
-	Columns              []*Column `protobuf:"bytes,1,rep,name=columns,proto3" json:"columns,omitempty"`
-	Rows                 []*Row    `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	// A cycle of test results, not including the results. In the TestGrid client,
+	// the cycles define the columns.
+	Columns []*Column `protobuf:"bytes,1,rep,name=columns,proto3" json:"columns,omitempty"`
+	// A test case with test results. In the TestGrid client, the cases define the
+	// rows (and the results define the individual cells).
+	Rows []*Row `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
+	// Seconds since epoch when last mail alert was sent.
+	LastAlertMailTime float64 `protobuf:"fixed64,3,opt,name=last_alert_mail_time,json=lastAlertMailTime,proto3" json:"last_alert_mail_time,omitempty"`
+	// The latest configuration used to generate this test group.
+	Config *config.TestGroup `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
+	// Seconds since epoch for last time this cycle was updated.
+	LastTimeUpdated float64 `protobuf:"fixed64,6,opt,name=last_time_updated,json=lastTimeUpdated,proto3" json:"last_time_updated,omitempty"`
+	// Stored info on previous timing for parts of the update cycle.
+	// TODO(b/63145995): Move last_time_updated, last_alert_mail_time here.
+	UpdateInfo []*UpdateInfo `protobuf:"bytes,8,rep,name=update_info,json=updateInfo,proto3" json:"update_info,omitempty"`
+	// Stored info on default test metadata.
+	TestMetadata []*TestMetadata `protobuf:"bytes,9,rep,name=test_metadata,json=testMetadata,proto3" json:"test_metadata,omitempty"`
+	// Clusters of failures for a TestResultTable instance.
+	Cluster []*Cluster `protobuf:"bytes,10,rep,name=cluster,proto3" json:"cluster,omitempty"`
+	// Most recent timestamp that clusters have processed.
+	MostRecentClusterTimestamp float64  `protobuf:"fixed64,11,opt,name=most_recent_cluster_timestamp,json=mostRecentClusterTimestamp,proto3" json:"most_recent_cluster_timestamp,omitempty"`
+	XXX_NoUnkeyedLiteral       struct{} `json:"-"`
+	XXX_unrecognized           []byte   `json:"-"`
+	XXX_sizecache              int32    `json:"-"`
 }
 
 func (m *Grid) Reset()         { *m = Grid{} }
 func (m *Grid) String() string { return proto.CompactTextString(m) }
 func (*Grid) ProtoMessage()    {}
 func (*Grid) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a888679467bb7853, []int{3}
+	return fileDescriptor_a888679467bb7853, []int{7}
 }
 
 func (m *Grid) XXX_Unmarshal(b []byte) error {
@@ -331,41 +685,245 @@ func (m *Grid) GetRows() []*Row {
 	return nil
 }
 
+func (m *Grid) GetLastAlertMailTime() float64 {
+	if m != nil {
+		return m.LastAlertMailTime
+	}
+	return 0
+}
+
+func (m *Grid) GetConfig() *config.TestGroup {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+func (m *Grid) GetLastTimeUpdated() float64 {
+	if m != nil {
+		return m.LastTimeUpdated
+	}
+	return 0
+}
+
+func (m *Grid) GetUpdateInfo() []*UpdateInfo {
+	if m != nil {
+		return m.UpdateInfo
+	}
+	return nil
+}
+
+func (m *Grid) GetTestMetadata() []*TestMetadata {
+	if m != nil {
+		return m.TestMetadata
+	}
+	return nil
+}
+
+func (m *Grid) GetCluster() []*Cluster {
+	if m != nil {
+		return m.Cluster
+	}
+	return nil
+}
+
+func (m *Grid) GetMostRecentClusterTimestamp() float64 {
+	if m != nil {
+		return m.MostRecentClusterTimestamp
+	}
+	return 0
+}
+
+// A cluster of failures grouped by test status and message for a test results
+// table.
+type Cluster struct {
+	// Test status cluster grouped by.
+	TestStatus int32 `protobuf:"varint,1,opt,name=test_status,json=testStatus,proto3" json:"test_status,omitempty"`
+	// Error message or testFailureClassification string cluster grouped by.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// ClusterRows that belong to this cluster.
+	ClusterRow           []*ClusterRow `protobuf:"bytes,3,rep,name=cluster_row,json=clusterRow,proto3" json:"cluster_row,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *Cluster) Reset()         { *m = Cluster{} }
+func (m *Cluster) String() string { return proto.CompactTextString(m) }
+func (*Cluster) ProtoMessage()    {}
+func (*Cluster) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{8}
+}
+
+func (m *Cluster) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Cluster.Unmarshal(m, b)
+}
+func (m *Cluster) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Cluster.Marshal(b, m, deterministic)
+}
+func (m *Cluster) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Cluster.Merge(m, src)
+}
+func (m *Cluster) XXX_Size() int {
+	return xxx_messageInfo_Cluster.Size(m)
+}
+func (m *Cluster) XXX_DiscardUnknown() {
+	xxx_messageInfo_Cluster.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Cluster proto.InternalMessageInfo
+
+func (m *Cluster) GetTestStatus() int32 {
+	if m != nil {
+		return m.TestStatus
+	}
+	return 0
+}
+
+func (m *Cluster) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+func (m *Cluster) GetClusterRow() []*ClusterRow {
+	if m != nil {
+		return m.ClusterRow
+	}
+	return nil
+}
+
+// Cells in a TestRow that belong to a specific Cluster.
+type ClusterRow struct {
+	// Name of TestRow.
+	DisplayName string `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Index within row that belongs to Cluster (refer to columns of the row).
+	Index                []int32  `protobuf:"varint,2,rep,packed,name=index,proto3" json:"index,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ClusterRow) Reset()         { *m = ClusterRow{} }
+func (m *ClusterRow) String() string { return proto.CompactTextString(m) }
+func (*ClusterRow) ProtoMessage()    {}
+func (*ClusterRow) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a888679467bb7853, []int{9}
+}
+
+func (m *ClusterRow) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ClusterRow.Unmarshal(m, b)
+}
+func (m *ClusterRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ClusterRow.Marshal(b, m, deterministic)
+}
+func (m *ClusterRow) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterRow.Merge(m, src)
+}
+func (m *ClusterRow) XXX_Size() int {
+	return xxx_messageInfo_ClusterRow.Size(m)
+}
+func (m *ClusterRow) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClusterRow.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClusterRow proto.InternalMessageInfo
+
+func (m *ClusterRow) GetDisplayName() string {
+	if m != nil {
+		return m.DisplayName
+	}
+	return ""
+}
+
+func (m *ClusterRow) GetIndex() []int32 {
+	if m != nil {
+		return m.Index
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("Row_Result", Row_Result_name, Row_Result_value)
-	proto.RegisterType((*Column)(nil), "Column")
 	proto.RegisterType((*Metric)(nil), "Metric")
+	proto.RegisterType((*UpdatePhaseData)(nil), "UpdatePhaseData")
+	proto.RegisterType((*UpdateInfo)(nil), "UpdateInfo")
+	proto.RegisterType((*AlertInfo)(nil), "AlertInfo")
+	proto.RegisterType((*TestMetadata)(nil), "TestMetadata")
+	proto.RegisterType((*Column)(nil), "Column")
 	proto.RegisterType((*Row)(nil), "Row")
 	proto.RegisterType((*Grid)(nil), "Grid")
+	proto.RegisterType((*Cluster)(nil), "Cluster")
+	proto.RegisterType((*ClusterRow)(nil), "ClusterRow")
 }
 
 func init() { proto.RegisterFile("state.proto", fileDescriptor_a888679467bb7853) }
 
 var fileDescriptor_a888679467bb7853 = []byte{
-	// 397 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x92, 0xc1, 0x8e, 0xd3, 0x30,
-	0x10, 0x86, 0x49, 0xec, 0x24, 0xee, 0x84, 0x05, 0xcb, 0xac, 0x90, 0xe1, 0x14, 0x72, 0xca, 0xa9,
-	0x87, 0xe5, 0x09, 0x2a, 0xb4, 0xbb, 0xa4, 0x5b, 0xb2, 0xab, 0x49, 0x57, 0x88, 0x53, 0x95, 0x26,
-	0x16, 0xb2, 0x94, 0x36, 0x28, 0x76, 0x29, 0x2f, 0xc6, 0xfb, 0x21, 0x3b, 0x0d, 0x5c, 0xb8, 0xcd,
-	0xf7, 0x67, 0xf4, 0x67, 0xfe, 0x19, 0x43, 0x6a, 0x6c, 0x63, 0xd5, 0xf2, 0xc7, 0x38, 0xd8, 0x21,
-	0xdf, 0x42, 0xfc, 0x69, 0xe8, 0x4f, 0x87, 0xa3, 0xb8, 0x86, 0x68, 0x7f, 0xd2, 0x7d, 0x27, 0x83,
-	0x2c, 0x28, 0x16, 0x38, 0x81, 0x90, 0x90, 0x18, 0xdb, 0x8c, 0x56, 0x75, 0x92, 0x64, 0x41, 0x11,
-	0xe0, 0x8c, 0xae, 0x5f, 0xfd, 0xb2, 0x63, 0x23, 0x69, 0x46, 0x5c, 0xbf, 0x87, 0x35, 0x65, 0x21,
-	0x27, 0x79, 0x05, 0xf1, 0x17, 0x65, 0x47, 0xdd, 0x0a, 0x01, 0xf4, 0xd8, 0x1c, 0xd4, 0xc5, 0xd4,
-	0xd7, 0xce, 0x53, 0x1f, 0x3b, 0xdd, 0x2a, 0x23, 0xc3, 0x8c, 0x14, 0x11, 0xce, 0x28, 0xde, 0x42,
-	0xfc, 0xb3, 0xe9, 0x4f, 0xca, 0x48, 0x92, 0x91, 0x22, 0xc0, 0x0b, 0xe5, 0xbf, 0x43, 0x20, 0x38,
-	0x9c, 0xff, 0xeb, 0xf6, 0x0a, 0x42, 0xdd, 0xc9, 0xd0, 0x2b, 0xa1, 0xf6, 0x13, 0x8f, 0xca, 0x9c,
-	0x7a, 0x3b, 0x99, 0x44, 0x38, 0xa3, 0x78, 0x07, 0xac, 0x55, 0x7d, 0xbf, 0xd3, 0x9d, 0xb9, 0x0c,
-	0x9d, 0x38, 0x2e, 0x3b, 0x23, 0xde, 0x03, 0x3b, 0x28, 0x63, 0x9a, 0xef, 0xca, 0xc8, 0xc8, 0x7f,
-	0xfa, 0xcb, 0xe2, 0x03, 0x24, 0x07, 0x1f, 0xc6, 0x48, 0x96, 0x91, 0x22, 0xbd, 0x49, 0x96, 0x53,
-	0x38, 0x9c, 0x75, 0xb7, 0x0b, 0xdd, 0x0e, 0x47, 0x23, 0x17, 0xd3, 0x2e, 0x3c, 0xe4, 0x16, 0x62,
-	0xf4, 0xbf, 0x16, 0x57, 0xb0, 0xa8, 0x1e, 0x77, 0x78, 0x5b, 0x3f, 0x6f, 0xb6, 0xfc, 0x85, 0x60,
-	0x40, 0x9f, 0x56, 0x75, 0xcd, 0x03, 0x71, 0x0d, 0xdc, 0x55, 0xbb, 0xaf, 0xe5, 0xf6, 0xf3, 0xee,
-	0x16, 0xf1, 0x11, 0x6b, 0x1e, 0x8a, 0x37, 0xf0, 0xfa, 0x9f, 0x5a, 0x3f, 0x94, 0x4f, 0x35, 0x27,
-	0x22, 0x85, 0x04, 0x9f, 0xab, 0xaa, 0xac, 0xee, 0x39, 0x75, 0x0e, 0x77, 0xab, 0x72, 0xc3, 0x5f,
-	0x8a, 0x05, 0x44, 0x77, 0x9b, 0xd5, 0xc3, 0x37, 0x7e, 0x95, 0x53, 0x16, 0xf1, 0x74, 0x4d, 0x59,
-	0xcc, 0xd9, 0x9a, 0x32, 0xe0, 0x69, 0x5e, 0x02, 0xbd, 0x1f, 0x75, 0xe7, 0x22, 0xb4, 0xfe, 0xca,
-	0x46, 0x06, 0x97, 0x08, 0xd3, 0xd5, 0x71, 0xd6, 0x85, 0x04, 0x3a, 0x0e, 0xe7, 0xe9, 0x22, 0xe9,
-	0x0d, 0x5d, 0xe2, 0x70, 0x46, 0xaf, 0xac, 0x29, 0x23, 0x1c, 0xf6, 0xb1, 0x7f, 0x2f, 0x1f, 0xff,
-	0x04, 0x00, 0x00, 0xff, 0xff, 0x92, 0x9d, 0x38, 0xff, 0x3e, 0x02, 0x00, 0x00,
+	// 1014 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x55, 0x51, 0x6f, 0xe3, 0xc4,
+	0x13, 0xff, 0x3b, 0x71, 0x62, 0x7b, 0x9c, 0x34, 0xbe, 0xfd, 0x1f, 0x27, 0x73, 0xa8, 0x22, 0x67,
+	0x10, 0x04, 0x84, 0x72, 0x52, 0x78, 0xe5, 0xa5, 0x94, 0x5e, 0x49, 0xaf, 0xcd, 0x55, 0x9b, 0x54,
+	0x88, 0x27, 0xcb, 0xb5, 0xb7, 0x3d, 0xeb, 0x1c, 0xdb, 0xf2, 0xae, 0x49, 0xfb, 0xcc, 0x13, 0x1f,
+	0x80, 0x07, 0xbe, 0x08, 0x9f, 0x0f, 0xcd, 0xec, 0x3a, 0xe9, 0x21, 0x9e, 0xb2, 0xf3, 0x9b, 0xf1,
+	0x6f, 0x67, 0x76, 0xe6, 0x37, 0x01, 0x5f, 0xaa, 0x44, 0x89, 0x79, 0xdd, 0x54, 0xaa, 0x7a, 0xf9,
+	0xa2, 0xbe, 0x7d, 0x9d, 0x56, 0xe5, 0x5d, 0x7e, 0x6f, 0x7e, 0x34, 0x1e, 0xad, 0x60, 0x78, 0x25,
+	0x54, 0x93, 0xa7, 0x8c, 0x81, 0x5d, 0x26, 0x5b, 0x11, 0x5a, 0x53, 0x6b, 0xe6, 0x71, 0x3a, 0xb3,
+	0x10, 0x9c, 0xbc, 0xcc, 0xf2, 0x54, 0xc8, 0xb0, 0x37, 0xed, 0xcf, 0x06, 0xbc, 0x33, 0xd9, 0x0b,
+	0x18, 0xfe, 0x96, 0x14, 0xad, 0x90, 0x61, 0x7f, 0xda, 0x9f, 0x59, 0xdc, 0x58, 0xd1, 0x0d, 0x4c,
+	0x6e, 0xea, 0x2c, 0x51, 0xe2, 0xfa, 0x7d, 0x22, 0xc5, 0x4f, 0x89, 0x4a, 0xd8, 0x31, 0x40, 0x8d,
+	0x46, 0xfc, 0x84, 0xde, 0x23, 0x64, 0x85, 0x77, 0x7c, 0x01, 0x63, 0xed, 0x96, 0x22, 0xad, 0xca,
+	0x0c, 0x6f, 0xb2, 0x66, 0x16, 0x1f, 0x11, 0xb8, 0xd6, 0x58, 0x74, 0x01, 0xa0, 0x69, 0x97, 0xe5,
+	0x5d, 0xc5, 0x7e, 0x80, 0x67, 0x2d, 0x59, 0xb1, 0xfe, 0x32, 0x4b, 0x54, 0x12, 0x5a, 0xd3, 0xfe,
+	0xcc, 0x5f, 0x04, 0xf3, 0x7f, 0x5d, 0xcf, 0x27, 0xed, 0xc7, 0x40, 0xf4, 0x77, 0x0f, 0xbc, 0x93,
+	0x42, 0x34, 0x8a, 0xb8, 0x8e, 0x01, 0xee, 0x92, 0xbc, 0x88, 0xd3, 0xaa, 0x2d, 0x15, 0x65, 0x37,
+	0xe0, 0x1e, 0x22, 0xa7, 0x08, 0xb0, 0x08, 0xc6, 0xe4, 0xbe, 0x6d, 0xf3, 0x22, 0x8b, 0xf3, 0x8c,
+	0xb2, 0xf3, 0xb8, 0x8f, 0xe0, 0x8f, 0x88, 0x2d, 0x33, 0x36, 0x85, 0x11, 0xc5, 0x28, 0x21, 0x15,
+	0x86, 0xd8, 0x14, 0x42, 0xb4, 0x1b, 0x21, 0xd5, 0x32, 0x43, 0x96, 0x3a, 0x91, 0xf2, 0xc0, 0x32,
+	0xd0, 0x2c, 0x08, 0x76, 0x2c, 0x5f, 0xc3, 0x04, 0xbf, 0x68, 0x1b, 0x11, 0x6f, 0x85, 0x94, 0xc9,
+	0xbd, 0x08, 0x1d, 0x8a, 0x3a, 0x32, 0xf0, 0x95, 0x46, 0x31, 0x63, 0xcd, 0x53, 0xe4, 0xe5, 0x87,
+	0xd0, 0xd5, 0xef, 0x49, 0xc8, 0x65, 0x5e, 0x7e, 0x60, 0x5f, 0xc1, 0xe4, 0xe0, 0x8e, 0x95, 0x78,
+	0x50, 0xa1, 0x47, 0x31, 0xe3, 0x7d, 0xcc, 0x46, 0x3c, 0x28, 0xf6, 0x25, 0x1c, 0xe9, 0xb8, 0xb6,
+	0x29, 0x74, 0x18, 0x50, 0xd8, 0x88, 0xd0, 0x9b, 0xa6, 0xc0, 0xa8, 0x0b, 0xdb, 0xed, 0x07, 0xf6,
+	0x85, 0xed, 0x0e, 0x03, 0x27, 0xfa, 0xd3, 0x82, 0x11, 0x16, 0x74, 0x25, 0x54, 0x82, 0x4f, 0xce,
+	0x3e, 0x03, 0x8f, 0x6a, 0x7e, 0xd2, 0x58, 0x17, 0x81, 0xae, 0xaf, 0xb7, 0xed, 0x7d, 0x9c, 0x56,
+	0xdb, 0xba, 0x2a, 0x45, 0xa9, 0xe8, 0xe5, 0x06, 0x48, 0x7f, 0x7f, 0xda, 0x61, 0xec, 0x39, 0x0c,
+	0xaa, 0x5d, 0x29, 0x9a, 0xb0, 0x4f, 0x5f, 0x6b, 0x83, 0x1d, 0x41, 0x2f, 0x4d, 0x43, 0x7b, 0xda,
+	0x9f, 0x79, 0xbc, 0x97, 0xa6, 0x58, 0xb1, 0x68, 0x9a, 0xaa, 0x89, 0xd5, 0x63, 0x2d, 0xcc, 0xdb,
+	0x79, 0x84, 0x6c, 0x1e, 0x6b, 0x11, 0xfd, 0x6e, 0xc1, 0xf0, 0xb4, 0x2a, 0xda, 0x6d, 0x89, 0x7c,
+	0x94, 0xbe, 0xc9, 0x46, 0x1b, 0xfb, 0xd1, 0xee, 0x7d, 0x3c, 0xda, 0x52, 0x25, 0x8d, 0x12, 0x19,
+	0xdd, 0x6d, 0xf1, 0xce, 0x44, 0x0e, 0xf1, 0xa0, 0x9a, 0xc4, 0x24, 0xa0, 0x0d, 0xf6, 0x39, 0xf8,
+	0xef, 0x2b, 0x55, 0xe4, 0xd4, 0x62, 0x69, 0x92, 0x00, 0x03, 0x2d, 0x33, 0x19, 0xfd, 0xd1, 0x87,
+	0x3e, 0xaf, 0x76, 0xff, 0xa9, 0xa3, 0x23, 0xe8, 0xed, 0x47, 0xa7, 0x97, 0x67, 0x78, 0x79, 0x23,
+	0x64, 0x5b, 0x28, 0x2d, 0x9f, 0x01, 0xef, 0x4c, 0xf6, 0x29, 0xb8, 0xa9, 0x28, 0x0a, 0xba, 0x43,
+	0xdf, 0xef, 0xa0, 0xbd, 0xcc, 0x24, 0x7b, 0x09, 0xae, 0x19, 0x0c, 0xbc, 0x1e, 0x5d, 0x7b, 0x1b,
+	0xe5, 0xb8, 0x25, 0x19, 0x87, 0x0e, 0x79, 0x8c, 0xc5, 0x5e, 0x81, 0xa3, 0x4f, 0x32, 0x74, 0x49,
+	0x1f, 0xce, 0x5c, 0xcb, 0x9d, 0x77, 0x38, 0x96, 0x9b, 0xa7, 0x55, 0x29, 0x43, 0x4f, 0x97, 0x4b,
+	0x06, 0xfb, 0x04, 0x86, 0xd8, 0xbd, 0x3c, 0x0b, 0x41, 0xc3, 0xb7, 0xed, 0xfd, 0x32, 0x63, 0xdf,
+	0x00, 0x24, 0x28, 0x9d, 0x38, 0x2f, 0xef, 0xaa, 0xd0, 0x9f, 0x5a, 0x33, 0x7f, 0x01, 0xf3, 0xbd,
+	0x9a, 0xb8, 0x97, 0x74, 0xc7, 0x48, 0xc1, 0x90, 0x53, 0x51, 0x6c, 0x0c, 0xde, 0xea, 0x5d, 0xcc,
+	0xcf, 0xd6, 0x37, 0x97, 0x9b, 0xe0, 0x7f, 0xcc, 0x05, 0xfb, 0xfa, 0x64, 0xbd, 0x0e, 0x2c, 0xf6,
+	0x1c, 0x02, 0x3c, 0xc5, 0xbf, 0x2c, 0x37, 0x3f, 0xc7, 0x67, 0x9c, 0xbf, 0xe3, 0xeb, 0xa0, 0xc7,
+	0xfe, 0x0f, 0x93, 0x03, 0xba, 0x7e, 0xbb, 0xbc, 0x5e, 0x07, 0x7d, 0xe6, 0x83, 0xc3, 0x6f, 0x56,
+	0xab, 0xe5, 0xea, 0x3c, 0xb0, 0x91, 0xe1, 0xcd, 0xc9, 0xf2, 0x32, 0x18, 0x31, 0x0f, 0x06, 0x6f,
+	0x2e, 0x4f, 0xde, 0xfe, 0x1a, 0x8c, 0x23, 0xdb, 0x1d, 0x04, 0xbe, 0x99, 0xd4, 0xbf, 0xfa, 0x60,
+	0x9f, 0x37, 0x79, 0x86, 0xf5, 0xa7, 0x34, 0x19, 0xd2, 0xec, 0x07, 0x67, 0xae, 0x27, 0x85, 0x77,
+	0x38, 0x0b, 0xc1, 0x6e, 0xaa, 0x9d, 0x5e, 0x70, 0xfe, 0xc2, 0x9e, 0xf3, 0x6a, 0xc7, 0x09, 0x61,
+	0xaf, 0xe1, 0x79, 0x91, 0x48, 0x15, 0xeb, 0x8a, 0xb7, 0x24, 0xf1, 0x7c, 0x2b, 0xcc, 0xbc, 0x3c,
+	0x43, 0x1f, 0x55, 0x7e, 0x85, 0x42, 0xcf, 0xb7, 0x82, 0x45, 0x30, 0xd4, 0xcb, 0x95, 0x56, 0x00,
+	0xbe, 0x0c, 0xca, 0xe5, 0xbc, 0xa9, 0xda, 0x9a, 0x1b, 0x0f, 0xfb, 0x16, 0xe8, 0x43, 0x62, 0x8a,
+	0xf5, 0x6a, 0xca, 0xc2, 0x21, 0x31, 0x4e, 0xd0, 0x81, 0x44, 0x7a, 0x85, 0x65, 0xec, 0x3b, 0xf0,
+	0xcd, 0x9e, 0xa3, 0xe7, 0xd6, 0x1d, 0xf4, 0xe7, 0x87, 0x4d, 0xc8, 0xa1, 0x3d, 0x6c, 0xc5, 0x05,
+	0x8c, 0x49, 0x8d, 0x5b, 0x23, 0x4f, 0x6a, 0xa8, 0xbf, 0x18, 0xcf, 0x9f, 0x6a, 0x96, 0x8f, 0xd4,
+	0x53, 0x05, 0x47, 0xe0, 0xa4, 0x45, 0x2b, 0x95, 0x68, 0xa8, 0xcf, 0xfe, 0xc2, 0x9d, 0x9f, 0x6a,
+	0x9b, 0x77, 0x0e, 0x76, 0x02, 0xc7, 0xdb, 0x4a, 0xaa, 0xb8, 0x11, 0xa9, 0x28, 0x55, 0x6c, 0x60,
+	0x2a, 0x40, 0xaa, 0x64, 0x5b, 0xd3, 0x18, 0x58, 0xfc, 0x25, 0x06, 0x71, 0x8a, 0x31, 0x14, 0x9b,
+	0x2e, 0xe2, 0x02, 0x7b, 0x33, 0xbc, 0xb0, 0x5d, 0x27, 0x70, 0xa3, 0x06, 0x1c, 0xe3, 0x47, 0x4d,
+	0x51, 0xc6, 0xf8, 0x47, 0xd5, 0x4a, 0xb3, 0x7c, 0x01, 0xa1, 0x35, 0x21, 0xa8, 0x93, 0x6e, 0x17,
+	0x6a, 0xf1, 0x74, 0x26, 0x3e, 0x4d, 0x97, 0x48, 0x53, 0xed, 0x48, 0x45, 0xf8, 0x34, 0x5d, 0xf2,
+	0xd5, 0x8e, 0x43, 0xba, 0x3f, 0x47, 0x67, 0x00, 0x07, 0x0f, 0x7b, 0x05, 0xa3, 0x2c, 0x97, 0x75,
+	0x91, 0x3c, 0x3e, 0xdd, 0x5c, 0xbe, 0xc1, 0x68, 0x79, 0xa1, 0x28, 0xca, 0x4c, 0x3c, 0x98, 0xbf,
+	0x3d, 0x6d, 0xdc, 0x0e, 0xe9, 0x3f, 0xf3, 0xfb, 0x7f, 0x02, 0x00, 0x00, 0xff, 0xff, 0x3c, 0xe2,
+	0x6c, 0x3d, 0x5a, 0x07, 0x00, 0x00,
 }
