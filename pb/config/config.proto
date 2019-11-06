@@ -331,6 +331,9 @@ message TestGroup {
   // If true, only add the most recent result for a test when multiple results
   // for a test with the same name are encountered.
   bool ignore_old_results = 53;
+
+  // If True, ignore the 'pass with skips' status (show as a blank cell).
+  bool ignore_skip = 54;
 }
 
 message JUnitConfig {}
