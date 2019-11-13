@@ -259,8 +259,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "github.com/stretchr/objx",
-        sum = "h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=",
-        version = "v0.1.0",
+        sum = "h1:2vfRuCMp5sSVIDSqO8oNnWJq7mPa6KVP3iPIwFBuy8A=",
+        version = "v0.1.1",
     )
     go_repository(
         name = "com_github_stretchr_testify",
@@ -522,4 +522,20 @@ def go_repositories():
         importpath = "golang.org/x/mobile",
         sum = "h1:Tus/Y4w3V77xDsGwKUC8a/QrV7jScpU557J77lFffNs=",
         version = "v0.0.0-20190312151609-d3739f865fa6",
+    )
+    go_repository(
+        name = "com_github_konsorten_go_windows_terminal_sequences",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/konsorten/go-windows-terminal-sequences",
+        sum = "h1:mweAR1A6xJ3oS2pRaGiHgQ4OO8tzTaLawm8vnODuwDk=",
+        version = "v1.0.1",
+    )
+    go_repository(
+        name = "com_github_sirupsen_logrus",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/sirupsen/logrus",
+        sum = "h1:SPIRibHv4MatM3XXNO2BJeFLZwZ2LvZgfQ5+UNI2im4=",
+        version = "v1.4.2",
     )

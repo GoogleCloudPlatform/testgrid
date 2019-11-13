@@ -375,6 +375,7 @@ func AppendColumn(headers []string, format nameConfig, grid *state.Grid, rows ma
 				r = &state.Row{
 					Name: name,
 					Id:   target,
+					// TODO(fejta): AlertInfo,
 				}
 				rows[name] = r
 				grid.Rows = append(grid.Rows, r)

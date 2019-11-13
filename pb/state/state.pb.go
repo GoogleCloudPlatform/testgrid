@@ -633,7 +633,6 @@ type Grid struct {
 	// Seconds since epoch for last time this cycle was updated.
 	LastTimeUpdated float64 `protobuf:"fixed64,6,opt,name=last_time_updated,json=lastTimeUpdated,proto3" json:"last_time_updated,omitempty"`
 	// Stored info on previous timing for parts of the update cycle.
-	// TODO(b/63145995): Move last_time_updated, last_alert_mail_time here.
 	UpdateInfo []*UpdateInfo `protobuf:"bytes,8,rep,name=update_info,json=updateInfo,proto3" json:"update_info,omitempty"`
 	// Stored info on default test metadata.
 	TestMetadata []*TestMetadata `protobuf:"bytes,9,rep,name=test_metadata,json=testMetadata,proto3" json:"test_metadata,omitempty"`
