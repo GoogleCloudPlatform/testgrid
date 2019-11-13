@@ -184,7 +184,6 @@ message Grid {
   reserved 7;
 
   // Stored info on previous timing for parts of the update cycle.
-  // TODO(b/63145995): Move last_time_updated, last_alert_mail_time here.
   repeated UpdateInfo update_info = 8;
 
   // Stored info on default test metadata.
