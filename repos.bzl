@@ -195,15 +195,6 @@ def go_repositories():
     )
 
     go_repository(
-        name = "com_github_konsorten_go_windows_terminal_sequences",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/konsorten/go-windows-terminal-sequences",
-        sum = "h1:DB17ag19krx9CFsz4o3enTrPXyIXCl+2iCXH/aMAp9s=",
-        version = "v1.0.2",
-    )
-
-    go_repository(
         name = "com_github_kr_pretty",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -255,15 +246,6 @@ def go_repositories():
     )
 
     go_repository(
-        name = "com_github_sirupsen_logrus",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/sirupsen/logrus",
-        sum = "h1:SPIRibHv4MatM3XXNO2BJeFLZwZ2LvZgfQ5+UNI2im4=",
-        version = "v1.4.2",
-    )
-
-    go_repository(
         name = "com_github_spf13_pflag",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -277,8 +259,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "github.com/stretchr/objx",
-        sum = "h1:2vfRuCMp5sSVIDSqO8oNnWJq7mPa6KVP3iPIwFBuy8A=",
-        version = "v0.1.1",
+        sum = "h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=",
+        version = "v0.1.0",
     )
     go_repository(
         name = "com_github_stretchr_testify",
