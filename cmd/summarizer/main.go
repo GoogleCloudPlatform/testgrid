@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"regexp"
@@ -73,7 +74,11 @@ func gatherOptions() options {
 	return o
 }
 
-type groupFinder func(string) (*configpb.TestGroup, *gcs.Path, error)
+// gridReader returns the grid content and metadata (last updated time, generation id)
+type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, error)
+
+// groupFinder returns the named group as well as reader for the grid state
+type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 
 func main() {
 
@@ -100,22 +105,33 @@ func main() {
 	dashboards := make(chan *configpb.Dashboard)
 	var wg sync.WaitGroup
 
-	groupFinder := func(name string) (*configpb.TestGroup, *gcs.Path, error) {
+	groupFinder := func(name string) (*configpb.TestGroup, gridReader, error) {
 		group := config.FindTestGroup(name, cfg)
 		if group == nil {
 			return nil, nil, nil
 		}
 		path, err := opt.config.ResolveReference(&url.URL{Path: name})
-		return group, path, err
+		if err != nil {
+			return group, nil, err
+		}
+		reader := func(ctx context.Context) (io.ReadCloser, time.Time, int64, error) {
+			return pathReader(ctx, client, *path)
+		}
+		return group, reader, nil
 	}
 
 	for i := 0; i < opt.concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			for dash := range dashboards {
-				if err := updateDashboard(ctx, client, dash, groupFinder); err != nil {
-					logrus.WithField("dashboard", dash.Name).WithError(err).Fatal("Cannot summarize dashboard")
+				log := logrus.WithField("dashboard", dash.Name)
+				log.Info("Summarizing dashboard")
+				sum, err := updateDashboard(ctx, dash, groupFinder)
+				if err != nil {
+					log.WithError(err).Fatal("Cannot summarize dashboard")
+					continue
 				}
+				log.WithField("summary", sum).Info("summarized") // TODO(fejta): write it
 			}
 			wg.Done()
 		}()
@@ -132,25 +148,48 @@ func main() {
 	wg.Wait()
 }
 
-func updateDashboard(ctx context.Context, client *storage.Client, dash *configpb.Dashboard, finder groupFinder) error {
+// pathReader returns a reader for the specified path and last modified, generation metadata.
+func pathReader(ctx context.Context, client *storage.Client, path gcs.Path) (io.ReadCloser, time.Time, int64, error) {
+	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
+	if err != nil {
+		return nil, time.Time{}, 0, err
+	}
+	return r, r.Attrs.LastModified, r.Attrs.Generation, nil
+}
+
+// updateDashboard will summarize all the tabs (through errors), returning an error if any fail to summarize.
+func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder groupFinder) (*summary.DashboardSummary, error) {
 	log := logrus.WithField("dashboard", dash.Name)
 	var badTabs []string
 	var sum summary.DashboardSummary
 	for _, tab := range dash.DashboardTab {
-		s, err := updateTab(ctx, client, tab, finder)
+		log := log.WithField("tab", tab.Name)
+		log.Info("Summarizing tab")
+		s, err := updateTab(ctx, tab, finder)
 		if err != nil {
-			log.WithField("tab", tab.Name).WithError(err).Error("Cannot summarize tab")
+			log.WithError(err).Error("Cannot summarize tab")
 			badTabs = append(badTabs, tab.Name)
+			sum.TabSummaries = append(sum.TabSummaries, problemTab(tab.Name))
+			continue
 		}
 		sum.TabSummaries = append(sum.TabSummaries, s)
 	}
+	var err error
 	if d := len(badTabs); d > 0 {
-		return fmt.Errorf("Failed %d tabs: %s", d, strings.Join(badTabs, ", "))
+		err = fmt.Errorf("Failed %d tabs: %s", d, strings.Join(badTabs, ", "))
 	}
-	log.WithField("summary", sum).Info("summarized") // TODO(fejta): write it
-	return nil
+	return &sum, err
 }
 
+// problemTab summarizes a tab that cannot summarize
+func problemTab(name string) *summary.DashboardTabSummary {
+	return &summary.DashboardTabSummary{
+		DashboardTabName: name,
+		Alert:            "failed to summarize tab",
+	}
+}
+
+// staleHours returns the configured number of stale hours for the tab.
 func staleHours(tab *configpb.DashboardTab) time.Duration {
 	if tab.AlertOptions == nil {
 		return 0
@@ -158,16 +197,17 @@ func staleHours(tab *configpb.DashboardTab) time.Duration {
 	return time.Duration(tab.AlertOptions.AlertStaleResultsHours) * time.Hour
 }
 
-func updateTab(ctx context.Context, client *storage.Client, tab *configpb.DashboardTab, findGroup groupFinder) (*summary.DashboardTabSummary, error) {
+// updateTab reads the latest grid state for the tab and summarizes it.
+func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupFinder) (*summary.DashboardTabSummary, error) {
 	groupName := tab.TestGroupName
-	group, groupPath, err := findGroup(groupName)
+	group, groupReader, err := findGroup(groupName)
 	if err != nil {
 		return nil, fmt.Errorf("find group: %v", err)
 	}
 	if group == nil {
 		return nil, fmt.Errorf("not found: %q", groupName)
 	}
-	grid, mod, _, err := loadGrid(ctx, client, *groupPath) // TODO(fejta): track gen
+	grid, mod, _, err := readGrid(ctx, groupReader) // TODO(fejta): track gen
 	if err != nil {
 		return nil, fmt.Errorf("load %q: %v", groupName, err)
 	}
@@ -191,27 +231,27 @@ func updateTab(ctx context.Context, client *storage.Client, tab *configpb.Dashbo
 	}, nil
 }
 
-// loadGrid downloads and deserializes the current test group state.
-func loadGrid(ctx context.Context, client *storage.Client, path gcs.Path) (*state.Grid, time.Time, int64, error) {
+// readGrid downloads and deserializes the current test group state.
+func readGrid(ctx context.Context, reader gridReader) (*state.Grid, time.Time, int64, error) {
 	var t time.Time
-	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
+	r, mod, gen, err := reader(ctx)
 	if err != nil {
-		return nil, t, 0, fmt.Errorf("open %q: %v", path, err)
+		return nil, t, 0, fmt.Errorf("open: %v", err)
 	}
 	defer r.Close()
 	zlibReader, err := zlib.NewReader(r)
 	if err != nil {
-		return nil, t, 0, fmt.Errorf("decompress %s: %v", path, err)
+		return nil, t, 0, fmt.Errorf("decompress: %v", err)
 	}
 	buf, err := ioutil.ReadAll(zlibReader)
 	if err != nil {
-		return nil, t, 0, fmt.Errorf("read %s: %v", path, err)
+		return nil, t, 0, fmt.Errorf("read: %v", err)
 	}
 	var g state.Grid
 	if err = proto.Unmarshal(buf, &g); err != nil {
-		return nil, t, 0, fmt.Errorf("parse %s: %v", path, err)
+		return nil, t, 0, fmt.Errorf("parse: %v", err)
 	}
-	return &g, r.Attrs.LastModified, r.Attrs.Generation, nil
+	return &g, mod, gen, nil
 }
 
 // recentColumns returns the configured number of recent columns to summarize, or 5.
@@ -329,13 +369,15 @@ func latestRun(columns []*state.Column) (time.Time, int64) {
 	return time.Time{}, 0
 }
 
+const noRuns = "no completed results"
+
 // staleAlert returns an explanatory message if the latest results are stale.
 func staleAlert(mod, ran time.Time, stale time.Duration) string {
 	if mod.IsZero() {
 		return "no stored results"
 	}
 	if ran.IsZero() {
-		return "no completed results"
+		return noRuns
 	}
 	if stale == 0 {
 		return ""
@@ -414,6 +456,8 @@ func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary
 	return summary.DashboardTabSummary_UNKNOWN
 }
 
+const noGreens = "no recent greens"
+
 // latestGreen finds the ID for the most recent column with all passing rows.
 func latestGreen(grid *state.Grid) string {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -436,7 +480,7 @@ func latestGreen(grid *state.Grid) string {
 			return col.Extra[0]
 		}
 	}
-	return "no recent greens"
+	return noGreens
 }
 
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
