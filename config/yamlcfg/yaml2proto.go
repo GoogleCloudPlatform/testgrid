@@ -143,6 +143,10 @@ func ReconcileTestGroup(currentTestGroup *config.TestGroup, defaultTestGroup *co
 		currentTestGroup.IgnorePending = defaultTestGroup.IgnorePending
 	}
 
+	if currentTestGroup.IgnoreSkip == false {
+		currentTestGroup.IgnoreSkip = defaultTestGroup.IgnoreSkip
+	}
+
 	if currentTestGroup.ColumnHeader == nil {
 		currentTestGroup.ColumnHeader = defaultTestGroup.ColumnHeader
 	}
