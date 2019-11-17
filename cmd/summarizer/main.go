@@ -228,8 +228,8 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		Alert:                alert,
 		FailingTestSummaries: failures,
 		OverallStatus:        overallStatus(grid, recent, alert, failures),
-		// TODO(fejta): Status:               summarize(grid, recent),
-		LatestGreen: latestGreen(grid),
+		Status:               statusMessage(len(grid.Columns), grid.Rows, recent),
+		LatestGreen:          latestGreen(grid),
 		// TODO(fejta): BugUrl
 	}, nil
 }
@@ -462,6 +462,59 @@ func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary
 		return summary.DashboardTabSummary_PASS
 	}
 	return summary.DashboardTabSummary_UNKNOWN
+}
+
+func fmtStatus(passCols, cols, passCells, cells int) string {
+	colCent := 100 * float64(passCols) / float64(cols)
+	cellCent := 100 * float64(passCells) / float64(cells)
+	return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
+}
+
+func statusMessage(cols int, rows []*state.Row, recent int) string {
+	//  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	results := results(ctx, rows)
+	var passingCells int
+	var filledCells int
+	var passingCols int
+	var completedCols int
+	for idx := 0; idx < cols; idx++ {
+		if idx >= recent {
+			break
+		}
+		var passes bool
+		var failures bool
+		for _, ch := range results {
+			// TODO(fejta): fail old running cols
+			switch coalesceResult(<-ch, ignoreRunning) {
+			case state.Row_PASS:
+				if !failures {
+					passes = true
+				}
+				passingCells++
+				filledCells++
+			case state.Row_NO_RESULT:
+				// noop
+			default:
+				passes = false
+				failures = true
+				filledCells++
+			}
+		}
+
+		if failures || passes {
+			completedCols++
+		}
+		if passes {
+			passingCols++
+		}
+	}
+	if filledCells == 0 {
+		return noRuns
+	}
+	return fmtStatus(passingCols, completedCols, passingCells, filledCells)
 }
 
 const noGreens = "no recent greens"
