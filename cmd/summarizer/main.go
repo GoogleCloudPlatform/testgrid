@@ -213,7 +213,10 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	}
 
 	recent := recentColumns(tab, group)
-	filterGrid(tab, grid, recent)
+	grid.Rows, err = filterGrid(tab.BaseOptions, grid.Rows, recent)
+	if err != nil {
+		return nil, fmt.Errorf("filter: %v", err)
+	}
 
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
@@ -279,30 +282,31 @@ func firstFilled(values ...int32) int {
 	return 0
 }
 
-// filterGrid truncates the grid to rows with recent results and matching the white/blacklist.
-func filterGrid(tab *configpb.DashboardTab, grid *state.Grid, recent int) error {
-	const (
-		includeFilter = "include-filter-by-regex"
-		excludeFilter = "exclude-filter-by-regex"
-		// TODO(fejta): others, which are not used by testgrid.k8s.io
-	)
+const (
+	includeFilter = "include-filter-by-regex"
+	excludeFilter = "exclude-filter-by-regex"
+	// TODO(fejta): others, which are not used by testgrid.k8s.io
+)
 
-	vals, err := url.ParseQuery(tab.BaseOptions)
+// filterGrid truncates the grid to rows with recent results and matching the white/blacklist.
+func filterGrid(baseOptions string, rows []*state.Row, recent int) ([]*state.Row, error) {
+
+	vals, err := url.ParseQuery(baseOptions)
 	if err != nil {
-		return fmt.Errorf("parse base options %q: %v", tab.BaseOptions, err)
+		return nil, fmt.Errorf("parse %q: %v", baseOptions, err)
 	}
 
-	grid.Rows = recentRows(grid.Rows, recent)
+	rows = recentRows(rows, recent)
 
 	for _, include := range vals[includeFilter] {
-		if grid.Rows, err = includeRows(grid.Rows, include); err != nil {
-			return fmt.Errorf("bad %s=%s: %v", includeFilter, include, err)
+		if rows, err = includeRows(rows, include); err != nil {
+			return nil, fmt.Errorf("bad %s=%s: %v", includeFilter, include, err)
 		}
 	}
 
 	for _, exclude := range vals[excludeFilter] {
-		if grid.Rows, err = excludeRows(grid.Rows, exclude); err != nil {
-			return fmt.Errorf("bad %s=%s: %v", excludeFilter, exclude, err)
+		if rows, err = excludeRows(rows, exclude); err != nil {
+			return nil, fmt.Errorf("bad %s=%s: %v", excludeFilter, exclude, err)
 		}
 	}
 
@@ -310,13 +314,16 @@ func filterGrid(tab *configpb.DashboardTab, grid *state.Grid, recent int) error 
 	// TODO(fejta): sorting, unused by testgrid.k8s.io
 	// TODO(fejta): graph, unused by testgrid.k8s.io
 	// TODO(fejta): tabuluar, unused by testgrid.k8s.io
-	return nil
+	return rows, nil
 }
 
 // recentRows returns the subset of rows with at least one recent result
 func recentRows(in []*state.Row, recent int) []*state.Row {
 	var rows []*state.Row
 	for _, r := range in {
+		if r.Results == nil {
+			continue
+		}
 		if state.Row_Result(r.Results[0]) == state.Row_NO_RESULT && int(r.Results[1]) >= recent {
 			continue
 		}
@@ -435,18 +442,19 @@ func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary
 	for _, resultCh := range results {
 		recentResults := recent
 		for result := range resultCh {
-			result = coalesceResult(result)
+			// TODO(fejta): fail old running results.
+			result = coalesceResult(result, ignoreRunning)
 			if result == state.Row_NO_RESULT {
 				continue
 			}
 			if result != state.Row_PASS {
 				return summary.DashboardTabSummary_FLAKY
 			}
+			found = true
 			recentResults--
 			if recentResults == 0 {
 				break
 			}
-			found = true
 		}
 
 	}
@@ -467,7 +475,7 @@ func latestGreen(grid *state.Grid) string {
 		var failures bool
 		var passes bool
 		for _, resultCh := range results {
-			result := coalesceResult(<-resultCh)
+			result := coalesceResult(<-resultCh, failRunning)
 			if result == state.Row_PASS {
 				passes = true
 			}
@@ -483,11 +491,15 @@ func latestGreen(grid *state.Grid) string {
 	return noGreens
 }
 
+const (
+	ignoreRunning = true
+	failRunning   = false
+)
+
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
-func coalesceResult(result state.Row_Result) state.Row_Result {
+func coalesceResult(result state.Row_Result, ignoreRunning bool) state.Row_Result {
 	// TODO(fejta): other result types, not used by k8s testgrid
-	const allowRunning = true // TODO(fejta): move to arg, auto-fail old results
-	if result == state.Row_NO_RESULT || result == state.Row_RUNNING && allowRunning {
+	if result == state.Row_NO_RESULT || result == state.Row_RUNNING && ignoreRunning {
 		return state.Row_NO_RESULT
 	}
 	if result == state.Row_FAIL || result == state.Row_RUNNING {
@@ -513,6 +525,11 @@ func resultIter(ctx context.Context, results []int32) <-chan state.Row_Result {
 					return
 				case out <- result:
 					count--
+				}
+				select {
+				case <-ctx.Done(): // In case we lost the race
+					return
+				default:
 				}
 			}
 		}
