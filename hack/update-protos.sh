@@ -38,19 +38,33 @@ grpc=$4
 importmap=$5
 dest=$BUILD_WORKSPACE_DIRECTORY
 
+if [[ -z "${_virtual_imports:-}" ]]; then
+  export _virtual_imports="$0.runfiles/com_google_protobuf/_virtual_imports"
+fi
+
 genproto() {
   dir=$(dirname "$1")
   base=$(basename "$1")
   out=$dest/$dir/${base%.proto}.pb.go
   rm -f "$out" # mac will complain otherwise
-  "$protoc" "--plugin=$plugin" "--proto_path=${dir}" "--proto_path=${dest}" "--go_out=${grpc},${importmap}:$dest/$dir" "$1"
+  (
+    # TODO(fejta): this _virtual_imports piece is super fragile
+    # Add any extra well-known imports to data and then add a new path
+    "$protoc" \
+        "--plugin=$plugin" \
+        "--proto_path=$dir" \
+        "--proto_path=$dest" \
+        "--proto_path=$_virtual_imports/timestamp_proto" \
+        "--go_out=${grpc},${importmap}:$dest/$dir" \
+        "$1"
+  )
   tmp=$(mktemp)
   mv "$out" "$tmp"
   cat "$boiler" "$tmp" > "$out"
 }
 
 echo -n "Generating protos: " >&2
-for p in $(find . -not '(' -path './vendor' -prune ')' -not '(' -path './node_modules' -prune ')' -name '*.proto'); do
+for p in $(find . -not '(' -path './vendor' -o -path './node_modules' -o -path './external' -prune ')' -name '*.proto'); do
   echo -n "$p "
   genproto "$p"
 done

@@ -80,6 +80,7 @@ sh_binary(
     data = [
         ":boilerplate/boilerplate.generated.go.txt",
         "//:all-srcs",
+        "@com_google_protobuf//:timestamp_proto",
         protoc,
         protoc_gen_go,
     ],
@@ -100,6 +101,7 @@ sh_test(
     data = [
         ":boilerplate/boilerplate.generated.go.txt",
         ":update-protos",
+        "@com_google_protobuf//:timestamp_proto",
         protoc,
         protoc_gen_go,
         "@//:all-srcs",
