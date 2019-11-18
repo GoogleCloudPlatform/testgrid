@@ -4,8 +4,7 @@
 
 syntax = "proto3";
 
-// TODO: Figure out how to import this with Bazel
-// import "google/protobuf/timestamp.proto";
+import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 
 // A metric and its values for each test cycle.
@@ -44,8 +43,7 @@ message AlertInfo {
   string fail_build_id = 2;
 
   // The time the test first failed at.
-  // google.protobuf.Timestamp fail_time = 3;
-  reserved 3;
+  google.protobuf.Timestamp fail_time = 3;
 
   // The test ID for the first test failure.
   string fail_test_id = 4;
@@ -54,8 +52,7 @@ message AlertInfo {
   string pass_build_id = 5;
 
   // The time the test last passed at.
-  // google.protobuf.Timestamp pass_time = 6;
-  reserved 6;
+  google.protobuf.Timestamp pass_time = 6;
 
   // A snippet explaining the failure.
   string failure_message = 7;
