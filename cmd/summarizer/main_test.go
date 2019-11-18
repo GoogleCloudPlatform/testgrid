@@ -73,6 +73,7 @@ func TestUpdateDashboard(t *testing.T) {
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
 						OverallStatus:       summary.DashboardTabSummary_STALE,
+						Status:              noRuns,
 						LatestGreen:         noGreens,
 					},
 				},
@@ -114,6 +115,7 @@ func TestUpdateDashboard(t *testing.T) {
 						DashboardTabName:    "working",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
+						Status:              noRuns,
 						OverallStatus:       summary.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
 					},
@@ -123,6 +125,7 @@ func TestUpdateDashboard(t *testing.T) {
 						DashboardTabName:    "still-working",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
+						Status:              noRuns,
 						OverallStatus:       summary.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
 					},
@@ -260,6 +263,7 @@ func TestUpdateTab(t *testing.T) {
 				Alert:               noRuns,
 				LatestGreen:         noGreens,
 				OverallStatus:       summary.DashboardTabSummary_STALE,
+				Status:              noRuns,
 			},
 		},
 	}
@@ -1067,6 +1071,203 @@ func TestOverallStatus(t *testing.T) {
 
 			if actual := overallStatus(&state.Grid{Rows: tc.rows}, tc.recent, tc.stale, alerts); actual != tc.expected {
 				t.Errorf("%s != expected %s", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestStatusMessage(t *testing.T) {
+	cases := []struct {
+		name             string
+		cols             int
+		rows             []*state.Row
+		recent           int
+		passingCols      int
+		filledCols       int
+		passingCells     int
+		filledCells      int
+		expectedOverride string
+	}{
+		{
+			name:             "no runs",
+			expectedOverride: noRuns,
+		},
+		{
+			name: "what people want (greens)",
+			cols: 2,
+			rows: []*state.Row{
+				{
+					Name:    "green eggs",
+					Results: []int32{int32(state.Row_PASS), 2},
+				},
+				{
+					Name:    "and ham",
+					Results: []int32{int32(state.Row_PASS), 2},
+				},
+			},
+			recent:       2,
+			passingCols:  2,
+			filledCols:   2,
+			passingCells: 4,
+			filledCells:  4,
+		},
+		{
+			name: "red: i do not like them sam I am",
+			cols: 2,
+			rows: []*state.Row{
+				{
+					Name:    "not with a fox",
+					Results: []int32{int32(state.Row_FAIL), 2},
+				},
+				{
+					Name:    "not in a box",
+					Results: []int32{int32(state.Row_FLAKY), 2},
+				},
+			},
+			recent:       2,
+			passingCols:  0,
+			filledCols:   2,
+			passingCells: 0,
+			filledCells:  4,
+		},
+		{
+			name: "passing cells but no green columns",
+			cols: 2,
+			rows: []*state.Row{
+				{
+					Name: "first doughnut is best",
+					Results: []int32{
+						int32(state.Row_PASS), 1,
+						int32(state.Row_FAIL), 1,
+					},
+				},
+				{
+					Name: "fine wine gets better",
+					Results: []int32{
+						int32(state.Row_FAIL), 1,
+						int32(state.Row_PASS), 1,
+					},
+				},
+			},
+			recent:       2,
+			passingCols:  0,
+			filledCols:   2,
+			passingCells: 2,
+			filledCells:  4,
+		},
+		{
+			name:   "ignore overflow of claimed columns",
+			cols:   100,
+			recent: 50,
+			rows: []*state.Row{
+				{
+					Name:    "a",
+					Results: []int32{int32(state.Row_PASS), 3},
+				},
+				{
+					Name:    "b",
+					Results: []int32{int32(state.Row_PASS), 3},
+				},
+			},
+			passingCols:  3,
+			filledCols:   3,
+			passingCells: 6,
+			filledCells:  6,
+		},
+		{
+			name:   "ignore bad row data",
+			cols:   2,
+			recent: 2,
+			rows: []*state.Row{
+				{
+					Name: "empty",
+				},
+				{
+					Name:    "filled",
+					Results: []int32{int32(state.Row_PASS), 2},
+				},
+			},
+			passingCols:  2,
+			filledCols:   2,
+			passingCells: 2,
+			filledCells:  2,
+		},
+		{
+			name:   "ignore non recent data",
+			cols:   100,
+			recent: 2,
+			rows: []*state.Row{
+				{
+					Name:    "data",
+					Results: []int32{int32(state.Row_PASS), 100},
+				},
+			},
+			passingCols:  2,
+			filledCols:   2,
+			passingCells: 2,
+			filledCells:  2,
+		},
+		{
+			name:   "no result cells do not alter column",
+			cols:   3,
+			recent: 3,
+			rows: []*state.Row{
+				{
+					Name:    "always empty",
+					Results: []int32{int32(state.Row_NO_RESULT), 3},
+				},
+				{
+					Name: "first empty",
+					Results: []int32{
+						int32(state.Row_NO_RESULT), 1,
+						int32(state.Row_PASS), 2,
+					},
+				},
+				{
+					Name: "always pass",
+					Results: []int32{
+						int32(state.Row_PASS), 3,
+					},
+				},
+				{
+					Name: "empty, fail, pass",
+					Results: []int32{
+						int32(state.Row_NO_RESULT), 1,
+						int32(state.Row_FAIL), 1,
+						int32(state.Row_PASS), 1,
+					},
+				},
+			},
+			passingCols:  2, // pass, fail, pass
+			filledCols:   3,
+			passingCells: 6,
+			filledCells:  7,
+		},
+		{
+			name:   "not enough columns yet works just fine",
+			cols:   2,
+			recent: 50,
+			rows: []*state.Row{
+				{
+					Name:    "two passes",
+					Results: []int32{int32(state.Row_PASS), 2},
+				},
+			},
+			passingCols:  2,
+			filledCols:   2,
+			passingCells: 2,
+			filledCells:  2,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			expected := tc.expectedOverride
+			if expected == "" {
+				expected = fmtStatus(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells)
+			}
+			if actual := statusMessage(tc.cols, tc.rows, tc.recent); actual != expected {
+				t.Errorf("%s != expected %s", actual, expected)
 			}
 		})
 	}
