@@ -36,6 +36,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/pb/summary"
@@ -262,16 +263,6 @@ func recentColumns(tab *configpb.DashboardTab, group *configpb.TestGroup) int {
 	return firstFilled(tab.NumColumnsRecent, group.NumColumnsRecent, 5)
 }
 
-func failuresToOpen(tab *configpb.DashboardTab, group *configpb.TestGroup) int {
-	return firstFilled(tab.AlertOptions.NumFailuresToAlert, group.NumFailuresToAlert)
-
-}
-
-// passesToClose returns the number of consecutive passes configured to close an alert, or 1.
-func passesToClose(tab configpb.DashboardTab, group *configpb.TestGroup) int {
-	return firstFilled(tab.AlertOptions.NumPassesToDisableAlert, group.NumPassesToDisableAlert, 1)
-}
-
 // firstFilled returns the first non-empty value, or zero.
 func firstFilled(values ...int32) int {
 	for _, v := range values {
@@ -407,21 +398,28 @@ func failingTestSummaries(rows []*state.Row) []*summary.FailingTestSummary {
 			continue
 		}
 		alert := row.AlertInfo
-		failures = append(failures, &summary.FailingTestSummary{
-			DisplayName: row.Name,
-			TestName:    row.Id,
-			FailBuildId: alert.FailBuildId,
-			// TODO(fejta): FailTimestamp
-			PassBuildId: alert.PassBuildId,
-			// TODO(fejta): PassTimestamp
+		sum := summary.FailingTestSummary{
+			DisplayName:    row.Name,
+			TestName:       row.Id,
+			FailBuildId:    alert.FailBuildId,
 			FailCount:      alert.FailCount,
-			BuildLink:      alert.BuildLink,
-			BuildLinkText:  alert.BuildLinkText,
-			BuildUrlText:   alert.BuildUrlText,
 			FailureMessage: alert.FailureMessage,
+			PassBuildId:    alert.PassBuildId,
+			// TODO(fejta): better build info
+			BuildLink:     alert.BuildLink,
+			BuildLinkText: alert.BuildLinkText,
+			BuildUrlText:  alert.BuildUrlText,
 			// TODO(fejta): LinkedBugs
 			// TODO(fejta): FailTestLink
-		})
+		}
+		if alert.PassTime != nil {
+			sum.PassTimestamp = float64(alert.PassTime.Seconds)
+		}
+		if alert.FailTime != nil {
+			sum.FailTimestamp = float64(alert.FailTime.Seconds)
+		}
+
+		failures = append(failures, &sum)
 	}
 	return failures
 }
@@ -441,13 +439,13 @@ func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary
 	var found bool
 	for _, resultCh := range results {
 		recentResults := recent
-		for result := range resultCh {
+		for r := range resultCh {
 			// TODO(fejta): fail old running results.
-			result = coalesceResult(result, ignoreRunning)
-			if result == state.Row_NO_RESULT {
+			r = coalesceResult(r, result.IgnoreRunning)
+			if r == state.Row_NO_RESULT {
 				continue
 			}
-			if result != state.Row_PASS {
+			if r != state.Row_PASS {
 				return summary.DashboardTabSummary_FLAKY
 			}
 			found = true
@@ -488,7 +486,7 @@ func statusMessage(cols int, rows []*state.Row, recent int) string {
 		var failures bool
 		for _, ch := range results {
 			// TODO(fejta): fail old running cols
-			switch coalesceResult(<-ch, ignoreRunning) {
+			switch coalesceResult(<-ch, result.IgnoreRunning) {
 			case state.Row_PASS:
 				if !failures {
 					passes = true
@@ -528,7 +526,7 @@ func latestGreen(grid *state.Grid) string {
 		var failures bool
 		var passes bool
 		for _, resultCh := range results {
-			result := coalesceResult(<-resultCh, failRunning)
+			result := coalesceResult(<-resultCh, result.FailRunning)
 			if result == state.Row_PASS {
 				passes = true
 			}
@@ -544,57 +542,17 @@ func latestGreen(grid *state.Grid) string {
 	return noGreens
 }
 
-const (
-	ignoreRunning = true
-	failRunning   = false
-)
-
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
-func coalesceResult(result state.Row_Result, ignoreRunning bool) state.Row_Result {
-	// TODO(fejta): other result types, not used by k8s testgrid
-	if result == state.Row_NO_RESULT || result == state.Row_RUNNING && ignoreRunning {
-		return state.Row_NO_RESULT
-	}
-	if result == state.Row_FAIL || result == state.Row_RUNNING {
-		return state.Row_FAIL
-	}
-	if result == state.Row_FLAKY {
-		return result
-	}
-	return state.Row_PASS
+func coalesceResult(rowResult state.Row_Result, ignoreRunning bool) state.Row_Result {
+	return result.Coalesce(rowResult, ignoreRunning)
 }
 
 // resultIter returns a channel that outputs the result for each column, decoding the run-length-encoding.
 func resultIter(ctx context.Context, results []int32) <-chan state.Row_Result {
-	out := make(chan state.Row_Result)
-	go func() {
-		defer close(out)
-		for i := 0; i+1 < len(results); i += 2 {
-			result := state.Row_Result(results[i])
-			count := results[i+1]
-			for count > 0 {
-				select {
-				case <-ctx.Done():
-					return
-				case out <- result:
-					count--
-				}
-				select {
-				case <-ctx.Done(): // In case we lost the race
-					return
-				default:
-				}
-			}
-		}
-	}()
-	return out
+	return result.Iter(ctx, results)
 }
 
 // results returns a per-column result output channel for each row.
 func results(ctx context.Context, rows []*state.Row) map[string]<-chan state.Row_Result {
-	iters := map[string]<-chan state.Row_Result{}
-	for _, r := range rows {
-		iters[r.Name] = resultIter(ctx, r.Results)
-	}
-	return iters
+	return result.Map(ctx, rows)
 }
