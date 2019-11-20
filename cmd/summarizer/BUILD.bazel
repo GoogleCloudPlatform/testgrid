@@ -27,6 +27,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//config:go_default_library",
+        "//internal/result:go_default_library",
         "//pb/config:go_default_library",
         "//pb/state:go_default_library",
         "//pb/summary:go_default_library",
@@ -56,6 +57,7 @@ go_test(
     srcs = ["main_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//internal/result:go_default_library",
         "//pb/config:go_default_library",
         "//pb/state:go_default_library",
         "//pb/summary:go_default_library",

@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"path"
 	"runtime"
@@ -33,6 +34,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -40,6 +42,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"vbom.ml/util/sortorder"
 )
 
@@ -297,14 +300,14 @@ func (r Row) Format(config nameConfig, meta map[string]string) string {
 	return fmt.Sprintf(config.format, parsed...)
 }
 
-// AppendColumn adds the build column to the grid.
+// appendColumn adds the build column to the grid.
 //
 // This handles details like:
 // * rows appearing/disappearing in the middle of the run.
 // * adding auto metadata like duration, commit as well as any user-added metadata
 // * extracting build metadata into the appropriate column header
 // * Ensuring row names are unique and formatted with metadata
-func AppendColumn(headers []string, format nameConfig, grid *state.Grid, rows map[string]*state.Row, build Column) {
+func appendColumn(grid *state.Grid, headers []string, format nameConfig, rows map[string]*state.Row, build Column) {
 	c := state.Column{
 		Build:   build.ID,
 		Started: float64(build.Started * 1000),
@@ -375,7 +378,6 @@ func AppendColumn(headers []string, format nameConfig, grid *state.Grid, rows ma
 				r = &state.Row{
 					Name: name,
 					Id:   target,
-					// TODO(fejta): AlertInfo,
 				}
 				rows[name] = r
 				grid.Rows = append(grid.Rows, r)
@@ -399,6 +401,113 @@ func AppendColumn(headers []string, format nameConfig, grid *state.Grid, rows ma
 
 	for _, row := range missing {
 		AppendResult(row, noResult, 1)
+	}
+}
+
+// alertRows configures the alert for every row that has one.
+func alertRows(cols []*state.Column, rows []*state.Row, openFailures, closePasses int) {
+	for _, r := range rows {
+		r.AlertInfo = alertRow(cols, r, openFailures, closePasses)
+	}
+}
+
+// alertRow returns an AlertInfo proto if there have been failuresToOpen consecutive failures more recently than passesToClose.
+func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClose int) *state.AlertInfo {
+	if failuresToOpen == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var failures int
+	var totalFailures int32
+	var passes int
+	var compressedIdx int
+	ch := result.Iter(ctx, row.Results)
+	var lastFail *state.Column
+	var latestPass *state.Column
+	var failIdx int
+	// find the first number of consecutive passesToClose (no alert)
+	// or else failuresToOpen (alert).
+	for _, col := range cols {
+		// TODO(fejta): ignore old running
+		res := result.Coalesce(<-ch, result.IgnoreRunning)
+		if res == state.Row_NO_RESULT {
+			continue
+		}
+		if res == state.Row_PASS {
+			passes++
+			if failures >= failuresToOpen {
+				latestPass = col // most recent pass before outage
+				break
+			}
+			if passes >= passesToClose {
+				return nil // there is no outage
+			}
+			failures = 0
+		}
+		if res == state.Row_FAIL {
+			passes = 0
+			failures++
+			totalFailures++
+			if failures == 1 { // note most recent failure for this outage
+				failIdx = compressedIdx
+			}
+			lastFail = col
+		}
+		if res == state.Row_FLAKY {
+			passes = 0
+			if failures >= failuresToOpen {
+				break // cannot definitively say which commit is at fault
+			}
+			failures = 0
+		}
+		compressedIdx++
+	}
+	if failures < failuresToOpen {
+		return nil
+	}
+	msg := row.Messages[failIdx]
+	id := row.CellIds[failIdx]
+	return alertInfo(totalFailures, msg, id, lastFail, latestPass)
+}
+
+// alertInfo returns an alert proto with the configured fields
+func alertInfo(failures int32, msg, cellId string, fail, pass *state.Column) *state.AlertInfo {
+	return &state.AlertInfo{
+		FailCount:      failures,
+		FailBuildId:    buildID(fail),
+		FailTime:       stamp(fail),
+		FailTestId:     cellId,
+		FailureMessage: msg,
+		PassTime:       stamp(pass),
+		PassBuildId:    buildID(pass),
+	}
+}
+
+// buildID extracts the ID from the first extra row or else the Build field.
+func buildID(col *state.Column) string {
+	if col == nil {
+		return ""
+	}
+	if len(col.Extra) > 0 {
+		return col.Extra[0]
+	}
+	return col.Build
+}
+
+const billion = 1e9
+
+// stamp converts seconds into a timestamp proto
+func stamp(col *state.Column) *timestamp.Timestamp {
+	if col == nil {
+		return nil
+	}
+	seconds := col.Started
+	floor := math.Floor(seconds)
+	remain := seconds - floor
+	return &timestamp.Timestamp{
+		Seconds: int64(floor),
+		Nanos:   int32(remain * billion),
 	}
 }
 
@@ -696,8 +805,14 @@ func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	// Add the columns into a grid message
 	grid := &state.Grid{}
 	rows := map[string]*state.Row{} // For fast target => row lookup
-	h := Headers(group)
-	nc := makeNameConfig(group.TestNameConfig)
+	heads := Headers(group)
+	nameCfg := makeNameConfig(group.TestNameConfig)
+	failsOpen := int(group.NumFailuresToAlert)
+	passesClose := int(group.NumPassesToDisableAlert)
+	if failsOpen > 0 && passesClose == 0 {
+		passesClose = 1
+	}
+
 	for _, c := range cols {
 		select {
 		case <-ctx.Done():
@@ -708,7 +823,8 @@ func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 		if c == nil {
 			continue
 		}
-		AppendColumn(h, nc, grid, rows, *c)
+		appendColumn(grid, heads, nameCfg, rows, *c)
+		alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 		if c.Started < stop.Unix() { // There may be concurrency results < stop.Unix()
 			log.Printf("  %s#%s before %s, stopping...", group.Name, c.ID, stop)
 			break // Just process the first result < stop.Unix()

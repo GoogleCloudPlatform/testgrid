@@ -30,6 +30,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/pb/summary"
@@ -1445,13 +1446,13 @@ func TestCoalesceResult(t *testing.T) {
 			name:     "running is no result when ignored",
 			result:   state.Row_RUNNING,
 			expected: state.Row_NO_RESULT,
-			running:  ignoreRunning,
+			running:  result.IgnoreRunning,
 		},
 		{
 			name:     "running is no result when ignored",
 			result:   state.Row_RUNNING,
 			expected: state.Row_FAIL,
-			running:  failRunning,
+			running:  result.FailRunning,
 		},
 		{
 			name:     "fail is fail",

@@ -22,6 +22,7 @@ filegroup(
         "//config:all-srcs",
         "//hack:all-srcs",
         "//images:all-srcs",
+        "//internal/result:all-srcs",
         "//metadata:all-srcs",
         "//pb:all-srcs",
         "//resultstore:all-srcs",

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/timestamp"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -323,5 +324,240 @@ func TestMarshalGrid(t *testing.T) {
 
 	if reflect.DeepEqual(b1, uncompressed) {
 		t.Errorf("should be compressed but is not: %v", b1)
+	}
+}
+
+func TestAlertRow(t *testing.T) {
+	var columns []*state.Column
+	for i, id := range []string{"a", "b", "c", "d", "e", "f"} {
+		columns = append(columns, &state.Column{
+			Build:   id,
+			Started: 100 - float64(i),
+		})
+	}
+	cases := []struct {
+		name      string
+		row       state.Row
+		failOpen  int
+		passClose int
+		expected  *state.AlertInfo
+	}{
+		{
+			name: "never alert by default",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FAIL), 6,
+				},
+			},
+		},
+		{
+			name: "passes do not alert",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_PASS), 6,
+				},
+			},
+			failOpen:  1,
+			passClose: 3,
+		},
+		{
+			name: "flakes do not alert",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 6,
+				},
+			},
+			failOpen: 1,
+		},
+		{
+			name: "intermittent failures do not alert",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FAIL), 2,
+					int32(state.Row_PASS), 1,
+					int32(state.Row_FAIL), 2,
+				},
+			},
+			failOpen: 3,
+		},
+		{
+			name: "new failures alert",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FAIL), 3,
+					int32(state.Row_PASS), 3,
+				},
+				Messages: []string{"hello", "no", "no again", "very wrong"},
+				CellIds:  []string{"yes", "no", "no again", "very wrong"},
+			},
+			failOpen: 3,
+			expected: alertInfo(3, "hello", "yes", columns[2], columns[3]),
+		},
+		{
+			name: "too few passes do not close",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_PASS), 2,
+					int32(state.Row_FAIL), 4,
+				},
+				Messages: []string{"nope", "no", "yay", "very wrong"},
+				CellIds:  []string{"wrong", "no", "yep", "very wrong"},
+			},
+			failOpen:  1,
+			passClose: 3,
+			expected:  alertInfo(4, "yay", "yep", columns[5], nil),
+		},
+		{
+			name: "flakes do not close",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 2,
+					int32(state.Row_FAIL), 4,
+				},
+				Messages: []string{"nope", "no", "yay", "very wrong"},
+				CellIds:  []string{"wrong", "no", "yep", "very wrong"},
+			},
+			failOpen: 1,
+			expected: alertInfo(4, "yay", "yep", columns[5], nil),
+		},
+		{
+			name: "count failures after flaky passes",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FAIL), 1,
+					int32(state.Row_FLAKY), 1,
+					int32(state.Row_FAIL), 1,
+					int32(state.Row_PASS), 1,
+					int32(state.Row_FAIL), 2,
+				},
+				Messages: []string{"nope", "no", "buu", "wrong", "this one"},
+				CellIds:  []string{"wrong", "no", "buzz", "wrong2", "good job"},
+			},
+			failOpen:  2,
+			passClose: 2,
+			expected:  alertInfo(4, "this one", "good job", columns[5], nil),
+		},
+		{
+			name: "close alert",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_PASS), 1,
+					int32(state.Row_FAIL), 5,
+				},
+			},
+			failOpen: 1,
+		},
+		{
+			name: "track through empty results",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FAIL), 1,
+					int32(state.Row_NO_RESULT), 1,
+					int32(state.Row_FAIL), 4,
+				},
+				Messages: []string{"yay", "no", "buu", "wrong", "nono"},
+				CellIds:  []string{"yay-cell", "no", "buzz", "wrong2", "nada"},
+			},
+			failOpen:  5,
+			passClose: 2,
+			expected:  alertInfo(5, "yay", "yay-cell", columns[5], nil),
+		},
+		{
+			name: "track passes through empty results",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_PASS), 1,
+					int32(state.Row_NO_RESULT), 1,
+					int32(state.Row_PASS), 1,
+					int32(state.Row_FAIL), 3,
+				},
+			},
+			failOpen:  1,
+			passClose: 2,
+		},
+	}
+
+	for _, tc := range cases {
+		if actual := alertRow(columns, &tc.row, tc.failOpen, tc.passClose); !reflect.DeepEqual(actual, tc.expected) {
+			t.Errorf("%s alert %s != expected %s", tc.name, actual, tc.expected)
+		}
+	}
+}
+
+func TestBuildID(t *testing.T) {
+	cases := []struct {
+		name     string
+		build    string
+		extra    string
+		expected string
+	}{
+		{
+			name: "return empty by default",
+		},
+		{
+			name:     "favor extra if it exists",
+			build:    "wrong",
+			extra:    "right",
+			expected: "right",
+		},
+		{
+			name:     "build if no extra",
+			build:    "yes",
+			expected: "yes",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			col := state.Column{
+				Build: tc.build,
+			}
+			if tc.extra != "" {
+				col.Extra = append(col.Extra, tc.extra)
+			}
+			if actual := buildID(&col); actual != tc.expected {
+				t.Errorf("%q != expected %q", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestStamp(t *testing.T) {
+	cases := []struct {
+		name     string
+		col      *state.Column
+		expected *timestamp.Timestamp
+	}{
+		{
+			name: "0 returns nil",
+		},
+		{
+			name: "no nanos",
+			col: &state.Column{
+				Started: 2,
+			},
+			expected: &timestamp.Timestamp{
+				Seconds: 2,
+				Nanos:   0,
+			},
+		},
+		{
+			name: "has nanos",
+			col: &state.Column{
+				Started: 1.1,
+			},
+			expected: &timestamp.Timestamp{
+				Seconds: 1,
+				Nanos:   1e8,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := stamp(tc.col); !reflect.DeepEqual(actual, tc.expected) {
+				t.Errorf("stamp %s != expected stamp %s", actual, tc.expected)
+			}
+		})
 	}
 }
