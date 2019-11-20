@@ -122,6 +122,8 @@ default_dashboard_tab:
 func TestUpdate_DefaultInherits(t *testing.T) {
 	defaultYaml := `default_test_group:
   num_columns_recent: 10
+  ignore_skip: true
+  ignore_pending: true
 default_dashboard_tab:
   num_columns_recent: 20`
 
@@ -198,6 +200,14 @@ test_groups:
 			if cfg.TestGroups[0].NumColumnsRecent != test.expectedTestGroup {
 				t.Errorf("Wrong inheritance for TestGroup: got %d, expected %d",
 					cfg.TestGroups[0].NumColumnsRecent, test.expectedTestGroup)
+			}
+
+			if cfg.TestGroups[0].IgnorePending != true {
+				t.Error("Wrong inheritance for TestGroup.IgnorePending: got false, expected true")
+			}
+
+			if cfg.TestGroups[0].IgnoreSkip != true {
+				t.Error("Wrong inheritance for TestGroup.IgnoreSkip: got false, expected true")
 			}
 
 			if cfg.Dashboards[0].DashboardTab[0].NumColumnsRecent != test.expectedDashTab {
