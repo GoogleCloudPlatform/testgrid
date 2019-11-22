@@ -49,6 +49,7 @@ type options struct {
 	confirm     bool
 	dashboard   string
 	concurrency int
+	wait        time.Duration
 }
 
 func (o *options) validate() error {
@@ -71,6 +72,7 @@ func gatherOptions() options {
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.StringVar(&o.dashboard, "dashboard", "", "Only update named dashboard if set")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
+	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.Parse()
 	return o
 }
@@ -92,6 +94,20 @@ func main() {
 	}
 
 	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if opt.wait == 0 {
+		updateOnce(ctx, opt)
+		return
+	}
+	timer := time.NewTimer(opt.wait)
+	defer timer.Stop()
+	for range timer.C {
+		updateOnce(ctx, opt)
+	}
+}
+
+func updateOnce(ctx context.Context, opt options) {
 	client, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
 		logrus.Fatalf("Failed to read storage client: %v", err)

@@ -1,17 +1,17 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-load("//:def.bzl", "make_image")
+load("//:def.bzl", "go_image")
+
+go_image(
+    name = "image",
+    directory = "/",
+    files = [":updater"],
+    visibility = ["//visibility:public"],
+)
 
 go_binary(
     name = "updater",
     embed = [":go_default_library"],
     pure = "on",
-    visibility = ["//visibility:public"],
-)
-
-make_image(
-    name = "image",
-    directory = "/",
-    files = [":updater"],
     visibility = ["//visibility:public"],
 )
 
@@ -34,6 +34,18 @@ go_library(
     ],
 )
 
+go_test(
+    name = "go_default_test",
+    srcs = ["main_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//metadata/junit:go_default_library",
+        "//pb/state:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@io_bazel_rules_go//proto/wkt:timestamp_go_proto",
+    ],
+)
+
 filegroup(
     name = "package-srcs",
     srcs = glob(["**"]),
@@ -46,16 +58,4 @@ filegroup(
     srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["main_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "//metadata/junit:go_default_library",
-        "//pb/state:go_default_library",
-        "@com_github_golang_protobuf//proto:go_default_library",
-        "@io_bazel_rules_go//proto/wkt:timestamp_go_proto",
-    ],
 )

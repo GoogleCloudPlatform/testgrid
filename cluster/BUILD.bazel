@@ -19,23 +19,26 @@ k8s_objects(
     name = "dev",
     objects = [
         ":updater",
+        ":summarizer",
     ],
 )
 
 CLUSTER = "{STABLE_TESTGRID_CLUSTER}"
 
-ROOT = "{STABLE_TESTGRID_REPO}"
-
 k8s_object(
     name = "updater",
     cluster = CLUSTER,
-    image_chroot = ROOT,
-    images = {
-        ROOT + "/updater:latest": "//cmd/updater:image",
-    },
     kind = "Deployment",
     namespace = "testgrid",
     template = "updater_deployment.yaml",
+)
+
+k8s_object(
+    name = "summarizer",
+    cluster = CLUSTER,
+    kind = "Deployment",
+    namespace = "testgrid",
+    template = "summarizer_deployment.yaml",
 )
 
 filegroup(

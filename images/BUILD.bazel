@@ -20,6 +20,7 @@ push_image(
     name = "push",
     images = tags({
         "{STABLE_TESTGRID_REPO}/updater": "//cmd/updater:image",
+        "{STABLE_TESTGRID_REPO}/summarizer": "//cmd/summarizer:image",
     }),
 )
 
