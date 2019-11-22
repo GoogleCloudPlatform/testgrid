@@ -9,6 +9,10 @@ metadata:
     app: testgrid
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer
   template:
     metadata:
       labels:
@@ -17,7 +21,7 @@ spec:
     spec:
       containers:
       - name: summarizer
-        image: gcr.io/k8s-testgrid/testgrid/summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20191122-v0.0.1-alpha.2-13-g31a8cc8
         args:
         - --config=gs://k8s-testgrid/beta/config
         - --wait=5m

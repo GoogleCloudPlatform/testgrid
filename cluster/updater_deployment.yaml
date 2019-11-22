@@ -9,6 +9,10 @@ metadata:
     app: testgrid
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: updater
   template:
     metadata:
       labels:
@@ -17,7 +21,7 @@ spec:
     spec:
       containers:
       - name: updater
-        image: gcr.io/fejta-prod/testgrid/updater
+        image: gcr.io/k8s-testgrid/updater:v20191122-v0.0.1-alpha.2-13-g31a8cc8
         args:
         - --config=gs://k8s-testgrid/beta/config
         - --wait=5m
