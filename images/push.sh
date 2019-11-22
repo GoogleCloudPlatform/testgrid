@@ -56,7 +56,7 @@ fi
 echo -e "Pushing $(color-version ${new_version})" >&2
 # Remove retries after https://github.com/bazelbuild/rules_docker/issues/673
 for i in {1..3}; do
-  if bazel run //images:push; then
+  if bazel run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //images:push; then
     exit 0
   elif [[ "$i" == 3 ]]; then
     echo "Failed"
