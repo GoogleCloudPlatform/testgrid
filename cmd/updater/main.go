@@ -60,6 +60,7 @@ type options struct {
 	group            string
 	groupConcurrency int
 	buildConcurrency int
+	wait             time.Duration
 }
 
 // validate ensures sane options
@@ -89,6 +90,7 @@ func gatherOptions() options {
 	flag.StringVar(&o.group, "test-group", "", "Only update named group if set")
 	flag.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	flag.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
+	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.Parse()
 	return o
 }
@@ -852,11 +854,25 @@ func main() {
 		log.Println("--confirm=false (DRY-RUN): will not write to gcs")
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if opt.wait == 0 {
+		updateOnce(ctx, opt)
+		return
+	}
+	timer := time.NewTimer(opt.wait)
+	defer timer.Stop()
+	for range timer.C {
+		updateOnce(ctx, opt)
+	}
+}
+
+func updateOnce(ctx context.Context, opt options) {
 	client, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
 		log.Fatalf("Failed to create storage client: %v", err)
 	}
+	defer client.Close()
 
 	cfg, err := config.ReadGCS(ctx, client.Bucket(opt.config.Bucket()).Object(opt.config.Object()))
 	if err != nil {

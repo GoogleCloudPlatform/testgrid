@@ -1,13 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-load("@bazel_gazelle//:def.bzl", "gazelle")
-load("//:def.bzl", "make_image")
+load("//:def.bzl", "go_image")
 
-# gazelle:prefix github.com/GoogleCloudPlatform/testgrid/cmd/summarizer
-gazelle(
-    name = "gazelle",
-)
-
-make_image(
+go_image(
     name = "image",
     directory = "/",
     files = [":summarizer"],
@@ -38,6 +32,19 @@ go_library(
     ],
 )
 
+go_test(
+    name = "go_default_test",
+    srcs = ["main_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//internal/result:go_default_library",
+        "//pb/config:go_default_library",
+        "//pb/state:go_default_library",
+        "//pb/summary:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
+    ],
+)
+
 filegroup(
     name = "package-srcs",
     srcs = glob(["**"]),
@@ -50,17 +57,4 @@ filegroup(
     srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["main_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "//internal/result:go_default_library",
-        "//pb/config:go_default_library",
-        "//pb/state:go_default_library",
-        "//pb/summary:go_default_library",
-        "@com_github_golang_protobuf//proto:go_default_library",
-    ],
 )

@@ -15,16 +15,16 @@
 load("@io_bazel_rules_docker//container:image.bzl", "container_image")
 load("@io_bazel_rules_docker//container:bundle.bzl", "container_bundle")
 load("@io_bazel_rules_docker//contrib:push-all.bzl", "container_push")
-load("@io_bazel_rules_docker//go:image.bzl", "go_image")
+load("@io_bazel_rules_docker//go:image.bzl", _go_image = "go_image")
 
 ## make_image is a macro for creating :app and :image targets
-def make_image(
+def go_image(
         name,  # use "image"
         base = None,
         stamp = True,  # stamp by default, but allow overrides
         app_name = "app",
         **kwargs):
-    go_image(
+    _go_image(
         name = app_name,
         base = base,
         embed = [":go_default_library"],

@@ -2,22 +2,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: testgrid-updater
+  name: testgrid-summarizer
   namespace: testgrid
   labels:
-    component: updater
+    component: summarizer
     app: testgrid
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        component: updater
+        component: summarizer
         app: testgrid
     spec:
       containers:
-      - name: updater
-        image: gcr.io/fejta-prod/testgrid/updater
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/testgrid/summarizer
         args:
         - --config=gs://k8s-testgrid/beta/config
         - --wait=5m

@@ -45,7 +45,8 @@ build:minimal --config=inmemory
 build:minimal --experimental_remote_download_outputs=minimal
 
 # Used for non-interactive ci builds
-build:ci --noshow_progress
+build:ci --noshow_progress # reduce log spam
+test:ci --nobuild_tests_only # yes, build everything
 
 # https://github.com/bazelbuild/rules_go/pull/2110#issuecomment-508713878
 build --stamp=true
