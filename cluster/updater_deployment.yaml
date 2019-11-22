@@ -19,10 +19,11 @@ spec:
         component: updater
         app: testgrid
     spec:
+      serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20191122-v0.0.1-alpha.2-13-g31a8cc8
+        image: gcr.io/k8s-testgrid/updater:v20191122-v0.0.1-alpha.2-17-g43a2e3b
         args:
         - --config=gs://k8s-testgrid/beta/config
+        - --confirm
         - --wait=5m
-        #- --confirm
