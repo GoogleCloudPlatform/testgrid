@@ -22,8 +22,8 @@ spec:
       serviceAccountName: summarizer
       containers:
       - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20191122-v0.0.1-alpha.2-17-g0ae474d
+        image: gcr.io/k8s-testgrid/summarizer:v20191124-v0.0.1-alpha.2-20-g0a10758
         args:
-        - --config=gs://k8s-testgrid/beta/config
+        - --config=gs://fejternetes/config
         - --confirm
         - --wait=5m

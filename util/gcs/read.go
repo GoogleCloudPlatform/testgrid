@@ -51,10 +51,11 @@ type Finished struct {
 
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
-	Bucket     *storage.BucketHandle
-	Context    context.Context
-	Prefix     string
-	BucketPath string
+	Bucket         *storage.BucketHandle
+	Context        context.Context
+	Prefix         string
+	BucketPath     string
+	originalPrefix string
 }
 
 func (build Build) String() string {
@@ -70,7 +71,7 @@ func (b Builds) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 // Expect builds to be in monotonically increasing order.
 // So build8 < build9 < build10 < build888
 func (b Builds) Less(i, j int) bool {
-	return sortorder.NaturalLess(b[i].Prefix, b[j].Prefix)
+	return sortorder.NaturalLess(b[i].originalPrefix, b[j].originalPrefix)
 }
 
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
@@ -110,10 +111,11 @@ func ListBuilds(ctx context.Context, client *storage.Client, path Path) (Builds,
 				return nil, fmt.Errorf("could not make GCS path for key %s: %v", objAttrs.Name, err)
 			}
 			all = append(all, Build{
-				Bucket:     bkt,
-				Context:    ctx,
-				Prefix:     linkPath.Object(),
-				BucketPath: path.Bucket(),
+				Bucket:         bkt,
+				Context:        ctx,
+				Prefix:         linkPath.Object(),
+				BucketPath:     path.Bucket(),
+				originalPrefix: objAttrs.Name,
 			})
 			continue
 		}
@@ -123,10 +125,11 @@ func ListBuilds(ctx context.Context, client *storage.Client, path Path) (Builds,
 		}
 
 		all = append(all, Build{
-			Bucket:     bkt,
-			Context:    ctx,
-			Prefix:     objAttrs.Prefix,
-			BucketPath: path.Bucket(),
+			Bucket:         bkt,
+			Context:        ctx,
+			Prefix:         objAttrs.Prefix,
+			BucketPath:     path.Bucket(),
+			originalPrefix: objAttrs.Prefix,
 		})
 	}
 	sort.Sort(sort.Reverse(all))

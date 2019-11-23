@@ -71,7 +71,7 @@ func gatherOptions() options {
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.StringVar(&o.dashboard, "dashboard", "", "Only update named dashboard if set")
-	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
+	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.Parse()
 	return o
@@ -105,9 +105,11 @@ func main() {
 	timer := time.NewTimer(opt.wait)
 	defer timer.Stop()
 	for range timer.C {
+		timer.Reset(opt.wait)
 		if err := updateOnce(ctx, opt); err != nil {
 			logrus.WithError(err).Error("Failed update")
 		}
+		logrus.WithField("wait", opt.wait).Info("Sleeping")
 	}
 }
 
@@ -226,7 +228,7 @@ func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, su
 func pathReader(ctx context.Context, client *storage.Client, path gcs.Path) (io.ReadCloser, time.Time, int64, error) {
 	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
 	if err != nil {
-		return nil, time.Time{}, 0, err
+		return nil, time.Time{}, 0, fmt.Errorf("read %s: %v", path, err)
 	}
 	return r, r.Attrs.LastModified, r.Attrs.Generation, nil
 }
@@ -283,7 +285,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	}
 	grid, mod, _, err := readGrid(ctx, groupReader) // TODO(fejta): track gen
 	if err != nil {
-		return nil, fmt.Errorf("load %q: %v", groupName, err)
+		return nil, fmt.Errorf("load %s: %v", groupName, err)
 	}
 
 	recent := recentColumns(tab, group)
