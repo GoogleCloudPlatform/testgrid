@@ -475,6 +475,19 @@ func TestAlertRow(t *testing.T) {
 			failOpen:  1,
 			passClose: 2,
 		},
+		{
+			name: "running cells advance compressed index",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_RUNNING), 1,
+					int32(state.Row_FAIL), 5,
+				},
+				Messages: []string{"running0", "fail1-expected", "fail2", "fail3", "fail4", "fail5"},
+				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
+			},
+			failOpen: 1,
+			expected: alertInfo(5, "fail1-expected", "yep", columns[5], nil),
+		},
 	}
 
 	for _, tc := range cases {

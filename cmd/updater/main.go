@@ -23,7 +23,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"math"
 	"net/url"
 	"path"
@@ -43,6 +42,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/sirupsen/logrus"
 	"vbom.ml/util/sortorder"
 )
 
@@ -330,14 +330,21 @@ func appendColumn(grid *state.Grid, headers []string, format nameConfig, rows ma
 		if !ok {
 			// TODO(fejta): fix, make jobs use one or the other
 			if ah == "" {
-				log.Printf("  %s metadata missing %s", c.Build, h)
+				logrus.WithFields(logrus.Fields{
+					"build":  c.Build,
+					"header": h,
+				}).Warning("build metadata is missing header")
 				v = "missing"
 			} else {
 				if av, ok := build.Metadata[ah]; ok {
 					parts := strings.SplitN(av, "+", 2)
 					v = parts[len(parts)-1]
 				} else {
-					log.Printf("  %s metadata missing both keys %s and alternate %s", c.Build, h, ah)
+					logrus.WithFields(logrus.Fields{
+						"build":  c.Build,
+						"header": h,
+						"alt":    ah,
+					}).Warning("build metadata missing both key and alternate key")
 				}
 			}
 		}
@@ -432,8 +439,12 @@ func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClos
 	// or else failuresToOpen (alert).
 	for _, col := range cols {
 		// TODO(fejta): ignore old running
-		res := result.Coalesce(<-ch, result.IgnoreRunning)
+		rawRes := <-ch
+		res := result.Coalesce(rawRes, result.IgnoreRunning)
 		if res == state.Row_NO_RESULT {
+			if rawRes == state.Row_RUNNING {
+				compressedIdx++
+			}
 			continue
 		}
 		if res == state.Row_PASS {
@@ -515,8 +526,8 @@ func stamp(col *state.Column) *timestamp.Timestamp {
 
 const elapsedKey = "seconds-elapsed"
 
-// ReadBuild asynchronously downloads the files in build from gcs and convert them into a build.
-func ReadBuild(build Build) (*Column, error) {
+// readBuild asynchronously downloads the files in build from gcs and converts them into a build.
+func readBuild(build Build) (*Column, error) {
 	var wg sync.WaitGroup                                             // Each subtask does wg.Add(1), then we wg.Wait() for them to finish
 	ctx, cancel := context.WithTimeout(build.Context, 30*time.Second) // Allows aborting after first error
 	build.Context = ctx
@@ -711,12 +722,13 @@ func (r Rows) Less(i, j int) bool {
 	return sortorder.NaturalLess(r[i].Name, r[j].Name)
 }
 
-// ReadBuilds will asynchronously construct a Grid for the group out of the specified builds.
-func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds, max int, dur time.Duration, concurrency int) (*state.Grid, error) {
+// readBuilds will asynchronously construct a Grid for the group out of the specified builds.
+func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds, max int, dur time.Duration, concurrency int) (*state.Grid, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, fmt.Errorf("zero readers for %s", group.Name)
 	}
+	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.GcsPrefix)
 	ctx, cancel := context.WithCancel(parent)
 	var stop time.Time
 	if dur != 0 {
@@ -724,11 +736,11 @@ func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	}
 	lb := len(builds)
 	if lb > max {
-		log.Printf("  Truncating %d %s results to %d", lb, group.Name, max)
+		log.WithField("total", lb).WithField("max", max).Info("Truncating")
 		lb = max
 	}
 	cols := make([]*Column, lb)
-	log.Printf("UPDATE: %s since %s (%d)", group.Name, stop, stop.Unix())
+	log.WithField("duration", dur).Info("Updating")
 	ec := make(chan error)
 	old := make(chan int)
 	var wg sync.WaitGroup
@@ -764,7 +776,7 @@ func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 						return
 					}
 					b := builds[i]
-					c, err := ReadBuild(b)
+					c, err := readBuild(b)
 					if err != nil {
 						ec <- err
 						return
@@ -774,7 +786,12 @@ func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 						select {
 						case <-ctx.Done():
 						case old <- i:
-							log.Printf("STOP: %d %s started at %d < %d", i, b.Prefix, c.Started, stop.Unix())
+							log.WithFields(logrus.Fields{
+								"idx":     i,
+								"prefix":  b.Prefix,
+								"started": c.Started,
+								"stop":    stop.Unix(),
+							}).Info("stopping")
 						default: // Someone else may have already reported an old result
 						}
 					}
@@ -828,7 +845,11 @@ func ReadBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 		appendColumn(grid, heads, nameCfg, rows, *c)
 		alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 		if c.Started < stop.Unix() { // There may be concurrency results < stop.Unix()
-			log.Printf("  %s#%s before %s, stopping...", group.Name, c.ID, stop)
+			logrus.WithFields(logrus.Fields{
+				"group": group.Name,
+				"id":    c.ID,
+				"stop":  stop,
+			}).Info("Column started before oldest allowed time, stopping processing earlier columns")
 			break // Just process the first result < stop.Unix()
 		}
 	}
@@ -848,10 +869,10 @@ func Days(d float64) time.Duration {
 func main() {
 	opt := gatherOptions()
 	if err := opt.validate(); err != nil {
-		log.Fatalf("Invalid flags: %v", err)
+		logrus.Fatalf("Invalid flags: %v", err)
 	}
 	if !opt.confirm {
-		log.Println("--confirm=false (DRY-RUN): will not write to gcs")
+		logrus.Warning("--confirm=false (DRY-RUN): will not write to gcs")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -863,22 +884,24 @@ func main() {
 	timer := time.NewTimer(opt.wait)
 	defer timer.Stop()
 	for range timer.C {
+		timer.Reset(opt.wait)
 		updateOnce(ctx, opt)
+		logrus.WithField("wait", opt.wait).Info("Sleeping...")
 	}
 }
 
 func updateOnce(ctx context.Context, opt options) {
 	client, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
-		log.Fatalf("Failed to create storage client: %v", err)
+		logrus.Fatalf("Failed to create storage client: %v", err)
 	}
 	defer client.Close()
 
 	cfg, err := config.ReadGCS(ctx, client.Bucket(opt.config.Bucket()).Object(opt.config.Object()))
 	if err != nil {
-		log.Fatalf("Failed to read %s: %v", opt.config, err)
+		logrus.Fatalf("Failed to read %s: %v", opt.config, err)
 	}
-	log.Printf("Found %d groups", len(cfg.TestGroups))
+	logrus.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
 
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
@@ -892,7 +915,7 @@ func updateOnce(ctx context.Context, opt options) {
 					err = updateGroup(ctx, client, tg, *tgp, opt.buildConcurrency, opt.confirm)
 				}
 				if err != nil {
-					log.Printf("FAIL: %v", err)
+					logrus.WithField("group", tg.Name).WithError(err).Error("could not update group")
 				}
 			}
 			wg.Done()
@@ -907,7 +930,7 @@ func updateOnce(ctx context.Context, opt options) {
 		o := opt.group
 		tg := config.FindTestGroup(o, cfg)
 		if tg == nil {
-			log.Fatalf("Failed to find %s in %s", o, opt.config)
+			logrus.WithField("group", tg.Name).WithField("config", opt.config).Fatal("group not found")
 		}
 		groups <- *tg
 	} else { // All groups
@@ -920,6 +943,7 @@ func updateOnce(ctx context.Context, opt options) {
 }
 
 func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool) error {
+	log := logrus.WithField("group", tg.Name)
 	o := tg.Name
 
 	var tgPath gcs.Path
@@ -929,12 +953,19 @@ func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGr
 
 	g := state.Grid{}
 	g.Columns = append(g.Columns, &state.Column{Build: "first", Started: 1})
-	log.Printf("LIST: %s", tgPath)
+	log.Info("Listing builds")
 	builds, err := gcs.ListBuilds(ctx, client, tgPath)
 	if err != nil {
 		return fmt.Errorf("failed to list %s builds: %v", o, err)
 	}
-	grid, err := ReadBuilds(ctx, tg, builds, 50, Days(7), concurrency)
+	var dur time.Duration
+	if tg.DaysOfResults > 0 {
+		dur = Days(float64(tg.DaysOfResults))
+	} else {
+		dur = Days(7)
+	}
+	const maxCols = 50
+	grid, err := readBuilds(ctx, tg, builds, maxCols, dur, concurrency)
 	if err != nil {
 		return err
 	}
@@ -943,15 +974,19 @@ func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGr
 		return fmt.Errorf("failed to marshal %s grid: %v", o, err)
 	}
 	tgp := gridPath
+	log = log.WithField("url", tgp).WithField("bytes", len(buf))
 	if !write {
-		log.Printf("  Not writing %s (%d bytes) to %s", o, len(buf), tgp)
+		log.Info("Skipping write")
 	} else {
-		log.Printf("  Writing %s (%d bytes) to %s", o, len(buf), tgp)
+		log.Info("Writing")
 		if err := gcs.Upload(ctx, client, tgp, buf, gcs.Default); err != nil {
 			return fmt.Errorf("upload %s to %s failed: %v", o, tgp, err)
 		}
 	}
-	log.Printf("WROTE: %s, %dx%d grid (%s, %d bytes)", tg.Name, len(grid.Columns), len(grid.Rows), tgp, len(buf))
+	log.WithFields(logrus.Fields{
+		"cols": len(grid.Columns),
+		"rows": len(grid.Rows),
+	}).Info("Wrote grid")
 	return nil
 }
 
