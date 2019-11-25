@@ -148,7 +148,17 @@ func updateOnce(ctx context.Context, opt options) {
 					log.WithError(err).Fatal("Cannot summarize dashboard")
 					continue
 				}
-				log.WithField("summary", sum).Info("summarized") // TODO(fejta): write it
+				log.WithField("summary", sum).Info("summarized")
+				if !opt.confirm {
+					continue
+				}
+				path, err := opt.config.ResolveReference(&url.URL{Path: summaryPath(dash.Name)})
+				if err != nil {
+					log.WithError(err).Fatal("Cannot resolve summary path")
+				}
+				if err := writeSummary(ctx, client, *path, sum); err != nil {
+					log.WithError(err).Fatal("Cannot write summary")
+				}
 			}
 			wg.Done()
 		}()
@@ -163,6 +173,23 @@ func updateOnce(ctx context.Context, opt options) {
 	}
 	close(dashboards)
 	wg.Wait()
+}
+
+var (
+	normalizer = regexp.MustCompile(`[^a-z0-9]+`)
+)
+
+func summaryPath(name string) string {
+	// ''.join(c for c in n.lower() if c is alphanumeric
+	return "dashboard-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
+}
+
+func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, sum *summary.DashboardSummary) error {
+	buf, err := proto.Marshal(sum)
+	if err != nil {
+		return fmt.Errorf("marshal: %v", err)
+	}
+	return gcs.Upload(ctx, client, path, buf, gcs.Default)
 }
 
 // pathReader returns a reader for the specified path and last modified, generation metadata.
