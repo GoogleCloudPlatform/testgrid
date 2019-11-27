@@ -978,8 +978,9 @@ func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGr
 	if !write {
 		log.Info("Skipping write")
 	} else {
-		log.Info("Writing")
-		if err := gcs.Upload(ctx, client, tgp, buf, gcs.Default); err != nil {
+		log.Debug("Writing")
+		// TODO(fejta): configurable cache value
+		if err := gcs.Upload(ctx, client, tgp, buf, gcs.DefaultAcl, "no-cache"); err != nil {
 			return fmt.Errorf("upload %s to %s failed: %v", o, tgp, err)
 		}
 	}

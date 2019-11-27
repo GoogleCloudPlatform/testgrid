@@ -22,7 +22,7 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20191124-v0.0.1-alpha.2-20-gcc2f776
+        image: gcr.io/k8s-testgrid/updater:v20191127-v0.0.1-alpha.2-25-g6958b02
         args:
         - --config=gs://fejternetes/config
         - --confirm
