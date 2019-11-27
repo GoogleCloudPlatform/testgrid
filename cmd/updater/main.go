@@ -976,7 +976,7 @@ func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGr
 	tgp := gridPath
 	log = log.WithField("url", tgp).WithField("bytes", len(buf))
 	if !write {
-		log.Info("Skipping write")
+		log.Debug("Skipping write")
 	} else {
 		log.Debug("Writing")
 		// TODO(fejta): configurable cache value
