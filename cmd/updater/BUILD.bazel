@@ -23,6 +23,7 @@ go_library(
     deps = [
         "//config:go_default_library",
         "//internal/result:go_default_library",
+        "//metadata:go_default_library",
         "//metadata/junit:go_default_library",
         "//pb/config:go_default_library",
         "//pb/state:go_default_library",

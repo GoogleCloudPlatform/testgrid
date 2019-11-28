@@ -28,12 +28,12 @@ import (
 	"path"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
+	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -173,6 +173,7 @@ type Column struct {
 	Passed   bool
 	Rows     map[string][]Row
 	Metadata ColumnMetadata
+	Version  string
 }
 
 // Row holds results for a piece of a build run, such as a test result.
@@ -319,39 +320,15 @@ func appendColumn(grid *state.Grid, headers []string, format nameConfig, rows ma
 			c.Extra = append(c.Extra, "")
 			continue
 		}
-		trunc := 0
-		var ah string
 		if h == "Commit" { // TODO(fejta): fix, jobs use explicit key, support truncation
-			h = "repo-commit"
-			trunc = 9
-			ah = "job-version"
+			c.Extra = append(c.Extra, build.Version)
+			continue
 		}
-		v, ok := build.Metadata[h]
+		val, ok := build.Metadata[h]
 		if !ok {
-			// TODO(fejta): fix, make jobs use one or the other
-			if ah == "" {
-				logrus.WithFields(logrus.Fields{
-					"build":  c.Build,
-					"header": h,
-				}).Warning("build metadata is missing header")
-				v = "missing"
-			} else {
-				if av, ok := build.Metadata[ah]; ok {
-					parts := strings.SplitN(av, "+", 2)
-					v = parts[len(parts)-1]
-				} else {
-					logrus.WithFields(logrus.Fields{
-						"build":  c.Build,
-						"header": h,
-						"alt":    ah,
-					}).Warning("build metadata missing both key and alternate key")
-				}
-			}
+			val = "missing"
 		}
-		if trunc > 0 && trunc < len(v) {
-			v = v[0:trunc]
-		}
-		c.Extra = append(c.Extra, v)
+		c.Extra = append(c.Extra, val)
 	}
 	grid.Columns = append(grid.Columns, &c)
 
@@ -660,6 +637,7 @@ func readBuild(build Build) (*Column, error) {
 	if finished.Passed != nil {
 		br.Passed = *finished.Passed
 	}
+	br.Version = metadata.Version(started.Started, finished.Finished)
 	or := br.Overall()
 	br.Rows = map[string][]Row{
 		"Overall": {or},
