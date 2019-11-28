@@ -16,6 +16,10 @@ limitations under the License.
 
 package metadata
 
+import (
+	"strings"
+)
+
 // Started holds the started.json values of the build.
 type Started struct {
 	// Timestamp is UTC epoch seconds when the job started.
@@ -27,17 +31,25 @@ type Started struct {
 
 	// Pull holds the PR number the primary repo is testing
 	Pull string `json:"pull,omitempty"`
-	// RepoVersion holds the git revision of the primary repo
-	RepoVersion string `json:"repo-version,omitempty"`
 	// Repos holds the RepoVersion of all commits checked out.
-	Repos map[string]string `json:"repos,omitempty"` // {repo: branch_or_pull} map
+	Repos      map[string]string `json:"repos,omitempty"` // {repo: branch_or_pull} map
+	RepoCommit string            `json:"repo-commit,omitempty"`
 
 	// Deprecated fields:
 
 	// Metadata is deprecated, add to finished.json
 	Metadata Metadata `json:"metadata,omitempty"` // TODO(fejta): remove
 
+	// Use RepoCommit
+	DeprecatedJobVersion  string `json:"job-version,omitempty"`  // TODO(fejta): remove
+	DeprecatedRepoVersion string `json:"repo-version,omitempty"` // TODO(fejta): remove
+
 }
+
+const (
+	// JobVersion is the metadata key that overrides repo-commit in Started when set.
+	JobVersion = "job-version"
+)
 
 // Finished holds the finished.json values of the build
 type Finished struct {
@@ -48,20 +60,20 @@ type Finished struct {
 	Passed *bool `json:"passed"`
 	// Metadata holds data computed by the job at runtime.
 	// For example, the version of a binary downloaded at runtime
+	// The JobVersion key overrides the auto-version set in Started.
 	Metadata Metadata `json:"metadata,omitempty"`
 
 	// Consider whether to keep the following:
-
-	// JobVersion provides a way for jobs to set/override the version at runtime.
-	// Should take precedence over Started.RepoVersion whenever set.
-	JobVersion string `json:"job-version,omitempty"`
 
 	// Deprecated fields:
 
 	// Result is deprecated, use Passed.
 	Result string `json:"result,omitempty"` // TODO(fejta): remove
-	// Revision is deprecated, use RepoVersion in started.json
-	Revision string `json:"revision,omitempty"` // TODO(fejta): remove
+
+	// Use Metadata[JobVersion] or Started.RepoCommit
+	DeprecatedJobVersion  string `json:"job-version,omitempty"`  // TODO(fejta): remove
+	DeprecatedRevision    string `json:"revision,omitempty"`     // TODO(fejta): remove
+	DeprecatedRepoVersion string `json:"repo-version,omitempty"` // TODO(fejta): remove
 }
 
 // Metadata holds the finished.json values in the metadata key.
@@ -117,4 +129,60 @@ func (m Metadata) Strings() map[string]string {
 		// TODO(fejta): handle sub items
 	}
 	return bm
+}
+
+// firstFilled returns the first non-empty option or else def.
+func firstFilled(def string, options ...string) string {
+	for _, o := range options {
+		if o != "" {
+			return o
+		}
+	}
+	return def
+}
+
+const missing = "missing"
+
+// Version extracts the job's custom version or else the checked out repo commit.
+func Version(started Started, finished Finished) string {
+	// TODO(fejta): started.RepoCommit, finished.Metadata.String(JobVersion)
+	meta := func(key string) string {
+		if finished.Metadata == nil {
+			return ""
+		}
+		v, ok := finished.Metadata.String(key)
+		if !ok {
+			return ""
+		}
+		return *v
+	}
+
+	val := firstFilled(
+		missing,
+		finished.DeprecatedJobVersion, started.DeprecatedJobVersion,
+		started.DeprecatedRepoVersion, finished.DeprecatedRepoVersion,
+		meta("revision"), meta("repo-commit"),
+		meta(JobVersion), started.RepoCommit, // TODO(fejta): remove others
+	)
+	parts := strings.SplitN(val, "+", 2)
+	val = parts[len(parts)-1]
+	if n := len(val); n > 9 {
+		return val[:9]
+	}
+	return val
+}
+
+// SetVersion ensures that the repoCommit and jobVersion are set appropriately.
+func SetVersion(started *Started, finished *Finished, repoCommit, jobVersion string) {
+	if started != nil && repoCommit != "" {
+		started.DeprecatedRepoVersion = repoCommit // TODO(fejta): pump this
+		started.RepoCommit = repoCommit
+	}
+	if finished != nil && jobVersion != "" {
+		if finished.Metadata == nil {
+			finished.Metadata = Metadata{}
+		}
+		finished.Metadata["job-version"] = jobVersion
+		finished.DeprecatedJobVersion = jobVersion
+	}
 }

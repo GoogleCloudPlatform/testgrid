@@ -124,3 +124,159 @@ func TestMeta(t *testing.T) {
 		})
 	}
 }
+
+func TestVersion(t *testing.T) {
+	cases := []struct {
+		name     string
+		started  Started
+		finished Finished
+		expected string
+	}{
+		{
+			name:     "missing by default",
+			expected: missing,
+		},
+		{
+			name: "DEPRECATED: finished job version over started",
+			started: Started{
+				DeprecatedJobVersion: "wrong",
+			},
+			finished: Finished{
+				DeprecatedJobVersion: "right",
+			},
+			expected: "right",
+		},
+		{
+			name: "DEPRECATED: job version over repo version",
+			started: Started{
+				DeprecatedJobVersion:  "yes-job",
+				DeprecatedRepoVersion: "no-repo",
+			},
+			expected: "yes-job",
+		},
+		{
+			name: "DEPRECATED: started repo version over finished",
+			started: Started{
+				DeprecatedRepoVersion: "right",
+			},
+			finished: Finished{
+				DeprecatedRepoVersion: "wrong-finish",
+			},
+			expected: "right",
+		},
+		{
+			name: "job-version over repo-commit",
+			started: Started{
+				RepoCommit: "nope",
+			},
+			finished: Finished{
+				Metadata: Metadata{
+					JobVersion: "yes",
+				},
+			},
+			expected: "yes",
+		},
+		{
+			name: "find repo-commit",
+			started: Started{
+				RepoCommit: "yay",
+			},
+			expected: "yay",
+		},
+		{
+			name: "truncate to 9 chars",
+			started: Started{
+				RepoCommit: "12345678900000000",
+			},
+			expected: "123456789",
+		},
+		{
+			name: "drop part before the first +",
+			started: Started{
+				RepoCommit: "ignore+hello+yes",
+			},
+			expected: "hello+yes",
+		},
+		{
+			name: "trucate part after +",
+			started: Started{
+				RepoCommit: "deadbeef+12345678900000000",
+			},
+			expected: "123456789",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := Version(tc.started, tc.finished); actual != tc.expected {
+				t.Errorf("actual %s != expected %s", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestSetVersion(t *testing.T) {
+	cases := []struct {
+		name       string
+		repoCommit string
+		jobVersion string
+		started    bool
+		finished   bool
+		expected   string
+	}{
+		{
+			name:       "basically works",
+			repoCommit: "repo",
+			jobVersion: "job",
+			started:    true,
+			finished:   true,
+			expected:   "job",
+		},
+		{
+			name:     "missing by default",
+			started:  true,
+			finished: true,
+			expected: missing,
+		},
+		{
+			name:       "can pass in nothing",
+			repoCommit: "ignore",
+			jobVersion: "me",
+			expected:   missing,
+		},
+		{
+			name:       "match repo commit when job version not set",
+			repoCommit: "deadbeef",
+			started:    true,
+			finished:   true,
+			expected:   "deadbeef",
+		},
+		{
+			name:       "match repo commit when just started",
+			repoCommit: "aaa",
+			jobVersion: "ignore",
+			started:    true,
+			expected:   "aaa",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var s Started
+			var f Finished
+			var ps *Started
+			var pf *Finished
+			if tc.started {
+				ps = &s
+			}
+			if tc.finished {
+				pf = &f
+			}
+			SetVersion(ps, pf, tc.repoCommit, tc.jobVersion)
+			if actual := Version(s, f); actual != tc.expected {
+				t.Errorf("actual %s != expected %s", actual, tc.expected)
+			}
+		})
+	}
+
+}
