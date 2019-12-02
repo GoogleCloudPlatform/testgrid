@@ -714,11 +714,11 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	}
 	lb := len(builds)
 	if lb > max {
-		log.WithField("total", lb).WithField("max", max).Info("Truncating")
+		log.WithField("total", lb).WithField("max", max).Debug("Truncating")
 		lb = max
 	}
 	cols := make([]*Column, lb)
-	log.WithField("duration", dur).Info("Updating")
+	log.WithField("duration", dur).Debug("Updating")
 	ec := make(chan error)
 	old := make(chan int)
 	var wg sync.WaitGroup
@@ -827,7 +827,7 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 				"group": group.Name,
 				"id":    c.ID,
 				"stop":  stop,
-			}).Info("Column started before oldest allowed time, stopping processing earlier columns")
+			}).Debug("Column started before oldest allowed time, stopping processing earlier columns")
 			break // Just process the first result < stop.Unix()
 		}
 	}
@@ -901,23 +901,55 @@ func updateOnce(ctx context.Context, opt options) {
 	}
 
 	if opt.group != "" { // Just a specific group
-		// o := "ci-kubernetes-test-go"
-		// o = "ci-kubernetes-node-kubelet-stable3"
-		// gs://kubernetes-jenkins/logs/ci-kubernetes-test-go
-		// gs://kubernetes-jenkins/pr-logs/pull-ingress-gce-e2e
-		o := opt.group
-		tg := config.FindTestGroup(o, cfg)
+		tg := config.FindTestGroup(opt.group, cfg)
 		if tg == nil {
-			logrus.WithField("group", tg.Name).WithField("config", opt.config).Fatal("group not found")
+			logrus.WithField("group", opt.group).WithField("config", opt.config).Fatal("group not found")
 		}
 		groups <- *tg
 	} else { // All groups
-		for _, tg := range cfg.TestGroups {
+		idxChan := make(chan int)
+		defer close(idxChan)
+		go logUpdate(idxChan, len(cfg.TestGroups), "Update in progress")
+		for i, tg := range cfg.TestGroups {
+			select {
+			case idxChan <- i:
+			default:
+			}
 			groups <- *tg
 		}
 	}
 	close(groups)
 	wg.Wait()
+}
+
+// logUpdate posts updateOnce progress every minute, including an ETA for completion.
+func logUpdate(ch <-chan int, total int, msg string) {
+	start := time.Now()
+	timer := time.NewTimer(time.Minute)
+	defer timer.Stop()
+	var current int
+	var ok bool
+	for {
+		select {
+		case current, ok = <-ch:
+			if !ok { // channel is closed
+				return
+			}
+		case now := <-timer.C:
+			elapsed := now.Sub(start)
+			rate := elapsed / time.Duration(current)
+			eta := time.Duration(total-current) * rate
+
+			logrus.WithFields(logrus.Fields{
+				"current": current,
+				"total":   total,
+				"percent": (100 * current) / total,
+				"remain":  eta.Round(time.Minute),
+				"eta":     now.Add(eta).Round(time.Minute),
+			}).Info(msg)
+			timer.Reset(time.Minute)
+		}
+	}
 }
 
 func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool) error {
