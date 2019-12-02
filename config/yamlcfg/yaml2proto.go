@@ -135,7 +135,7 @@ func ReconcileTestGroup(currentTestGroup *config.TestGroup, defaultTestGroup *co
 		currentTestGroup.DaysOfResults = defaultTestGroup.DaysOfResults
 	}
 
-	if currentTestGroup.TestsNamePolicy == config.TestGroup_TESTS_NAME_MIN {
+	if currentTestGroup.TestsNamePolicy == config.TestGroup_TESTS_NAME_UNSPECIFIED {
 		currentTestGroup.TestsNamePolicy = defaultTestGroup.TestsNamePolicy
 	}
 
