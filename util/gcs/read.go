@@ -75,7 +75,9 @@ func (b Builds) Less(i, j int) bool {
 }
 
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
-func ListBuilds(ctx context.Context, client *storage.Client, path Path) (Builds, error) {
+func ListBuilds(parent context.Context, client *storage.Client, path Path) (Builds, error) {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
 	p := path.Object()
 	if !strings.HasSuffix(p, "/") {
 		p += "/"
@@ -96,7 +98,7 @@ func ListBuilds(ctx context.Context, client *storage.Client, path Path) (Builds,
 		}
 
 		// if this is a link under directory, resolve the build value
-		if link := objAttrs.Metadata["link"]; len(link) > 0 {
+		if link := objAttrs.Metadata["x-goog-meta-link"]; len(link) > 0 {
 			// links created by bootstrap.py have a space
 			link = strings.TrimSpace(link)
 			u, err := url.Parse(link)
