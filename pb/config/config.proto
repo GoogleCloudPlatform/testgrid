@@ -427,7 +427,11 @@ message Dashboard {
   // Defaults to Summary
   string default_tab = 5;
 
-  bool highlight_failing_tabs = 6;
+  // Controls whether to suppress highlighting of failing tabs.
+  bool downplay_failing_tabs = 8;
+
+  // Deprecated: Invert of 'downplay_failing_tabs'
+  bool highlight_failing_tabs = 6 [deprecated=true];
 
   // Controls whether to apply special highlighting to result header columns for
   // the current day.
