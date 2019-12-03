@@ -57,10 +57,13 @@ type options struct {
 	config           gcs.Path // gs://path/to/config/proto
 	creds            string
 	confirm          bool
+	debug            bool
 	group            string
 	groupConcurrency int
 	buildConcurrency int
 	wait             time.Duration
+	groupTimeout     time.Duration
+	buildTimeout     time.Duration
 }
 
 // validate ensures sane options
@@ -87,10 +90,13 @@ func gatherOptions() options {
 	flag.Var(&o.config, "config", "gs://path/to/config.pb")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
+	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.StringVar(&o.group, "test-group", "", "Only update named group if set")
 	flag.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	flag.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
+	flag.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
+	flag.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	flag.Parse()
 	return o
 }
@@ -504,10 +510,10 @@ func stamp(col *state.Column) *timestamp.Timestamp {
 const elapsedKey = "seconds-elapsed"
 
 // readBuild asynchronously downloads the files in build from gcs and converts them into a build.
-func readBuild(build Build) (*Column, error) {
-	var wg sync.WaitGroup                                             // Each subtask does wg.Add(1), then we wg.Wait() for them to finish
-	ctx, cancel := context.WithTimeout(build.Context, 30*time.Second) // Allows aborting after first error
-	build.Context = ctx
+func readBuild(parent context.Context, build Build, timeout time.Duration) (*Column, error) {
+	var wg sync.WaitGroup                               // Each subtask does wg.Add(1), then we wg.Wait() for them to finish
+	ctx, cancel := context.WithTimeout(parent, timeout) // Allows aborting after first error
+	defer cancel()
 	ec := make(chan error) // Receives errors from anyone
 
 	// Download started.json, send to sc
@@ -515,7 +521,8 @@ func readBuild(build Build) (*Column, error) {
 	sc := make(chan gcs.Started) // Receives started.json result
 	go func() {
 		defer wg.Done()
-		started, err := build.Started()
+		defer close(sc)
+		started, err := build.Started(ctx)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -534,7 +541,8 @@ func readBuild(build Build) (*Column, error) {
 	fc := make(chan gcs.Finished) // Receives finished.json result
 	go func() {
 		defer wg.Done()
-		finished, err := build.Finished()
+		defer close(fc)
+		finished, err := build.Finished(ctx)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -554,7 +562,7 @@ func readBuild(build Build) (*Column, error) {
 	go func() {
 		defer wg.Done()
 		defer close(artifacts) // No more artifacts
-		if err := build.Artifacts(artifacts); err != nil {
+		if err := build.Artifacts(ctx, artifacts); err != nil {
 			select {
 			case <-ctx.Done():
 			case ec <- err:
@@ -569,7 +577,7 @@ func readBuild(build Build) (*Column, error) {
 	go func() {
 		defer wg.Done()
 		defer close(suitesChan) // No more rows
-		if err := build.Suites(artifacts, suitesChan); err != nil {
+		if err := build.Suites(ctx, artifacts, suitesChan); err != nil {
 			select {
 			case <-ctx.Done():
 			case ec <- err:
@@ -593,30 +601,32 @@ func readBuild(build Build) (*Column, error) {
 	// Wait for everyone to complete their work
 	go func() {
 		wg.Wait()
+		defer close(ec)
 		select {
 		case <-ctx.Done():
 			return
 		case ec <- nil:
 		}
 	}()
-	var finished *gcs.Finished
-	var started *gcs.Started
-	for { // Wait until we receive started and finished and/or an error
-		select {
-		case err := <-ec:
-			if err != nil {
-				cancel()
-				return nil, fmt.Errorf("failed to read %s: %v", build, err)
-			}
-			break
-		case s := <-sc:
-			started = &s
-		case f := <-fc:
-			finished = &f
+	var finished gcs.Finished
+	var started gcs.Started
+	// Wait until we receive started and finished and/or an error
+	select {
+	case err := <-ec:
+		if err != nil {
+			return nil, fmt.Errorf("failed to read %s: %v", build, err)
 		}
-		if started != nil && finished != nil {
-			break
+		break
+	case started = <-sc:
+	}
+
+	select {
+	case err := <-ec:
+		if err != nil {
+			return nil, fmt.Errorf("failed to read %s: %v", build, err)
 		}
+		break
+	case finished = <-fc:
 	}
 	br := Column{
 		ID:      path.Base(build.Prefix),
@@ -624,7 +634,6 @@ func readBuild(build Build) (*Column, error) {
 	}
 	// Has the build finished?
 	if finished.Running { // No
-		cancel()
 		br.Rows = map[string][]Row{
 			"Overall": {br.Overall()},
 		}
@@ -644,11 +653,9 @@ func readBuild(build Build) (*Column, error) {
 	}
 	select {
 	case <-ctx.Done():
-		cancel()
 		return nil, fmt.Errorf("interrupted reading %s", build)
 	case err := <-ec:
 		if err != nil {
-			cancel()
 			return nil, fmt.Errorf("failed to read %s: %v", build, err)
 		}
 	}
@@ -678,7 +685,6 @@ func readBuild(build Build) (*Column, error) {
 		}
 	}
 
-	cancel()
 	return &br, nil
 }
 
@@ -701,13 +707,14 @@ func (r Rows) Less(i, j int) bool {
 }
 
 // readBuilds will asynchronously construct a Grid for the group out of the specified builds.
-func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds, max int, dur time.Duration, concurrency int) (*state.Grid, error) {
+func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds, max int, dur time.Duration, concurrency int, timeout time.Duration) (*state.Grid, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, fmt.Errorf("zero readers for %s", group.Name)
 	}
 	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.GcsPrefix)
 	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
 	var stop time.Time
 	if dur != 0 {
 		stop = time.Now().Add(-dur)
@@ -726,9 +733,11 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	// Send build indices to readers
 	indices := make(chan int)
 	wg.Add(1)
+	buildCtx, buildCancel := context.WithCancel(ctx)
 	go func() {
 		defer wg.Done()
 		defer close(indices)
+		defer buildCancel()
 		for i := range builds[:lb] {
 			select {
 			case <-ctx.Done():
@@ -747,30 +756,37 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 			defer wg.Done()
 			for {
 				select {
-				case <-ctx.Done():
+				case <-buildCtx.Done():
 					return
 				case i, open := <-indices:
 					if !open {
 						return
 					}
 					b := builds[i]
-					c, err := readBuild(b)
+
+					// use ctx so we finish reading, even if buildCtx is done
+					c, err := readBuild(ctx, b, timeout)
 					if err != nil {
-						ec <- err
-						return
+						select {
+						case <-buildCtx.Done():
+							return
+						case ec <- err:
+						}
+						continue
 					}
 					cols[i] = c
 					if c.Started < stop.Unix() {
 						select {
-						case <-ctx.Done():
-						case old <- i:
+						case <-buildCtx.Done():
+							return
+						case old <- i: // cancel buildCtx
 							log.WithFields(logrus.Fields{
 								"idx":     i,
+								"id":      c.ID,
 								"prefix":  b.Prefix,
 								"started": c.Started,
 								"stop":    stop.Unix(),
-							}).Info("stopping")
-						default: // Someone else may have already reported an old result
+							}).Debug("Stopped")
 						}
 					}
 				}
@@ -781,6 +797,8 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	// Wait for everyone to finish
 	go func() {
 		wg.Wait()
+		defer close(old)
+		defer close(ec)
 		select {
 		case <-ctx.Done():
 		case ec <- nil: // No error
@@ -790,11 +808,9 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	// Determine if we got an error
 	select {
 	case <-ctx.Done():
-		cancel()
 		return nil, fmt.Errorf("interrupted reading %s", group.Name)
 	case err := <-ec:
 		if err != nil {
-			cancel()
 			return nil, fmt.Errorf("error reading %s: %v", group.Name, err)
 		}
 	}
@@ -813,7 +829,6 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	for _, c := range cols {
 		select {
 		case <-ctx.Done():
-			cancel()
 			return nil, fmt.Errorf("interrupted appending columns to %s", group.Name)
 		default:
 		}
@@ -832,7 +847,6 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 		}
 	}
 	sort.Stable(Rows(grid.Rows))
-	cancel()
 	return grid, nil
 }
 
@@ -851,6 +865,9 @@ func main() {
 	}
 	if !opt.confirm {
 		logrus.Warning("--confirm=false (DRY-RUN): will not write to gcs")
+	}
+	if opt.debug {
+		logrus.SetLevel(logrus.DebugLevel)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -890,7 +907,7 @@ func updateOnce(ctx context.Context, opt options) {
 			for tg := range groups {
 				tgp, err := testGroupPath(opt.config, tg.Name)
 				if err == nil {
-					err = updateGroup(ctx, client, tg, *tgp, opt.buildConcurrency, opt.confirm)
+					err = updateGroup(ctx, client, tg, *tgp, opt.buildConcurrency, opt.confirm, opt.groupTimeout, opt.buildTimeout)
 				}
 				if err != nil {
 					logrus.WithField("group", tg.Name).WithError(err).Error("could not update group")
@@ -952,7 +969,9 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
-func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool) error {
+func updateGroup(parent context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parent, groupTimeout)
+	defer cancel()
 	log := logrus.WithField("group", tg.Name)
 	o := tg.Name
 
@@ -963,11 +982,11 @@ func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGr
 
 	g := state.Grid{}
 	g.Columns = append(g.Columns, &state.Column{Build: "first", Started: 1})
-	log.Info("Listing builds")
 	builds, err := gcs.ListBuilds(ctx, client, tgPath)
 	if err != nil {
 		return fmt.Errorf("failed to list %s builds: %v", o, err)
 	}
+	log.WithField("total", len(builds)).Debug("Listed builds")
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = Days(float64(tg.DaysOfResults))
@@ -975,7 +994,7 @@ func updateGroup(ctx context.Context, client *storage.Client, tg configpb.TestGr
 		dur = Days(7)
 	}
 	const maxCols = 50
-	grid, err := readBuilds(ctx, tg, builds, maxCols, dur, concurrency)
+	grid, err := readBuilds(ctx, tg, builds, maxCols, dur, concurrency, buildTimeout)
 	if err != nil {
 		return err
 	}
