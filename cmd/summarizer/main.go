@@ -56,9 +56,6 @@ func (o *options) validate() error {
 	if o.config.String() == "" {
 		return errors.New("empty --config")
 	}
-	if o.config.Bucket() == "k8s-testgrid" && o.config.Object() != "beta/config" && o.confirm { // TODO(fejta): remove
-		return fmt.Errorf("--config=%q cannot read from gs://k8s-testgrid/config", o.config)
-	}
 	if o.concurrency == 0 {
 		o.concurrency = 4 * runtime.NumCPU()
 	}
@@ -213,7 +210,7 @@ var (
 
 func summaryPath(name string) string {
 	// ''.join(c for c in n.lower() if c is alphanumeric
-	return "dashboard-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
+	return "summary-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
 }
 
 func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, sum *summary.DashboardSummary) error {
