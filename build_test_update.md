@@ -12,7 +12,7 @@ is commented, and should be treated as the authoritative "input" schema to
 TestGrid.
 
 [`config.proto`] is generated primarily with
-[Configurator](https://github.com/kubernetes/test-infra/testgrid/cmd/configurator).
+[Configurator](https://github.com/kubernetes/test-infra/blob/master/testgrid/cmd/configurator).
 Updates to the [testgrid.k8s.io config] are automatically Configurated when a change is
 merged.
 
@@ -45,4 +45,4 @@ Run `bazel test //...` to run all unit tests in TestGrid. Note that this does no
 the [testgrid.k8s.io config]; those tests are in `bazel test //config/tests/testgrids/...`
 
 [`config.proto`]: ./config/config.proto
-[testgrid.k8s.io config]: https://github.com/kubernetes/test-infra/config/testgrids
+[testgrid.k8s.io config]: https://github.com/kubernetes/test-infra/blob/master/config/testgrids
