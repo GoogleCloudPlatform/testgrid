@@ -663,11 +663,14 @@ type Target struct {
 
 	// Tags are metadata for the target (like github labels).
 	Tags []string
+	// Properties of the target
+	Properties []Property
 }
 
 func fromTarget(t *resultstore.Target) Target {
 	tgt := Target{
-		Name: t.Name,
+		Name:       t.Name,
+		Properties: fromProperties(t.Properties),
 	}
 	if t.TargetAttributes != nil {
 		copy(tgt.Tags, t.TargetAttributes.Tags)
@@ -683,6 +686,7 @@ func (t Target) To() *resultstore.Target {
 		Timing:           timing(t.Start, t.Duration),
 		StatusAttributes: status(t.Status, t.Description),
 		Visible:          true,
+		Properties:       properties(t.Properties),
 	}
 	if t.Tags != nil {
 		tgt.TargetAttributes = &resultstore.TargetAttributes{
