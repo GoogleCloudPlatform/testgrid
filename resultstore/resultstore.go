@@ -673,6 +673,7 @@ func fromTarget(t *resultstore.Target) Target {
 		Properties: fromProperties(t.Properties),
 	}
 	if t.TargetAttributes != nil {
+		tgt.Tags = make([]string, len(t.TargetAttributes.Tags))
 		copy(tgt.Tags, t.TargetAttributes.Tags)
 	}
 	tgt.Start, tgt.Duration = fromTiming(t.Timing)
