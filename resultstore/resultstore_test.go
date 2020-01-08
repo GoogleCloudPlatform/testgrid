@@ -247,3 +247,143 @@ func TestProperties(t *testing.T) {
 		})
 	}
 }
+
+func TestFromTarget(t *testing.T) {
+	now := time.Now()
+	cases := []struct {
+		name     string
+		t        *resultstore.Target
+		expected Target
+	}{
+		{
+			name: "empty fromTarget works",
+			t: &resultstore.Target{
+				Name: "Empty Target",
+			},
+			expected: Target{
+				Name: "Empty Target",
+			},
+		},
+		{
+			name: "fromTarget with empty properties",
+			t: &resultstore.Target{
+				Name: "Empty Properties",
+				TargetAttributes: &resultstore.TargetAttributes{
+					Tags: []string{
+						"attr1",
+					},
+				},
+			},
+			expected: Target{
+				Name: "Empty Properties",
+				Tags: []string{
+					"attr1",
+				},
+			},
+		},
+		{
+			name: "fromTarget with properties",
+			t: &resultstore.Target{
+				Name: "Contain Properties",
+				TargetAttributes: &resultstore.TargetAttributes{
+					Tags: []string{
+						"attr1",
+						"attr2",
+					},
+				},
+				Properties: []*resultstore.Property{
+					{
+						Key:   "key1",
+						Value: "val1",
+					},
+					{
+						Key:   "key2",
+						Value: "val2",
+					},
+				},
+			},
+			expected: Target{
+				Name: "Contain Properties",
+				Tags: []string{
+					"attr1",
+					"attr2",
+				},
+				Properties: []Property{
+					{
+						Key:   "key1",
+						Value: "val1",
+					},
+					{
+						Key:   "key2",
+						Value: "val2",
+					},
+				},
+			},
+		},
+		{
+			name: "test all attributes of target",
+			t: &resultstore.Target{
+				Name: "All Attributes",
+				TargetAttributes: &resultstore.TargetAttributes{
+					Tags: []string{
+						"attr1",
+					},
+				},
+				Properties: []*resultstore.Property{
+					{
+						Key:   "key1",
+						Value: "val1",
+					},
+				},
+				Timing: &resultstore.Timing{
+					StartTime: stamp(now),
+					Duration:  dur(time.Second),
+				},
+				StatusAttributes: &resultstore.StatusAttributes{
+					Status:      resultstore.Status_STATUS_UNSPECIFIED,
+					Description: "description1",
+				},
+			},
+			expected: Target{
+				Name: "All Attributes",
+				Tags: []string{
+					"attr1",
+				},
+				Properties: []Property{
+					{
+						Key:   "key1",
+						Value: "val1",
+					},
+				},
+				Start:       now,
+				Duration:    time.Second,
+				Status:      resultstore.Status_STATUS_UNSPECIFIED,
+				Description: "description1",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tgt := fromTarget(tc.t)
+			if !equality.Semantic.DeepEqual(tgt.Name, tc.expected.Name) {
+				t.Errorf(diff.ObjectReflectDiff(tgt.Name, tc.expected.Name))
+			}
+			if !equality.Semantic.DeepEqual(tgt.Tags, tc.expected.Tags) {
+				t.Errorf(diff.ObjectReflectDiff(tgt.Tags, tc.expected.Tags))
+			}
+			if !equality.Semantic.DeepEqual(tgt.Properties, tc.expected.Properties) {
+				t.Errorf(diff.ObjectReflectDiff(tgt.Properties, tc.expected.Properties))
+			}
+			if !equality.Semantic.DeepEqual(tgt.Duration, tc.expected.Duration) {
+				t.Errorf(diff.ObjectReflectDiff(tgt.Duration, tc.expected.Duration))
+			}
+			if !equality.Semantic.DeepEqual(tgt.Status, tc.expected.Status) {
+				t.Errorf(diff.ObjectReflectDiff(tgt.Status, tc.expected.Status))
+			}
+			if !equality.Semantic.DeepEqual(tgt.Description, tc.expected.Description) {
+				t.Errorf(diff.ObjectReflectDiff(tgt.Description, tc.expected.Description))
+			}
+		})
+	}
+}
