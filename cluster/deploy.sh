@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2020 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# bump.sh will
-# * ensure there are no pending changes
+# deploy.sh will
 # * optionally activate GOOGLE_APPLICATION_CREDENTIALS and configure-docker if set
-# * run //prow:release-push to build and push prow images
-# * update all the cluster/*.yaml files to use the new image tags
+# * ensure the kubectl context exists
+# * run //cluster:prod.apply to update to the specified version
 
 set -o errexit
 set -o nounset
