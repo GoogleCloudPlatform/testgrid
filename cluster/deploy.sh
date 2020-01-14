@@ -33,6 +33,7 @@ case "${1:-}" in
 "")
   read -p "Deploy testgrid to prod [no]: " confirm
   if [[ "${confirm}" != y* ]]; then
+    echo "ABORTING" >&2
     exit 1
   fi
   ;;
