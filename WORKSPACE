@@ -16,13 +16,15 @@ load("@io_k8s_repo_infra//:load.bzl", "repositories")
 
 repositories()
 
-load("@io_k8s_repo_infra//:repos.bzl", "configure")
+load("@io_k8s_repo_infra//:repos.bzl", "configure", _repo_infra_go_repos = "go_repositories")
 
 configure()
 
 load("//:repos.bzl", "go_repositories")
 
 go_repositories()
+
+_repo_infra_go_repos()  # Load any missing repos that repo-infra depends on
 
 http_archive(
     name = "io_bazel_rules_docker",
