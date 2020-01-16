@@ -17,15 +17,24 @@ limitations under the License.
 package resultstore
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	resultstore "google.golang.org/genproto/googleapis/devtools/resultstore/v2"
-	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/util/diff"
 )
+
+func deepEqual(have, want interface{}) bool {
+	return reflect.DeepEqual(have, want)
+}
+
+func diff(have, want interface{}) string {
+	// TODO(fejta): something fancier
+	return fmt.Sprintf("got %v, want %v", have, want)
+}
 
 func TestDur(t *testing.T) {
 	cases := []struct {
@@ -55,8 +64,8 @@ func TestDur(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := dur(tc.dur); !equality.Semantic.DeepEqual(actual, tc.expected) {
-				t.Errorf(diff.ObjectReflectDiff(actual, tc.expected))
+			if actual := dur(tc.dur); !deepEqual(actual, tc.expected) {
+				t.Errorf(diff(actual, tc.expected))
 			}
 		})
 	}
@@ -97,8 +106,8 @@ func TestStamp(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := stamp(tc.when); !equality.Semantic.DeepEqual(actual, tc.expected) {
-				t.Errorf(diff.ObjectReflectDiff(actual, tc.expected))
+			if actual := stamp(tc.when); !deepEqual(actual, tc.expected) {
+				t.Errorf(diff(actual, tc.expected))
 			}
 		})
 	}
@@ -134,8 +143,8 @@ func TestTiming(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := timing(tc.when, tc.d)
-			if !equality.Semantic.DeepEqual(actual, tc.expected) {
-				t.Errorf(diff.ObjectReflectDiff(actual, tc.expected))
+			if !deepEqual(actual, tc.expected) {
+				t.Errorf(diff(actual, tc.expected))
 			}
 		})
 	}
@@ -237,8 +246,8 @@ func TestProperties(t *testing.T) {
 					}
 				}()
 				actual := Properties(tc.input...)
-				if !equality.Semantic.DeepEqual(actual, tc.expected) {
-					t.Errorf(diff.ObjectReflectDiff(actual, tc.expected))
+				if !deepEqual(actual, tc.expected) {
+					t.Errorf(diff(actual, tc.expected))
 				}
 			}()
 			if shocked != tc.shock {
@@ -366,23 +375,23 @@ func TestFromTarget(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tgt := fromTarget(tc.t)
-			if !equality.Semantic.DeepEqual(tgt.Name, tc.expected.Name) {
-				t.Errorf(diff.ObjectReflectDiff(tgt.Name, tc.expected.Name))
+			if !deepEqual(tgt.Name, tc.expected.Name) {
+				t.Errorf(diff(tgt.Name, tc.expected.Name))
 			}
-			if !equality.Semantic.DeepEqual(tgt.Tags, tc.expected.Tags) {
-				t.Errorf(diff.ObjectReflectDiff(tgt.Tags, tc.expected.Tags))
+			if !deepEqual(tgt.Tags, tc.expected.Tags) {
+				t.Errorf(diff(tgt.Tags, tc.expected.Tags))
 			}
-			if !equality.Semantic.DeepEqual(tgt.Properties, tc.expected.Properties) {
-				t.Errorf(diff.ObjectReflectDiff(tgt.Properties, tc.expected.Properties))
+			if !deepEqual(tgt.Properties, tc.expected.Properties) {
+				t.Errorf(diff(tgt.Properties, tc.expected.Properties))
 			}
-			if !equality.Semantic.DeepEqual(tgt.Duration, tc.expected.Duration) {
-				t.Errorf(diff.ObjectReflectDiff(tgt.Duration, tc.expected.Duration))
+			if !deepEqual(tgt.Duration, tc.expected.Duration) {
+				t.Errorf(diff(tgt.Duration, tc.expected.Duration))
 			}
-			if !equality.Semantic.DeepEqual(tgt.Status, tc.expected.Status) {
-				t.Errorf(diff.ObjectReflectDiff(tgt.Status, tc.expected.Status))
+			if !deepEqual(tgt.Status, tc.expected.Status) {
+				t.Errorf(diff(tgt.Status, tc.expected.Status))
 			}
-			if !equality.Semantic.DeepEqual(tgt.Description, tc.expected.Description) {
-				t.Errorf(diff.ObjectReflectDiff(tgt.Description, tc.expected.Description))
+			if !deepEqual(tgt.Description, tc.expected.Description) {
+				t.Errorf(diff(tgt.Description, tc.expected.Description))
 			}
 		})
 	}
