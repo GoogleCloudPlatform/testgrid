@@ -692,7 +692,7 @@ func readBuild(parent context.Context, build Build, timeout time.Duration) (*Col
 func Headers(group configpb.TestGroup) []string {
 	var extra []string
 	for _, h := range group.ColumnHeader {
-		extra = append(extra, h.ConfigurationValue)
+		extra = append(extra, h.String())
 	}
 	return extra
 }
@@ -712,7 +712,7 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 	if concurrency == 0 {
 		return nil, fmt.Errorf("zero readers for %s", group.Name)
 	}
-	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.GcsPrefix)
+	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.Query)
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	var stop time.Time
@@ -976,8 +976,8 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 	o := tg.Name
 
 	var tgPath gcs.Path
-	if err := tgPath.Set("gs://" + tg.GcsPrefix); err != nil {
-		return fmt.Errorf("group %s has an invalid gcs_prefix %s: %v", o, tg.GcsPrefix, err)
+	if err := tgPath.Set("gs://" + tg.Query); err != nil {
+		return fmt.Errorf("group %s has an invalid gcs_prefix %s: %v", o, tg.Query, err)
 	}
 
 	g := state.Grid{}

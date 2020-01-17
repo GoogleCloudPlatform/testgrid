@@ -61,7 +61,7 @@ message TestGroup {
   // Path to the test result location, including protocol.
   // The location must be accessible from the Update Server, and not local.
   // GCS is usually used, making this field "gs://<bucket>"
-  string gcs_prefix = 2;
+  string query = 2;
 
   // Number of days of test results to gather and serve.
   int32 days_of_results = 3;
@@ -96,8 +96,11 @@ message TestGroup {
   // Custom column headers for defining extra column-heading rows from values in
   // the test result.
   message ColumnHeader {
-    reserved 1, 2;
-    string configuration_value = 3;
+    oneof column_header_source {
+      string label = 1;
+      string property = 2;
+      string configuration_value = 3;
+    }
   }
   repeated ColumnHeader column_header = 9;
 
@@ -229,7 +232,7 @@ message TestGroup {
   // Default metadata that should be applied for opening bugs, if a given regex
   // matches against a test's name.
   // Requires 'use_test_metadata = true'.
-  TestMetadataOptions test_metadata_options = 34;
+  repeated TestMetadataOptions test_metadata_options = 34;
 
   // A space-delimited string of tags that are used to filter test targets.
   // A leading - before the tag means this tag should not be present
