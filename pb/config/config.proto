@@ -401,6 +401,9 @@ message AutoBugOptions {
   // query by testgrid for a single failure group exceeds this value. Requires
   // 'file_individual' to be True.
   int32 max_allowed_individual_bugs = 7;
+
+  // If True; file issues for the 'Overall' target, even if otherwise invalid.
+  bool file_overall = 8;
 }
 
 message HotlistIdFromSource {
