@@ -14,19 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package summarizer
 
 import (
 	"compress/zlib"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -43,82 +41,24 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-type options struct {
-	config      gcs.Path // gcs://path/to/config/proto
-	creds       string
-	confirm     bool
-	dashboard   string
-	concurrency int
-	wait        time.Duration
-}
-
-func (o *options) validate() error {
-	if o.config.String() == "" {
-		return errors.New("empty --config")
-	}
-	if o.concurrency == 0 {
-		o.concurrency = 4 * runtime.NumCPU()
-	}
-	return nil
-}
-
-func gatherOptions() options {
-	var o options
-	flag.Var(&o.config, "config", "gs://path/to/config.pb")
-	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
-	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	flag.StringVar(&o.dashboard, "dashboard", "", "Only update named dashboard if set")
-	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
-	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
-	flag.Parse()
-	return o
-}
-
 // gridReader returns the grid content and metadata (last updated time, generation id)
 type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, error)
 
 // groupFinder returns the named group as well as reader for the grid state
 type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 
-func main() {
-
-	opt := gatherOptions()
-	if err := opt.validate(); err != nil {
-		logrus.Fatalf("Invalid flags: %v", err)
+// Update summary protos by reading the state protos defined in the config.
+//
+// Will use concurrency go routines to update dashboards in parallel.
+// Setting dashboard will limit update to this dashboard.
+// Will write summary proto when confirm is set.
+func Update(ctx context.Context, client *storage.Client, path gcs.Path, concurrency int, dashboard string, confirm bool) error {
+	if concurrency < 1 {
+		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
-	if !opt.confirm {
-		logrus.Info("--confirm=false (DRY-RUN): will not write to gcs")
-	}
-
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := updateOnce(ctx, opt); err != nil {
-		logrus.WithError(err).Error("Failed update")
-	}
-	if opt.wait == 0 {
-		return
-	}
-	timer := time.NewTimer(opt.wait)
-	defer timer.Stop()
-	for range timer.C {
-		timer.Reset(opt.wait)
-		if err := updateOnce(ctx, opt); err != nil {
-			logrus.WithError(err).Error("Failed update")
-		}
-		logrus.WithField("wait", opt.wait).Info("Sleeping")
-	}
-}
-
-func updateOnce(ctx context.Context, opt options) error {
-	client, err := gcs.ClientWithCreds(ctx, opt.creds)
+	cfg, err := config.ReadGCS(ctx, client.Bucket(path.Bucket()).Object(path.Object()))
 	if err != nil {
-		logrus.Fatalf("Failed to read storage client: %v", err)
-	}
-
-	cfg, err := config.ReadGCS(ctx, client.Bucket(opt.config.Bucket()).Object(opt.config.Object()))
-	if err != nil {
-		logrus.Fatalf("Failed to read %q: %v", opt.config, err)
+		return fmt.Errorf("Failed to read config: %w", err)
 	}
 	logrus.Infof("Found %d dashboards", len(cfg.Dashboards))
 
@@ -130,7 +70,7 @@ func updateOnce(ctx context.Context, opt options) error {
 		if group == nil {
 			return nil, nil, nil
 		}
-		path, err := opt.config.ResolveReference(&url.URL{Path: name})
+		path, err := path.ResolveReference(&url.URL{Path: name})
 		if err != nil {
 			return group, nil, err
 		}
@@ -142,7 +82,7 @@ func updateOnce(ctx context.Context, opt options) error {
 
 	errCh := make(chan error)
 
-	for i := 0; i < opt.concurrency; i++ {
+	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			for dash := range dashboards {
@@ -155,10 +95,10 @@ func updateOnce(ctx context.Context, opt options) error {
 					continue
 				}
 				log.WithField("summary", sum).Info("summarized")
-				if !opt.confirm {
+				if !confirm {
 					continue
 				}
-				path, err := opt.config.ResolveReference(&url.URL{Path: summaryPath(dash.Name)})
+				path, err := path.ResolveReference(&url.URL{Path: summaryPath(dash.Name)})
 				if err != nil {
 					log.WithError(err).Error("Cannot resolve summary path")
 					errCh <- errors.New(dash.Name)
@@ -192,7 +132,7 @@ func updateOnce(ctx context.Context, opt options) error {
 	}()
 
 	for _, d := range cfg.Dashboards {
-		if opt.dashboard != "" && opt.dashboard != d.Name {
+		if dashboard != "" && dashboard != d.Name {
 			logrus.WithField("dashboard", d.Name).Info("Skipping")
 			continue
 		}

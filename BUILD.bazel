@@ -25,6 +25,7 @@ filegroup(
         "//internal/result:all-srcs",
         "//metadata:all-srcs",
         "//pb:all-srcs",
+        "//pkg/summarizer:all-srcs",
         "//resultstore:all-srcs",
         "//util/gcs:all-srcs",
     ],
