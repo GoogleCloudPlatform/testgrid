@@ -2,7 +2,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["main.go"],
+    srcs = ["summary.go"],
     importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/summarizer",
     visibility = ["//visibility:public"],
     deps = [
@@ -34,7 +34,7 @@ filegroup(
 
 go_test(
     name = "go_default_test",
-    srcs = ["main_test.go"],
+    srcs = ["summary_test.go"],
     embed = [":go_default_library"],
     deps = [
         "//internal/result:go_default_library",
