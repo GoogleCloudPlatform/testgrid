@@ -32,13 +32,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
-	"github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 )
 
 type fakeGroup struct {
 	group configpb.TestGroup
-	grid  state.Grid
+	grid  statepb.Grid
 	mod   time.Time
 	gen   int64
 	err   error
@@ -47,14 +47,14 @@ type fakeGroup struct {
 func TestUpdateDashboard(t *testing.T) {
 	cases := []struct {
 		name     string
-		dash     configpb.Dashboard
+		dash     *configpb.Dashboard
 		groups   map[string]fakeGroup
-		expected *summary.DashboardSummary
+		expected *summarypb.DashboardSummary
 		err      bool
 	}{
 		{
 			name: "basically works",
-			dash: configpb.Dashboard{
+			dash: &configpb.Dashboard{
 				DashboardTab: []*configpb.DashboardTab{
 					{
 						Name:          "stale-tab",
@@ -67,13 +67,13 @@ func TestUpdateDashboard(t *testing.T) {
 					mod: time.Unix(1000, 0),
 				},
 			},
-			expected: &summary.DashboardSummary{
-				TabSummaries: []*summary.DashboardTabSummary{
+			expected: &summarypb.DashboardSummary{
+				TabSummaries: []*summarypb.DashboardTabSummary{
 					{
 						DashboardTabName:    "stale-tab",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
-						OverallStatus:       summary.DashboardTabSummary_STALE,
+						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						Status:              noRuns,
 						LatestGreen:         noGreens,
 					},
@@ -82,7 +82,7 @@ func TestUpdateDashboard(t *testing.T) {
 		},
 		{
 			name: "still update working tabs when some tabs fail",
-			dash: configpb.Dashboard{
+			dash: &configpb.Dashboard{
 				DashboardTab: []*configpb.DashboardTab{
 					{
 						Name:          "working",
@@ -110,14 +110,14 @@ func TestUpdateDashboard(t *testing.T) {
 					err: errors.New("tragedy"),
 				},
 			},
-			expected: &summary.DashboardSummary{
-				TabSummaries: []*summary.DashboardTabSummary{
+			expected: &summarypb.DashboardSummary{
+				TabSummaries: []*summarypb.DashboardTabSummary{
 					{
 						DashboardTabName:    "working",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
 						Status:              noRuns,
-						OverallStatus:       summary.DashboardTabSummary_STALE,
+						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
 					},
 					problemTab("missing-tab"),
@@ -127,7 +127,7 @@ func TestUpdateDashboard(t *testing.T) {
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
 						Status:              noRuns,
-						OverallStatus:       summary.DashboardTabSummary_STALE,
+						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
 					},
 				},
@@ -147,18 +147,18 @@ func TestUpdateDashboard(t *testing.T) {
 					return nil, nil, nil
 				}
 				reader := func(_ context.Context) (io.ReadCloser, time.Time, int64, error) {
-					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(fake.grid)))), fake.mod, fake.gen, fake.err
+					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(&fake.grid)))), fake.mod, fake.gen, fake.err
 				}
 				return &fake.group, reader, nil
 			}
-			actual, err := updateDashboard(context.Background(), &tc.dash, finder)
+			actual, err := updateDashboard(context.Background(), tc.dash, finder)
 			if err != nil && !tc.err {
 				t.Errorf("unexpected error: %v", err)
 			}
 			if tc.err && err == nil {
 				t.Error("failed to receive expected error")
 			}
-			if !reflect.DeepEqual(actual, tc.expected) {
+			if !proto.Equal(actual, tc.expected) {
 				t.Errorf("actual dashboard summary %s != expected %s", actual, tc.expected)
 			}
 		})
@@ -168,7 +168,7 @@ func TestUpdateDashboard(t *testing.T) {
 func TestStaleHours(t *testing.T) {
 	cases := []struct {
 		name     string
-		tab      configpb.DashboardTab
+		tab      *configpb.DashboardTab
 		expected time.Duration
 	}{
 		{
@@ -177,7 +177,7 @@ func TestStaleHours(t *testing.T) {
 		},
 		{
 			name: "use defined hours when set",
-			tab: configpb.DashboardTab{
+			tab: &configpb.DashboardTab{
 				AlertOptions: &configpb.DashboardTabAlertOptions{
 					AlertStaleResultsHours: 4,
 				},
@@ -188,15 +188,18 @@ func TestStaleHours(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := staleHours(&tc.tab); actual != tc.expected {
+			if tc.tab == nil {
+				tc.tab = &configpb.DashboardTab{}
+			}
+			if actual := staleHours(tc.tab); actual != tc.expected {
 				t.Errorf("actual %v != expected %v", actual, tc.expected)
 			}
 		})
 	}
 }
 
-func gridBuf(grid state.Grid) []byte {
-	buf, err := proto.Marshal(&grid)
+func gridBuf(grid *statepb.Grid) []byte {
+	buf, err := proto.Marshal(grid)
 	if err != nil {
 		panic(err)
 	}
@@ -219,14 +222,14 @@ func TestUpdateTab(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
 		name      string
-		tab       configpb.DashboardTab
+		tab       *configpb.DashboardTab
 		group     *configpb.TestGroup
 		findError error
-		grid      state.Grid
+		grid      statepb.Grid
 		mod       time.Time
 		gen       int64
 		gridError error
-		expected  *summary.DashboardTabSummary
+		expected  *summarypb.DashboardTabSummary
 		err       bool
 	}{
 		{
@@ -240,7 +243,7 @@ func TestUpdateTab(t *testing.T) {
 		},
 		{
 			name: "read grid error returns error",
-			tab: configpb.DashboardTab{
+			tab: &configpb.DashboardTab{
 				TestGroupName: "foo",
 			},
 			group:     &configpb.TestGroup{},
@@ -251,19 +254,19 @@ func TestUpdateTab(t *testing.T) {
 		},
 		{
 			name: "basically works", // TODO(fejta): more better
-			tab: configpb.DashboardTab{
+			tab: &configpb.DashboardTab{
 				Name:          "foo-tab",
 				TestGroupName: "foo-group",
 			},
 			group: &configpb.TestGroup{},
 			mod:   now,
 			gen:   43,
-			expected: &summary.DashboardTabSummary{
+			expected: &summarypb.DashboardTabSummary{
 				DashboardTabName:    "foo-tab",
 				LastUpdateTimestamp: float64(now.Unix()),
 				Alert:               noRuns,
 				LatestGreen:         noGreens,
-				OverallStatus:       summary.DashboardTabSummary_STALE,
+				OverallStatus:       summarypb.DashboardTabSummary_STALE,
 				Status:              noRuns,
 			},
 		},
@@ -282,12 +285,15 @@ func TestUpdateTab(t *testing.T) {
 					if tc.gridError != nil {
 						return nil, time.Time{}, 0, tc.gridError
 					}
-					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(tc.grid)))), tc.mod, tc.gen, nil
+					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(&tc.grid)))), tc.mod, tc.gen, nil
 				}
 				return tc.group, reader, nil
 			}
 
-			actual, err := updateTab(context.Background(), &tc.tab, finder)
+			if tc.tab == nil {
+				tc.tab = &configpb.DashboardTab{}
+			}
+			actual, err := updateTab(context.Background(), tc.tab, finder)
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -295,7 +301,7 @@ func TestUpdateTab(t *testing.T) {
 				}
 			case tc.err:
 				t.Errorf("failed to receive expected error")
-			case !reflect.DeepEqual(actual, tc.expected):
+			case !proto.Equal(actual, tc.expected):
 				t.Errorf("actual summary: %s != expected %s", actual, tc.expected)
 			}
 		})
@@ -307,7 +313,7 @@ func TestReadGrid(t *testing.T) {
 		name         string
 		reader       io.Reader
 		err          error
-		expectedGrid *state.Grid
+		expectedGrid *statepb.Grid
 		expectErr    bool
 	}{
 		{
@@ -317,7 +323,7 @@ func TestReadGrid(t *testing.T) {
 		},
 		{
 			name: "return error when state is not compressed",
-			reader: bytes.NewBuffer(gridBuf(state.Grid{
+			reader: bytes.NewBuffer(gridBuf(&statepb.Grid{
 				LastTimeUpdated: 444,
 			})),
 			expectErr: true,
@@ -329,8 +335,8 @@ func TestReadGrid(t *testing.T) {
 		},
 		{
 			name: "return error when compressed proto is truncated",
-			reader: bytes.NewBuffer(compress(gridBuf(state.Grid{
-				Columns: []*state.Column{
+			reader: bytes.NewBuffer(compress(gridBuf(&statepb.Grid{
+				Columns: []*statepb.Column{
 					{
 						Build:      "really long info",
 						Name:       "weeee",
@@ -343,10 +349,10 @@ func TestReadGrid(t *testing.T) {
 		},
 		{
 			name: "successfully parse compressed grid",
-			reader: bytes.NewBuffer(compress(gridBuf(state.Grid{
+			reader: bytes.NewBuffer(compress(gridBuf(&statepb.Grid{
 				LastTimeUpdated: 555,
 			}))),
-			expectedGrid: &state.Grid{
+			expectedGrid: &statepb.Grid{
 				LastTimeUpdated: 555,
 			},
 		},
@@ -372,7 +378,7 @@ func TestReadGrid(t *testing.T) {
 				}
 			case tc.expectErr:
 				t.Error("failed to receive expected error")
-			case !reflect.DeepEqual(actualGrid, tc.expectedGrid):
+			case !proto.Equal(actualGrid, tc.expectedGrid):
 				t.Errorf("actual state: %#v != expected %#v", actualGrid, tc.expectedGrid)
 			case !now.Equal(aT):
 				t.Errorf("actual modified: %v != expected %v", aT, now)
@@ -451,9 +457,9 @@ func TestFilterGrid(t *testing.T) {
 	cases := []struct {
 		name        string
 		baseOptions string
-		rows        []*state.Row
+		rows        []*statepb.Row
 		recent      int
-		expected    []*state.Row
+		expected    []*statepb.Row
 		err         bool
 	}{
 		{
@@ -470,28 +476,28 @@ func TestFilterGrid(t *testing.T) {
 				includeFilter: []string{"foo"},
 				excludeFilter: []string{"bar"},
 			}.Encode(),
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "include-food",
-					Results: []int32{int32(state.Row_PASS), 10},
+					Results: []int32{int32(statepb.Row_PASS), 10},
 				},
 				{
 					Name:    "exclude-included-bart",
-					Results: []int32{int32(state.Row_PASS), 10},
+					Results: []int32{int32(statepb.Row_PASS), 10},
 				},
 				{
 					Name: "ignore-included-stale",
 					Results: []int32{
-						int32(state.Row_NO_RESULT), 5,
-						int32(state.Row_PASS_WITH_SKIPS), 10,
+						int32(statepb.Row_NO_RESULT), 5,
+						int32(statepb.Row_PASS_WITH_SKIPS), 10,
 					},
 				},
 			},
 			recent: 5,
-			expected: []*state.Row{
+			expected: []*statepb.Row{
 				{
 					Name:    "include-food",
-					Results: []int32{int32(state.Row_PASS), 10},
+					Results: []int32{int32(statepb.Row_PASS), 10},
 				},
 			},
 		},
@@ -500,7 +506,7 @@ func TestFilterGrid(t *testing.T) {
 			baseOptions: url.Values{
 				includeFilter: []string{"foo", "spam"},
 			}.Encode(),
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "spam-is-food",
 				},
@@ -514,7 +520,7 @@ func TestFilterGrid(t *testing.T) {
 					Name: "email-spam-is-not-food",
 				},
 			},
-			expected: []*state.Row{
+			expected: []*statepb.Row{
 				{
 					Name: "spam-is-food",
 				},
@@ -528,7 +534,7 @@ func TestFilterGrid(t *testing.T) {
 			baseOptions: url.Values{
 				excludeFilter: []string{"not", "nope"},
 			}.Encode(),
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "yes please",
 				},
@@ -542,7 +548,7 @@ func TestFilterGrid(t *testing.T) {
 					Name: "fluffy waffles",
 				},
 			},
-			expected: []*state.Row{
+			expected: []*statepb.Row{
 				{
 					Name: "yes please",
 				},
@@ -571,12 +577,12 @@ func TestFilterGrid(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, r := range tc.rows {
 				if r.Results == nil {
-					r.Results = []int32{int32(state.Row_PASS), 100}
+					r.Results = []int32{int32(statepb.Row_PASS), 100}
 				}
 			}
 			for _, r := range tc.expected {
 				if r.Results == nil {
-					r.Results = []int32{int32(state.Row_PASS), 100}
+					r.Results = []int32{int32(statepb.Row_PASS), 100}
 				}
 			}
 			actual, err := filterGrid(tc.baseOptions, tc.rows, tc.recent)
@@ -599,7 +605,7 @@ func TestRecentRows(t *testing.T) {
 	const recent = 10
 	cases := []struct {
 		name     string
-		rows     []*state.Row
+		rows     []*statepb.Row
 		expected []string
 	}{
 		{
@@ -607,10 +613,10 @@ func TestRecentRows(t *testing.T) {
 		},
 		{
 			name: "skip row with nil results",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "include",
-					Results: []int32{int32(state.Row_PASS), recent},
+					Results: []int32{int32(statepb.Row_PASS), recent},
 				},
 				{
 					Name: "skip-nil-results",
@@ -620,41 +626,41 @@ func TestRecentRows(t *testing.T) {
 		},
 		{
 			name: "skip row with no recent results",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "include",
-					Results: []int32{int32(state.Row_PASS), recent},
+					Results: []int32{int32(statepb.Row_PASS), recent},
 				},
 				{
 					Name:    "skip-this-one-with-no-recent-results",
-					Results: []int32{int32(state.Row_NO_RESULT), recent},
+					Results: []int32{int32(statepb.Row_NO_RESULT), recent},
 				},
 			},
 			expected: []string{"include"},
 		},
 		{
 			name: "include rows missing some recent results",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "head skips",
 					Results: []int32{
-						int32(state.Row_NO_RESULT), recent - 1,
-						int32(state.Row_PASS_WITH_SKIPS), recent,
+						int32(statepb.Row_NO_RESULT), recent - 1,
+						int32(statepb.Row_PASS_WITH_SKIPS), recent,
 					},
 				},
 				{
 					Name: "tail skips",
 					Results: []int32{
-						int32(state.Row_FLAKY), recent - 1,
-						int32(state.Row_NO_RESULT), recent,
+						int32(statepb.Row_FLAKY), recent - 1,
+						int32(statepb.Row_NO_RESULT), recent,
 					},
 				},
 				{
 					Name: "middle skips",
 					Results: []int32{
-						int32(state.Row_FAIL), 1,
-						int32(state.Row_NO_RESULT), recent - 2,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_FAIL), 1,
+						int32(statepb.Row_NO_RESULT), recent - 2,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 			},
@@ -712,9 +718,9 @@ func TestIncludeRows(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var rows []*state.Row
+			var rows []*statepb.Row
 			for _, n := range tc.names {
-				rows = append(rows, &state.Row{Name: n})
+				rows = append(rows, &statepb.Row{Name: n})
 			}
 			actualRows, err := includeRows(rows, tc.include)
 			var actual []string
@@ -767,9 +773,9 @@ func TestExcludeRows(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var rows []*state.Row
+			var rows []*statepb.Row
 			for _, n := range tc.names {
-				rows = append(rows, &state.Row{Name: n})
+				rows = append(rows, &statepb.Row{Name: n})
 			}
 			actualRows, err := excludeRows(rows, tc.exclude)
 			var actual []string
@@ -794,7 +800,7 @@ func TestExcludeRows(t *testing.T) {
 func TestLatestRun(t *testing.T) {
 	cases := []struct {
 		name         string
-		cols         []*state.Column
+		cols         []*statepb.Column
 		expectedTime time.Time
 		expectedSecs int64
 	}{
@@ -803,13 +809,13 @@ func TestLatestRun(t *testing.T) {
 		},
 		{
 			name: "zero started returns zero time",
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{},
 			},
 		},
 		{
 			name: "return first time in unix",
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{
 					Started: 333.333,
 				},
@@ -881,24 +887,24 @@ func TestStaleAlert(t *testing.T) {
 func TestFailingTestSummaries(t *testing.T) {
 	cases := []struct {
 		name     string
-		rows     []*state.Row
-		expected []*summary.FailingTestSummary
+		rows     []*statepb.Row
+		expected []*summarypb.FailingTestSummary
 	}{
 		{
 			name: "do not alert by default",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{},
 				{},
 			},
 		},
 		{
 			name: "alert when rows have alerts",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{},
 				{
 					Name: "foo-name",
 					Id:   "foo-target",
-					AlertInfo: &state.AlertInfo{
+					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:    "bad",
 						PassBuildId:    "good",
 						FailCount:      6,
@@ -912,7 +918,7 @@ func TestFailingTestSummaries(t *testing.T) {
 				{
 					Name: "bar-name",
 					Id:   "bar-target",
-					AlertInfo: &state.AlertInfo{
+					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:    "fbi",
 						PassBuildId:    "pbi",
 						FailCount:      1,
@@ -924,7 +930,7 @@ func TestFailingTestSummaries(t *testing.T) {
 				},
 				{},
 			},
-			expected: []*summary.FailingTestSummary{
+			expected: []*summarypb.FailingTestSummary{
 				{
 					DisplayName:    "foo-name",
 					TestName:       "foo-target",
@@ -963,114 +969,114 @@ func TestFailingTestSummaries(t *testing.T) {
 func TestOverallStatus(t *testing.T) {
 	cases := []struct {
 		name     string
-		rows     []*state.Row
+		rows     []*statepb.Row
 		recent   int
 		stale    string
 		alerts   bool
-		expected summary.DashboardTabSummary_TabStatus
+		expected summarypb.DashboardTabSummary_TabStatus
 	}{
 		{
 			name:     "unknown by default",
-			expected: summary.DashboardTabSummary_UNKNOWN,
+			expected: summarypb.DashboardTabSummary_UNKNOWN,
 		},
 		{
 			name:     "stale joke results in stale summary",
 			stale:    "joke",
-			expected: summary.DashboardTabSummary_STALE,
+			expected: summarypb.DashboardTabSummary_STALE,
 		},
 		{
 			name:     "alerts result in failure",
 			alerts:   true,
-			expected: summary.DashboardTabSummary_FAIL,
+			expected: summarypb.DashboardTabSummary_FAIL,
 		},
 		{
 			name:     "prefer stale over failure",
 			stale:    "potato chip",
 			alerts:   true,
-			expected: summary.DashboardTabSummary_STALE,
+			expected: summarypb.DashboardTabSummary_STALE,
 		},
 		{
 			name:   "completed results result in pass",
 			recent: 1,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(state.Row_PASS), 1},
+					Results: []int32{int32(statepb.Row_PASS), 1},
 				},
 			},
-			expected: summary.DashboardTabSummary_PASS,
+			expected: summarypb.DashboardTabSummary_PASS,
 		},
 		{
 			name:   "non-passing results without an alert results in flaky",
 			recent: 1,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(state.Row_FAIL), 1},
+					Results: []int32{int32(statepb.Row_FAIL), 1},
 				},
 			},
-			expected: summary.DashboardTabSummary_FLAKY,
+			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
 			name:   "do not consider still-running results as flaky",
 			recent: 5,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(state.Row_NO_RESULT), 1},
+					Results: []int32{int32(statepb.Row_NO_RESULT), 1},
 				},
 				{
-					Results: []int32{int32(state.Row_PASS), 3},
+					Results: []int32{int32(statepb.Row_PASS), 3},
 				},
 				{
-					Results: []int32{int32(state.Row_NO_RESULT), 2},
+					Results: []int32{int32(statepb.Row_NO_RESULT), 2},
 				},
 				{
-					Results: []int32{int32(state.Row_PASS), 2},
+					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 			},
-			expected: summary.DashboardTabSummary_PASS,
+			expected: summarypb.DashboardTabSummary_PASS,
 		},
 		{
 			name:   "ignore old failures",
 			recent: 1,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Results: []int32{
-						int32(state.Row_PASS), 3,
-						int32(state.Row_FAIL), 5,
+						int32(statepb.Row_PASS), 3,
+						int32(statepb.Row_FAIL), 5,
 					},
 				},
 			},
-			expected: summary.DashboardTabSummary_PASS,
+			expected: summarypb.DashboardTabSummary_PASS,
 		},
 		{
 			name:   "partial results work",
 			recent: 50,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(state.Row_PASS), 1},
+					Results: []int32{int32(statepb.Row_PASS), 1},
 				},
 			},
-			expected: summary.DashboardTabSummary_PASS,
+			expected: summarypb.DashboardTabSummary_PASS,
 		},
 		{
 			name:   "coalesce passes",
 			recent: 1,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(state.Row_PASS_WITH_SKIPS), 1},
+					Results: []int32{int32(statepb.Row_PASS_WITH_SKIPS), 1},
 				},
 			},
-			expected: summary.DashboardTabSummary_PASS,
+			expected: summarypb.DashboardTabSummary_PASS,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var alerts []*summary.FailingTestSummary
+			var alerts []*summarypb.FailingTestSummary
 			if tc.alerts {
-				alerts = append(alerts, &summary.FailingTestSummary{})
+				alerts = append(alerts, &summarypb.FailingTestSummary{})
 			}
 
-			if actual := overallStatus(&state.Grid{Rows: tc.rows}, tc.recent, tc.stale, alerts); actual != tc.expected {
+			if actual := overallStatus(&statepb.Grid{Rows: tc.rows}, tc.recent, tc.stale, alerts); actual != tc.expected {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})
@@ -1081,7 +1087,7 @@ func TestStatusMessage(t *testing.T) {
 	cases := []struct {
 		name             string
 		cols             int
-		rows             []*state.Row
+		rows             []*statepb.Row
 		recent           int
 		passingCols      int
 		filledCols       int
@@ -1096,14 +1102,14 @@ func TestStatusMessage(t *testing.T) {
 		{
 			name: "what people want (greens)",
 			cols: 2,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "green eggs",
-					Results: []int32{int32(state.Row_PASS), 2},
+					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 				{
 					Name:    "and ham",
-					Results: []int32{int32(state.Row_PASS), 2},
+					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 			},
 			recent:       2,
@@ -1115,14 +1121,14 @@ func TestStatusMessage(t *testing.T) {
 		{
 			name: "red: i do not like them sam I am",
 			cols: 2,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "not with a fox",
-					Results: []int32{int32(state.Row_FAIL), 2},
+					Results: []int32{int32(statepb.Row_FAIL), 2},
 				},
 				{
 					Name:    "not in a box",
-					Results: []int32{int32(state.Row_FLAKY), 2},
+					Results: []int32{int32(statepb.Row_FLAKY), 2},
 				},
 			},
 			recent:       2,
@@ -1134,19 +1140,19 @@ func TestStatusMessage(t *testing.T) {
 		{
 			name: "passing cells but no green columns",
 			cols: 2,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "first doughnut is best",
 					Results: []int32{
-						int32(state.Row_PASS), 1,
-						int32(state.Row_FAIL), 1,
+						int32(statepb.Row_PASS), 1,
+						int32(statepb.Row_FAIL), 1,
 					},
 				},
 				{
 					Name: "fine wine gets better",
 					Results: []int32{
-						int32(state.Row_FAIL), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_FAIL), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 			},
@@ -1160,14 +1166,14 @@ func TestStatusMessage(t *testing.T) {
 			name:   "ignore overflow of claimed columns",
 			cols:   100,
 			recent: 50,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "a",
-					Results: []int32{int32(state.Row_PASS), 3},
+					Results: []int32{int32(statepb.Row_PASS), 3},
 				},
 				{
 					Name:    "b",
-					Results: []int32{int32(state.Row_PASS), 3},
+					Results: []int32{int32(statepb.Row_PASS), 3},
 				},
 			},
 			passingCols:  3,
@@ -1179,13 +1185,13 @@ func TestStatusMessage(t *testing.T) {
 			name:   "ignore bad row data",
 			cols:   2,
 			recent: 2,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "empty",
 				},
 				{
 					Name:    "filled",
-					Results: []int32{int32(state.Row_PASS), 2},
+					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 			},
 			passingCols:  2,
@@ -1197,10 +1203,10 @@ func TestStatusMessage(t *testing.T) {
 			name:   "ignore non recent data",
 			cols:   100,
 			recent: 2,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "data",
-					Results: []int32{int32(state.Row_PASS), 100},
+					Results: []int32{int32(statepb.Row_PASS), 100},
 				},
 			},
 			passingCols:  2,
@@ -1212,30 +1218,30 @@ func TestStatusMessage(t *testing.T) {
 			name:   "no result cells do not alter column",
 			cols:   3,
 			recent: 3,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "always empty",
-					Results: []int32{int32(state.Row_NO_RESULT), 3},
+					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
 				},
 				{
 					Name: "first empty",
 					Results: []int32{
-						int32(state.Row_NO_RESULT), 1,
-						int32(state.Row_PASS), 2,
+						int32(statepb.Row_NO_RESULT), 1,
+						int32(statepb.Row_PASS), 2,
 					},
 				},
 				{
 					Name: "always pass",
 					Results: []int32{
-						int32(state.Row_PASS), 3,
+						int32(statepb.Row_PASS), 3,
 					},
 				},
 				{
 					Name: "empty, fail, pass",
 					Results: []int32{
-						int32(state.Row_NO_RESULT), 1,
-						int32(state.Row_FAIL), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_NO_RESULT), 1,
+						int32(statepb.Row_FAIL), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 			},
@@ -1248,10 +1254,10 @@ func TestStatusMessage(t *testing.T) {
 			name:   "not enough columns yet works just fine",
 			cols:   2,
 			recent: 50,
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "two passes",
-					Results: []int32{int32(state.Row_PASS), 2},
+					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 			},
 			passingCols:  2,
@@ -1277,8 +1283,8 @@ func TestStatusMessage(t *testing.T) {
 func TestLatestGreen(t *testing.T) {
 	cases := []struct {
 		name     string
-		rows     []*state.Row
-		cols     []*state.Column
+		rows     []*statepb.Row
+		cols     []*statepb.Column
 		expected string
 	}{
 		{
@@ -1287,13 +1293,13 @@ func TestLatestGreen(t *testing.T) {
 		},
 		{
 			name: "favor first green",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name:    "so pass",
-					Results: []int32{int32(state.Row_PASS), 4},
+					Results: []int32{int32(statepb.Row_PASS), 4},
 				},
 			},
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{
 					Extra: []string{"hello", "there"},
 				},
@@ -1305,27 +1311,27 @@ func TestLatestGreen(t *testing.T) {
 		},
 		{
 			name: "accept any kind of pass",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "pass w/ errors",
 					Results: []int32{
-						int32(state.Row_PASS_WITH_ERRORS), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_PASS_WITH_ERRORS), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 				{
 					Name:    "pass pass",
-					Results: []int32{int32(state.Row_PASS), 2},
+					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 				{
 					Name: "pass and skip",
 					Results: []int32{
-						int32(state.Row_PASS_WITH_SKIPS), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_PASS_WITH_SKIPS), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 			},
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{
 					Extra: []string{"good"},
 				},
@@ -1337,22 +1343,22 @@ func TestLatestGreen(t *testing.T) {
 		},
 		{
 			name: "avoid columns with running rows",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "running",
 					Results: []int32{
-						int32(state.Row_RUNNING), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_RUNNING), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 				{
 					Name: "pass",
 					Results: []int32{
-						int32(state.Row_PASS), 2,
+						int32(statepb.Row_PASS), 2,
 					},
 				},
 			},
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{
 					Extra: []string{"skip-first-col-still-running"},
 				},
@@ -1364,22 +1370,22 @@ func TestLatestGreen(t *testing.T) {
 		},
 		{
 			name: "avoid columns with flakes",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "flaking",
 					Results: []int32{
-						int32(state.Row_FLAKY), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_FLAKY), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 				{
 					Name: "passing",
 					Results: []int32{
-						int32(state.Row_PASS), 2,
+						int32(statepb.Row_PASS), 2,
 					},
 				},
 			},
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{
 					Extra: []string{"skip-first-col-with-flake"},
 				},
@@ -1391,22 +1397,22 @@ func TestLatestGreen(t *testing.T) {
 		},
 		{
 			name: "avoid columns with failures",
-			rows: []*state.Row{
+			rows: []*statepb.Row{
 				{
 					Name: "failing",
 					Results: []int32{
-						int32(state.Row_FAIL), 1,
-						int32(state.Row_PASS), 1,
+						int32(statepb.Row_FAIL), 1,
+						int32(statepb.Row_PASS), 1,
 					},
 				},
 				{
 					Name: "passing",
 					Results: []int32{
-						int32(state.Row_PASS), 2,
+						int32(statepb.Row_PASS), 2,
 					},
 				},
 			},
-			cols: []*state.Column{
+			cols: []*statepb.Column{
 				{
 					Extra: []string{"skip-first-col-with-fail"},
 				},
@@ -1420,7 +1426,7 @@ func TestLatestGreen(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			grid := state.Grid{
+			grid := statepb.Grid{
 				Columns: tc.cols,
 				Rows:    tc.rows,
 			}
@@ -1434,40 +1440,40 @@ func TestLatestGreen(t *testing.T) {
 func TestCoalesceResult(t *testing.T) {
 	cases := []struct {
 		name     string
-		result   state.Row_Result
+		result   statepb.Row_Result
 		running  bool
-		expected state.Row_Result
+		expected statepb.Row_Result
 	}{
 		{
 			name:     "no result by default",
-			expected: state.Row_NO_RESULT,
+			expected: statepb.Row_NO_RESULT,
 		},
 		{
 			name:     "running is no result when ignored",
-			result:   state.Row_RUNNING,
-			expected: state.Row_NO_RESULT,
+			result:   statepb.Row_RUNNING,
+			expected: statepb.Row_NO_RESULT,
 			running:  result.IgnoreRunning,
 		},
 		{
 			name:     "running is no result when ignored",
-			result:   state.Row_RUNNING,
-			expected: state.Row_FAIL,
+			result:   statepb.Row_RUNNING,
+			expected: statepb.Row_FAIL,
 			running:  result.FailRunning,
 		},
 		{
 			name:     "fail is fail",
-			result:   state.Row_FAIL,
-			expected: state.Row_FAIL,
+			result:   statepb.Row_FAIL,
+			expected: statepb.Row_FAIL,
 		},
 		{
 			name:     "flaky is flaky",
-			result:   state.Row_FLAKY,
-			expected: state.Row_FLAKY,
+			result:   statepb.Row_FLAKY,
+			expected: statepb.Row_FLAKY,
 		},
 		{
 			name:     "simplify pass",
-			result:   state.Row_PASS_WITH_ERRORS,
-			expected: state.Row_PASS,
+			result:   statepb.Row_PASS_WITH_ERRORS,
+			expected: statepb.Row_PASS,
 		},
 	}
 
@@ -1485,43 +1491,43 @@ func TestResultIter(t *testing.T) {
 		name     string
 		cancel   int
 		in       []int32
-		expected []state.Row_Result
+		expected []statepb.Row_Result
 	}{
 		{
 			name: "basically works",
 			in: []int32{
-				int32(state.Row_PASS), 3,
-				int32(state.Row_FAIL), 2,
+				int32(statepb.Row_PASS), 3,
+				int32(statepb.Row_FAIL), 2,
 			},
-			expected: []state.Row_Result{
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_FAIL,
-				state.Row_FAIL,
+			expected: []statepb.Row_Result{
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_FAIL,
+				statepb.Row_FAIL,
 			},
 		},
 		{
 			name: "ignore last unbalanced input",
 			in: []int32{
-				int32(state.Row_PASS), 3,
-				int32(state.Row_FAIL),
+				int32(statepb.Row_PASS), 3,
+				int32(statepb.Row_FAIL),
 			},
-			expected: []state.Row_Result{
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_PASS,
+			expected: []statepb.Row_Result{
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
 			},
 		},
 		{
 			name: "cancel aborts early",
 			in: []int32{
-				int32(state.Row_PASS), 50,
+				int32(statepb.Row_PASS), 50,
 			},
 			cancel: 2,
-			expected: []state.Row_Result{
-				state.Row_PASS,
-				state.Row_PASS,
+			expected: []statepb.Row_Result{
+				statepb.Row_PASS,
+				statepb.Row_PASS,
 			},
 		},
 	}
@@ -1531,7 +1537,7 @@ func TestResultIter(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			out := resultIter(ctx, tc.in)
-			var actual []state.Row_Result
+			var actual []statepb.Row_Result
 			var idx int
 			for val := range out {
 				idx++
