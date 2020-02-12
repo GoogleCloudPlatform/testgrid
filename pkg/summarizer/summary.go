@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package summarizer provides a method to read state protos defined in a config an output summary protos.
 package summarizer
 
 import (
@@ -36,8 +37,8 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
-	"github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -153,7 +154,7 @@ func summaryPath(name string) string {
 	return "summary-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
 }
 
-func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, sum *summary.DashboardSummary) error {
+func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
 	buf, err := proto.Marshal(sum)
 	if err != nil {
 		return fmt.Errorf("marshal: %v", err)
@@ -171,10 +172,10 @@ func pathReader(ctx context.Context, client *storage.Client, path gcs.Path) (io.
 }
 
 // updateDashboard will summarize all the tabs (through errors), returning an error if any fail to summarize.
-func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder groupFinder) (*summary.DashboardSummary, error) {
+func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder groupFinder) (*summarypb.DashboardSummary, error) {
 	log := logrus.WithField("dashboard", dash.Name)
 	var badTabs []string
-	var sum summary.DashboardSummary
+	var sum summarypb.DashboardSummary
 	for _, tab := range dash.DashboardTab {
 		log := log.WithField("tab", tab.Name)
 		log.Info("Summarizing tab")
@@ -195,8 +196,8 @@ func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder group
 }
 
 // problemTab summarizes a tab that cannot summarize
-func problemTab(name string) *summary.DashboardTabSummary {
-	return &summary.DashboardTabSummary{
+func problemTab(name string) *summarypb.DashboardTabSummary {
+	return &summarypb.DashboardTabSummary{
 		DashboardTabName: name,
 		Alert:            "failed to summarize tab",
 	}
@@ -211,7 +212,7 @@ func staleHours(tab *configpb.DashboardTab) time.Duration {
 }
 
 // updateTab reads the latest grid state for the tab and summarizes it.
-func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupFinder) (*summary.DashboardTabSummary, error) {
+func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupFinder) (*summarypb.DashboardTabSummary, error) {
 	groupName := tab.TestGroupName
 	group, groupReader, err := findGroup(groupName)
 	if err != nil {
@@ -234,7 +235,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
-	return &summary.DashboardTabSummary{
+	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
 		LastRunTimestamp:     float64(latestSeconds),
@@ -248,7 +249,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 }
 
 // readGrid downloads and deserializes the current test group state.
-func readGrid(ctx context.Context, reader gridReader) (*state.Grid, time.Time, int64, error) {
+func readGrid(ctx context.Context, reader gridReader) (*statepb.Grid, time.Time, int64, error) {
 	var t time.Time
 	r, mod, gen, err := reader(ctx)
 	if err != nil {
@@ -263,7 +264,7 @@ func readGrid(ctx context.Context, reader gridReader) (*state.Grid, time.Time, i
 	if err != nil {
 		return nil, t, 0, fmt.Errorf("read: %v", err)
 	}
-	var g state.Grid
+	var g statepb.Grid
 	if err = proto.Unmarshal(buf, &g); err != nil {
 		return nil, t, 0, fmt.Errorf("parse: %v", err)
 	}
@@ -292,7 +293,7 @@ const (
 )
 
 // filterGrid truncates the grid to rows with recent results and matching the white/blacklist.
-func filterGrid(baseOptions string, rows []*state.Row, recent int) ([]*state.Row, error) {
+func filterGrid(baseOptions string, rows []*statepb.Row, recent int) ([]*statepb.Row, error) {
 
 	vals, err := url.ParseQuery(baseOptions)
 	if err != nil {
@@ -321,13 +322,13 @@ func filterGrid(baseOptions string, rows []*state.Row, recent int) ([]*state.Row
 }
 
 // recentRows returns the subset of rows with at least one recent result
-func recentRows(in []*state.Row, recent int) []*state.Row {
-	var rows []*state.Row
+func recentRows(in []*statepb.Row, recent int) []*statepb.Row {
+	var rows []*statepb.Row
 	for _, r := range in {
 		if r.Results == nil {
 			continue
 		}
-		if state.Row_Result(r.Results[0]) == state.Row_NO_RESULT && int(r.Results[1]) >= recent {
+		if statepb.Row_Result(r.Results[0]) == statepb.Row_NO_RESULT && int(r.Results[1]) >= recent {
 			continue
 		}
 		rows = append(rows, r)
@@ -336,12 +337,12 @@ func recentRows(in []*state.Row, recent int) []*state.Row {
 }
 
 // includeRows returns the subset of rows that match the regex
-func includeRows(in []*state.Row, include string) ([]*state.Row, error) {
+func includeRows(in []*statepb.Row, include string) ([]*statepb.Row, error) {
 	re, err := regexp.Compile(include)
 	if err != nil {
 		return nil, err
 	}
-	var rows []*state.Row
+	var rows []*statepb.Row
 	for _, r := range in {
 		if !re.MatchString(r.Name) {
 			continue
@@ -352,12 +353,12 @@ func includeRows(in []*state.Row, include string) ([]*state.Row, error) {
 }
 
 // excludeRows returns the subset of rows that do not match the regex
-func excludeRows(in []*state.Row, exclude string) ([]*state.Row, error) {
+func excludeRows(in []*statepb.Row, exclude string) ([]*statepb.Row, error) {
 	re, err := regexp.Compile(exclude)
 	if err != nil {
 		return nil, err
 	}
-	var rows []*state.Row
+	var rows []*statepb.Row
 	for _, r := range in {
 		if re.MatchString(r.Name) {
 			continue
@@ -368,7 +369,7 @@ func excludeRows(in []*state.Row, exclude string) ([]*state.Row, error) {
 }
 
 // latestRun returns the Time (and seconds-since-epoch) of the most recent run.
-func latestRun(columns []*state.Column) (time.Time, int64) {
+func latestRun(columns []*statepb.Column) (time.Time, int64) {
 	for _, col := range columns {
 		start := int64(col.Started)
 		if start > 0 {
@@ -403,14 +404,14 @@ func staleAlert(mod, ran time.Time, stale time.Duration) string {
 }
 
 // failingTestSummaries returns details for every row with an active alert.
-func failingTestSummaries(rows []*state.Row) []*summary.FailingTestSummary {
-	var failures []*summary.FailingTestSummary
+func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
+	var failures []*summarypb.FailingTestSummary
 	for _, row := range rows {
 		if row.AlertInfo == nil {
 			continue
 		}
 		alert := row.AlertInfo
-		sum := summary.FailingTestSummary{
+		sum := summarypb.FailingTestSummary{
 			DisplayName:    row.Name,
 			TestName:       row.Id,
 			FailBuildId:    alert.FailBuildId,
@@ -437,12 +438,12 @@ func failingTestSummaries(rows []*state.Row) []*summary.FailingTestSummary {
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
-func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary.FailingTestSummary) summary.DashboardTabSummary_TabStatus {
+func overallStatus(grid *statepb.Grid, recent int, stale string, alerts []*summarypb.FailingTestSummary) summarypb.DashboardTabSummary_TabStatus {
 	if stale != "" {
-		return summary.DashboardTabSummary_STALE
+		return summarypb.DashboardTabSummary_STALE
 	}
 	if len(alerts) > 0 {
-		return summary.DashboardTabSummary_FAIL
+		return summarypb.DashboardTabSummary_FAIL
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -454,11 +455,11 @@ func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary
 		for r := range resultCh {
 			// TODO(fejta): fail old running results.
 			r = coalesceResult(r, result.IgnoreRunning)
-			if r == state.Row_NO_RESULT {
+			if r == statepb.Row_NO_RESULT {
 				continue
 			}
-			if r != state.Row_PASS {
-				return summary.DashboardTabSummary_FLAKY
+			if r != statepb.Row_PASS {
+				return summarypb.DashboardTabSummary_FLAKY
 			}
 			found = true
 			recentResults--
@@ -469,9 +470,9 @@ func overallStatus(grid *state.Grid, recent int, stale string, alerts []*summary
 
 	}
 	if found {
-		return summary.DashboardTabSummary_PASS
+		return summarypb.DashboardTabSummary_PASS
 	}
-	return summary.DashboardTabSummary_UNKNOWN
+	return summarypb.DashboardTabSummary_UNKNOWN
 }
 
 func fmtStatus(passCols, cols, passCells, cells int) string {
@@ -480,7 +481,7 @@ func fmtStatus(passCols, cols, passCells, cells int) string {
 	return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
 }
 
-func statusMessage(cols int, rows []*state.Row, recent int) string {
+func statusMessage(cols int, rows []*statepb.Row, recent int) string {
 	//  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -499,13 +500,13 @@ func statusMessage(cols int, rows []*state.Row, recent int) string {
 		for _, ch := range results {
 			// TODO(fejta): fail old running cols
 			switch coalesceResult(<-ch, result.IgnoreRunning) {
-			case state.Row_PASS:
+			case statepb.Row_PASS:
 				if !failures {
 					passes = true
 				}
 				passingCells++
 				filledCells++
-			case state.Row_NO_RESULT:
+			case statepb.Row_NO_RESULT:
 				// noop
 			default:
 				passes = false
@@ -530,7 +531,7 @@ func statusMessage(cols int, rows []*state.Row, recent int) string {
 const noGreens = "no recent greens"
 
 // latestGreen finds the ID for the most recent column with all passing rows.
-func latestGreen(grid *state.Grid) string {
+func latestGreen(grid *statepb.Grid) string {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	results := results(ctx, grid.Rows)
@@ -539,10 +540,10 @@ func latestGreen(grid *state.Grid) string {
 		var passes bool
 		for _, resultCh := range results {
 			result := coalesceResult(<-resultCh, result.FailRunning)
-			if result == state.Row_PASS {
+			if result == statepb.Row_PASS {
 				passes = true
 			}
-			if result == state.Row_FLAKY || result == state.Row_FAIL {
+			if result == statepb.Row_FLAKY || result == statepb.Row_FAIL {
 				failures = true
 				break
 			}
@@ -555,16 +556,16 @@ func latestGreen(grid *state.Grid) string {
 }
 
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
-func coalesceResult(rowResult state.Row_Result, ignoreRunning bool) state.Row_Result {
+func coalesceResult(rowResult statepb.Row_Result, ignoreRunning bool) statepb.Row_Result {
 	return result.Coalesce(rowResult, ignoreRunning)
 }
 
 // resultIter returns a channel that outputs the result for each column, decoding the run-length-encoding.
-func resultIter(ctx context.Context, results []int32) <-chan state.Row_Result {
+func resultIter(ctx context.Context, results []int32) <-chan statepb.Row_Result {
 	return result.Iter(ctx, results)
 }
 
 // results returns a per-column result output channel for each row.
-func results(ctx context.Context, rows []*state.Row) map[string]<-chan state.Row_Result {
+func results(ctx context.Context, rows []*statepb.Row) map[string]<-chan statepb.Row_Result {
 	return result.Map(ctx, rows)
 }
