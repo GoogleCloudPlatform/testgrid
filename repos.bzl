@@ -236,8 +236,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "gopkg.in/yaml.v2",
-        sum = "h1:ZCJp+EgiOT7lHqUV2J862kp8Qj64Jo6az82+3Td9dZw=",
-        version = "v2.2.2",
+        sum = "h1:/eiJrUcujPVeJ3xlSWaiNi3uSVmDGBK1pDHUHAnao1I=",
+        version = "v2.2.4",
     )
 
     go_repository(
@@ -326,8 +326,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "golang.org/x/net",
-        sum = "h1:k7pJ2yAPLPgbskkFdhRCsA77k2fySZ1zf2zCjvQCiIM=",
-        version = "v0.0.0-20190827160401-ba9fcec4b297",
+        sum = "h1:rjwSpXsdiK0dV8/Naq3kAw9ymfAeJIyd0upUIElB+lI=",
+        version = "v0.0.0-20191004110552-13f9640d40b9",
     )
     go_repository(
         name = "org_golang_x_oauth2",
@@ -350,8 +350,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "golang.org/x/sys",
-        sum = "h1:aYOabOQFp6Vj6W1F80affTUvO9UxmJRx8K0gsfABByQ=",
-        version = "v0.0.0-20190813064441-fde4db37ae7a",
+        sum = "h1:ng0gs1AKnRRuEMZoTLLlbOd+C17zUDepwGQBb/n+JVg=",
+        version = "v0.0.0-20190826190057-c7b8b68b1456",
     )
     go_repository(
         name = "org_golang_x_text",
@@ -435,4 +435,21 @@ def go_repositories():
         importpath = "github.com/sirupsen/logrus",
         sum = "h1:SPIRibHv4MatM3XXNO2BJeFLZwZ2LvZgfQ5+UNI2im4=",
         version = "v1.4.2",
+    )
+
+    go_repository(
+        name = "com_github_hashicorp_errwrap",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/hashicorp/errwrap",
+        sum = "h1:hLrqtEDnRye3+sgx6z4qVLNuviH3MR5aQ0ykNJa/UYA=",
+        version = "v1.0.0",
+    )
+    go_repository(
+        name = "com_github_hashicorp_go_multierror",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/hashicorp/go-multierror",
+        sum = "h1:iVjPR7a6H0tWELX5NxNe7bYopibicUzc7uPribsnS6o=",
+        version = "v1.0.0",
     )

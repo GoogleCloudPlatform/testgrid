@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -29,6 +30,7 @@ import (
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	multierror "github.com/hashicorp/go-multierror"
 )
 
 // MissingFieldError is an error that includes the missing field.
@@ -40,8 +42,43 @@ func (e MissingFieldError) Error() string {
 	return fmt.Sprintf("field missing or unset: %s", e.Field)
 }
 
-// Validate checks that a configuration is well-formed, having test groups and dashboards set.
+// DuplicateNameError is an error that includes the duplicate name.
+type DuplicateNameError struct {
+	Name string
+}
+
+func (e DuplicateNameError) Error() string {
+	return fmt.Sprintf("found duplicate name after normalizing: %s", e.Name)
+}
+
+// normalize lowercases, and removes all non-alphanumeric characters from a string.
+func normalize(s string) string {
+	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
+	s = regex.ReplaceAllString(s, "")
+	s = strings.ToLower(s)
+	return s
+}
+
+// validateUnique checks that a list has no duplicate entries.
+func validateUnique(items []string) error {
+	mErr := &multierror.Error{}
+	set := map[string]bool{}
+	for _, s := range items {
+		_, ok := set[s]
+		if ok {
+			mErr = multierror.Append(mErr, DuplicateNameError{s})
+		} else {
+			set[s] = true
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+// Validate checks that a configuration is well-formed.
 func Validate(c configpb.Configuration) error {
+	mErr := &multierror.Error{}
+
+	// TestGrid requires at least 1 TestGroup and 1 Dashboard in order to do anything.
 	if len(c.TestGroups) == 0 {
 		return MissingFieldError{"TestGroups"}
 	}
@@ -49,7 +86,54 @@ func Validate(c configpb.Configuration) error {
 		return MissingFieldError{"Dashboards"}
 	}
 
-	return nil
+	// Names have to be unique (after normalizing) within types of entities, to prevent storing
+	// duplicate state on updates and confusion between similar names.
+	tgNames := []string{}
+	for _, tg := range c.TestGroups {
+		tgNames = append(tgNames, normalize(tg.GetName()))
+	}
+	// Test Group names must be unique.
+	err := validateUnique(tgNames)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	dashNames := []string{}
+	for _, dash := range c.Dashboards {
+		dashNames = append(dashNames, normalize(dash.GetName()))
+		tabNames := []string{}
+		for _, tab := range dash.GetDashboardTab() {
+			tabNames = append(tabNames, normalize(tab.GetName()))
+		}
+		// Dashboard Tab names must be unique within a Dashboard.
+		err = validateUnique(tabNames)
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	// Dashboard names must be unique within Dashboards.
+	err = validateUnique(dashNames)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	dgNames := []string{}
+	for _, dg := range c.DashboardGroups {
+		dgNames = append(dgNames, normalize(dg.GetName()))
+	}
+	// Dashboard Group names must be unique within Dashboard Groups.
+	err = validateUnique(dgNames)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	// Names must also be unique within DashboardGroups AND Dashbaords.
+	err = validateUnique(append(dashNames, dgNames...))
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // Unmarshal reads a protocol buffer into memory
