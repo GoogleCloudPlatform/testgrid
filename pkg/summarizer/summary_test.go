@@ -790,7 +790,7 @@ func TestExcludeRows(t *testing.T) {
 			case tc.err:
 				t.Error("failed to return expected error")
 			case !reflect.DeepEqual(actual, tc.expected):
-				t.Error("actual %s != expected %s", actual, tc.expected)
+				t.Errorf("actual %s != expected %s", actual, tc.expected)
 			}
 		})
 	}

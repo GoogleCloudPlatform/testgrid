@@ -14,19 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package updater
 
 import (
 	"bytes"
 	"compress/zlib"
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"math"
 	"net/url"
 	"path"
-	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -51,55 +48,6 @@ type Build = gcs.Build
 
 // Builds holds a slice of builds, which will sort naturally (aka 2 < 10).
 type Builds = gcs.Builds
-
-// options configures the updater
-type options struct {
-	config           gcs.Path // gs://path/to/config/proto
-	creds            string
-	confirm          bool
-	debug            bool
-	group            string
-	groupConcurrency int
-	buildConcurrency int
-	wait             time.Duration
-	groupTimeout     time.Duration
-	buildTimeout     time.Duration
-}
-
-// validate ensures sane options
-func (o *options) validate() error {
-	if o.config.String() == "" {
-		return errors.New("empty --config")
-	}
-	if o.config.Bucket() == "k8s-testgrid" && o.config.Object() != "beta/config" && o.confirm { // TODO(fejta): remove
-		return fmt.Errorf("--config=%s cannot write to gs://k8s-testgrid/config", o.config)
-	}
-	if o.groupConcurrency == 0 {
-		o.groupConcurrency = 4 * runtime.NumCPU()
-	}
-	if o.buildConcurrency == 0 {
-		o.buildConcurrency = 4 * runtime.NumCPU()
-	}
-
-	return nil
-}
-
-// gatherOptions reads options from flags
-func gatherOptions() options {
-	o := options{}
-	flag.Var(&o.config, "config", "gs://path/to/config.pb")
-	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
-	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
-	flag.StringVar(&o.group, "test-group", "", "Only update named group if set")
-	flag.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
-	flag.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
-	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
-	flag.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
-	flag.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
-	flag.Parse()
-	return o
-}
 
 // testGroupPath() returns the path to a test_group proto given this proto
 func testGroupPath(g gcs.Path, name string) (*gcs.Path, error) {
@@ -858,56 +806,23 @@ func Days(d float64) time.Duration {
 	return time.Duration(24*d) * time.Hour // Close enough
 }
 
-func main() {
-	opt := gatherOptions()
-	if err := opt.validate(); err != nil {
-		logrus.Fatalf("Invalid flags: %v", err)
-	}
-	if !opt.confirm {
-		logrus.Warning("--confirm=false (DRY-RUN): will not write to gcs")
-	}
-	if opt.debug {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	updateOnce(ctx, opt)
-	if opt.wait == 0 {
-		return
-	}
-	timer := time.NewTimer(opt.wait)
-	defer timer.Stop()
-	for range timer.C {
-		timer.Reset(opt.wait)
-		updateOnce(ctx, opt)
-		logrus.WithField("wait", opt.wait).Info("Sleeping...")
-	}
-}
-
-func updateOnce(ctx context.Context, opt options) {
-	client, err := gcs.ClientWithCreds(ctx, opt.creds)
+func Update(client *storage.Client, ctx context.Context, path gcs.Path, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) {
+	cfg, err := config.ReadGCS(ctx, client.Bucket(path.Bucket()).Object(path.Object()))
 	if err != nil {
-		logrus.Fatalf("Failed to create storage client: %v", err)
-	}
-	defer client.Close()
-
-	cfg, err := config.ReadGCS(ctx, client.Bucket(opt.config.Bucket()).Object(opt.config.Object()))
-	if err != nil {
-		logrus.Fatalf("Failed to read %s: %v", opt.config, err)
+		logrus.Fatalf("Failed to read %s: %v", path, err)
 	}
 	logrus.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
 
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
 
-	for i := 0; i < opt.groupConcurrency; i++ {
+	for i := 0; i < groupConcurrency; i++ {
 		wg.Add(1)
 		go func() {
 			for tg := range groups {
-				tgp, err := testGroupPath(opt.config, tg.Name)
+				tgp, err := testGroupPath(path, tg.Name)
 				if err == nil {
-					err = updateGroup(ctx, client, tg, *tgp, opt.buildConcurrency, opt.confirm, opt.groupTimeout, opt.buildTimeout)
+					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
 				}
 				if err != nil {
 					logrus.WithField("group", tg.Name).WithError(err).Error("could not update group")
@@ -917,10 +832,10 @@ func updateOnce(ctx context.Context, opt options) {
 		}()
 	}
 
-	if opt.group != "" { // Just a specific group
-		tg := config.FindTestGroup(opt.group, cfg)
+	if group != "" { // Just a specific group
+		tg := config.FindTestGroup(group, cfg)
 		if tg == nil {
-			logrus.WithField("group", opt.group).WithField("config", opt.config).Fatal("group not found")
+			logrus.WithField("group", group).WithField("config", path).Fatal("group not found")
 		}
 		groups <- *tg
 	} else { // All groups
@@ -939,7 +854,7 @@ func updateOnce(ctx context.Context, opt options) {
 	wg.Wait()
 }
 
-// logUpdate posts updateOnce progress every minute, including an ETA for completion.
+// logUpdate posts Update progress every minute, including an ETA for completion.
 func logUpdate(ch <-chan int, total int, msg string) {
 	start := time.Now()
 	timer := time.NewTimer(time.Minute)
