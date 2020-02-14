@@ -236,7 +236,10 @@ func Test_MarshalYAML(t *testing.T) {
 					{
 						Name: "dashboard_1",
 						DashboardTab: []*config.DashboardTab{
-							{Name: "tab_1"},
+							{
+								Name:          "tab_1",
+								TestGroupName: "testgroup_1",
+							},
 						},
 					},
 				},
@@ -247,6 +250,7 @@ func Test_MarshalYAML(t *testing.T) {
 			expected: []byte(`dashboards:
 - dashboard_tab:
   - name: tab_1
+    test_group_name: testgroup_1
   name: dashboard_1
 test_groups:
 - name: testgroup_1
@@ -261,7 +265,7 @@ test_groups:
 				t.Errorf("Expected error, but got none")
 			}
 			if !bytes.Equal(result, test.expected) {
-				t.Errorf("Expected: %v\n, Got: %v\n", test.expected, result)
+				t.Errorf("Expected: %v\n, Got: %v\nError: %v\n", test.expected, result, err)
 			}
 		})
 	}

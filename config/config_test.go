@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
 	"testing"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -52,16 +53,212 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
-func TestUpdate_Validate(t *testing.T) {
+func TestUpdate_validateUnique(t *testing.T) {
 	tests := []struct {
-		name            string
-		input           configpb.Configuration
-		expectedMissing string
-		expectedDup     map[string]bool
+		name         string
+		input        []string
+		expectedErrs []error
 	}{
 		{
-			name:            "Null input; returns error",
-			expectedMissing: "TestGroups",
+			name:  "No names",
+			input: []string{},
+		},
+		{
+			name:  "Unique names",
+			input: []string{"test_group_1", "test_group_2", "test_group_3"},
+		},
+		{
+			name:  "Duplicate name; error",
+			input: []string{"test_group_1", "test_group_1"},
+			expectedErrs: []error{
+				DuplicateNameError{"testgroup1", "TestGroup"},
+			},
+		},
+		{
+			name:  "Duplicate name after normalization; error",
+			input: []string{"test_group_1", "TEST GROUP 1"},
+			expectedErrs: []error{
+				DuplicateNameError{"testgroup1", "TestGroup"},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateUnique(test.input, "TestGroup")
+			if err == nil {
+				if len(test.expectedErrs) > 0 {
+					t.Fatalf("Expected %v, but got no error", test.expectedErrs)
+				}
+			} else {
+				if len(test.expectedErrs) == 0 {
+					t.Fatalf("Unexpected Error: %v", err)
+				}
+
+				if mErr, ok := err.(*multierror.Error); ok {
+					if !reflect.DeepEqual(test.expectedErrs, mErr.Errors) {
+						t.Fatalf("Expected %v, but got: %v", test.expectedErrs, mErr.Errors)
+					}
+				} else {
+					t.Fatalf("Expected %v, but got: %v", test.expectedErrs, err)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdate_validateReferencesExist(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        configpb.Configuration
+		expectedErrs []error
+	}{
+		{
+			name: "Dashboard Tabs must reference an existing Test Group",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+							{
+								Name:          "tab_2",
+								TestGroupName: "test_group_2",
+							},
+						},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+			},
+			expectedErrs: []error{
+				MissingEntityError{"test_group_2", "TestGroup"},
+			},
+		},
+		{
+			name: "Test Groups must have an associated Dashboard Tab",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name:         "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+			},
+			expectedErrs: []error{
+				ConfigError{"test_group_1", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
+			},
+		},
+		{
+			name: "Dashboard Groups must reference existing Dashboards",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name:           "dashboard_group_1",
+						DashboardNames: []string{"dashboard_1", "dashboard_2", "dashboard_3"},
+					},
+				},
+			},
+			expectedErrs: []error{
+				MissingEntityError{"dashboard_2", "Dashboard"},
+				MissingEntityError{"dashboard_3", "Dashboard"},
+			},
+		},
+		{
+			name: "A Dashboard can belong to at most 1 Dashboard Group",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name:           "dashboard_group_1",
+						DashboardNames: []string{"dashboard_1"},
+					},
+					{
+						Name:           "dashboard_group_2",
+						DashboardNames: []string{"dashboard_1"},
+					},
+				},
+			},
+			expectedErrs: []error{
+				ConfigError{"dashboard_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateReferencesExist(test.input)
+			if err != nil && len(test.expectedErrs) == 0 {
+				t.Fatalf("Unexpected Error: %v", err)
+			}
+
+			if len(test.expectedErrs) != 0 {
+				if err == nil {
+					t.Fatalf("Expected %v, but got no error", test.expectedErrs)
+				}
+
+				if mErr, ok := err.(*multierror.Error); ok {
+					if !reflect.DeepEqual(test.expectedErrs, mErr.Errors) {
+						t.Fatalf("Expected %v, but got: %v", test.expectedErrs, mErr.Errors)
+					}
+				} else {
+					t.Fatalf("Expected %v, but got: %v", test.expectedErrs, err)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdate_Validate(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        configpb.Configuration
+		expectedErrs []error
+	}{
+		{
+			name:         "Null input; returns error",
+			expectedErrs: []error{MissingFieldError{"TestGroups"}},
 		},
 		{
 			name: "Dashboard Only; returns error",
@@ -72,7 +269,9 @@ func TestUpdate_Validate(t *testing.T) {
 					},
 				},
 			},
-			expectedMissing: "TestGroups",
+			expectedErrs: []error{
+				MissingFieldError{"TestGroups"},
+			},
 		},
 		{
 			name: "Test Group Only; returns error",
@@ -83,7 +282,9 @@ func TestUpdate_Validate(t *testing.T) {
 					},
 				},
 			},
-			expectedMissing: "Dashboards",
+			expectedErrs: []error{
+				MissingFieldError{"Dashboards"},
+			},
 		},
 		{
 			name: "Complete Minimal Config",
@@ -91,58 +292,10 @@ func TestUpdate_Validate(t *testing.T) {
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dashboard_1",
-					},
-				},
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group_1",
-					},
-				},
-			},
-		},
-		{
-			name: "No Duplicate Test Groups",
-			input: configpb.Configuration{
-				Dashboards: []*configpb.Dashboard{
-					{
-						Name: "dashboard_1",
-					},
-				},
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group_1",
-					},
-					{
-						Name: "TEST_GROUP_1",
-					},
-				},
-			},
-			expectedDup: map[string]bool{"testgroup1": true},
-		},
-		{
-			name: "No Duplicate Tabs in Dashboard",
-			input: configpb.Configuration{
-				Dashboards: []*configpb.Dashboard{
-					{
-						Name: "dashboard_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
-								Name: "tab_1",
-							},
-							{
-								Name: "TAB_1",
-							},
-							{
-								Name: "tab_2",
-							},
-						},
-					},
-					{
-						Name: "dashboard_2",
-						// Same tab name in a different dashboard is fine.
-						DashboardTab: []*configpb.DashboardTab{
-							{
-								Name: "tab_2",
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
 							},
 						},
 					},
@@ -153,14 +306,19 @@ func TestUpdate_Validate(t *testing.T) {
 					},
 				},
 			},
-			expectedDup: map[string]bool{"tab1": true},
 		},
 		{
-			name: "No Duplicate Dashboard or Dashboard Group",
+			name: "Dashboards and Dashboard Groups cannot share names.",
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "name_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
 					},
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
@@ -174,38 +332,142 @@ func TestUpdate_Validate(t *testing.T) {
 					},
 				},
 			},
-			expectedDup: map[string]bool{"name1": true},
+			expectedErrs: []error{
+				DuplicateNameError{"name1", "Dashboard/DashboardGroup"},
+			},
+		},
+		{
+			name: "Dashboard Tabs must reference an existing Test Group",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+							{
+								Name:          "tab_2",
+								TestGroupName: "test_group_2",
+							},
+						},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+			},
+			expectedErrs: []error{
+				MissingEntityError{"test_group_2", "TestGroup"},
+			},
+		},
+		{
+			name: "Test Groups must have an associated Dashboard Tab",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name:         "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+			},
+			expectedErrs: []error{
+				ConfigError{"test_group_1", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
+			},
+		},
+		{
+			name: "Dashboard Groups must reference existing Dashboards",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name:           "dashboard_group_1",
+						DashboardNames: []string{"dashboard_1", "dashboard_2", "dashboard_3"},
+					},
+				},
+			},
+			expectedErrs: []error{
+				MissingEntityError{"dashboard_2", "Dashboard"},
+				MissingEntityError{"dashboard_3", "Dashboard"},
+			},
+		},
+		{
+			name: "A Dashboard can belong to at most 1 Dashboard Group",
+			input: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name:           "dashboard_group_1",
+						DashboardNames: []string{"dashboard_1"},
+					},
+					{
+						Name:           "dashboard_group_2",
+						DashboardNames: []string{"dashboard_1"},
+					},
+				},
+			},
+			expectedErrs: []error{
+				ConfigError{"dashboard_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
+			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := Validate(test.input)
-			if err != nil && test.expectedMissing == "" && len(test.expectedDup) == 0 {
+			if err != nil && len(test.expectedErrs) == 0 {
 				t.Fatalf("Unexpected Error: %v", err)
 			}
 
-			if test.expectedMissing != "" {
+			if len(test.expectedErrs) != 0 {
 				if err == nil {
-					t.Errorf("Expected MissingFieldError(%s), but got no error", test.expectedMissing)
-				} else if e, ok := err.(MissingFieldError); !ok || e.Field != test.expectedMissing {
-					t.Errorf("Expected MissingFieldError(%s), but got %v", test.expectedMissing, err)
-				}
-			}
-
-			if len(test.expectedDup) != 0 {
-				if err == nil {
-					t.Errorf("Expected DuplicateNameError(%v), but got no error", test.expectedDup)
+					t.Fatalf("Expected %v, but got no error", test.expectedErrs)
 				}
 
 				if mErr, ok := err.(*multierror.Error); ok {
-					for _, e := range mErr.Errors {
-						if dupErr, ok := e.(DuplicateNameError); !ok || !test.expectedDup[dupErr.Name] {
-							t.Errorf("Expected DuplicateNameError(%s), but got %v", test.expectedDup, dupErr)
-						}
+					if !reflect.DeepEqual(test.expectedErrs, mErr.Errors) {
+						t.Fatalf("Expected %v, but got: %v", test.expectedErrs, mErr.Errors)
 					}
 				} else {
-					t.Errorf("Expected DuplicateNameError(%s), but got %v", test.expectedDup, err)
+					t.Fatalf("Expected %v, but got: %v", test.expectedErrs, err)
 				}
 			}
 		})

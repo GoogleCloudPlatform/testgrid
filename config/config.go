@@ -44,11 +44,31 @@ func (e MissingFieldError) Error() string {
 
 // DuplicateNameError is an error that includes the duplicate name.
 type DuplicateNameError struct {
-	Name string
+	Name   string
+	Entity string
 }
 
 func (e DuplicateNameError) Error() string {
-	return fmt.Sprintf("found duplicate name after normalizing: %s", e.Name)
+	return fmt.Sprintf("found duplicate name after normalizing: (%s) %s", e.Entity, e.Name)
+}
+
+type MissingEntityError struct {
+	Name   string
+	Entity string
+}
+
+func (e MissingEntityError) Error() string {
+	return fmt.Sprintf("could not find the referenced (%s) %s", e.Entity, e.Name)
+}
+
+type ConfigError struct {
+	Name    string
+	Entity  string
+	Message string
+}
+
+func (e ConfigError) Error() string {
+	return fmt.Sprintf("configuration error for (%s) %s: %s", e.Entity, e.Name, e.Message)
 }
 
 // normalize lowercases, and removes all non-alphanumeric characters from a string.
@@ -59,16 +79,113 @@ func normalize(s string) string {
 	return s
 }
 
-// validateUnique checks that a list has no duplicate entries.
-func validateUnique(items []string) error {
+// validateUnique checks that a list has no duplicate normalized entries.
+func validateUnique(items []string, entity string) error {
 	mErr := &multierror.Error{}
 	set := map[string]bool{}
-	for _, s := range items {
+	for _, item := range items {
+		s := normalize(item)
 		_, ok := set[s]
 		if ok {
-			mErr = multierror.Append(mErr, DuplicateNameError{s})
+			mErr = multierror.Append(mErr, DuplicateNameError{s, entity})
 		} else {
 			set[s] = true
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func validateAllUnique(c configpb.Configuration) error {
+	mErr := &multierror.Error{}
+	tgNames := []string{}
+	for _, tg := range c.TestGroups {
+		tgNames = append(tgNames, tg.GetName())
+	}
+	// Test Group names must be unique.
+	err := validateUnique(tgNames, "TestGroup")
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	dashNames := []string{}
+	for _, dash := range c.Dashboards {
+		dashNames = append(dashNames, dash.GetName())
+		tabNames := []string{}
+		for _, tab := range dash.GetDashboardTab() {
+			tabNames = append(tabNames, tab.GetName())
+		}
+		// Dashboard Tab names must be unique within a Dashboard.
+		err = validateUnique(tabNames, "DashboardTab")
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	// Dashboard names must be unique within Dashboards.
+	err = validateUnique(dashNames, "Dashboard")
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	dgNames := []string{}
+	for _, dg := range c.DashboardGroups {
+		dgNames = append(dgNames, dg.GetName())
+	}
+	// Dashboard Group names must be unique within Dashboard Groups.
+	err = validateUnique(dgNames, "DashboardGroup")
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	// Names must also be unique within DashboardGroups AND Dashbaords.
+	err = validateUnique(append(dashNames, dgNames...), "Dashboard/DashboardGroup")
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func validateReferencesExist(c configpb.Configuration) error {
+	mErr := &multierror.Error{}
+
+	tgNames := map[string]bool{}
+	for _, tg := range c.TestGroups {
+		tgNames[tg.Name] = true
+	}
+	tgInTabs := map[string]bool{}
+	for _, dash := range c.Dashboards {
+		for _, tab := range dash.DashboardTab {
+			tabTg := tab.TestGroupName
+			tgInTabs[tabTg] = true
+			// Verify that each Test Group referenced by a Dashboard Tab exists.
+			if _, ok := tgNames[tabTg]; !ok {
+				mErr = multierror.Append(mErr, MissingEntityError{tabTg, "TestGroup"})
+			}
+		}
+	}
+	// Likewise, each Test Group must be referenced by a Dashboard Tab, so each Test Group gets displayed.
+	for tgName := range tgNames {
+		if _, ok := tgInTabs[tgName]; !ok {
+			mErr = multierror.Append(mErr, ConfigError{tgName, "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."})
+		}
+	}
+
+	dashNames := map[string]bool{}
+	for _, dash := range c.Dashboards {
+		dashNames[dash.Name] = true
+	}
+	dashToDg := map[string]bool{}
+	for _, dg := range c.DashboardGroups {
+		for _, name := range dg.DashboardNames {
+			dgDash := name
+			if _, ok := dashNames[dgDash]; !ok {
+				// The Dashboards each Dashboard Group references must exist.
+				mErr = multierror.Append(mErr, MissingEntityError{dgDash, "Dashboard"})
+			} else if _, ok = dashToDg[dgDash]; ok {
+				mErr = multierror.Append(mErr, ConfigError{dgDash, "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."})
+			} else {
+				dashToDg[dgDash] = true
+			}
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -80,55 +197,21 @@ func Validate(c configpb.Configuration) error {
 
 	// TestGrid requires at least 1 TestGroup and 1 Dashboard in order to do anything.
 	if len(c.TestGroups) == 0 {
-		return MissingFieldError{"TestGroups"}
+		return multierror.Append(mErr, MissingFieldError{"TestGroups"})
 	}
 	if len(c.Dashboards) == 0 {
-		return MissingFieldError{"Dashboards"}
+		return multierror.Append(mErr, MissingFieldError{"Dashboards"})
 	}
 
 	// Names have to be unique (after normalizing) within types of entities, to prevent storing
 	// duplicate state on updates and confusion between similar names.
-	tgNames := []string{}
-	for _, tg := range c.TestGroups {
-		tgNames = append(tgNames, normalize(tg.GetName()))
-	}
-	// Test Group names must be unique.
-	err := validateUnique(tgNames)
+	err := validateAllUnique(c)
 	if err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	dashNames := []string{}
-	for _, dash := range c.Dashboards {
-		dashNames = append(dashNames, normalize(dash.GetName()))
-		tabNames := []string{}
-		for _, tab := range dash.GetDashboardTab() {
-			tabNames = append(tabNames, normalize(tab.GetName()))
-		}
-		// Dashboard Tab names must be unique within a Dashboard.
-		err = validateUnique(tabNames)
-		if err != nil {
-			mErr = multierror.Append(mErr, err)
-		}
-	}
-	// Dashboard names must be unique within Dashboards.
-	err = validateUnique(dashNames)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
-	}
-
-	dgNames := []string{}
-	for _, dg := range c.DashboardGroups {
-		dgNames = append(dgNames, normalize(dg.GetName()))
-	}
-	// Dashboard Group names must be unique within Dashboard Groups.
-	err = validateUnique(dgNames)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
-	}
-
-	// Names must also be unique within DashboardGroups AND Dashbaords.
-	err = validateUnique(append(dashNames, dgNames...))
+	// The entity that an entity references must exist.
+	err = validateReferencesExist(c)
 	if err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
