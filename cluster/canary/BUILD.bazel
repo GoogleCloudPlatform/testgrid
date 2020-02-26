@@ -1,4 +1,4 @@
-# Copyright 2018 The Kubernetes Authors.
+# Copyright 2020 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,27 +16,37 @@ load("@io_bazel_rules_k8s//k8s:object.bzl", "k8s_object")
 load("@io_bazel_rules_k8s//k8s:objects.bzl", "k8s_objects")
 
 k8s_objects(
-    name = "prod",
+    name = "canary",
     objects = [
         ":updater",
         ":summarizer",
+        ":namespace",
     ],
 )
 
 CLUSTER = "{STABLE_TESTGRID_CLUSTER}"
 
+MULTI_KIND = None
+
 k8s_object(
     name = "updater",
     cluster = CLUSTER,
-    kind = "Deployment",
-    template = "updater_deployment.yaml",
+    kind = MULTI_KIND,
+    template = "updater.yaml",
 )
 
 k8s_object(
     name = "summarizer",
     cluster = CLUSTER,
-    kind = "Deployment",
-    template = "summarizer_deployment.yaml",
+    kind = MULTI_KIND,
+    template = "summarizer.yaml",
+)
+
+k8s_object(
+    name = "namespace",
+    cluster = CLUSTER,
+    kind = "Namespace",
+    template = "namespace.yaml",
 )
 
 filegroup(

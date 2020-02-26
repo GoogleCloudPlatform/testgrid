@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-summarizer
+  namespace: testgrid-canary
+  labels:
+    component: summarizer
+    app: testgrid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer
+  template:
+    metadata:
+      labels:
+        component: summarizer
+        app: testgrid
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20200106-v0.0.1-alpha.4
+        args:
+        - --config=gs://k8s-testgrid-canary/config
+        - --confirm
+        - --wait=5m
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    # Uses same as updater
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+  name: summarizer
+  namespace: testgrid-canary
