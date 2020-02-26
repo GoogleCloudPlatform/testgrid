@@ -29,7 +29,8 @@ fi
 
 case "${1:-}" in
 "--confirm")
-    ;;
+  shift
+  ;;
 "")
   read -p "Deploy testgrid to prod [no]: " confirm
   if [[ "${confirm}" != y* ]]; then
@@ -38,7 +39,7 @@ case "${1:-}" in
   fi
   ;;
 *)
-  echo "Usage: $(basename "$0") [--confirm]"
+  echo "Usage: $(basename "$0") [--confirm [target]]"
   exit 1
 esac
 
@@ -83,5 +84,10 @@ for s in {5..1}; do
     echo -n $'\r'"in $s..."
     sleep 1s
 done
-bazel run //cluster:prod.apply --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
+if [[ "$#" == 0 ]]; then
+  WHAT=("//cluster/prod:prod.apply")
+else
+  WHAT=("$@")
+fi
+bazel run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 "${WHAT[@]}"
 echo "$(color-green SUCCESS)"

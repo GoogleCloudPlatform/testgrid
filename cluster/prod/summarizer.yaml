@@ -1,4 +1,4 @@
-
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,3 +27,12 @@ spec:
         - --config=gs://k8s-testgrid/config
         - --confirm
         - --wait=5m
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    # Uses same as updater
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+  name: summarizer
+  namespace: testgrid

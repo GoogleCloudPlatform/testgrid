@@ -1,4 +1,4 @@
-
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,3 +27,11 @@ spec:
         - --config=gs://fejternetes/config
         - --confirm
         - --wait=30m
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+  name: updater
+  namespace: testgrid

@@ -16,7 +16,8 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
-        "//cluster:all-srcs",
+        "//cluster/canary:all-srcs",
+        "//cluster/prod:all-srcs",
         "//cmd/summarizer:all-srcs",
         "//cmd/updater:all-srcs",
         "//config:all-srcs",
