@@ -1286,10 +1286,49 @@ func TestLatestGreen(t *testing.T) {
 		rows     []*statepb.Row
 		cols     []*statepb.Column
 		expected string
+		first    bool
 	}{
 		{
 			name:     "no recent greens by default",
 			expected: noGreens,
+		},
+		{
+			name:     "no recent greens by default, first green",
+			first:    true,
+			expected: noGreens,
+		},
+		{
+			name: "use build id by default",
+			rows: []*statepb.Row{
+				{
+					Name:    "so pass",
+					Results: []int32{int32(statepb.Row_PASS), 4},
+				},
+			},
+			cols: []*statepb.Column{
+				{
+					Build: "correct",
+					Extra: []string{"wrong"},
+				},
+			},
+			expected: "correct",
+		},
+		{
+			name: "fall back to build id when headers are missing",
+			rows: []*statepb.Row{
+				{
+					Name:    "so pass",
+					Results: []int32{int32(statepb.Row_PASS), 4},
+				},
+			},
+			first: true,
+			cols: []*statepb.Column{
+				{
+					Build: "fallback",
+					Extra: []string{},
+				},
+			},
+			expected: "fallback",
 		},
 		{
 			name: "favor first green",
@@ -1307,6 +1346,7 @@ func TestLatestGreen(t *testing.T) {
 					Extra: []string{"bad", "wrong"},
 				},
 			},
+			first:    true,
 			expected: "hello",
 		},
 		{
@@ -1339,6 +1379,7 @@ func TestLatestGreen(t *testing.T) {
 					Extra: []string{"bad"},
 				},
 			},
+			first:    true,
 			expected: "good",
 		},
 		{
@@ -1366,6 +1407,7 @@ func TestLatestGreen(t *testing.T) {
 					Extra: []string{"accept second-all-finished"},
 				},
 			},
+			first:    true,
 			expected: "accept second-all-finished",
 		},
 		{
@@ -1393,6 +1435,7 @@ func TestLatestGreen(t *testing.T) {
 					Extra: []string{"accept second-no-flake"},
 				},
 			},
+			first:    true,
 			expected: "accept second-no-flake",
 		},
 		{
@@ -1420,6 +1463,7 @@ func TestLatestGreen(t *testing.T) {
 					Extra: []string{"accept second-after-failure"},
 				},
 			},
+			first:    true,
 			expected: "accept second-after-failure",
 		},
 	}
@@ -1430,7 +1474,7 @@ func TestLatestGreen(t *testing.T) {
 				Columns: tc.cols,
 				Rows:    tc.rows,
 			}
-			if actual := latestGreen(&grid); actual != tc.expected {
+			if actual := latestGreen(&grid, tc.first); actual != tc.expected {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})

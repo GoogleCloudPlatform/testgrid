@@ -243,7 +243,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		FailingTestSummaries: failures,
 		OverallStatus:        overallStatus(grid, recent, alert, failures),
 		Status:               statusMessage(len(grid.Columns), grid.Rows, recent),
-		LatestGreen:          latestGreen(grid),
+		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		// TODO(fejta): BugUrl
 	}, nil
 }
@@ -531,7 +531,9 @@ func statusMessage(cols int, rows []*statepb.Row, recent int) string {
 const noGreens = "no recent greens"
 
 // latestGreen finds the ID for the most recent column with all passing rows.
-func latestGreen(grid *statepb.Grid) string {
+//
+// Returns the build, first extra column header and/or a no recent greens message.
+func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	results := results(ctx, grid.Rows)
@@ -548,9 +550,13 @@ func latestGreen(grid *statepb.Grid) string {
 				break
 			}
 		}
-		if passes && !failures {
+		if failures || !passes {
+			continue
+		}
+		if useFirstExtra && len(col.Extra) > 0 {
 			return col.Extra[0]
 		}
+		return col.Build
 	}
 	return noGreens
 }
