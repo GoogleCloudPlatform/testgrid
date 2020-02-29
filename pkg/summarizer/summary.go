@@ -166,7 +166,7 @@ func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, su
 func pathReader(ctx context.Context, client *storage.Client, path gcs.Path) (io.ReadCloser, time.Time, int64, error) {
 	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
 	if err != nil {
-		return nil, time.Time{}, 0, fmt.Errorf("read %s: %v", path, err)
+		return nil, time.Time{}, 0, fmt.Errorf("read %s: %w", path, err)
 	}
 	return r, r.Attrs.LastModified, r.Attrs.Generation, nil
 }
@@ -222,6 +222,15 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		return nil, fmt.Errorf("not found: %q", groupName)
 	}
 	grid, mod, _, err := readGrid(ctx, groupReader) // TODO(fejta): track gen
+	if err != nil && errors.Is(err, storage.ErrObjectNotExist) {
+		return &summarypb.DashboardTabSummary{
+			DashboardTabName: tab.Name,
+			Alert:            noRuns,
+			OverallStatus:    overallStatus(nil, 0, noRuns, nil),
+			Status:           noRuns,
+			LatestGreen:      noGreens,
+		}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("load %s: %v", groupName, err)
 	}
@@ -253,7 +262,7 @@ func readGrid(ctx context.Context, reader gridReader) (*statepb.Grid, time.Time,
 	var t time.Time
 	r, mod, gen, err := reader(ctx)
 	if err != nil {
-		return nil, t, 0, fmt.Errorf("open: %v", err)
+		return nil, t, 0, fmt.Errorf("open: %w", err)
 	}
 	defer r.Close()
 	zlibReader, err := zlib.NewReader(r)

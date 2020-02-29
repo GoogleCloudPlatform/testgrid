@@ -21,6 +21,7 @@ import (
 	"compress/zlib"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -28,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
@@ -268,6 +270,21 @@ func TestUpdateTab(t *testing.T) {
 				LatestGreen:         noGreens,
 				OverallStatus:       summarypb.DashboardTabSummary_STALE,
 				Status:              noRuns,
+			},
+		},
+		{
+			name: "missing grid returns a blank summary",
+			tab: &configpb.DashboardTab{
+				Name: "you know",
+			},
+			group:     &configpb.TestGroup{},
+			gridError: fmt.Errorf("oh yeah: %w", storage.ErrObjectNotExist),
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName: "you know",
+				Alert:            noRuns,
+				OverallStatus:    summarypb.DashboardTabSummary_STALE,
+				Status:           noRuns,
+				LatestGreen:      noGreens,
 			},
 		},
 	}
