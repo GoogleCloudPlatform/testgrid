@@ -42,5 +42,6 @@ go_test(
         "//pb/state:go_default_library",
         "//pb/summary:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_google_cloud_go//storage:go_default_library",
     ],
 )
