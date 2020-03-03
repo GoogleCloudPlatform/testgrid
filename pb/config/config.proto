@@ -58,10 +58,8 @@ message TestGroup {
   // Name of this TestGroup, for mapping dashboard tabs to tests.
   string name = 1;
 
-  // Path to the test result location, including protocol.
-  // The location must be accessible from the Update Server, and not local.
-  // GCS is usually used, making this field "gs://<bucket>"
-  string query = 2;
+  // Path to the test result stored in gcs (gs://some/path)
+  string gcs_prefix = 2;
 
   // Number of days of test results to gather and serve.
   int32 days_of_results = 3;
