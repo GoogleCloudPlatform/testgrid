@@ -257,16 +257,20 @@ test_groups:
 `),
 		},
 		{
-			name: "column headers work poorly TODO(fejta): fix",
+			name: "column headers configuration_value work",
 			input: config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",
 						ColumnHeader: []*config.TestGroup_ColumnHeader{
 							{
-								ColumnHeaderSource: &config.TestGroup_ColumnHeader_ConfigurationValue{
-									ConfigurationValue: "sad",
-								},
+								ConfigurationValue: "yay",
+							},
+							{
+								Label: "lab",
+							},
+							{
+								Property: "prop",
 							},
 						},
 					},
@@ -290,8 +294,9 @@ test_groups:
   name: dash
 test_groups:
 - column_header:
-  - ColumnHeaderSource:
-      ConfigurationValue: sad
+  - configuration_value: yay
+  - label: lab
+  - property: prop
   name: test_group
 `),
 		},

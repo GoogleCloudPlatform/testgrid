@@ -230,15 +230,67 @@ func TestValidateReferencesExist_Simple(t *testing.T) {
 						Name: "test_group",
 						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 							{
-								ColumnHeaderSource: &configpb.TestGroup_ColumnHeader_ConfigurationValue{
-									ConfigurationValue: "sad",
-								},
+								Label: "lab",
+							},
+							{
+								Property: "prop",
+							},
+							{
+								ConfigurationValue: "yay",
 							},
 						},
 					},
 				},
 			},
 			pass: true,
+		},
+		{
+			name: "reject column headers with label and configuration_value",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+							{
+								Label:              "labtoo",
+								ConfigurationValue: "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "reject column headers with configuration_value and property",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+							{
+								ConfigurationValue: "bar",
+								Property:           "proptoo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "reject column headers with label and property",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+							{
+								Label:    "labtoo",
+								Property: "proptoo",
+							},
+						},
+					},
+				},
+			},
 		},
 		{
 			name: "reject empty column headers",
