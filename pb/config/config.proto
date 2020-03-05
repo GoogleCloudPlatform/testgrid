@@ -94,11 +94,9 @@ message TestGroup {
   // Custom column headers for defining extra column-heading rows from values in
   // the test result.
   message ColumnHeader {
-    oneof column_header_source {
-      string label = 1;
-      string property = 2;
-      string configuration_value = 3;
-    }
+    string label = 1;
+    string property = 2;
+    string configuration_value = 3;
   }
   repeated ColumnHeader column_header = 9;
 

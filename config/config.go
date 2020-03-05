@@ -169,9 +169,12 @@ func validateReferencesExist(c configpb.Configuration) error {
 		tgNames[tg.Name] = true
 
 		for idx, header := range tg.ColumnHeader {
-			if header.GetConfigurationValue() == "" {
-				mErr = multierror.Append(mErr, fmt.Errorf("Colum Header %d in group %s is empty", idx, tg.Name))
+			if cv, p, l := header.ConfigurationValue, header.Property, header.Label; cv == "" && p == "" && l == "" {
+				mErr = multierror.Append(mErr, fmt.Errorf("Column Header %d in group %s is empty", idx, tg.Name))
+			} else if cv != "" && (p != "" || l != "") || p != "" && (cv != "" || l != "") {
+				mErr = multierror.Append(mErr, fmt.Errorf("Column Header %d in group %s must only set one value, got configuration_value: %q, property: %q, label: %q", idx, tg.Name, cv, p, l))
 			}
+
 		}
 		if tg.TestNameConfig != nil {
 			if tg.TestNameConfig.NameFormat == "" {
