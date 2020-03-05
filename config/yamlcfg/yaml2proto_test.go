@@ -256,6 +256,45 @@ test_groups:
 - name: testgroup_1
 `),
 		},
+		{
+			name: "column headers work poorly TODO(fejta): fix",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*config.TestGroup_ColumnHeader{
+							{
+								ColumnHeaderSource: &config.TestGroup_ColumnHeader_ConfigurationValue{
+									ConfigurationValue: "sad",
+								},
+							},
+						},
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+							},
+						},
+					},
+				},
+			},
+			expected: []byte(`dashboards:
+- dashboard_tab:
+  - name: tab
+    test_group_name: test_group
+  name: dash
+test_groups:
+- column_header:
+  - ColumnHeaderSource:
+      ConfigurationValue: sad
+  name: test_group
+`),
+		},
 	}
 
 	for _, test := range tests {
@@ -265,7 +304,7 @@ test_groups:
 				t.Errorf("Expected error, but got none")
 			}
 			if !bytes.Equal(result, test.expected) {
-				t.Errorf("Expected: %v\n, Got: %v\nError: %v\n", test.expected, result, err)
+				t.Errorf("Expected: %s\n, Got: %s\nError: %v\n", string(test.expected), string(result), err)
 			}
 		})
 	}

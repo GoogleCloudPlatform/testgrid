@@ -53,7 +53,7 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
-func TestUpdate_validateUnique(t *testing.T) {
+func TestValidateUnique(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        []string
@@ -106,7 +106,230 @@ func TestUpdate_validateUnique(t *testing.T) {
 	}
 }
 
-func TestUpdate_validateReferencesExist(t *testing.T) {
+func TestValidateAllUnique(t *testing.T) {
+	cases := []struct {
+		name string
+		c    configpb.Configuration
+		pass bool
+	}{
+		{
+			name: "basically works",
+			pass: true,
+		},
+		{
+			name: "everything works",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group_1",
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name: "tab_1",
+							},
+						},
+					},
+				},
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name: "dashboard_group_1",
+					},
+				},
+			},
+			pass: true,
+		},
+		{
+			name: "reject empty group names",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{},
+				},
+			},
+		},
+		{
+			name: "reject empty dashboard names",
+			c: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{},
+				},
+			},
+		},
+		{
+			name: "reject empty tab names",
+			c: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "reject empty dashboard group names",
+			c: configpb.Configuration{
+				DashboardGroups: []*configpb.DashboardGroup{
+					{},
+				},
+			},
+		},
+		{
+			name: "dashboard group names cannot match a dashboard name",
+			c: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "foo",
+					},
+				},
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name: "foo",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateAllUnique(tc.c)
+			switch {
+			case err != nil:
+				if tc.pass {
+					t.Errorf("got unexpected error: %v", err)
+				}
+			case !tc.pass:
+				t.Error("failed to get an error")
+			}
+
+		})
+	}
+}
+
+func TestValidateReferencesExist_Simple(t *testing.T) {
+	cases := []struct {
+		name string
+		c    configpb.Configuration
+		pass bool
+	}{
+		{
+			name: "basically works",
+			pass: true,
+		},
+		{
+			name: "accept filled column headers",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+							{
+								ColumnHeaderSource: &configpb.TestGroup_ColumnHeader_ConfigurationValue{
+									ConfigurationValue: "sad",
+								},
+							},
+						},
+					},
+				},
+			},
+			pass: true,
+		},
+		{
+			name: "reject empty column headers",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+							{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "accept balanced name formats",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "simple",
+						TestNameConfig: &configpb.TestNameConfig{
+							NameFormat: "hello world",
+						},
+					},
+					{
+						Name: "complex",
+						TestNameConfig: &configpb.TestNameConfig{
+							NameFormat: "hello %s you are %s",
+							NameElements: []*configpb.TestNameConfig_NameElement{
+								{
+									Labels: "world",
+								},
+								{
+									Labels: "great",
+								},
+							},
+						},
+					},
+				},
+			},
+			pass: true,
+		},
+		{
+			name: "reject unbalanced name formats",
+			c: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name: "bad",
+						TestNameConfig: &configpb.TestNameConfig{
+							NameFormat: "sorry %s but this is just too %s to tell you",
+							NameElements: []*configpb.TestNameConfig_NameElement{
+								{
+									Labels: "charlie",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, tg := range tc.c.TestGroups {
+				// Auto-setup valid dashboard references, we are not testing this.
+				tc.c.Dashboards = append(tc.c.Dashboards, &configpb.Dashboard{
+					Name: tg.Name,
+					DashboardTab: []*configpb.DashboardTab{
+						{
+							Name:          tg.Name,
+							TestGroupName: tg.Name,
+						},
+					},
+				})
+			}
+			err := validateReferencesExist(tc.c)
+			switch {
+			case err != nil:
+				if tc.pass {
+					t.Errorf("got unexpected error: %v", err)
+				}
+			case !tc.pass:
+				t.Error("failed to get an error")
+			}
+		})
+	}
+
+}
+
+func TestValidateReferencesExist(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        configpb.Configuration
@@ -250,7 +473,7 @@ func TestUpdate_validateReferencesExist(t *testing.T) {
 	}
 }
 
-func TestUpdate_Validate(t *testing.T) {
+func TestValidate(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        configpb.Configuration

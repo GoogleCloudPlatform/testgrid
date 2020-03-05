@@ -97,9 +97,13 @@ func validateUnique(items []string, entity string) error {
 
 func validateAllUnique(c configpb.Configuration) error {
 	mErr := &multierror.Error{}
-	tgNames := []string{}
-	for _, tg := range c.TestGroups {
-		tgNames = append(tgNames, tg.GetName())
+	var tgNames []string
+	for idx, tg := range c.TestGroups {
+		if tg.Name == "" {
+			mErr = multierror.Append(mErr, fmt.Errorf("TestGroup %d has no name", idx))
+			continue
+		}
+		tgNames = append(tgNames, tg.Name)
 	}
 	// Test Group names must be unique.
 	err := validateUnique(tgNames, "TestGroup")
@@ -107,12 +111,20 @@ func validateAllUnique(c configpb.Configuration) error {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	dashNames := []string{}
-	for _, dash := range c.Dashboards {
-		dashNames = append(dashNames, dash.GetName())
-		tabNames := []string{}
-		for _, tab := range dash.GetDashboardTab() {
-			tabNames = append(tabNames, tab.GetName())
+	var dashNames []string
+	for idx, dash := range c.Dashboards {
+		if dash.Name == "" {
+			mErr = multierror.Append(mErr, fmt.Errorf("Dashboard %d has no name", idx))
+			continue
+		}
+		dashNames = append(dashNames, dash.Name)
+		var tabNames []string
+		for tIdx, tab := range dash.DashboardTab {
+			if tab.Name == "" {
+				mErr = multierror.Append(mErr, fmt.Errorf("Tab %d in %s has no name", tIdx, tab.Name))
+				continue
+			}
+			tabNames = append(tabNames, tab.Name)
 		}
 		// Dashboard Tab names must be unique within a Dashboard.
 		err = validateUnique(tabNames, "DashboardTab")
@@ -126,9 +138,13 @@ func validateAllUnique(c configpb.Configuration) error {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	dgNames := []string{}
-	for _, dg := range c.DashboardGroups {
-		dgNames = append(dgNames, dg.GetName())
+	var dgNames []string
+	for idx, dg := range c.DashboardGroups {
+		if dg.Name == "" {
+			mErr = multierror.Append(mErr, fmt.Errorf("DashboardGroup %d has no name", idx))
+			continue
+		}
+		dgNames = append(dgNames, dg.Name)
 	}
 	// Dashboard Group names must be unique within Dashboard Groups.
 	err = validateUnique(dgNames, "DashboardGroup")
@@ -151,6 +167,21 @@ func validateReferencesExist(c configpb.Configuration) error {
 	tgNames := map[string]bool{}
 	for _, tg := range c.TestGroups {
 		tgNames[tg.Name] = true
+
+		for idx, header := range tg.ColumnHeader {
+			if header.GetConfigurationValue() == "" {
+				mErr = multierror.Append(mErr, fmt.Errorf("Colum Header %d in group %s is empty", idx, tg.Name))
+			}
+		}
+		if tg.TestNameConfig != nil {
+			if tg.TestNameConfig.NameFormat == "" {
+				mErr = multierror.Append(mErr, fmt.Errorf("Group %s has an empty name format", tg.Name))
+			}
+
+			if got, want := len(tg.TestNameConfig.NameElements), strings.Count(tg.TestNameConfig.NameFormat, "%"); got != want {
+				mErr = multierror.Append(mErr, fmt.Errorf("Group %s TestNameConfig has %d elements, format %s wants %d", tg.Name, got, tg.TestNameConfig.NameFormat, want))
+			}
+		}
 	}
 	tgInTabs := map[string]bool{}
 	for _, dash := range c.Dashboards {
