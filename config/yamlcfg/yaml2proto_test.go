@@ -257,6 +257,57 @@ test_groups:
 `),
 		},
 		{
+			name: "reject empty column headers",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*config.TestGroup_ColumnHeader{
+							{},
+						},
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "reject multiple column header values",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name: "test_group",
+						ColumnHeader: []*config.TestGroup_ColumnHeader{
+							{
+								ConfigurationValue: "yay",
+								Label:              "lab",
+							},
+						},
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "column headers configuration_value work",
 			input: config.Configuration{
 				TestGroups: []*config.TestGroup{
@@ -298,6 +349,230 @@ test_groups:
   - label: lab
   - property: prop
   name: test_group
+`),
+		},
+		{
+			name: "name elements work correctly",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name: "test_group",
+						TestNameConfig: &config.TestNameConfig{
+							NameFormat: "labels:%s target_config:%s build_target:%s tags:%s test_property:%s",
+							NameElements: []*config.TestNameConfig_NameElement{
+								{
+									Labels: "labels",
+								},
+								{
+									TargetConfig: "target config",
+								},
+								{
+									BuildTarget: true,
+								},
+								{
+									Tags: "tags",
+								},
+								{
+									TestProperty: "test property",
+								},
+							},
+						},
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+							},
+						},
+					},
+				},
+			},
+			expected: []byte(`dashboards:
+- dashboard_tab:
+  - name: tab
+    test_group_name: test_group
+  name: dash
+test_groups:
+- name: test_group
+  test_name_config:
+    name_elements:
+    - labels: labels
+    - target_config: target config
+    - build_target: true
+    - tags: tags
+    - test_property: test property
+    name_format: labels:%s target_config:%s build_target:%s tags:%s test_property:%s
+`),
+		},
+		{
+			name: "reject unbalanced name format",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name: "test_group",
+						TestNameConfig: &config.TestNameConfig{
+							NameFormat: "one:%s two:%s",
+							NameElements: []*config.TestNameConfig_NameElement{
+								{
+									Labels: "labels",
+								},
+								{
+									TargetConfig: "target config",
+								},
+								{
+									BuildTarget: true,
+								},
+							},
+						},
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "basic group values work",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name:                    "test_group",
+						AlertStaleResultsHours:  5,
+						CodeSearchPath:          "github.com/kubernetes/example",
+						DaysOfResults:           2,
+						IgnorePending:           true,
+						IgnoreSkip:              true,
+						IsExternal:              true,
+						NumColumnsRecent:        3,
+						NumFailuresToAlert:      4,
+						NumPassesToDisableAlert: 6,
+						TestsNamePolicy:         2,
+						UseKubernetesClient:     true,
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+							},
+						},
+					},
+				},
+			},
+			expected: []byte(`dashboards:
+- dashboard_tab:
+  - name: tab
+    test_group_name: test_group
+  name: dash
+test_groups:
+- alert_stale_results_hours: 5
+  code_search_path: github.com/kubernetes/example
+  days_of_results: 2
+  ignore_pending: true
+  ignore_skip: true
+  is_external: true
+  name: test_group
+  num_columns_recent: 3
+  num_failures_to_alert: 4
+  num_passes_to_disable_alert: 6
+  tests_name_policy: 2
+  use_kubernetes_client: true
+`),
+		},
+		{
+			name: "basic dashboard values work",
+			input: config.Configuration{
+				TestGroups: []*config.TestGroup{
+					{
+						Name: "test_group",
+					},
+				},
+				Dashboards: []*config.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*config.DashboardTab{
+							{
+								Name:          "tab",
+								TestGroupName: "test_group",
+								AttachBugTemplate: &config.LinkTemplate{
+									Url:     "yes",
+									Options: []*config.LinkOptionsTemplate{},
+								},
+								CodeSearchPath: "find",
+								CodeSearchUrlTemplate: &config.LinkTemplate{
+									Url: "woo",
+								},
+								FileBugTemplate: &config.LinkTemplate{
+									Url: "bar",
+									Options: []*config.LinkOptionsTemplate{
+										{
+											Key:   "title",
+											Value: "yay <test-name>",
+										},
+										{
+											Key:   "body",
+											Value: "woo <test-url>",
+										},
+									},
+								},
+								NumColumnsRecent: 10,
+								OpenTestTemplate: &config.LinkTemplate{
+									Url: "foo",
+								},
+								OpenBugTemplate: &config.LinkTemplate{
+									Url: "ugh",
+								},
+								ResultsText: "wee",
+								ResultsUrlTemplate: &config.LinkTemplate{
+									Url: "soup",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []byte(`dashboards:
+- dashboard_tab:
+  - attach_bug_template:
+      url: "yes"
+    code_search_path: find
+    code_search_url_template:
+      url: woo
+    file_bug_template:
+      options:
+      - key: title
+        value: yay <test-name>
+      - key: body
+        value: woo <test-url>
+      url: bar
+    name: tab
+    num_columns_recent: 10
+    open_bug_template:
+      url: ugh
+    open_test_template:
+      url: foo
+    results_text: wee
+    results_url_template:
+      url: soup
+    test_group_name: test_group
+  name: dash
+test_groups:
+- name: test_group
 `),
 		},
 	}
