@@ -420,7 +420,7 @@ func (m *Notification) GetContextLink() string {
 type TestGroup struct {
 	// Name of this TestGroup, for mapping dashboard tabs to tests.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Path to the test result stored in gcs (gs://some/path)
+	// Path to the test result stored in gcs (some-bucket/some/optional/path).
 	GcsPrefix string `protobuf:"bytes,2,opt,name=gcs_prefix,json=gcsPrefix,proto3" json:"gcs_prefix,omitempty"`
 	// Number of days of test results to gather and serve.
 	DaysOfResults int32 `protobuf:"varint,3,opt,name=days_of_results,json=daysOfResults,proto3" json:"days_of_results,omitempty"`
