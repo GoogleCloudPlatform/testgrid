@@ -58,7 +58,7 @@ message TestGroup {
   // Name of this TestGroup, for mapping dashboard tabs to tests.
   string name = 1;
 
-  // Path to the test result stored in gcs (gs://some/path)
+  // Path to the test result stored in gcs (some-bucket/some/optional/path).
   string gcs_prefix = 2;
 
   // Number of days of test results to gather and serve.
