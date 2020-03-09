@@ -212,175 +212,6 @@ func TestValidateAllUnique(t *testing.T) {
 	}
 }
 
-func TestValidateReferencesExist_Simple(t *testing.T) {
-	cases := []struct {
-		name string
-		c    configpb.Configuration
-		pass bool
-	}{
-		{
-			name: "basically works",
-			pass: true,
-		},
-		{
-			name: "accept filled column headers",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group",
-						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
-							{
-								Label: "lab",
-							},
-							{
-								Property: "prop",
-							},
-							{
-								ConfigurationValue: "yay",
-							},
-						},
-					},
-				},
-			},
-			pass: true,
-		},
-		{
-			name: "reject column headers with label and configuration_value",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group",
-						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
-							{
-								Label:              "labtoo",
-								ConfigurationValue: "foo",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "reject column headers with configuration_value and property",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group",
-						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
-							{
-								ConfigurationValue: "bar",
-								Property:           "proptoo",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "reject column headers with label and property",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group",
-						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
-							{
-								Label:    "labtoo",
-								Property: "proptoo",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "reject empty column headers",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "test_group",
-						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
-							{},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "accept balanced name formats",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "simple",
-						TestNameConfig: &configpb.TestNameConfig{
-							NameFormat: "hello world",
-						},
-					},
-					{
-						Name: "complex",
-						TestNameConfig: &configpb.TestNameConfig{
-							NameFormat: "hello %s you are %s",
-							NameElements: []*configpb.TestNameConfig_NameElement{
-								{
-									Labels: "world",
-								},
-								{
-									Labels: "great",
-								},
-							},
-						},
-					},
-				},
-			},
-			pass: true,
-		},
-		{
-			name: "reject unbalanced name formats",
-			c: configpb.Configuration{
-				TestGroups: []*configpb.TestGroup{
-					{
-						Name: "bad",
-						TestNameConfig: &configpb.TestNameConfig{
-							NameFormat: "sorry %s but this is just too %s to tell you",
-							NameElements: []*configpb.TestNameConfig_NameElement{
-								{
-									Labels: "charlie",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			for _, tg := range tc.c.TestGroups {
-				// Auto-setup valid dashboard references, we are not testing this.
-				tc.c.Dashboards = append(tc.c.Dashboards, &configpb.Dashboard{
-					Name: tg.Name,
-					DashboardTab: []*configpb.DashboardTab{
-						{
-							Name:          tg.Name,
-							TestGroupName: tg.Name,
-						},
-					},
-				})
-			}
-			err := validateReferencesExist(tc.c)
-			switch {
-			case err != nil:
-				if tc.pass {
-					t.Errorf("got unexpected error: %v", err)
-				}
-			case !tc.pass:
-				t.Error("failed to get an error")
-			}
-		})
-	}
-
-}
-
 func TestValidateReferencesExist(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -525,7 +356,480 @@ func TestValidateReferencesExist(t *testing.T) {
 	}
 }
 
-func TestValidate(t *testing.T) {
+func TestUpdate_validateNames(t *testing.T) {
+	tests := []struct {
+		input string
+		pass  bool
+	}{
+		{
+			input: "",
+		},
+		{
+			input: "_",
+		},
+		{
+			input: "dashboard",
+		},
+		{
+			input: "_summary_",
+		},
+		{
+			input: "ALERTER",
+		},
+		{
+			input: "bugs-1-2-3",
+		},
+		{
+			input: "some-test-group",
+			pass:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			err := validateName(test.input)
+			pass := err == nil
+			if pass != test.pass {
+				t.Fatalf("name %s got pass = %v, want pass = %v", test.input, pass, test.pass)
+			}
+		})
+	}
+}
+
+func TestValidateTestGroup(t *testing.T) {
+	tests := []struct {
+		name      string
+		testGroup *configpb.TestGroup
+		pass      bool
+	}{
+		{
+			name: "Minimal config passes",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+			},
+		},
+		{
+			name: "Must have days_of_results",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+			},
+		},
+		{
+			name: "days_of_results must be positive",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    -1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+			},
+		},
+		{
+			name: "Must have gcs_prefix",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+			},
+		},
+		{
+			name: "Must have num_columns_recent",
+			testGroup: &configpb.TestGroup{
+				Name:          "test_group",
+				DaysOfResults: 1,
+				GcsPrefix:     "fake path",
+			},
+		},
+		{
+			name: "num_columns_recent must be positive",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: -1,
+			},
+		},
+		{
+			name: "commit_override_label_pattern must compile",
+			testGroup: &configpb.TestGroup{
+				Name:                       "test_group",
+				DaysOfResults:              1,
+				GcsPrefix:                  "fake path",
+				NumColumnsRecent:           1,
+				CommitOverrideLabelPattern: "[.*",
+			},
+		},
+		{
+			name: "test_method_match_regex must compile",
+			testGroup: &configpb.TestGroup{
+				Name:                 "test_group",
+				DaysOfResults:        1,
+				GcsPrefix:            "fake path",
+				NumColumnsRecent:     1,
+				TestMethodMatchRegex: "[.*",
+			},
+		},
+		{
+			name: "Notifications must have a summary",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				Notifications: []*configpb.Notification{
+					{},
+				},
+			},
+		},
+		{
+			name: "Test Annotations must have property_name",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
+					{
+						ShortText: "a",
+					},
+				},
+			},
+		},
+		{
+			name: "Test Annotation short_text has to be at least 1 character",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
+					{
+						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+							PropertyName: "something",
+						},
+						ShortText: "",
+					},
+				},
+			},
+		},
+		{
+			name: "Test Annotation short_text has to be at most 5 characters",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
+					{
+						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+							PropertyName: "something",
+						},
+						ShortText: "abcdef",
+					},
+				},
+			},
+		},
+		{
+			name: "fallback_grouping_configuration_value requires fallback_group = configuration_value",
+			testGroup: &configpb.TestGroup{
+				Name:                               "test_group",
+				DaysOfResults:                      1,
+				GcsPrefix:                          "fake path",
+				NumColumnsRecent:                   1,
+				FallbackGroupingConfigurationValue: "something",
+			},
+		},
+		{
+			name: "fallback_grouping = configuration_value requires fallback_grouping_configuration_value",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				FallbackGrouping: configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE,
+			},
+		},
+		{
+			name: "Complex config passes",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				// Basic config
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				// Regexes compile
+				CommitOverrideLabelPattern: "label.*",
+				TestMethodMatchRegex:       "test.*",
+				// Simple notification
+				Notifications: []*configpb.Notification{
+					{
+						Summary: "I'm a notification!",
+					},
+				},
+				// Fallback grouping based on a configuration value
+				FallbackGrouping:                   configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE,
+				FallbackGroupingConfigurationValue: "something",
+				// Simple test annotation based on a property
+				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
+					{
+						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+							PropertyName: "something",
+						},
+						ShortText: "abc",
+					},
+				},
+			},
+		},
+		{
+			name: "accept filled column headers",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						Label: "lab",
+					},
+					{
+						Property: "prop",
+					},
+					{
+						ConfigurationValue: "yay",
+					},
+				},
+			},
+		},
+		{
+			name: "reject column headers with label and configuration_value",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						Label:              "labtoo",
+						ConfigurationValue: "foo",
+					},
+				},
+			},
+		},
+		{
+			name: "reject column headers with configuration_value and property",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "bar",
+						Property:           "proptoo",
+					},
+				},
+			},
+		},
+		{
+			name: "reject column headers with label and property",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						Label:    "labtoo",
+						Property: "proptoo",
+					},
+				},
+			},
+		},
+		{
+			name: "reject empty column headers",
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{},
+				},
+			},
+		},
+		{
+			name: "reject unformatted name format",
+			testGroup: &configpb.TestGroup{
+				Name:             "simple",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "hello world",
+				},
+			},
+		},
+		{
+			name: "accept complex and balanced name formats",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "complex",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "hello %s you are %s",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							Labels: "world",
+						},
+						{
+							Labels: "great",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "reject unbalanced name formats",
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "sorry %s but this is just too %s to tell you",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							Labels: "charlie",
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateTestGroup(test.testGroup)
+			pass := err == nil
+			if test.pass != pass {
+				t.Fatalf("test group config got pass = %v, want pass = %v: %v", pass, test.pass, err)
+			}
+		})
+	}
+}
+
+func TestInvalidEmails(t *testing.T) {
+	tests := []struct {
+		name      string
+		addresses string
+		pass      bool
+	}{
+		{
+			name:      "Addresses can't be blank",
+			addresses: "",
+		},
+		{
+			name:      "Comma-separated addresses can't be blank",
+			addresses: ",",
+		},
+		{
+			name:      "Comma-separated addresses still can't be blank",
+			addresses: ",thing@email.com",
+		},
+		{
+			name:      "?",
+			addresses: "@email.com",
+		},
+		{
+			name:      "??",
+			addresses: "username",
+		},
+		{
+			name:      "???",
+			addresses: "username@",
+		},
+		{
+			name:      "????",
+			addresses: "hey@hello@greetings.com",
+		},
+		{
+			name:      "Valid Address",
+			addresses: "hey@greetings.com",
+			pass:      true,
+		},
+		{
+			name:      "Multiple Valid Addresses",
+			addresses: "hey@greetings.com,something@mail.com",
+			pass:      true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateEmails(test.addresses)
+			pass := err == nil
+			if test.pass != pass {
+				t.Fatalf("addresses (%s) got pass = %v, want pass = %v: %v", test.addresses, pass, test.pass, err)
+			}
+		})
+	}
+}
+
+func TestValidateDashboardTab(t *testing.T) {
+	tests := []struct {
+		name string
+		tab  *configpb.DashboardTab
+		pass bool
+	}{
+		{
+			name: "Dashboard Tabs must specify a Test Group Name",
+			tab: &configpb.DashboardTab{
+				Name: "tabby",
+			},
+		},
+		{
+			name: "Dashboard Tabs must specify a Test Group Name",
+			tab: &configpb.DashboardTab{
+				Name:          "Summary",
+				TestGroupName: "test_group_1",
+			},
+		},
+		{
+			name: "Tabular Names Regex must compile",
+			tab: &configpb.DashboardTab{
+				Name:              "tabby",
+				TestGroupName:     "test_group_1",
+				TabularNamesRegex: "([1!]",
+			},
+		},
+		{
+			name: "Tabular Names Regex must have at least one capture group",
+			tab: &configpb.DashboardTab{
+				Name:              "tabby",
+				TestGroupName:     "test_group_1",
+				TabularNamesRegex: ".*",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateDashboardTab(test.tab)
+			pass := err == nil
+			if pass != test.pass {
+				t.Fatalf("Invalid dashboard tab config: %v", err)
+			}
+		})
+	}
+}
+
+func TestUpdate_Validate(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        configpb.Configuration
@@ -577,7 +881,10 @@ func TestValidate(t *testing.T) {
 				},
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name: "test_group_1",
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
 					},
 				},
 			},
@@ -603,7 +910,10 @@ func TestValidate(t *testing.T) {
 				},
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name: "test_group_1",
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
 					},
 				},
 			},
@@ -631,7 +941,10 @@ func TestValidate(t *testing.T) {
 				},
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name: "test_group_1",
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
 					},
 				},
 			},
@@ -650,7 +963,10 @@ func TestValidate(t *testing.T) {
 				},
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name: "test_group_1",
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
 					},
 				},
 			},
@@ -674,7 +990,10 @@ func TestValidate(t *testing.T) {
 				},
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name: "test_group_1",
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
 					},
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
@@ -705,7 +1024,10 @@ func TestValidate(t *testing.T) {
 				},
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name: "test_group_1",
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
 					},
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
