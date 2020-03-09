@@ -35,7 +35,7 @@ default_dashboard_tab:
 test_groups:
 - name: testgroup_1
 dashboards:
-- name: dashboard_1`
+- name: dash_1`
 
 	defaults, err := LoadDefaults([]byte(yaml))
 	if err != nil {
@@ -136,7 +136,7 @@ default_dashboard_tab:
 		{
 			name: "Default Settings",
 			yaml: `dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
 test_groups:
@@ -147,7 +147,7 @@ test_groups:
 		{
 			name: "DashboardTab Inheritance",
 			yaml: `dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
     num_columns_recent: 3
@@ -159,7 +159,7 @@ test_groups:
 		{
 			name: "TestGroup Inheritance",
 			yaml: `dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
 test_groups:
@@ -175,7 +175,7 @@ test_groups:
 default_dashboard_tab:
   num_columns_recent: 6
 dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
 test_groups:
@@ -251,7 +251,7 @@ func Test_MarshalYAML(t *testing.T) {
 - dashboard_tab:
   - name: tab_1
     test_group_name: testgroup_1
-  name: dashboard_1
+  name: dash_1
 test_groups:
 - name: testgroup_1
 `),

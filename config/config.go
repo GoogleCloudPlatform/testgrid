@@ -98,10 +98,10 @@ func validateUnique(items []string, entity string) error {
 func validateAllUnique(c configpb.Configuration) error {
 	mErr := &multierror.Error{}
 	var tgNames []string
-	for idx, tg := range c.TestGroups {
-		if tg.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("TestGroup %d has no name", idx))
-			continue
+	for _, tg := range c.TestGroups {
+		err := validateName(tg.Name, "TestGroup")
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
 		}
 		tgNames = append(tgNames, tg.Name)
 	}
@@ -112,17 +112,17 @@ func validateAllUnique(c configpb.Configuration) error {
 	}
 
 	var dashNames []string
-	for idx, dash := range c.Dashboards {
-		if dash.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("Dashboard %d has no name", idx))
-			continue
+	for _, dash := range c.Dashboards {
+		err := validateName(dash.Name, "Dashboard")
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
 		}
 		dashNames = append(dashNames, dash.Name)
 		var tabNames []string
-		for tIdx, tab := range dash.DashboardTab {
-			if tab.Name == "" {
-				mErr = multierror.Append(mErr, fmt.Errorf("Tab %d in %s has no name", tIdx, tab.Name))
-				continue
+		for _, tab := range dash.DashboardTab {
+			err := validateName(tab.Name, "DashboardTab")
+			if err != nil {
+				mErr = multierror.Append(mErr, err)
 			}
 			tabNames = append(tabNames, tab.Name)
 		}
@@ -139,10 +139,10 @@ func validateAllUnique(c configpb.Configuration) error {
 	}
 
 	var dgNames []string
-	for idx, dg := range c.DashboardGroups {
-		if dg.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("DashboardGroup %d has no name", idx))
-			continue
+	for _, dg := range c.DashboardGroups {
+		err := validateName(dg.Name, "DashboardGroup")
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
 		}
 		dgNames = append(dgNames, dg.Name)
 	}
@@ -223,6 +223,24 @@ func validateReferencesExist(c configpb.Configuration) error {
 		}
 	}
 	return mErr.ErrorOrNil()
+}
+
+// validateName validates an entity name is non-empty and contains no prefix that overlaps with a
+// TestGrid file prefix, post-normalization.
+func validateName(s string, entity string) error {
+	name := normalize(s)
+	if name == "" {
+		return &ConfigError{s, entity, "Normalized name can't be empty."}
+	}
+
+	invalidPrefixes := []string{"dashboard", "alerter", "summary", "bugs"}
+	for _, prefix := range invalidPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return &ConfigError{s, entity, fmt.Sprintf("Normalized name can't be prefixed with any of %v.", invalidPrefixes)}
+		}
+	}
+
+	return nil
 }
 
 // Validate checks that a configuration is well-formed.

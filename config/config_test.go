@@ -136,7 +136,7 @@ func TestValidateAllUnique(t *testing.T) {
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
 					{
-						Name: "dashboard_group_1",
+						Name: "dash_group_1",
 					},
 				},
 			},
@@ -163,7 +163,7 @@ func TestValidateAllUnique(t *testing.T) {
 			c: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{},
 						},
@@ -392,7 +392,7 @@ func TestValidateReferencesExist(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -420,7 +420,7 @@ func TestValidateReferencesExist(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name:         "dashboard_1",
+						Name:         "dash_1",
 						DashboardTab: []*configpb.DashboardTab{},
 					},
 				},
@@ -439,7 +439,7 @@ func TestValidateReferencesExist(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -455,14 +455,14 @@ func TestValidateReferencesExist(t *testing.T) {
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
 					{
-						Name:           "dashboard_group_1",
-						DashboardNames: []string{"dashboard_1", "dashboard_2", "dashboard_3"},
+						Name:           "dash_group_1",
+						DashboardNames: []string{"dash_1", "dash_2", "dash_3"},
 					},
 				},
 			},
 			expectedErrs: []error{
-				MissingEntityError{"dashboard_2", "Dashboard"},
-				MissingEntityError{"dashboard_3", "Dashboard"},
+				MissingEntityError{"dash_2", "Dashboard"},
+				MissingEntityError{"dash_3", "Dashboard"},
 			},
 		},
 		{
@@ -470,7 +470,7 @@ func TestValidateReferencesExist(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -486,17 +486,17 @@ func TestValidateReferencesExist(t *testing.T) {
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
 					{
-						Name:           "dashboard_group_1",
-						DashboardNames: []string{"dashboard_1"},
+						Name:           "dash_group_1",
+						DashboardNames: []string{"dash_1"},
 					},
 					{
-						Name:           "dashboard_group_2",
-						DashboardNames: []string{"dashboard_1"},
+						Name:           "dash_group_2",
+						DashboardNames: []string{"dash_1"},
 					},
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"dashboard_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
+				ConfigError{"dash_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
 			},
 		},
 	}
@@ -540,7 +540,7 @@ func TestValidate(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 					},
 				},
 			},
@@ -566,7 +566,7 @@ func TestValidate(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -616,7 +616,7 @@ func TestValidate(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -644,7 +644,7 @@ func TestValidate(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name:         "dashboard_1",
+						Name:         "dash_1",
 						DashboardTab: []*configpb.DashboardTab{},
 					},
 				},
@@ -663,7 +663,7 @@ func TestValidate(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -679,14 +679,14 @@ func TestValidate(t *testing.T) {
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
 					{
-						Name:           "dashboard_group_1",
-						DashboardNames: []string{"dashboard_1", "dashboard_2", "dashboard_3"},
+						Name:           "dash_group_1",
+						DashboardNames: []string{"dash_1", "dash_2", "dash_3"},
 					},
 				},
 			},
 			expectedErrs: []error{
-				MissingEntityError{"dashboard_2", "Dashboard"},
-				MissingEntityError{"dashboard_3", "Dashboard"},
+				MissingEntityError{"dash_2", "Dashboard"},
+				MissingEntityError{"dash_3", "Dashboard"},
 			},
 		},
 		{
@@ -694,7 +694,7 @@ func TestValidate(t *testing.T) {
 			input: configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -710,17 +710,17 @@ func TestValidate(t *testing.T) {
 				},
 				DashboardGroups: []*configpb.DashboardGroup{
 					{
-						Name:           "dashboard_group_1",
-						DashboardNames: []string{"dashboard_1"},
+						Name:           "dash_group_1",
+						DashboardNames: []string{"dash_1"},
 					},
 					{
-						Name:           "dashboard_group_2",
-						DashboardNames: []string{"dashboard_1"},
+						Name:           "dash_group_2",
+						DashboardNames: []string{"dash_1"},
 					},
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"dashboard_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
+				ConfigError{"dash_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
 			},
 		},
 	}
