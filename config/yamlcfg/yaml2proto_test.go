@@ -35,7 +35,7 @@ default_dashboard_tab:
 test_groups:
 - name: testgroup_1
 dashboards:
-- name: dashboard_1`
+- name: dash_1`
 
 	defaults, err := LoadDefaults([]byte(yaml))
 	if err != nil {
@@ -136,7 +136,7 @@ default_dashboard_tab:
 		{
 			name: "Default Settings",
 			yaml: `dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
 test_groups:
@@ -147,7 +147,7 @@ test_groups:
 		{
 			name: "DashboardTab Inheritance",
 			yaml: `dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
     num_columns_recent: 3
@@ -159,7 +159,7 @@ test_groups:
 		{
 			name: "TestGroup Inheritance",
 			yaml: `dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
 test_groups:
@@ -175,7 +175,7 @@ test_groups:
 default_dashboard_tab:
   num_columns_recent: 6
 dashboards:
-- name: dashboard_1
+- name: dash_1
   dashboard_tab:
   - name: tab_1
 test_groups:
@@ -234,7 +234,7 @@ func Test_MarshalYAML(t *testing.T) {
 			input: config.Configuration{
 				Dashboards: []*config.Dashboard{
 					{
-						Name: "dashboard_1",
+						Name: "dash_1",
 						DashboardTab: []*config.DashboardTab{
 							{
 								Name:          "tab_1",
@@ -244,16 +244,21 @@ func Test_MarshalYAML(t *testing.T) {
 					},
 				},
 				TestGroups: []*config.TestGroup{
-					{Name: "testgroup_1"},
+					{
+						Name: "testgroup_1",
+					},
 				},
 			},
 			expected: []byte(`dashboards:
 - dashboard_tab:
   - name: tab_1
     test_group_name: testgroup_1
-  name: dashboard_1
+  name: dash_1
 test_groups:
-- name: testgroup_1
+- days_of_results: 1
+  gcs_prefix: fake path
+  name: testgroup_1
+  num_columns_recent: 1
 `),
 		},
 		{
@@ -348,7 +353,10 @@ test_groups:
   - configuration_value: yay
   - label: lab
   - property: prop
+  days_of_results: 1
+  gcs_prefix: fake path
   name: test_group
+  num_columns_recent: 1
 `),
 		},
 		{
@@ -397,7 +405,10 @@ test_groups:
     test_group_name: test_group
   name: dash
 test_groups:
-- name: test_group
+- days_of_results: 1
+  gcs_prefix: fake path
+  name: test_group
+  num_columns_recent: 1
   test_name_config:
     name_elements:
     - labels: labels
@@ -451,11 +462,9 @@ test_groups:
 						Name:                    "test_group",
 						AlertStaleResultsHours:  5,
 						CodeSearchPath:          "github.com/kubernetes/example",
-						DaysOfResults:           2,
 						IgnorePending:           true,
 						IgnoreSkip:              true,
 						IsExternal:              true,
-						NumColumnsRecent:        3,
 						NumFailuresToAlert:      4,
 						NumPassesToDisableAlert: 6,
 						TestsNamePolicy:         2,
@@ -482,12 +491,13 @@ test_groups:
 test_groups:
 - alert_stale_results_hours: 5
   code_search_path: github.com/kubernetes/example
-  days_of_results: 2
+  days_of_results: 1
+  gcs_prefix: fake path
   ignore_pending: true
   ignore_skip: true
   is_external: true
   name: test_group
-  num_columns_recent: 3
+  num_columns_recent: 1
   num_failures_to_alert: 4
   num_passes_to_disable_alert: 6
   tests_name_policy: 2
@@ -572,13 +582,22 @@ test_groups:
     test_group_name: test_group
   name: dash
 test_groups:
-- name: test_group
+- days_of_results: 1
+  gcs_prefix: fake path
+  name: test_group
+  num_columns_recent: 1
 `),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			// Add required TestGroup fields, not validating them in these tests.
+			if len(test.input.GetTestGroups()) != 0 {
+				test.input.GetTestGroups()[0].DaysOfResults = 1
+				test.input.GetTestGroups()[0].NumColumnsRecent = 1
+				test.input.GetTestGroups()[0].GcsPrefix = "fake path"
+			}
 			result, err := MarshalYAML(test.input)
 			if test.expected == nil && err == nil {
 				t.Errorf("Expected error, but got none")

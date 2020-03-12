@@ -18,6 +18,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -52,6 +53,7 @@ func (e DuplicateNameError) Error() string {
 	return fmt.Sprintf("found duplicate name after normalizing: (%s) %s", e.Entity, e.Name)
 }
 
+// MissingEntityError is an error that includes the missing entity.
 type MissingEntityError struct {
 	Name   string
 	Entity string
@@ -61,6 +63,7 @@ func (e MissingEntityError) Error() string {
 	return fmt.Sprintf("could not find the referenced (%s) %s", e.Entity, e.Name)
 }
 
+// ConfigError is an error for invalid configuration that includes what entity errored.
 type ConfigError struct {
 	Name    string
 	Entity  string
@@ -81,7 +84,7 @@ func normalize(s string) string {
 
 // validateUnique checks that a list has no duplicate normalized entries.
 func validateUnique(items []string, entity string) error {
-	mErr := &multierror.Error{}
+	var mErr error
 	set := map[string]bool{}
 	for _, item := range items {
 		s := normalize(item)
@@ -92,99 +95,72 @@ func validateUnique(items []string, entity string) error {
 			set[s] = true
 		}
 	}
-	return mErr.ErrorOrNil()
+	return mErr
 }
 
 func validateAllUnique(c configpb.Configuration) error {
-	mErr := &multierror.Error{}
+	var mErr error
 	var tgNames []string
-	for idx, tg := range c.TestGroups {
-		if tg.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("TestGroup %d has no name", idx))
-			continue
+	for _, tg := range c.TestGroups {
+		if err := validateName(tg.Name); err != nil {
+			mErr = multierror.Append(mErr, &ConfigError{tg.Name, "TestGroup", err.Error()})
 		}
 		tgNames = append(tgNames, tg.Name)
 	}
 	// Test Group names must be unique.
-	err := validateUnique(tgNames, "TestGroup")
-	if err != nil {
+	if err := validateUnique(tgNames, "TestGroup"); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
 	var dashNames []string
-	for idx, dash := range c.Dashboards {
-		if dash.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("Dashboard %d has no name", idx))
-			continue
+	for _, dash := range c.Dashboards {
+		if err := validateName(dash.Name); err != nil {
+			mErr = multierror.Append(mErr, &ConfigError{dash.Name, "Dashboard", err.Error()})
 		}
 		dashNames = append(dashNames, dash.Name)
 		var tabNames []string
-		for tIdx, tab := range dash.DashboardTab {
-			if tab.Name == "" {
-				mErr = multierror.Append(mErr, fmt.Errorf("Tab %d in %s has no name", tIdx, tab.Name))
-				continue
+		for _, tab := range dash.DashboardTab {
+			if err := validateName(tab.Name); err != nil {
+				mErr = multierror.Append(mErr, &ConfigError{tab.Name, "DashboardTab", err.Error()})
 			}
 			tabNames = append(tabNames, tab.Name)
 		}
 		// Dashboard Tab names must be unique within a Dashboard.
-		err = validateUnique(tabNames, "DashboardTab")
-		if err != nil {
+		if err := validateUnique(tabNames, "DashboardTab"); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
 	// Dashboard names must be unique within Dashboards.
-	err = validateUnique(dashNames, "Dashboard")
-	if err != nil {
+	if err := validateUnique(dashNames, "Dashboard"); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
 	var dgNames []string
-	for idx, dg := range c.DashboardGroups {
-		if dg.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("DashboardGroup %d has no name", idx))
-			continue
+	for _, dg := range c.DashboardGroups {
+		if err := validateName(dg.Name); err != nil {
+			mErr = multierror.Append(mErr, &ConfigError{dg.Name, "DashboardGroup", err.Error()})
 		}
 		dgNames = append(dgNames, dg.Name)
 	}
 	// Dashboard Group names must be unique within Dashboard Groups.
-	err = validateUnique(dgNames, "DashboardGroup")
-	if err != nil {
+	if err := validateUnique(dgNames, "DashboardGroup"); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
 	// Names must also be unique within DashboardGroups AND Dashbaords.
-	err = validateUnique(append(dashNames, dgNames...), "Dashboard/DashboardGroup")
-	if err != nil {
+	if err := validateUnique(append(dashNames, dgNames...), "Dashboard/DashboardGroup"); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	return mErr.ErrorOrNil()
+	return mErr
 }
 
 func validateReferencesExist(c configpb.Configuration) error {
-	mErr := &multierror.Error{}
+	var mErr error
 
 	tgNames := map[string]bool{}
 	for _, tg := range c.TestGroups {
 		tgNames[tg.Name] = true
-
-		for idx, header := range tg.ColumnHeader {
-			if cv, p, l := header.ConfigurationValue, header.Property, header.Label; cv == "" && p == "" && l == "" {
-				mErr = multierror.Append(mErr, fmt.Errorf("Column Header %d in group %s is empty", idx, tg.Name))
-			} else if cv != "" && (p != "" || l != "") || p != "" && (cv != "" || l != "") {
-				mErr = multierror.Append(mErr, fmt.Errorf("Column Header %d in group %s must only set one value, got configuration_value: %q, property: %q, label: %q", idx, tg.Name, cv, p, l))
-			}
-
-		}
-		if tg.TestNameConfig != nil {
-			if tg.TestNameConfig.NameFormat == "" {
-				mErr = multierror.Append(mErr, fmt.Errorf("Group %s has an empty name format", tg.Name))
-			}
-
-			if got, want := len(tg.TestNameConfig.NameElements), strings.Count(tg.TestNameConfig.NameFormat, "%"); got != want {
-				mErr = multierror.Append(mErr, fmt.Errorf("Group %s TestNameConfig has %d elements, format %s wants %d", tg.Name, got, tg.TestNameConfig.NameFormat, want))
-			}
-		}
 	}
 	tgInTabs := map[string]bool{}
 	for _, dash := range c.Dashboards {
@@ -222,12 +198,224 @@ func validateReferencesExist(c configpb.Configuration) error {
 			}
 		}
 	}
-	return mErr.ErrorOrNil()
+	return mErr
+}
+
+// validateName validates an entity name is non-empty and contains no prefix that overlaps with a
+// TestGrid file prefix, post-normalization.
+func validateName(s string) error {
+	name := normalize(s)
+	if name == "" {
+		return errors.New("normalized name can't be empty")
+	}
+
+	invalidPrefixes := []string{"dashboard", "alerter", "summary", "bugs"}
+	for _, prefix := range invalidPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return fmt.Errorf("normalized name can't be prefixed with any of %v", invalidPrefixes)
+		}
+	}
+
+	return nil
+}
+
+// validateEmails is a very basic check that each address in a comma-separated list is valid.
+func validateEmails(addresses string) error {
+	// Each address should have exactly one @ symbol, with characters before and after.
+	regex := regexp.MustCompile("^[^@]+@[^@]+$")
+	invalid := []string{}
+	for _, address := range strings.Split(addresses, ",") {
+		match := regex.Match([]byte(address))
+		if !match {
+			invalid = append(invalid, address)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("bad emails %v specified in '%s'; an email address should have exactly one at (@) symbol)", invalid, addresses)
+	}
+	return nil
+}
+
+func validateTestGroup(tg *configpb.TestGroup) error {
+	var mErr error
+	// Check that required fields are a non-zero-value.
+	if tg.GcsPrefix == "" {
+		mErr = multierror.Append(mErr, errors.New("gcs_prefix can't be empty"))
+	}
+	if tg.DaysOfResults <= 0 {
+		mErr = multierror.Append(mErr, errors.New("days_of_results should be positive"))
+	}
+	if tg.NumColumnsRecent <= 0 {
+		mErr = multierror.Append(mErr, errors.New("num_columns_recent should be positive"))
+	}
+
+	// Regexes should be valid.
+	if _, err := regexp.Compile(tg.GetCommitOverrideLabelPattern()); err != nil {
+		mErr = multierror.Append(mErr, fmt.Errorf("commit_override_label_pattern doesn't compile: %v", err))
+	}
+	if _, err := regexp.Compile(tg.GetTestMethodMatchRegex()); err != nil {
+		mErr = multierror.Append(mErr, fmt.Errorf("test_method_match_regex doesn't compile: %v", err))
+	}
+
+	// Email address for alerts should be valid.
+	if tg.GetAlertMailToAddresses() != "" {
+		if err := validateEmails(tg.GetAlertMailToAddresses()); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+
+	// Test metadata options should be reasonable, valid values.
+	metadataOpts := tg.GetTestMetadataOptions()
+	for _, opt := range metadataOpts {
+		if opt.GetBugComponent() <= 0 {
+			mErr = multierror.Append(mErr, errors.New("bug_component is required"))
+		}
+		if opt.GetMessageRegex() == "" && opt.GetTestNameRegex() == "" {
+			mErr = multierror.Append(mErr, errors.New("at least one of message_regex or test_name_regex must be specified"))
+		}
+		if _, err := regexp.Compile(opt.GetMessageRegex()); err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("message_regex doesn't compile: %v", err))
+		}
+		if _, err := regexp.Compile(opt.GetTestNameRegex()); err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("test_name_regex doesn't compile: %v", err))
+		}
+	}
+
+	for _, notification := range tg.GetNotifications() {
+		if notification.GetSummary() == "" {
+			mErr = multierror.Append(mErr, errors.New("summary is required"))
+		}
+	}
+
+	annotations := tg.GetTestAnnotations()
+	for _, annotation := range annotations {
+		if annotation.GetPropertyName() == "" {
+			mErr = multierror.Append(mErr, errors.New("property_name is required"))
+		}
+		if annotation.GetShortText() == "" || len(annotation.GetShortText()) >= 5 {
+			mErr = multierror.Append(mErr, errors.New("short_text must be 1-5 characters long"))
+		}
+	}
+
+	fallbackConfigSettingSet := tg.GetFallbackGrouping() == configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE
+	fallbackConfigValueSet := tg.GetFallbackGroupingConfigurationValue() != ""
+	if fallbackConfigSettingSet != fallbackConfigValueSet {
+		mErr = multierror.Append(
+			mErr,
+			errors.New("fallback_grouping_configuration_value and fallback_grouping = FALLBACK_GROUPING_CONFIGURATION_VALUE require each other"),
+		)
+	}
+
+	// For each defined column_header, verify it has exactly one value set.
+	for idx, header := range tg.ColumnHeader {
+		if cv, p, l := header.ConfigurationValue, header.Property, header.Label; cv == "" && p == "" && l == "" {
+			mErr = multierror.Append(mErr, &ConfigError{tg.Name, "TestGroup", fmt.Sprintf("Column Header %d is empty", idx)})
+		} else if cv != "" && (p != "" || l != "") || p != "" && (cv != "" || l != "") {
+			mErr = multierror.Append(
+				mErr,
+				fmt.Errorf("Column Header %d must only set one value, got configuration_value: %q, property: %q, label: %q", idx, cv, p, l),
+			)
+		}
+
+	}
+
+	// test_name_config should have a matching number of format strings and name elements.
+	if tg.TestNameConfig != nil {
+		nameFormat := tg.GetTestNameConfig().GetNameFormat()
+		nameElements := tg.GetTestNameConfig().GetNameElements()
+
+		if len(nameElements) == 0 {
+			mErr = multierror.Append(mErr, errors.New("TestNameConfig.NameElements must be specified"))
+		}
+
+		if nameFormat == "" {
+			mErr = multierror.Append(mErr, errors.New("TestNameConfig.NameFormat must be specified"))
+		} else {
+			if got, want := len(nameElements), strings.Count(nameFormat, "%"); got != want {
+				mErr = multierror.Append(
+					mErr,
+					fmt.Errorf("TestNameConfig has %d elements, format %s wants %d", got, nameFormat, want),
+				)
+			}
+			elements := make([]interface{}, 0)
+			for range nameElements {
+				elements = append(elements, "")
+			}
+			s := fmt.Sprintf(nameFormat, elements...)
+			if strings.Contains(s, "%!") {
+				return fmt.Errorf("number of format strings and name_elements must match; got %s (%d)", s, len(elements))
+			}
+		}
+	}
+
+	return mErr
+}
+
+func validateDashboardTab(dt *configpb.DashboardTab) error {
+	var mErr error
+
+	// Check that required fields are a non-zero-value.
+	if dt.TestGroupName == "" {
+		mErr = multierror.Append(mErr, errors.New("test_group_name can't be empty"))
+	}
+
+	// A Dashboard Tab can't be named the same as the default 'Summary' tab.
+	if dt.Name == "Summary" {
+		mErr = multierror.Append(mErr, errors.New("tab can't be named 'Summary'"))
+	}
+
+	// TabularNamesRegex should be valid and have capture groups defined.
+	if dt.TabularNamesRegex != "" {
+		regex, err := regexp.Compile(dt.TabularNamesRegex)
+		if err != nil {
+			mErr = multierror.Append(
+				mErr,
+				fmt.Errorf("invalid regex %s: %v", dt.TabularNamesRegex, err))
+		} else {
+			if regex.NumSubexp() != len(regex.SubexpNames()) {
+				mErr = multierror.Append(mErr, errors.New("all tabular_name_regex capture groups must be named"))
+			}
+			if len(regex.SubexpNames()) < 1 {
+				mErr = multierror.Append(mErr, errors.New("tabular_name_regex requires at least one capture group"))
+			}
+		}
+	}
+
+	// Email address for alerts should be valid.
+	if dt.GetAlertOptions().GetAlertMailToAddresses() != "" {
+		if err := validateEmails(dt.GetAlertOptions().GetAlertMailToAddresses()); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+
+	return mErr
+}
+
+func validateEntityConfigs(c configpb.Configuration) error {
+	var mErr error
+
+	// At the moment, don't need to further validate Dashboards or DashboardGroups.
+	for _, tg := range c.TestGroups {
+		if err := validateTestGroup(tg); err != nil {
+			mErr = multierror.Append(mErr, &ConfigError{tg.Name, "TestGroup", err.Error()})
+		}
+	}
+
+	for _, d := range c.Dashboards {
+		for _, dt := range d.DashboardTab {
+			if err := validateDashboardTab(dt); err != nil {
+				mErr = multierror.Append(mErr, &ConfigError{dt.Name, "DashboardTab", err.Error()})
+			}
+		}
+	}
+
+	return mErr
 }
 
 // Validate checks that a configuration is well-formed.
 func Validate(c configpb.Configuration) error {
-	mErr := &multierror.Error{}
+	var mErr error
 
 	// TestGrid requires at least 1 TestGroup and 1 Dashboard in order to do anything.
 	if len(c.TestGroups) == 0 {
@@ -239,18 +427,22 @@ func Validate(c configpb.Configuration) error {
 
 	// Names have to be unique (after normalizing) within types of entities, to prevent storing
 	// duplicate state on updates and confusion between similar names.
-	err := validateAllUnique(c)
-	if err != nil {
+	// Entity names can't be empty or start with the same prefix as a TestGrid file type.
+	if err := validateAllUnique(c); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
 	// The entity that an entity references must exist.
-	err = validateReferencesExist(c)
-	if err != nil {
+	if err := validateReferencesExist(c); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	return mErr.ErrorOrNil()
+	// Validate individual entities have reasonable, well-formed options set.
+	if err := validateEntityConfigs(c); err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	return mErr
 }
 
 // Unmarshal reads a protocol buffer into memory
@@ -316,6 +508,7 @@ func Read(path string, ctx context.Context, client *storage.Client) (*configpb.C
 	return ReadPath(path)
 }
 
+// FindTestGroup returns the configpb.TestGroup proto for a given TestGroup name.
 func FindTestGroup(name string, cfg *configpb.Configuration) *configpb.TestGroup {
 	for _, tg := range cfg.TestGroups {
 		if tg.Name == name {
@@ -325,6 +518,7 @@ func FindTestGroup(name string, cfg *configpb.Configuration) *configpb.TestGroup
 	return nil
 }
 
+// FindDashboard returns the configpb.Dashboard proto for a given Dashboard name.
 func FindDashboard(name string, cfg *configpb.Configuration) *configpb.Dashboard {
 	for _, d := range cfg.Dashboards {
 		if d.Name == name {
