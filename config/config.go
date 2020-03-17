@@ -98,14 +98,17 @@ func validateUnique(items []string, entity string) error {
 	return mErr
 }
 
-func validateAllUnique(c configpb.Configuration) error {
+func validateAllUnique(c *configpb.Configuration) error {
 	var mErr error
+	if c == nil {
+		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+	}
 	var tgNames []string
-	for _, tg := range c.TestGroups {
-		if err := validateName(tg.Name); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{tg.Name, "TestGroup", err.Error()})
+	for _, tg := range c.GetTestGroups() {
+		if err := validateName(tg.GetName()); err != nil {
+			mErr = multierror.Append(mErr, &ConfigError{tg.GetName(), "TestGroup", err.Error()})
 		}
-		tgNames = append(tgNames, tg.Name)
+		tgNames = append(tgNames, tg.GetName())
 	}
 	// Test Group names must be unique.
 	if err := validateUnique(tgNames, "TestGroup"); err != nil {
@@ -113,13 +116,13 @@ func validateAllUnique(c configpb.Configuration) error {
 	}
 
 	var dashNames []string
-	for _, dash := range c.Dashboards {
+	for _, dash := range c.GetDashboards() {
 		if err := validateName(dash.Name); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{dash.Name, "Dashboard", err.Error()})
+			mErr = multierror.Append(mErr, &ConfigError{dash.GetName(), "Dashboard", err.Error()})
 		}
 		dashNames = append(dashNames, dash.Name)
 		var tabNames []string
-		for _, tab := range dash.DashboardTab {
+		for _, tab := range dash.GetDashboardTab() {
 			if err := validateName(tab.Name); err != nil {
 				mErr = multierror.Append(mErr, &ConfigError{tab.Name, "DashboardTab", err.Error()})
 			}
@@ -136,7 +139,7 @@ func validateAllUnique(c configpb.Configuration) error {
 	}
 
 	var dgNames []string
-	for _, dg := range c.DashboardGroups {
+	for _, dg := range c.GetDashboardGroups() {
 		if err := validateName(dg.Name); err != nil {
 			mErr = multierror.Append(mErr, &ConfigError{dg.Name, "DashboardGroup", err.Error()})
 		}
@@ -155,15 +158,18 @@ func validateAllUnique(c configpb.Configuration) error {
 	return mErr
 }
 
-func validateReferencesExist(c configpb.Configuration) error {
+func validateReferencesExist(c *configpb.Configuration) error {
 	var mErr error
+	if c == nil {
+		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+	}
 
 	tgNames := map[string]bool{}
-	for _, tg := range c.TestGroups {
-		tgNames[tg.Name] = true
+	for _, tg := range c.GetTestGroups() {
+		tgNames[tg.GetName()] = true
 	}
 	tgInTabs := map[string]bool{}
-	for _, dash := range c.Dashboards {
+	for _, dash := range c.GetDashboards() {
 		for _, tab := range dash.DashboardTab {
 			tabTg := tab.TestGroupName
 			tgInTabs[tabTg] = true
@@ -181,11 +187,11 @@ func validateReferencesExist(c configpb.Configuration) error {
 	}
 
 	dashNames := map[string]bool{}
-	for _, dash := range c.Dashboards {
+	for _, dash := range c.GetDashboards() {
 		dashNames[dash.Name] = true
 	}
 	dashToDg := map[string]bool{}
-	for _, dg := range c.DashboardGroups {
+	for _, dg := range c.GetDashboardGroups() {
 		for _, name := range dg.DashboardNames {
 			dgDash := name
 			if _, ok := dashNames[dgDash]; !ok {
@@ -239,14 +245,17 @@ func validateEmails(addresses string) error {
 
 func validateTestGroup(tg *configpb.TestGroup) error {
 	var mErr error
+	if tg == nil {
+		return multierror.Append(mErr, errors.New("got an empty TestGroup"))
+	}
 	// Check that required fields are a non-zero-value.
-	if tg.GcsPrefix == "" {
+	if tg.GetGcsPrefix() == "" {
 		mErr = multierror.Append(mErr, errors.New("gcs_prefix can't be empty"))
 	}
-	if tg.DaysOfResults <= 0 {
+	if tg.GetDaysOfResults() <= 0 {
 		mErr = multierror.Append(mErr, errors.New("days_of_results should be positive"))
 	}
-	if tg.NumColumnsRecent <= 0 {
+	if tg.GetNumColumnsRecent() <= 0 {
 		mErr = multierror.Append(mErr, errors.New("num_columns_recent should be positive"))
 	}
 
@@ -308,9 +317,9 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	}
 
 	// For each defined column_header, verify it has exactly one value set.
-	for idx, header := range tg.ColumnHeader {
+	for idx, header := range tg.GetColumnHeader() {
 		if cv, p, l := header.ConfigurationValue, header.Property, header.Label; cv == "" && p == "" && l == "" {
-			mErr = multierror.Append(mErr, &ConfigError{tg.Name, "TestGroup", fmt.Sprintf("Column Header %d is empty", idx)})
+			mErr = multierror.Append(mErr, &ConfigError{tg.GetName(), "TestGroup", fmt.Sprintf("Column Header %d is empty", idx)})
 		} else if cv != "" && (p != "" || l != "") || p != "" && (cv != "" || l != "") {
 			mErr = multierror.Append(
 				mErr,
@@ -321,7 +330,7 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	}
 
 	// test_name_config should have a matching number of format strings and name elements.
-	if tg.TestNameConfig != nil {
+	if tg.GetTestNameConfig() != nil {
 		nameFormat := tg.GetTestNameConfig().GetNameFormat()
 		nameElements := tg.GetTestNameConfig().GetNameElements()
 
@@ -354,24 +363,27 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 
 func validateDashboardTab(dt *configpb.DashboardTab) error {
 	var mErr error
+	if dt == nil {
+		return multierror.Append(mErr, errors.New("got an empty DashboardTab"))
+	}
 
 	// Check that required fields are a non-zero-value.
-	if dt.TestGroupName == "" {
+	if dt.GetTestGroupName() == "" {
 		mErr = multierror.Append(mErr, errors.New("test_group_name can't be empty"))
 	}
 
 	// A Dashboard Tab can't be named the same as the default 'Summary' tab.
-	if dt.Name == "Summary" {
+	if dt.GetName() == "Summary" {
 		mErr = multierror.Append(mErr, errors.New("tab can't be named 'Summary'"))
 	}
 
 	// TabularNamesRegex should be valid and have capture groups defined.
-	if dt.TabularNamesRegex != "" {
-		regex, err := regexp.Compile(dt.TabularNamesRegex)
+	if dt.GetTabularNamesRegex() != "" {
+		regex, err := regexp.Compile(dt.GetTabularNamesRegex())
 		if err != nil {
 			mErr = multierror.Append(
 				mErr,
-				fmt.Errorf("invalid regex %s: %v", dt.TabularNamesRegex, err))
+				fmt.Errorf("invalid regex %s: %v", dt.GetTabularNamesRegex(), err))
 		} else {
 			if regex.NumSubexp() != len(regex.SubexpNames()) {
 				mErr = multierror.Append(mErr, errors.New("all tabular_name_regex capture groups must be named"))
@@ -392,20 +404,23 @@ func validateDashboardTab(dt *configpb.DashboardTab) error {
 	return mErr
 }
 
-func validateEntityConfigs(c configpb.Configuration) error {
+func validateEntityConfigs(c *configpb.Configuration) error {
 	var mErr error
+	if c == nil {
+		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+	}
 
 	// At the moment, don't need to further validate Dashboards or DashboardGroups.
-	for _, tg := range c.TestGroups {
+	for _, tg := range c.GetTestGroups() {
 		if err := validateTestGroup(tg); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{tg.Name, "TestGroup", err.Error()})
+			mErr = multierror.Append(mErr, &ConfigError{tg.GetName(), "TestGroup", err.Error()})
 		}
 	}
 
-	for _, d := range c.Dashboards {
+	for _, d := range c.GetDashboards() {
 		for _, dt := range d.DashboardTab {
 			if err := validateDashboardTab(dt); err != nil {
-				mErr = multierror.Append(mErr, &ConfigError{dt.Name, "DashboardTab", err.Error()})
+				mErr = multierror.Append(mErr, &ConfigError{dt.GetName(), "DashboardTab", err.Error()})
 			}
 		}
 	}
@@ -414,14 +429,17 @@ func validateEntityConfigs(c configpb.Configuration) error {
 }
 
 // Validate checks that a configuration is well-formed.
-func Validate(c configpb.Configuration) error {
+func Validate(c *configpb.Configuration) error {
 	var mErr error
+	if c == nil {
+		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+	}
 
 	// TestGrid requires at least 1 TestGroup and 1 Dashboard in order to do anything.
-	if len(c.TestGroups) == 0 {
+	if len(c.GetTestGroups()) == 0 {
 		return multierror.Append(mErr, MissingFieldError{"TestGroups"})
 	}
-	if len(c.Dashboards) == 0 {
+	if len(c.GetDashboards()) == 0 {
 		return multierror.Append(mErr, MissingFieldError{"Dashboards"})
 	}
 
@@ -460,20 +478,26 @@ func Unmarshal(r io.Reader) (*configpb.Configuration, error) {
 
 // MarshalText writes a text version of the parsed configuration to the supplied io.Writer.
 // Returns an error if config is invalid or writing failed.
-func MarshalText(c configpb.Configuration, w io.Writer) error {
+func MarshalText(c *configpb.Configuration, w io.Writer) error {
+	if c == nil {
+		return errors.New("got an empty config.Configuration")
+	}
 	if err := Validate(c); err != nil {
 		return err
 	}
-	return proto.MarshalText(w, &c)
+	return proto.MarshalText(w, c)
 }
 
 // MarshalBytes returns the wire-encoded protobuf data for the parsed configuration.
 // Returns an error if config is invalid or encoding failed.
-func MarshalBytes(c configpb.Configuration) ([]byte, error) {
+func MarshalBytes(c *configpb.Configuration) ([]byte, error) {
+	if c == nil {
+		return nil, errors.New("got an empty config.Configuration")
+	}
 	if err := Validate(c); err != nil {
 		return nil, err
 	}
-	return proto.Marshal(&c)
+	return proto.Marshal(c)
 }
 
 // ReadGCS reads the config from gcs and unmarshals it into a Configuration struct.
@@ -510,8 +534,11 @@ func Read(path string, ctx context.Context, client *storage.Client) (*configpb.C
 
 // FindTestGroup returns the configpb.TestGroup proto for a given TestGroup name.
 func FindTestGroup(name string, cfg *configpb.Configuration) *configpb.TestGroup {
-	for _, tg := range cfg.TestGroups {
-		if tg.Name == name {
+	if cfg == nil {
+		return nil
+	}
+	for _, tg := range cfg.GetTestGroups() {
+		if tg.GetName() == name {
 			return tg
 		}
 	}
@@ -520,7 +547,10 @@ func FindTestGroup(name string, cfg *configpb.Configuration) *configpb.TestGroup
 
 // FindDashboard returns the configpb.Dashboard proto for a given Dashboard name.
 func FindDashboard(name string, cfg *configpb.Configuration) *configpb.Dashboard {
-	for _, d := range cfg.Dashboards {
+	if cfg == nil {
+		return nil
+	}
+	for _, d := range cfg.GetDashboards() {
 		if d.Name == name {
 			return d
 		}

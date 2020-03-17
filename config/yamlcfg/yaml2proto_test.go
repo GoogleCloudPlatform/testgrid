@@ -222,16 +222,20 @@ test_groups:
 func Test_MarshalYAML(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    config.Configuration
+		input    *config.Configuration
 		expected []byte
 	}{
 		{
+			name:  "Nil input; error",
+			input: nil,
+		},
+		{
 			name:  "Empty input; error",
-			input: config.Configuration{},
+			input: &config.Configuration{},
 		},
 		{
 			name: "Dashboard Tab & Group",
-			input: config.Configuration{
+			input: &config.Configuration{
 				Dashboards: []*config.Dashboard{
 					{
 						Name: "dash_1",
@@ -263,7 +267,7 @@ test_groups:
 		},
 		{
 			name: "reject empty column headers",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",
@@ -287,7 +291,7 @@ test_groups:
 		},
 		{
 			name: "reject multiple column header values",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",
@@ -314,7 +318,7 @@ test_groups:
 		},
 		{
 			name: "column headers configuration_value work",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",
@@ -361,7 +365,7 @@ test_groups:
 		},
 		{
 			name: "name elements work correctly",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",
@@ -421,7 +425,7 @@ test_groups:
 		},
 		{
 			name: "reject unbalanced name format",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",
@@ -456,7 +460,7 @@ test_groups:
 		},
 		{
 			name: "basic group values work",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name:                    "test_group",
@@ -506,7 +510,7 @@ test_groups:
 		},
 		{
 			name: "basic dashboard values work",
-			input: config.Configuration{
+			input: &config.Configuration{
 				TestGroups: []*config.TestGroup{
 					{
 						Name: "test_group",

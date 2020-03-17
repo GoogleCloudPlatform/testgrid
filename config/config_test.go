@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -109,16 +110,17 @@ func TestValidateUnique(t *testing.T) {
 func TestValidateAllUnique(t *testing.T) {
 	cases := []struct {
 		name string
-		c    configpb.Configuration
+		c    *configpb.Configuration
 		pass bool
 	}{
 		{
-			name: "basically works",
-			pass: true,
+			name: "reject nil config.Configuration",
+			c:    nil,
+			pass: false,
 		},
 		{
 			name: "everything works",
-			c: configpb.Configuration{
+			c: &configpb.Configuration{
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group_1",
@@ -144,7 +146,7 @@ func TestValidateAllUnique(t *testing.T) {
 		},
 		{
 			name: "reject empty group names",
-			c: configpb.Configuration{
+			c: &configpb.Configuration{
 				TestGroups: []*configpb.TestGroup{
 					{},
 				},
@@ -152,7 +154,7 @@ func TestValidateAllUnique(t *testing.T) {
 		},
 		{
 			name: "reject empty dashboard names",
-			c: configpb.Configuration{
+			c: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{},
 				},
@@ -160,7 +162,7 @@ func TestValidateAllUnique(t *testing.T) {
 		},
 		{
 			name: "reject empty tab names",
-			c: configpb.Configuration{
+			c: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -173,7 +175,7 @@ func TestValidateAllUnique(t *testing.T) {
 		},
 		{
 			name: "reject empty dashboard group names",
-			c: configpb.Configuration{
+			c: &configpb.Configuration{
 				DashboardGroups: []*configpb.DashboardGroup{
 					{},
 				},
@@ -181,7 +183,7 @@ func TestValidateAllUnique(t *testing.T) {
 		},
 		{
 			name: "dashboard group names cannot match a dashboard name",
-			c: configpb.Configuration{
+			c: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "foo",
@@ -215,12 +217,17 @@ func TestValidateAllUnique(t *testing.T) {
 func TestValidateReferencesExist(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        configpb.Configuration
+		input        *configpb.Configuration
 		expectedErrs []error
 	}{
 		{
+			name:         "reject nil config.Configuration",
+			input:        nil,
+			expectedErrs: []error{errors.New("got an empty config.Configuration")},
+		},
+		{
 			name: "Dashboard Tabs must reference an existing Test Group",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -248,7 +255,7 @@ func TestValidateReferencesExist(t *testing.T) {
 		},
 		{
 			name: "Test Groups must have an associated Dashboard Tab",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name:         "dash_1",
@@ -267,7 +274,7 @@ func TestValidateReferencesExist(t *testing.T) {
 		},
 		{
 			name: "Dashboard Groups must reference existing Dashboards",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -298,7 +305,7 @@ func TestValidateReferencesExist(t *testing.T) {
 		},
 		{
 			name: "A Dashboard can belong to at most 1 Dashboard Group",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -402,6 +409,11 @@ func TestValidateTestGroup(t *testing.T) {
 		testGroup *configpb.TestGroup
 		pass      bool
 	}{
+		{
+			name:      "Nil TestGroup fails",
+			pass:      false,
+			testGroup: nil,
+		},
 		{
 			name: "Minimal config passes",
 			pass: true,
@@ -745,19 +757,19 @@ func TestInvalidEmails(t *testing.T) {
 			addresses: ",thing@email.com",
 		},
 		{
-			name:      "?",
+			name:      "no username",
 			addresses: "@email.com",
 		},
 		{
-			name:      "??",
+			name:      "no domain name",
 			addresses: "username",
 		},
 		{
-			name:      "???",
+			name:      "@ but no domain name",
 			addresses: "username@",
 		},
 		{
-			name:      "????",
+			name:      "too many @'s",
 			addresses: "hey@hello@greetings.com",
 		},
 		{
@@ -788,6 +800,11 @@ func TestValidateDashboardTab(t *testing.T) {
 		tab  *configpb.DashboardTab
 		pass bool
 	}{
+		{
+			name: "nil DashboardTab fails",
+			tab:  nil,
+			pass: false,
+		},
 		{
 			name: "Dashboard Tabs must specify a Test Group Name",
 			tab: &configpb.DashboardTab{
@@ -832,16 +849,17 @@ func TestValidateDashboardTab(t *testing.T) {
 func TestUpdate_Validate(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        configpb.Configuration
+		input        *configpb.Configuration
 		expectedErrs []error
 	}{
 		{
-			name:         "Null input; returns error",
-			expectedErrs: []error{MissingFieldError{"TestGroups"}},
+			name:         "Nil input; returns error",
+			input:        nil,
+			expectedErrs: []error{errors.New("got an empty config.Configuration")},
 		},
 		{
 			name: "Dashboard Only; returns error",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -854,7 +872,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "Test Group Only; returns error",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group_1",
@@ -867,7 +885,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "Complete Minimal Config",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -891,7 +909,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "Dashboards and Dashboard Groups cannot share names.",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "name_1",
@@ -923,7 +941,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "Dashboard Tabs must reference an existing Test Group",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -954,7 +972,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "Test Groups must have an associated Dashboard Tab",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name:         "dash_1",
@@ -976,7 +994,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "Dashboard Groups must reference existing Dashboards",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
@@ -1010,7 +1028,7 @@ func TestUpdate_Validate(t *testing.T) {
 		},
 		{
 			name: "A Dashboard can belong to at most 1 Dashboard Group",
-			input: configpb.Configuration{
+			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
