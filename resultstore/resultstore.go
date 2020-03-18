@@ -115,6 +115,14 @@ func stamp(when time.Time) *timestamp.Timestamp {
 	}
 }
 
+func protoTimeToGoTime(t *timestamp.Timestamp) time.Time {
+	return time.Unix(t.Seconds, int64(t.Nanos))
+}
+
+func protoDurationToGoDuration(d *duration.Duration) time.Duration {
+	return time.Duration(d.Seconds)*time.Second + time.Duration(d.Nanos)*time.Nanosecond
+}
+
 func fromTiming(t *resultstore.Timing) (time.Time, time.Duration) {
 	var when time.Time
 	var dur time.Duration
@@ -122,10 +130,10 @@ func fromTiming(t *resultstore.Timing) (time.Time, time.Duration) {
 		return when, dur
 	}
 	if s := t.StartTime; s != nil {
-		when = time.Unix(s.Seconds, int64(s.Nanos))
+		when = protoTimeToGoTime(s)
 	}
 	if d := t.Duration; d != nil {
-		dur = time.Duration(d.Seconds)*time.Second + time.Duration(d.Nanos)*time.Nanosecond
+		dur = protoDurationToGoDuration(d)
 	}
 	return when, dur
 }

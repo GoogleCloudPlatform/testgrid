@@ -349,3 +349,24 @@ func (i Invocations) Get(name string, fields ...string) (*Invocation, error) {
 	resp := fromInvocation(inv)
 	return &resp, nil
 }
+
+func convertToInvocations(results *resultstore.SearchInvocationsResponse) []*Invocation {
+	invocations := []*Invocation{}
+	for _, invocation := range results.Invocations {
+		inv := fromInvocation(invocation)
+		invocations = append(invocations, &inv)
+	}
+	return invocations
+}
+
+// Search finds all the invocations that satisfies the query condition.
+func (i Invocations) Search(ctx context.Context, query string, fields ...string) ([]*Invocation, error) {
+	results, err := i.down.SearchInvocations(fieldMask(ctx, fields...), &resultstore.SearchInvocationsRequest{
+		ProjectId: "google.com:sponge-resultstore",
+		Query:     query,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return convertToInvocations(results), nil
+}
