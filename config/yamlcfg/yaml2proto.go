@@ -17,6 +17,7 @@ limitations under the License.
 package yamlcfg
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -102,7 +103,10 @@ func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfig
 
 // MarshalYAML returns a YAML file representing the parsed configuration.
 // Returns an error if config is invalid or encoding failed.
-func MarshalYAML(c config.Configuration) ([]byte, error) {
+func MarshalYAML(c *config.Configuration) ([]byte, error) {
+	if c == nil {
+		return nil, errors.New("got an empty config.Configuration")
+	}
 	if err := cfgutil.Validate(c); err != nil {
 		return nil, err
 	}
