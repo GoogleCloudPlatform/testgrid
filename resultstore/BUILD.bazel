@@ -38,7 +38,10 @@ filegroup(
 
 go_test(
     name = "go_default_test",
-    srcs = ["resultstore_test.go"],
+    srcs = [
+        "client_test.go",
+        "resultstore_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "@go_googleapis//google/devtools/resultstore/v2:resultstore_go_proto",
