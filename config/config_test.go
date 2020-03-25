@@ -420,7 +420,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 			},
 		},
@@ -428,7 +428,7 @@ func TestValidateTestGroup(t *testing.T) {
 			name: "Must have days_of_results",
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 			},
 		},
@@ -437,12 +437,12 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    -1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 			},
 		},
 		{
-			name: "Must have gcs_prefix",
+			name: "Must have query",
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
@@ -454,7 +454,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:          "test_group",
 				DaysOfResults: 1,
-				GcsPrefix:     "fake path",
+				Query:         "fake path",
 			},
 		},
 		{
@@ -462,7 +462,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: -1,
 			},
 		},
@@ -471,7 +471,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:                       "test_group",
 				DaysOfResults:              1,
-				GcsPrefix:                  "fake path",
+				Query:                      "fake path",
 				NumColumnsRecent:           1,
 				CommitOverrideLabelPattern: "[.*",
 			},
@@ -481,7 +481,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:                 "test_group",
 				DaysOfResults:        1,
-				GcsPrefix:            "fake path",
+				Query:                "fake path",
 				NumColumnsRecent:     1,
 				TestMethodMatchRegex: "[.*",
 			},
@@ -491,7 +491,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				Notifications: []*configpb.Notification{
 					{},
@@ -503,7 +503,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
 					{
@@ -517,7 +517,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
 					{
@@ -534,7 +534,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
 					{
@@ -551,7 +551,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:                               "test_group",
 				DaysOfResults:                      1,
-				GcsPrefix:                          "fake path",
+				Query:                              "fake path",
 				NumColumnsRecent:                   1,
 				FallbackGroupingConfigurationValue: "something",
 			},
@@ -561,7 +561,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				FallbackGrouping: configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE,
 			},
@@ -573,7 +573,7 @@ func TestValidateTestGroup(t *testing.T) {
 				// Basic config
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				// Regexes compile
 				CommitOverrideLabelPattern: "label.*",
@@ -604,7 +604,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -624,7 +624,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -639,7 +639,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -654,7 +654,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -669,7 +669,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{},
@@ -681,7 +681,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "simple",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				TestNameConfig: &configpb.TestNameConfig{
 					NameFormat: "hello world",
@@ -694,7 +694,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "complex",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				TestNameConfig: &configpb.TestNameConfig{
 					NameFormat: "hello %s you are %s",
@@ -714,7 +714,7 @@ func TestValidateTestGroup(t *testing.T) {
 			testGroup: &configpb.TestGroup{
 				Name:             "bad",
 				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
+				Query:            "fake path",
 				NumColumnsRecent: 1,
 				TestNameConfig: &configpb.TestNameConfig{
 					NameFormat: "sorry %s but this is just too %s to tell you",
@@ -900,7 +900,7 @@ func TestUpdate_Validate(t *testing.T) {
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:             "test_group_1",
-						GcsPrefix:        "fake GcsPrefix",
+						Query:            "fake Query",
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},
@@ -929,7 +929,7 @@ func TestUpdate_Validate(t *testing.T) {
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:             "test_group_1",
-						GcsPrefix:        "fake GcsPrefix",
+						Query:            "fake Query",
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},
@@ -960,7 +960,7 @@ func TestUpdate_Validate(t *testing.T) {
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:             "test_group_1",
-						GcsPrefix:        "fake GcsPrefix",
+						Query:            "fake Query",
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},
@@ -982,7 +982,7 @@ func TestUpdate_Validate(t *testing.T) {
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:             "test_group_1",
-						GcsPrefix:        "fake GcsPrefix",
+						Query:            "fake Query",
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},
@@ -1009,7 +1009,7 @@ func TestUpdate_Validate(t *testing.T) {
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:             "test_group_1",
-						GcsPrefix:        "fake GcsPrefix",
+						Query:            "fake Query",
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},
@@ -1043,7 +1043,7 @@ func TestUpdate_Validate(t *testing.T) {
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:             "test_group_1",
-						GcsPrefix:        "fake GcsPrefix",
+						Query:            "fake Query",
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},

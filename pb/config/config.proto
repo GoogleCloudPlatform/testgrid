@@ -59,7 +59,7 @@ message TestGroup {
   string name = 1;
 
   // Path to the test result stored in gcs (some-bucket/some/optional/path).
-  string gcs_prefix = 2;
+  string query = 2;
 
   // Number of days of test results to gather and serve.
   int32 days_of_results = 3;

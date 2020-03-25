@@ -260,9 +260,9 @@ func Test_MarshalYAML(t *testing.T) {
   name: dash_1
 test_groups:
 - days_of_results: 1
-  gcs_prefix: fake path
   name: testgroup_1
   num_columns_recent: 1
+  query: fake path
 `),
 		},
 		{
@@ -358,9 +358,9 @@ test_groups:
   - label: lab
   - property: prop
   days_of_results: 1
-  gcs_prefix: fake path
   name: test_group
   num_columns_recent: 1
+  query: fake path
 `),
 		},
 		{
@@ -410,9 +410,9 @@ test_groups:
   name: dash
 test_groups:
 - days_of_results: 1
-  gcs_prefix: fake path
   name: test_group
   num_columns_recent: 1
+  query: fake path
   test_name_config:
     name_elements:
     - labels: labels
@@ -496,7 +496,6 @@ test_groups:
 - alert_stale_results_hours: 5
   code_search_path: github.com/kubernetes/example
   days_of_results: 1
-  gcs_prefix: fake path
   ignore_pending: true
   ignore_skip: true
   is_external: true
@@ -504,6 +503,7 @@ test_groups:
   num_columns_recent: 1
   num_failures_to_alert: 4
   num_passes_to_disable_alert: 6
+  query: fake path
   tests_name_policy: 2
   use_kubernetes_client: true
 `),
@@ -587,9 +587,9 @@ test_groups:
   name: dash
 test_groups:
 - days_of_results: 1
-  gcs_prefix: fake path
   name: test_group
   num_columns_recent: 1
+  query: fake path
 `),
 		},
 	}
@@ -600,7 +600,7 @@ test_groups:
 			if len(test.input.GetTestGroups()) != 0 {
 				test.input.GetTestGroups()[0].DaysOfResults = 1
 				test.input.GetTestGroups()[0].NumColumnsRecent = 1
-				test.input.GetTestGroups()[0].GcsPrefix = "fake path"
+				test.input.GetTestGroups()[0].Query = "fake path"
 			}
 			result, err := MarshalYAML(test.input)
 			if test.expected == nil && err == nil {

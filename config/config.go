@@ -249,8 +249,8 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 		return multierror.Append(mErr, errors.New("got an empty TestGroup"))
 	}
 	// Check that required fields are a non-zero-value.
-	if tg.GetGcsPrefix() == "" {
-		mErr = multierror.Append(mErr, errors.New("gcs_prefix can't be empty"))
+	if tg.GetQuery() == "" {
+		mErr = multierror.Append(mErr, errors.New("query can't be empty"))
 	}
 	if tg.GetDaysOfResults() <= 0 {
 		mErr = multierror.Append(mErr, errors.New("days_of_results should be positive"))
