@@ -57,6 +57,7 @@ func TestUpdateDashboard(t *testing.T) {
 		{
 			name: "basically works",
 			dash: &configpb.Dashboard{
+				Name: "stale-dashboard",
 				DashboardTab: []*configpb.DashboardTab{
 					{
 						Name:          "stale-tab",
@@ -72,6 +73,7 @@ func TestUpdateDashboard(t *testing.T) {
 			expected: &summarypb.DashboardSummary{
 				TabSummaries: []*summarypb.DashboardTabSummary{
 					{
+						DashboardName:       "stale-dashboard",
 						DashboardTabName:    "stale-tab",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
@@ -85,6 +87,7 @@ func TestUpdateDashboard(t *testing.T) {
 		{
 			name: "still update working tabs when some tabs fail",
 			dash: &configpb.Dashboard{
+				Name: "a-dashboard",
 				DashboardTab: []*configpb.DashboardTab{
 					{
 						Name:          "working",
@@ -115,6 +118,7 @@ func TestUpdateDashboard(t *testing.T) {
 			expected: &summarypb.DashboardSummary{
 				TabSummaries: []*summarypb.DashboardTabSummary{
 					{
+						DashboardName:       "a-dashboard",
 						DashboardTabName:    "working",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
@@ -122,9 +126,10 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
 					},
-					problemTab("missing-tab"),
-					problemTab("error-tab"),
+					problemTab("a-dashboard", "missing-tab"),
+					problemTab("a-dashboard", "error-tab"),
 					{
+						DashboardName:       "a-dashboard",
 						DashboardTabName:    "still-working",
 						LastUpdateTimestamp: 1000,
 						Alert:               noRuns,
