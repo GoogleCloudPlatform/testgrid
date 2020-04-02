@@ -359,10 +359,10 @@ func convertToInvocations(results *resultstore.SearchInvocationsResponse) []*Inv
 	return invocations
 }
 
-// Search finds all the invocations that satisfies the query condition.
-func (i Invocations) Search(ctx context.Context, query string, fields ...string) ([]*Invocation, error) {
+// Search finds all the invocations that satisfies the query condition within a project.
+func (i Invocations) Search(ctx context.Context, projectID string, query string, fields ...string) ([]*Invocation, error) {
 	results, err := i.down.SearchInvocations(fieldMask(ctx, fields...), &resultstore.SearchInvocationsRequest{
-		ProjectId: "google.com:sponge-resultstore",
+		ProjectId: projectID,
 		Query:     query,
 	})
 	if err != nil {
