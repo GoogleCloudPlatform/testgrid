@@ -183,9 +183,10 @@ func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder group
 		if err != nil {
 			log.WithError(err).Error("Cannot summarize tab")
 			badTabs = append(badTabs, tab.Name)
-			sum.TabSummaries = append(sum.TabSummaries, problemTab(tab.Name))
+			sum.TabSummaries = append(sum.TabSummaries, problemTab(dash.Name, tab.Name))
 			continue
 		}
+		s.DashboardName = dash.Name
 		sum.TabSummaries = append(sum.TabSummaries, s)
 	}
 	var err error
@@ -196,9 +197,10 @@ func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder group
 }
 
 // problemTab summarizes a tab that cannot summarize
-func problemTab(name string) *summarypb.DashboardTabSummary {
+func problemTab(dashboardName, tabName string) *summarypb.DashboardTabSummary {
 	return &summarypb.DashboardTabSummary{
-		DashboardTabName: name,
+		DashboardName:    dashboardName,
+		DashboardTabName: tabName,
 		Alert:            "failed to summarize tab",
 	}
 }
