@@ -117,10 +117,8 @@ message TestGroup {
   // A test grouping option used if not specified by primary_grouping (#29)
   FallbackGrouping fallback_grouping = 10;
 
-  // Time in hours before an alert will be added to a test results table if the
-  // run date of the latest results are older than this time.  If zero, no
-  // alerts are raised.
-  int32 alert_stale_results_hours = 11;
+  // DEPRECATED: use DashboardTabAlertOptions > alert_stale_result_hours
+  int32 alert_stale_results_hours = 11 [deprecated = true];
 
   // The number of consecutive test result failures to see before alerting of
   // a consistent failure. If zero, no alerts are raised.
@@ -142,29 +140,28 @@ message TestGroup {
   // specific cases.
   bool use_test_metadata = 16;
 
-  // The comma-separated addresses to send mail.
-  // Note that this can also be configured for particular Dashboard Tabs also
-  string alert_mail_to_addresses = 17;
+  // DEPRECATED: use DashboardTabAlertOptions > alert_mail_to_address instead
+  string alert_mail_to_addresses = 17 [deprecated = true];
 
-  // Subject line of an alert mail.
-  string alert_mail_subject = 18;
+  // DEPRECATED: use DashboardTabAlertOptions > subject
+  string alert_mail_subject = 18 [deprecated = true];
 
-  // Failure message in alert mail.
-  string alert_mail_failure_message = 19;
+  // DEPRECATED: use DashboardTabAlertOptions > alert_mail_failure_message
+  string alert_mail_failure_message = 19 [deprecated = true];
 
-  // An url which will help in debugging failure. This will be hyperlinked on
-  // failure message.
-  string alert_mail_debug_url = 20;
+  // DEPRECATED: use DashboardTabAlertOptions > debug_url
+  string alert_mail_debug_url = 20 [deprecated = true];
 
-  // Minimum time between sending mails.
-  int32 min_elapsed_minutes_between_mails = 21;
+  // DEPRECATED: use DashboardTabAlertOptions > wait_minutes_between_emails
+  int32 min_elapsed_minutes_between_mails = 21 [deprecated = true];
 
   // Whether to read configuration values from invocation and use that
   // to send email alerts. If this is true, values for
   // alert_mail_to_addresses, alert_mail_failure_message and
   // alert_mail_debug_url will be gathered from invocation properties and will
   // get precedence.
-  bool use_configuration_values_as_alert_params = 22;
+  // Deprecated without replacement
+  bool use_configuration_values_as_alert_params = 22 [deprecated = true];
 
   // Whether to treat a combination of passes and failures within one test as a
   // flaky status.
@@ -605,6 +602,14 @@ message DashboardTabAlertOptions {
 
   // Custom text to show for the debug link.
   string debug_message = 7;
+
+  // Wait time between emails. If unset or zero, an email will be sent only once
+  // it becomes a consistent failure, and not again until it succeeds.
+  // TestGrid does not pester about staleness
+  int32 wait_minutes_between_emails = 8;
+
+  // A custom message
+  string alert_mail_failure_message = 9;
 }
 
 // Specifies a dashboard group.
