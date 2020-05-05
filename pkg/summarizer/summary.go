@@ -99,7 +99,7 @@ func Update(ctx context.Context, client *storage.Client, path gcs.Path, concurre
 				if !confirm {
 					continue
 				}
-				path, err := path.ResolveReference(&url.URL{Path: summaryPath(dash.Name)})
+				path, err := path.ResolveReference(&url.URL{Path: SummaryPath(dash.Name)})
 				if err != nil {
 					log.WithError(err).Error("Cannot resolve summary path")
 					errCh <- errors.New(dash.Name)
@@ -149,7 +149,8 @@ var (
 	normalizer = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-func summaryPath(name string) string {
+// Returns the path where the summarizer put a summary proto for a given Dashboard
+func SummaryPath(name string) string {
 	// ''.join(c for c in n.lower() if c is alphanumeric
 	return "summary-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
 }
