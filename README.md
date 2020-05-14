@@ -30,7 +30,7 @@ If you want to modify TestGrid beyond adding new tests or dashboards, see
 ## Configuration
 
 If you need to add a new test that you want TestGrid to display, or otherwise change what is shown
-on https://testgrid.k8s.io, see [Testgrid Configuration](https://github.com/kubernetes/test-infra/blob/master/testgrid/config.md).
+on https://testgrid.k8s.io, see [Testgrid Configuration](config.md).
 
 Updates to the config are automatically tested and pushed to production.
 
