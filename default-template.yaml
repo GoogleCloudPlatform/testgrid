@@ -23,9 +23,15 @@ default_dashboard_tab:
     url: https://github.com/kubernetes/kubernetes/issues/new
     options:
       - key: title
-        value: 'E2E: <test-name>'
+        value: 'E2E: <enviorment>-<test-name> [<test-status>]'
       - key: body
-        value: <test-url>
+        value: '[Test URL](https://prow.k8s.io/view/gcs/<gcs_prefix>/<changelist>)
+        
+        [Result Explorer](<results-explorer>)
+        
+        ### Expected Behavior:
+
+        ### Actual Behavior:'
   attach_bug_template: # The URL template to visit when attaching a bug
     url: # empty
     options: #empty

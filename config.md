@@ -48,7 +48,7 @@ If you need to create a new dashboard, or do anything more advanced, read on.
 
 ## Configuration
 
-Open or create a Testgrid config file [(example)][https://github.com/kubernetes/test-infra/tree/master/config/testgrids] in your favorite editor and:
+Open or create a Testgrid config file [(example)](https://github.com/kubernetes/test-infra/tree/master/config/testgrids) in your favorite editor and:
 
 1. Configure the test groups
 2. Add those testgroups to one or more tabs in one or more dashboards
