@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.4.0 // indirect
+	github.com/stretchr/testify v1.5.1
 	github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 // indirect
 	go.opencensus.io v0.22.1 // indirect
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9 // indirect

@@ -246,6 +246,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
+	//TODO(gmccloskey): update DashboardTabSummary to inclused failure ratio in PB
 	passingCols, completedCols, passingCells, filledCells, _ := gridMetrics(len(grid.Columns), grid.Rows, recent)
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
@@ -499,7 +500,7 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int,
 	var passingCols int
 	var completedCols int
 
-	for idx := 0; idx < cols && idx <= recent; idx++ {
+	for idx := 0; idx < cols && idx < recent; idx++ {
 		var passes int
 		var failures int
 		for _, ch := range results {
@@ -524,21 +525,26 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int,
 			passingCols++
 		}
 
-		columnFailureRatios = append(columnFailureRatios, float32(failures/(passes+failures)))
+		if passes+failures > 0 {
+			columnFailureRatios = append(columnFailureRatios, float32(failures)/float32(passes+failures))
+		} else {
+			columnFailureRatios = append(columnFailureRatios, 0.0)
+		}
 	}
 
 	return passingCols, completedCols, passingCells, filledCells, columnFailureRatios
+}
+
+func fmtStatus(passCols, cols, passCells, cells int) string {
+	colCent := 100 * float64(passCols) / float64(cols)
+	cellCent := 100 * float64(passCells) / float64(cells)
+	return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
 }
 
 //  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
 func statusMessage(passingCols, completedCols, passingCells, filledCells int) string {
 	if filledCells == 0 {
 		return noRuns
-	}
-	fmtStatus := func(passCols, cols, passCells, cells int) string {
-		colCent := 100 * float64(passCols) / float64(cols)
-		cellCent := 100 * float64(passCells) / float64(cells)
-		return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
 	}
 	return fmtStatus(passingCols, completedCols, passingCells, filledCells)
 }
