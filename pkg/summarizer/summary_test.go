@@ -31,6 +31,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -1105,21 +1106,23 @@ func TestOverallStatus(t *testing.T) {
 	}
 }
 
-func TestStatusMessage(t *testing.T) {
+func makeShim(v ...interface{}) []interface{} {
+	return v
+}
+
+func TestGridMetrics(t *testing.T) {
 	cases := []struct {
-		name             string
-		cols             int
-		rows             []*statepb.Row
-		recent           int
-		passingCols      int
-		filledCols       int
-		passingCells     int
-		filledCells      int
-		expectedOverride string
+		name         string
+		cols         int
+		rows         []*statepb.Row
+		recent       int
+		passingCols  int
+		filledCols   int
+		passingCells int
+		filledCells  int
 	}{
 		{
-			name:             "no runs",
-			expectedOverride: noRuns,
+			name: "no runs",
 		},
 		{
 			name: "what people want (greens)",
@@ -1291,13 +1294,9 @@ func TestStatusMessage(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			expected := tc.expectedOverride
-			if expected == "" {
-				expected = fmtStatus(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells)
-			}
-			if actual := statusMessage(tc.cols, tc.rows, tc.recent); actual != expected {
-				t.Errorf("%s != expected %s", actual, expected)
-			}
+			expected := makeShim(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells)
+			actual := makeShim(gridMetrics(tc.cols, tc.rows, tc.recent))
+			assert.Equal(t, expected, actual, fmt.Sprintf("%s != expected %s", actual, expected))
 		})
 	}
 }
