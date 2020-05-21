@@ -246,6 +246,8 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
+	//TODO(gmccloskey): update DashboardTabSummary to include failure ratio in PB
+	passingCols, completedCols, passingCells, filledCells, _ := gridMetrics(len(grid.Columns), grid.Rows, recent)
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
@@ -253,7 +255,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		Alert:                alert,
 		FailingTestSummaries: failures,
 		OverallStatus:        overallStatus(grid, recent, alert, failures),
-		Status:               statusMessage(len(grid.Columns), grid.Rows, recent),
+		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		// TODO(fejta): BugUrl
 	}, nil
@@ -486,53 +488,65 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, alerts []*summa
 	return summarypb.DashboardTabSummary_UNKNOWN
 }
 
+// Culminate set of metrics related to a section of the Grid
+func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int, []float32) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	results := results(ctx, rows)
+	var columnFailureRatios []float32
+	var passingCells int
+	var filledCells int
+	var passingCols int
+	var completedCols int
+
+	for idx := 0; idx < cols; idx++ {
+		if idx >= recent {
+			break
+		}
+		var passes int
+		var failures int
+		for _, ch := range results {
+			// TODO(fejta): fail old running cols
+			switch coalesceResult(<-ch, result.IgnoreRunning) {
+			//TODO(michelle192837): Create utility to standardize pass/fail boundaries
+			case statepb.Row_PASS, statepb.Row_PASS_WITH_ERRORS, statepb.Row_PASS_WITH_SKIPS:
+				passes++
+				passingCells++
+				filledCells++
+			case statepb.Row_NO_RESULT:
+				// noop
+			default:
+				failures++
+				filledCells++
+			}
+		}
+
+		if failures > 0 || passes > 0 {
+			completedCols++
+		}
+		if failures == 0 && passes > 0 {
+			passingCols++
+		}
+
+		if passes+failures > 0 {
+			columnFailureRatios = append(columnFailureRatios, float32(failures)/float32(passes+failures))
+		} else {
+			columnFailureRatios = append(columnFailureRatios, 0.0)
+		}
+	}
+
+	return passingCols, completedCols, passingCells, filledCells, columnFailureRatios
+}
+
 func fmtStatus(passCols, cols, passCells, cells int) string {
 	colCent := 100 * float64(passCols) / float64(cols)
 	cellCent := 100 * float64(passCells) / float64(cells)
 	return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
 }
 
-func statusMessage(cols int, rows []*statepb.Row, recent int) string {
-	//  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	results := results(ctx, rows)
-	var passingCells int
-	var filledCells int
-	var passingCols int
-	var completedCols int
-	for idx := 0; idx < cols; idx++ {
-		if idx >= recent {
-			break
-		}
-		var passes bool
-		var failures bool
-		for _, ch := range results {
-			// TODO(fejta): fail old running cols
-			switch coalesceResult(<-ch, result.IgnoreRunning) {
-			case statepb.Row_PASS:
-				if !failures {
-					passes = true
-				}
-				passingCells++
-				filledCells++
-			case statepb.Row_NO_RESULT:
-				// noop
-			default:
-				passes = false
-				failures = true
-				filledCells++
-			}
-		}
-
-		if failures || passes {
-			completedCols++
-		}
-		if passes {
-			passingCols++
-		}
-	}
+//  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
+func statusMessage(passingCols, completedCols, passingCells, filledCells int) string {
 	if filledCells == 0 {
 		return noRuns
 	}

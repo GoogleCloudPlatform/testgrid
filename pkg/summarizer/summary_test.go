@@ -31,6 +31,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -1105,21 +1106,24 @@ func TestOverallStatus(t *testing.T) {
 	}
 }
 
-func TestStatusMessage(t *testing.T) {
+func makeShim(v ...interface{}) []interface{} {
+	return v
+}
+
+func TestGridMetrics(t *testing.T) {
 	cases := []struct {
-		name             string
-		cols             int
-		rows             []*statepb.Row
-		recent           int
-		passingCols      int
-		filledCols       int
-		passingCells     int
-		filledCells      int
-		expectedOverride string
+		name              string
+		cols              int
+		rows              []*statepb.Row
+		recent            int
+		passingCols       int
+		filledCols        int
+		passingCells      int
+		filledCells       int
+		expectedFailRatio []float32
 	}{
 		{
-			name:             "no runs",
-			expectedOverride: noRuns,
+			name: "no runs",
 		},
 		{
 			name: "what people want (greens)",
@@ -1134,11 +1138,12 @@ func TestStatusMessage(t *testing.T) {
 					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 			},
-			recent:       2,
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 4,
-			filledCells:  4,
+			recent:            2,
+			passingCols:       2,
+			filledCols:        2,
+			passingCells:      4,
+			filledCells:       4,
+			expectedFailRatio: []float32{0, 0},
 		},
 		{
 			name: "red: i do not like them sam I am",
@@ -1153,11 +1158,12 @@ func TestStatusMessage(t *testing.T) {
 					Results: []int32{int32(statepb.Row_FLAKY), 2},
 				},
 			},
-			recent:       2,
-			passingCols:  0,
-			filledCols:   2,
-			passingCells: 0,
-			filledCells:  4,
+			recent:            2,
+			passingCols:       0,
+			filledCols:        2,
+			passingCells:      0,
+			filledCells:       4,
+			expectedFailRatio: []float32{1, 1},
 		},
 		{
 			name: "passing cells but no green columns",
@@ -1178,11 +1184,12 @@ func TestStatusMessage(t *testing.T) {
 					},
 				},
 			},
-			recent:       2,
-			passingCols:  0,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  4,
+			recent:            2,
+			passingCols:       0,
+			filledCols:        2,
+			passingCells:      2,
+			filledCells:       4,
+			expectedFailRatio: []float32{0.5, 0.5},
 		},
 		{
 			name:   "ignore overflow of claimed columns",
@@ -1198,10 +1205,11 @@ func TestStatusMessage(t *testing.T) {
 					Results: []int32{int32(statepb.Row_PASS), 3},
 				},
 			},
-			passingCols:  3,
-			filledCols:   3,
-			passingCells: 6,
-			filledCells:  6,
+			passingCols:       3,
+			filledCols:        3,
+			passingCells:      6,
+			filledCells:       6,
+			expectedFailRatio: make([]float32, 50),
 		},
 		{
 			name:   "ignore bad row data",
@@ -1216,10 +1224,11 @@ func TestStatusMessage(t *testing.T) {
 					Results: []int32{int32(statepb.Row_PASS), 2},
 				},
 			},
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  2,
+			passingCols:       2,
+			filledCols:        2,
+			passingCells:      2,
+			filledCells:       2,
+			expectedFailRatio: []float32{0, 0},
 		},
 		{
 			name:   "ignore non recent data",
@@ -1231,10 +1240,11 @@ func TestStatusMessage(t *testing.T) {
 					Results: []int32{int32(statepb.Row_PASS), 100},
 				},
 			},
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  2,
+			passingCols:       2,
+			filledCols:        2,
+			passingCells:      2,
+			filledCells:       2,
+			expectedFailRatio: []float32{0, 0},
 		},
 		{
 			name:   "no result cells do not alter column",
@@ -1267,25 +1277,181 @@ func TestStatusMessage(t *testing.T) {
 					},
 				},
 			},
-			passingCols:  2, // pass, fail, pass
-			filledCols:   3,
-			passingCells: 6,
-			filledCells:  7,
+			passingCols:       2, // pass, fail, pass
+			filledCols:        3,
+			passingCells:      6,
+			filledCells:       7,
+			expectedFailRatio: []float32{0, 0.33333334, 0},
 		},
 		{
 			name:   "not enough columns yet works just fine",
-			cols:   2,
+			cols:   4,
 			recent: 50,
 			rows: []*statepb.Row{
 				{
-					Name:    "two passes",
-					Results: []int32{int32(statepb.Row_PASS), 2},
+					Name: "four passes",
+					Results: []int32{
+						int32(statepb.Row_PASS), 4,
+					},
 				},
 			},
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  2,
+			passingCols:       4,
+			filledCols:        4,
+			passingCells:      4,
+			filledCells:       4,
+			expectedFailRatio: []float32{0, 0, 0, 0},
+		},
+		{
+			name:   "half passes and half fails",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "four passes",
+					Results: []int32{
+						int32(statepb.Row_PASS), 4,
+					},
+				},
+				{
+					Name: "four fails",
+					Results: []int32{
+						int32(statepb.Row_FAIL), 4,
+					},
+				},
+			},
+			passingCols:       0,
+			filledCols:        4,
+			passingCells:      4,
+			filledCells:       8,
+			expectedFailRatio: []float32{.5, .5, .5, .5},
+		},
+		{
+			name:   "no result in every column",
+			cols:   3,
+			recent: 3,
+			rows: []*statepb.Row{
+				{
+					Name:    "always empty",
+					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+				},
+				{
+					Name: "first empty",
+					Results: []int32{
+						int32(statepb.Row_NO_RESULT), 1,
+						int32(statepb.Row_PASS), 2,
+					},
+				},
+				{
+					Name:    "always empty",
+					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+				},
+			},
+			passingCols:       2,
+			filledCols:        2,
+			passingCells:      2,
+			filledCells:       2,
+			expectedFailRatio: []float32{0, 0, 0},
+		},
+		{
+			name:   "only no result",
+			cols:   3,
+			recent: 3,
+			rows: []*statepb.Row{
+				{
+					Name:    "always empty",
+					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+				},
+			},
+			passingCols:       0,
+			filledCols:        0,
+			passingCells:      0,
+			filledCells:       0,
+			expectedFailRatio: []float32{0, 0, 0},
+		},
+		{
+			name:   "Pass with skips",
+			cols:   3,
+			recent: 3,
+			rows: []*statepb.Row{
+				{
+					Name:    "always empty",
+					Results: []int32{int32(statepb.Row_PASS_WITH_SKIPS), 3},
+				},
+				{
+					Name:    "all pass",
+					Results: []int32{int32(statepb.Row_PASS), 3},
+				},
+			},
+			passingCols:       3,
+			filledCols:        3,
+			passingCells:      6,
+			filledCells:       6,
+			expectedFailRatio: []float32{0, 0, 0},
+		},
+		{
+			name:   "Pass with errors",
+			cols:   3,
+			recent: 3,
+			rows: []*statepb.Row{
+				{
+					Name:    "always empty",
+					Results: []int32{int32(statepb.Row_PASS_WITH_ERRORS), 3},
+				},
+				{
+					Name:    "all pass",
+					Results: []int32{int32(statepb.Row_PASS), 3},
+				},
+			},
+			passingCols:       3,
+			filledCols:        3,
+			passingCells:      6,
+			filledCells:       6,
+			expectedFailRatio: []float32{0, 0, 0},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			expected := makeShim(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells, tc.expectedFailRatio)
+			actual := makeShim(gridMetrics(tc.cols, tc.rows, tc.recent))
+			assert.Equal(t, expected, actual, fmt.Sprintf("%s != expected %s", actual, expected))
+		})
+	}
+}
+
+func TestStatusMessage(t *testing.T) {
+	cases := []struct {
+		name             string
+		passingCols      int
+		completedCols    int
+		passingCells     int
+		filledCells      int
+		expectedOverride string
+	}{
+		{
+			name:             "no filledCells",
+			expectedOverride: noRuns,
+		},
+		{
+			name:          "green path",
+			passingCols:   2,
+			completedCols: 2,
+			passingCells:  4,
+			filledCells:   4,
+		},
+		{
+			name:          "all red path",
+			passingCols:   0,
+			completedCols: 2,
+			passingCells:  0,
+			filledCells:   4,
+		},
+		{
+			name:          "all values the same",
+			passingCols:   2,
+			completedCols: 2,
+			passingCells:  2,
+			filledCells:   2,
 		},
 	}
 
@@ -1293,9 +1459,9 @@ func TestStatusMessage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			expected := tc.expectedOverride
 			if expected == "" {
-				expected = fmtStatus(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells)
+				expected = fmtStatus(tc.passingCols, tc.completedCols, tc.passingCells, tc.filledCells)
 			}
-			if actual := statusMessage(tc.cols, tc.rows, tc.recent); actual != expected {
+			if actual := statusMessage(tc.passingCols, tc.completedCols, tc.passingCells, tc.filledCells); actual != expected {
 				t.Errorf("%s != expected %s", actual, expected)
 			}
 		})
