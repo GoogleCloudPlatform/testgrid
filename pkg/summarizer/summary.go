@@ -246,7 +246,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
-	//TODO(gmccloskey): update DashboardTabSummary to inclused failure ratio in PB
+	//TODO(gmccloskey): update DashboardTabSummary to include failure ratio in PB
 	passingCols, completedCols, passingCells, filledCells, _ := gridMetrics(len(grid.Columns), grid.Rows, recent)
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
@@ -488,7 +488,7 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, alerts []*summa
 	return summarypb.DashboardTabSummary_UNKNOWN
 }
 
-// Culminate set of metrics related to a section of the Grid that can be consumed by
+// Culminate set of metrics related to a section of the Grid
 func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int, []float32) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -500,12 +500,16 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int,
 	var passingCols int
 	var completedCols int
 
-	for idx := 0; idx < cols && idx < recent; idx++ {
+	for idx := 0; idx < cols; idx++ {
+		if idx >= recent {
+			break
+		}
 		var passes int
 		var failures int
 		for _, ch := range results {
 			// TODO(fejta): fail old running cols
 			switch coalesceResult(<-ch, result.IgnoreRunning) {
+			//TODO(michelle192837): Create utility to standardize pass/fail boundaries
 			case statepb.Row_PASS, statepb.Row_PASS_WITH_ERRORS, statepb.Row_PASS_WITH_SKIPS:
 				passes++
 				passingCells++

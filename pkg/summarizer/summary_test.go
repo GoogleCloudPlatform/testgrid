@@ -1284,18 +1284,36 @@ func TestGridMetrics(t *testing.T) {
 			expectedFailRatio: []float32{0, 0.33333334, 0},
 		},
 		{
-			name:   "half and half",
+			name:   "not enough columns yet works just fine",
 			cols:   4,
 			recent: 50,
 			rows: []*statepb.Row{
 				{
-					Name: "four pass",
+					Name: "four passes",
+					Results: []int32{
+						int32(statepb.Row_PASS), 4,
+					},
+				},
+			},
+			passingCols:       4,
+			filledCols:        4,
+			passingCells:      4,
+			filledCells:       4,
+			expectedFailRatio: []float32{0, 0, 0, 0},
+		},
+		{
+			name:   "half passes and half fails",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "four passes",
 					Results: []int32{
 						int32(statepb.Row_PASS), 4,
 					},
 				},
 				{
-					Name: "four fail",
+					Name: "four fails",
 					Results: []int32{
 						int32(statepb.Row_FAIL), 4,
 					},
@@ -1434,14 +1452,6 @@ func TestStatusMessage(t *testing.T) {
 			completedCols: 2,
 			passingCells:  2,
 			filledCells:   2,
-		},
-		{
-			name:             "all no result",
-			passingCols:      0,
-			completedCols:    0,
-			passingCells:     0,
-			filledCells:      0,
-			expectedOverride: noRuns,
 		},
 	}
 
