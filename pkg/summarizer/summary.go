@@ -246,8 +246,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
-	//TODO(gmccloskey): update DashboardTabSummary to include failure ratio in PB
-	passingCols, completedCols, passingCells, filledCells, _ := gridMetrics(len(grid.Columns), grid.Rows, recent)
+	passingCols, completedCols, passingCells, filledCells, columnFailureRatios := gridMetrics(len(grid.Columns), grid.Rows, recent)
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
@@ -258,6 +257,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		// TODO(fejta): BugUrl
+		ColumnFailureRatios: columnFailureRatios,
 	}, nil
 }
 
@@ -383,12 +383,10 @@ func excludeRows(in []*statepb.Row, exclude string) ([]*statepb.Row, error) {
 
 // latestRun returns the Time (and seconds-since-epoch) of the most recent run.
 func latestRun(columns []*statepb.Column) (time.Time, int64) {
-	for _, col := range columns {
-		start := int64(col.Started)
-		if start > 0 {
+	if len(columns) > 0 {
+		if start := int64(columns[0].Started); start > 0 {
 			return time.Unix(start, 0), start
 		}
-		return time.Time{}, start
 	}
 	return time.Time{}, 0
 }
