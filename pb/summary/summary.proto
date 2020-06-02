@@ -85,6 +85,9 @@ message DashboardTabSummary {
 
   // String indicating the URL for linking to a bug.
   string bug_url = 10;
+
+  // Failure Ratios for columns of a tab
+  repeated float column_failure_ratios = 11;
 }
 
 // Summary state of a dashboard.
