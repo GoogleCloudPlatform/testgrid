@@ -244,7 +244,7 @@ type DashboardTabSummary struct {
 	LastRunTimestamp float64 `protobuf:"fixed64,9,opt,name=last_run_timestamp,json=lastRunTimestamp,proto3" json:"last_run_timestamp,omitempty"`
 	// String indicating the URL for linking to a bug.
 	BugUrl string `protobuf:"bytes,10,opt,name=bug_url,json=bugUrl,proto3" json:"bug_url,omitempty"`
-	// Failure Ratio for columns of a tab
+	// Failure Ratios for columns of a tab
 	ColumnFailureRatios  []float32 `protobuf:"fixed32,11,rep,packed,name=column_failure_ratios,json=columnFailureRatios,proto3" json:"column_failure_ratios,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
