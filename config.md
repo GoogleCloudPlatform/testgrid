@@ -7,14 +7,14 @@
 * [Testing & Verification](#testing-your-configuration)
 * [Advanced Configuration](#advanced-configuration)
 
-Testgrid is composed of:
+TestGrid is composed of:
 
 * A list of **test groups** that contain results for a job over time.
 * A list of **dashboard tabs** that display a test group
 * A list of **dashboards**, or collections of dashboard tabs
 * A list of **dashboard groups** of related dashboards.
 
-Most of these objects are simply listed in a [YAML config file][configuration] for Testgrid to consume.
+Most of these objects are simply listed in a [YAML config file](https://github.com/kubernetes/test-infra/tree/master/config/testgrids) for TestGrid to consume.
 
 ## Prow Job Configuration
 
@@ -48,7 +48,7 @@ If you need to create a new dashboard, or do anything more advanced, read on.
 
 ## Configuration
 
-Open or create a Testgrid config file [(example)](https://github.com/kubernetes/test-infra/tree/master/config/testgrids) in your favorite editor and:
+Open or create a TestGrid config file [(example)](https://github.com/kubernetes/test-infra/tree/master/config/testgrids) in your favorite editor and:
 
 1. Configure the test groups
 2. Add those testgroups to one or more tabs in one or more dashboards
@@ -297,7 +297,7 @@ Narrow down where to search when searching for a regression between two builds/c
 
 ### Notifications
 
-Testgrid supports the ability to add notifications, which appears as a yellow
+TestGrid supports the ability to add notifications, which appears as a yellow
 butter bar / toast message at the top of the screen.
 
 This is an effective way to broadcast system wide information (all
