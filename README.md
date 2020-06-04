@@ -8,10 +8,10 @@ We're in the middle of open-sourcing TestGrid! You can check this repo or
 [this issue](https://github.com/kubernetes/test-infra/issues/10409) for more
 updates as we continue.
 
-We have a short [video] from the testgrid session at the 2018 Kubernetes
+We have a short [video] from the TestGrid session at the 2018 Kubernetes
 contributor summit.
 
-The video demos power features of testgrid, including:
+The video demos power features of TestGrid, including:
 * Sorting
 * Filtering
 * Graphing
