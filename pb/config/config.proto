@@ -400,6 +400,10 @@ message AutoBugOptions {
 
   // If True; file issues for the 'Overall' target, even if otherwise invalid.
   bool file_overall = 8;
+
+  // Bypass filing bugs if the Test Group failure ratio > limit
+  // If left at default or 0, failure ratio will not influence bugs
+  float column_failure_ratio_limit = 9;
 }
 
 message HotlistIdFromSource {
