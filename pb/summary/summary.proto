@@ -72,6 +72,7 @@ message DashboardTabSummary {
     FAIL = 3;
     FLAKY = 4;
     STALE = 5;
+    BROKEN = 6;
   }
 
   // The overall status for this dashboard tab.
