@@ -2,6 +2,8 @@
 // TestState() is updated and stored by test-focused update_server.py.
 // Stored in GCS as "<test group name>".
 
+// NOTE: Do NOT update this until you have updated the internal state.proto!
+
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
