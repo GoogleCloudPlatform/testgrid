@@ -228,7 +228,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		return &summarypb.DashboardTabSummary{
 			DashboardTabName: tab.Name,
 			Alert:            noRuns,
-			OverallStatus:    overallStatus(nil, 0, noRuns, nil),
+			OverallStatus:    overallStatus(nil, 0, noRuns, false, nil),
 			Status:           noRuns,
 			LatestGreen:      noGreens,
 		}, nil
@@ -246,18 +246,17 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
-	passingCols, completedCols, passingCells, filledCells, columnFailureRatios := gridMetrics(len(grid.Columns), grid.Rows, recent)
+	passingCols, completedCols, passingCells, filledCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.FailureThreshold)
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
 		LastRunTimestamp:     float64(latestSeconds),
 		Alert:                alert,
 		FailingTestSummaries: failures,
-		OverallStatus:        overallStatus(grid, recent, alert, failures),
+		OverallStatus:        overallStatus(grid, recent, alert, brokenState, failures),
 		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		// TODO(fejta): BugUrl
-		ColumnFailureRatios: columnFailureRatios,
 	}, nil
 }
 
@@ -449,7 +448,10 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
-func overallStatus(grid *statepb.Grid, recent int, stale string, alerts []*summarypb.FailingTestSummary) summarypb.DashboardTabSummary_TabStatus {
+func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState bool, alerts []*summarypb.FailingTestSummary) summarypb.DashboardTabSummary_TabStatus {
+	if brokenState {
+		return summarypb.DashboardTabSummary_BROKEN
+	}
 	if stale != "" {
 		return summarypb.DashboardTabSummary_STALE
 	}
@@ -487,16 +489,16 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, alerts []*summa
 }
 
 // Culminate set of metrics related to a section of the Grid
-func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int, []float32) {
+func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold float32) (int, int, int, int, bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	results := results(ctx, rows)
-	var columnFailureRatios []float32
 	var passingCells int
 	var filledCells int
 	var passingCols int
 	var completedCols int
+	var brokenState bool
 
 	for idx := 0; idx < cols; idx++ {
 		if idx >= recent {
@@ -527,14 +529,14 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int) (int, int, int, int,
 			passingCols++
 		}
 
-		if passes+failures > 0 {
-			columnFailureRatios = append(columnFailureRatios, float32(failures)/float32(passes+failures))
-		} else {
-			columnFailureRatios = append(columnFailureRatios, 0.0)
+		if passes+failures > 0 && brokenThreshold > 0 {
+			if float32(failures)/float32(passes+failures) > brokenThreshold {
+				brokenState = true
+			}
 		}
 	}
 
-	return passingCols, completedCols, passingCells, filledCells, columnFailureRatios
+	return passingCols, completedCols, passingCells, filledCells, brokenState
 }
 
 func fmtStatus(passCols, cols, passCells, cells int) string {
