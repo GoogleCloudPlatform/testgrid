@@ -434,6 +434,7 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 			BuildLinkText: alert.BuildLinkText,
 			BuildUrlText:  alert.BuildUrlText,
 			// TODO(fejta): LinkedBugs
+			FailTestLink: buildFailLink(alert.FailTestId, row.Id),
 			// TODO(fejta): FailTestLink
 		}
 		if alert.PassTime != nil {
@@ -446,6 +447,12 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 		failures = append(failures, &sum)
 	}
 	return failures
+}
+
+// buildFailLink creates a search link
+// TODO(#134): Build proper url for both internal and external jobs
+func buildFailLink(testID, target string) string {
+	return fmt.Sprintf("%s %s", testID, target)
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
