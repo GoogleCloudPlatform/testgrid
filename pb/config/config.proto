@@ -2,6 +2,8 @@ syntax = "proto3";
 
 // Protocol buffer for configuring testgrid.k8s.io
 
+// NOTE: Do NOT update this until you have updated the internal config.proto!
+
 import "pb/custom_evaluator/custom_evaluator.proto";
 
 // Specifies the test name, and its source
@@ -333,6 +335,15 @@ message TestGroup {
 
   // If True, ignore the 'pass with skips' status (show as a blank cell).
   bool ignore_skip = 54;
+
+  // A string containing go/strftime formatting specifiers that overrides the
+  // commit with the date formatted according to this string. This is useful
+  // for aggregating multiple columns that don't have a matching commit.
+  string commit_override_strftime = 55;
+
+  // Specify a property that will be read into state in the user_property field.
+  // These can be substituted into LinkTemplates.
+  string user_property = 56;
 }
 
 message JUnitConfig {}
@@ -401,9 +412,20 @@ message AutoBugOptions {
   // If True; file issues for the 'Overall' target, even if otherwise invalid.
   bool file_overall = 8;
 
-  // Bypass filing bugs if the Test Group failure ratio > limit
-  // If left at default or 0, failure ratio will not influence bugs
-  float column_failure_ratio_limit = 9;
+  message DefaultTestMetadata {
+    int32 bug_component = 1;
+    string owner = 2;
+    string cc = 3;
+  }
+
+  // If provided: supplements `max_allowed_individual_bugs` field to raise a
+  // single bug if the number of failures for a single query by testgrid exceeds
+  // the max_allowed_individual_bugs` value, regardless of `TEST_METADATA`
+  // configurations. This is useful for filing fewer suspected environmental
+  // failure bugs and routing them to a specific location (i.e. an oncall).
+  // Requires 'file_individual' to be true and `max_allowed_individual_bugs` to
+  // not be empty.
+  DefaultTestMetadata default_test_metadata = 9;
 }
 
 message HotlistIdFromSource {
@@ -449,6 +471,8 @@ message LinkTemplate {
   string url = 1;
   // The options templates.
   repeated LinkOptionsTemplate options = 2;
+  // An optional name, used for the context menu
+  string name = 3;
 }
 
 // A simple key/value pair for link options.
@@ -520,6 +544,27 @@ message DashboardTab {
 
   // The URL template to visit when viewing an associated bug.
   LinkTemplate open_bug_template = 17;
+
+  // If true, auto-file bugs when new alerts occur. This requires that the
+  // backing test group has `bug_component` set and uses the backing test
+  // group's `auto_bug_options`.
+  bool auto_file_bugs = 18;
+
+  // Display user local time on the dashboard when set to true (by default).
+  // If false, uses Pacific Timezone for this DashboardTab.
+  bool display_local_time = 19;
+
+  // A set of optional LinkTemplates that will become right-click context menu
+  // items.
+  // TODO(b/159042168) in the near future this should be re-implemented as a
+  // generic list of repeated LinkTemplates which users may specify in their
+  // reqpective configurations as right-click context menus with names and
+  // actions upon being clicked.
+  LinkTemplate context_menu_template = 20;
+
+  // When specified, treat a tab as BROKEN as long as one of the most recent
+  // columns are "broken" (ratio of failed to total tests exceeds <threshold>).
+  float broken_column_threshold = 21;
 }
 
 // Configuration options for dashboard tab alerts.
