@@ -944,6 +944,7 @@ func TestFailingTestSummaries(t *testing.T) {
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:    "fbi",
 						PassBuildId:    "pbi",
+						FailTestId:     "819283y823-1232813",
 						FailCount:      1,
 						BuildLink:      "bl",
 						BuildLinkText:  "blt",
@@ -964,6 +965,7 @@ func TestFailingTestSummaries(t *testing.T) {
 					BuildLinkText:  "hyrule",
 					BuildUrlText:   "of sandwich",
 					FailureMessage: "pop tart",
+					FailTestLink:   " foo-target",
 				},
 				{
 					DisplayName:    "bar-name",
@@ -975,6 +977,7 @@ func TestFailingTestSummaries(t *testing.T) {
 					BuildLinkText:  "blt",
 					BuildUrlText:   "but",
 					FailureMessage: "fm",
+					FailTestLink:   "819283y823-1232813 bar-target",
 				},
 			},
 		},
