@@ -522,10 +522,10 @@ message DashboardTab {
   LinkTemplate open_bug_template = 17;
 
   // If the ratio of failed tests to total tests is above this threshold
-  // the tab will be concidered in a BROKEN state and reverted back when
+  // the tab will be considered in a BROKEN state and reverted back when
   // recent columns maintain ratios under the threshold. If left at default (0)
   // no amount of failures will trigger BROKEN state.
-  float column_failure_ratio_threshold = 18;
+  float broken_column_threshold = 18;
 }
 
 // Configuration options for dashboard tab alerts.
