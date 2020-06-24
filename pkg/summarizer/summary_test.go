@@ -998,6 +998,7 @@ func TestOverallStatus(t *testing.T) {
 		rows     []*statepb.Row
 		recent   int
 		stale    string
+		broken   bool
 		alerts   bool
 		expected summarypb.DashboardTabSummary_TabStatus
 	}{
@@ -1093,6 +1094,17 @@ func TestOverallStatus(t *testing.T) {
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
 		},
+		{
+			name:   "broken cycle",
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Results: []int32{int32(statepb.Row_PASS_WITH_SKIPS), 1},
+				},
+			},
+			broken:   true,
+			expected: summarypb.DashboardTabSummary_BROKEN,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1102,7 +1114,7 @@ func TestOverallStatus(t *testing.T) {
 				alerts = append(alerts, &summarypb.FailingTestSummary{})
 			}
 
-			if actual := overallStatus(&statepb.Grid{Rows: tc.rows}, tc.recent, tc.stale, alerts); actual != tc.expected {
+			if actual := overallStatus(&statepb.Grid{Rows: tc.rows}, tc.recent, tc.stale, tc.broken, alerts); actual != tc.expected {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})
@@ -1468,9 +1480,9 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     0,
+			passingCols:     3,
 			filledCols:      4,
-			passingCells:    4,
+			passingCells:    7,
 			filledCells:     8,
 			brokenThreshold: .4,
 			expectedBroken:  true,
@@ -1494,9 +1506,9 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     0,
+			passingCols:     3,
 			filledCols:      4,
-			passingCells:    4,
+			passingCells:    7,
 			filledCells:     8,
 			brokenThreshold: .6,
 			expectedBroken:  false,
@@ -1505,7 +1517,7 @@ func TestGridMetrics(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			expected := makeShim(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells, tc.brokenThreshold)
+			expected := makeShim(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells, tc.expectedBroken)
 			actual := makeShim(gridMetrics(tc.cols, tc.rows, tc.recent, tc.brokenThreshold))
 			assert.Equal(t, expected, actual, fmt.Sprintf("%s != expected %s", actual, expected))
 		})
