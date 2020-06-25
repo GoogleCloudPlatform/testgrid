@@ -367,6 +367,13 @@ message TestMetadataOptions {
 }
 
 message AutoBugOptions {
+  // [BETA] When specified, file bugs to this component, using the beta AutoBug.
+  // If you do not want to opt into the beta, specify `bug_component` in your
+  // TestGroup instead.
+  // TODO(b/154866134): Rename to autobug_component once we've migrated.
+  int32 beta_autobug_component = 10;
+
+
   // Whether to auto-close auto-filed bugs.
   bool auto_close = 1;
 
@@ -565,6 +572,12 @@ message DashboardTab {
   // When specified, treat a tab as BROKEN as long as one of the most recent
   // columns are "broken" (ratio of failed to total tests exceeds <threshold>).
   float broken_column_threshold = 21;
+
+  // Options for auto-filed bugs.
+  // Using this for a dashboard tab requires specifying `beta_autobug_component`
+  // and will opt you into the beta AutoBug.
+  AutoBugOptions beta_autobug_options = 22;
+
 }
 
 // Configuration options for dashboard tab alerts.
