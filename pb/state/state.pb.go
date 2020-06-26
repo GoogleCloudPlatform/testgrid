@@ -21,11 +21,10 @@ package state
 
 import (
 	fmt "fmt"
-	math "math"
-
 	config "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	proto "github.com/golang/protobuf/proto"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

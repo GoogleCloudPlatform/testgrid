@@ -21,10 +21,9 @@ package custom_evaluator
 
 import (
 	fmt "fmt"
-	math "math"
-
 	test_status "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

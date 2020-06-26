@@ -22,8 +22,6 @@ package updater
 import (
 	context "context"
 	fmt "fmt"
-	math "math"
-
 	config "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	state "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summary "github.com/GoogleCloudPlatform/testgrid/pb/summary"
@@ -31,6 +29,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
