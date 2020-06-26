@@ -24,7 +24,7 @@ import os
 import re
 import sys
 
-AUTHORS = r"Testgrid|Kubernetes"
+AUTHORS = r"TestGrid|Kubernetes"
 YEAR = r"YEAR"
 
 def get_args():
@@ -127,7 +127,7 @@ def file_passes(filename, refs, regexs):  # pylint: disable=too-many-locals
         if found != 0:
             break
 
-    # Replace all occurrences of the regex "Testgrid|Kubernetes" with "AUHTOR"
+    # Replace all occurrences of the regex "Testgrid|Kubernetes" with "AUTHOR"
     author = regexs["author"]
     for idx, datum in enumerate(data):
         (data[idx], found) = author.subn("AUTHOR", datum)
