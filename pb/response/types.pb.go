@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright The Testgrid Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,10 +21,11 @@ package response
 
 import (
 	fmt "fmt"
+	math "math"
+
 	config "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	summary "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	proto "github.com/golang/protobuf/proto"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

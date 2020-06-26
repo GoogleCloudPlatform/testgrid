@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright The Testgrid Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ package updater
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	config "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	state "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summary "github.com/GoogleCloudPlatform/testgrid/pb/summary"
@@ -29,7 +31,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

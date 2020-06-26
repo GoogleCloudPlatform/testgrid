@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Kubernetes Authors.
+Copyright 2019 The Testgrid Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ message Response {
   // Boolean to determine if the response is loaded from a cache
   bool cached = 5;
   string summary = 6;
-  
+
   map<string, string> bugs = 7;
   repeated string build_ids = 8 [json_name="build-ids"];
   repeated string column_ids = 9;
@@ -129,14 +129,14 @@ message Response {
   // Client wants nullable strings here
   repeated string row_ids = 15;
   repeated int64 timestamps = 16;
-  
+
   // Lookup map for shortening long test IDs in each row.
   map<int64, string> test_id_map = 17;
   map<string, TestMetadata> test_metadata = 18 [json_name="test-metadata"];
   int32 stale_test_threshold = 19 [json_name="stale-test-threshold"];
   int64 num_stale_tests = 20 [json_name="num-stale-tests"];
   string alerts = 21;
-  
+
   bool add_tabular_names_option = 22 [json_name="add-tabular-names-option"];
   bool show_tabular_names = 23 [json_name="show-tabular-names"];
   repeated string tabular_names_column_headers = 24 [json_name="tabular-names-column-headers"];
