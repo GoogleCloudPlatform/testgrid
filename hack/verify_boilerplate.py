@@ -24,6 +24,8 @@ import os
 import re
 import sys
 
+AUTHORS = r"TestGrid|Kubernetes"
+YEAR = r"YEAR"
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -121,7 +123,14 @@ def file_passes(filename, refs, regexs):  # pylint: disable=too-many-locals
     # Replace all occurrences of the regex "2017|2016|2015|2014" with "YEAR"
     when = regexs["date"]
     for idx, datum in enumerate(data):
-        (data[idx], found) = when.subn('YEAR', datum)
+        (data[idx], found) = when.subn("YEAR", datum)
+        if found != 0:
+            break
+
+    # Replace all occurrences of the regex "Testgrid|Kubernetes" with "AUTHOR"
+    author = regexs["author"]
+    for idx, datum in enumerate(data):
+        (data[idx], found) = author.subn("AUTHOR", datum)
         if found != 0:
             break
 
@@ -215,7 +224,9 @@ def get_dates():
 def get_regexs():
     regexs = {}
     # Search for "YEAR" which exists in the boilerplate, but shouldn't in the real thing
-    regexs["year"] = re.compile('YEAR')
+    regexs["year"] = re.compile(YEAR)
+    # Search for "AUTHOR" which exists in the boilerplate, but shouldn't in the real thing
+    regexs["author"] = re.compile(AUTHORS)
     # dates can be 2014, 2015, 2016 or 2017, company holder names can be anything
     regexs["date"] = re.compile(get_dates())
     # strip // +build \n\n build constraints
