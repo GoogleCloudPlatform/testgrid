@@ -6,6 +6,9 @@ proto_library(
     name = "summary_proto",
     srcs = ["summary.proto"],
     visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_protobuf//:timestamp_proto",
+    ],
 )
 
 go_proto_library(
