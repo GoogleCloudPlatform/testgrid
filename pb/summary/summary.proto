@@ -3,6 +3,8 @@
 
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 // Summary of a failing test.
 message FailingTestSummary {
   // Display name of the test.
@@ -43,6 +45,57 @@ message FailingTestSummary {
 
   // A link to the first build in which the test failed.
   string fail_test_link = 13;
+}
+
+// Metrics about a specific test, i.e. passes, fails, total runs, etc.
+message TestInfo {
+  // The display name of the test, typically what is shown for each row in TestGrid
+  string display_name = 1;
+
+  // The total number of test runs not including runs failed due to infrastructure
+  // failures.
+  int32 total_non_infra_runs = 2;
+
+  // The number of passed test runs not including runs failed due to
+  // infrastructure failures.
+  int32 passed_non_infra_runs = 3;
+
+  // The number of failed test runs not including runs failed due to
+  // infrastructure failures.
+  int32 failed_non_infra_runs = 4;
+
+  // The number of failed test runs specifically due to infrastructure
+  // failures.
+  int32 failed_infra_runs = 5;
+
+  // The total number of all runs, including failures due to infrastructure
+  int32 total_runs_with_infra = 6;
+
+  // Any other type of runs not included above.
+  int32 other_runs = 7;
+
+  // The flakiness of the test, measured out of 100
+  float flakiness = 8;
+}
+
+// Summary of the flakiness and overall healthiness of a dashboard tab
+message HealthinessInfo {
+
+  // The start of the time frame that the analysis was run for.
+  // Represents the lower bound but does not guarantee that the earliest
+  // test occurred at start
+  google.protobuf.Timestamp start = 1;
+
+  // The end of the time frame that the analysis was run for.
+  // Same caveat as above but for upper bound.
+  google.protobuf.Timestamp end = 2;
+
+  // A list of test entries associated with this tab + timeframe.
+  repeated TestInfo tests = 3;
+
+  // The flakiness out of 100 (think percentage but drop the sign)
+  float average_flakiness = 4;
+
 }
 
 // Summary of a dashboard tab.
@@ -88,6 +141,9 @@ message DashboardTabSummary {
   string bug_url = 10;
 
   reserved 11;
+
+  // Metrics for the recent healthiness of a tab
+  HealthinessInfo healthiness = 12;
 }
 
 // Summary state of a dashboard.
