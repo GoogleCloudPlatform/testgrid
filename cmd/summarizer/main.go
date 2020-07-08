@@ -84,11 +84,9 @@ func main() {
 		defer cancel()
 		return summarizer.Update(ctx, client, opt.config, opt.concurrency, opt.dashboard, opt.confirm)
 	}
-	start := time.Now()
 	if err := updateOnce(ctx); err != nil {
 		logrus.WithError(err).Error("Failed update")
 	}
-	logrus.Infof("updateOnce took %d ms to complete\n", int64(time.Since(start)))
 	if opt.wait == 0 {
 		return
 	}
