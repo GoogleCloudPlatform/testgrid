@@ -43,7 +43,6 @@ type flakinessAnalyzer interface {
 // implementations in the subdir naive and can be injected as needed.
 func CalculateHealthiness(grid *state.Grid, analyzer flakinessAnalyzer, startTime int, endTime int, tab string) *summarypb.HealthinessInfo {
 	gridMetrics := parseGrid(grid, startTime, endTime)
-
 	return analyzer.GetFlakiness(gridMetrics, minRuns, startTime, endTime, tab)
 }
 
@@ -63,32 +62,41 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 	// 0 of all counts.
 	gridMetricsMap := make(map[string]*common.GridMetrics, 0)
 	gridRows := make(map[string]*state.Row)
+	// Keeps track of which index of state.Row.Messages to access, because
+	// it can be different for each state.Row if there are any state.Row_NO_RESULT
+	rowToMessageIndex := make(map[string]int)
+
 	for i, row := range grid.Rows {
 		gridRows[row.Name] = grid.Rows[i]
+		rowToMessageIndex[row.Name] = 0
+		gridMetricsMap[row.Name] = common.NewGridMetrics(row.Name)
 	}
+
 	// result.Map is written in a way that assumes each test/row name is unique
 	rowResults := result.Map(ctx, grid.Rows)
 
-	for i := 0; i < len(grid.Columns); i++ {
-		if !isWithinTimeFrame(grid.Columns[i], startTime, endTime) {
-			continue
-		}
-
-		for key, ch := range rowResults {
-			if _, ok := gridMetricsMap[key]; !ok {
-				gridMetricsMap[key] = common.NewGridMetrics(key)
+	for key, ch := range rowResults {
+		i := -1
+		for nextRowResult := range ch {
+			i++
+			if i >= len(grid.Columns) {
+				break
 			}
-
-			switch result.Coalesce(<-ch, result.IgnoreRunning) {
+			if !isWithinTimeFrame(grid.Columns[i], startTime, endTime) {
+				continue
+			}
+			switch result.Coalesce(nextRowResult, result.IgnoreRunning) {
 			case state.Row_NO_RESULT:
 				continue
 			case state.Row_FAIL:
-				categorizeFailure(gridMetricsMap[key], gridRows[key].Messages[i])
+				index := rowToMessageIndex[key]
+				categorizeFailure(gridMetricsMap[key], gridRows[key].Messages[index])
 			case state.Row_PASS:
 				gridMetricsMap[key].Passed++
 			case state.Row_FLAKY:
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
+			rowToMessageIndex[key]++
 		}
 	}
 	gridMetrics := make([]*common.GridMetrics, 0)
