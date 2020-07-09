@@ -84,6 +84,7 @@ func main() {
 		defer cancel()
 		return summarizer.Update(ctx, client, opt.config, opt.concurrency, opt.dashboard, opt.confirm)
 	}
+
 	if err := updateOnce(ctx); err != nil {
 		logrus.WithError(err).Error("Failed update")
 	}
