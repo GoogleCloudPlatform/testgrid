@@ -68,6 +68,8 @@ Ex:
 test_groups:
 - name: {test_group_name}
   gcs_prefix: kubernetes-jenkins/logs/{test_group_name}
+  # Use a comma-separated list of paths for gcs_prefix to show multiple jobs in one tab:
+  # gcs_prefix: kubernetes-jenkins/logs/job1,kubernetes-jenkins/logs/job2
 ```
 
 See the `TestGroup` message in [`config.proto`] for additional fields to
