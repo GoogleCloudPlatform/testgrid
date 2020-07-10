@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -806,12 +807,13 @@ func Days(d float64) time.Duration {
 	return time.Duration(24*d) * time.Hour // Close enough
 }
 
-func Update(client *storage.Client, ctx context.Context, path gcs.Path, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) {
-	cfg, err := config.ReadGCS(ctx, client.Bucket(path.Bucket()).Object(path.Object()))
+func Update(client *storage.Client, ctx context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
+	log := logrus.WithField("config", configPath)
+	cfg, err := config.ReadGCS(ctx, client.Bucket(configPath.Bucket()).Object(configPath.Object()))
 	if err != nil {
-		logrus.Fatalf("Failed to read %s: %v", path, err)
+		return err
 	}
-	logrus.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
+	log.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
 
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
@@ -820,12 +822,13 @@ func Update(client *storage.Client, ctx context.Context, path gcs.Path, groupCon
 		wg.Add(1)
 		go func() {
 			for tg := range groups {
-				tgp, err := testGroupPath(path, tg.Name)
+				location := path.Join(gridPrefix, tg.Name)
+				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
 					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
 				}
 				if err != nil {
-					logrus.WithField("group", tg.Name).WithError(err).Error("could not update group")
+					log.WithField("group", tg.Name).WithError(err).Error("Error updating group")
 				}
 			}
 			wg.Done()
@@ -835,7 +838,7 @@ func Update(client *storage.Client, ctx context.Context, path gcs.Path, groupCon
 	if group != "" { // Just a specific group
 		tg := config.FindTestGroup(group, cfg)
 		if tg == nil {
-			logrus.WithField("group", group).WithField("config", path).Fatal("group not found")
+			return errors.New("group not found")
 		}
 		groups <- *tg
 	} else { // All groups
@@ -852,6 +855,7 @@ func Update(client *storage.Client, ctx context.Context, path gcs.Path, groupCon
 	}
 	close(groups)
 	wg.Wait()
+	return nil
 }
 
 // logUpdate posts Update progress every minute, including an ETA for completion.
@@ -895,7 +899,7 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 		return fmt.Errorf("group %s has an invalid gcs_prefix %s: %v", o, tg.GcsPrefix, err)
 	}
 
-	g := state.Grid{}
+	var g state.Grid
 	g.Columns = append(g.Columns, &state.Column{Build: "first", Started: 1})
 	builds, err := gcs.ListBuilds(ctx, client, tgPath)
 	if err != nil {
@@ -917,15 +921,14 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 	if err != nil {
 		return fmt.Errorf("failed to marshal %s grid: %v", o, err)
 	}
-	tgp := gridPath
-	log = log.WithField("url", tgp).WithField("bytes", len(buf))
+	log = log.WithField("url", gridPath).WithField("bytes", len(buf))
 	if !write {
 		log.Debug("Skipping write")
 	} else {
 		log.Debug("Writing")
 		// TODO(fejta): configurable cache value
-		if err := gcs.Upload(ctx, client, tgp, buf, gcs.DefaultAcl, "no-cache"); err != nil {
-			return fmt.Errorf("upload %s to %s failed: %v", o, tgp, err)
+		if err := gcs.Upload(ctx, client, gridPath, buf, gcs.DefaultAcl, "no-cache"); err != nil {
+			return fmt.Errorf("upload %s to %s failed: %v", o, gridPath, err)
 		}
 	}
 	log.WithFields(logrus.Fields{

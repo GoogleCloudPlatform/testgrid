@@ -81,6 +81,7 @@ func gatherOptions() options {
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
 	flag.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
+	flag.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
 	flag.Parse()
 	return o
 }
@@ -108,7 +109,9 @@ func main() {
 
 	updateOnce := func() {
 		start := time.Now()
-		updater.Update(client, ctx, opt.config, opt.groupConcurrency, opt.buildConcurrency, opt.confirm, opt.groupTimeout, opt.buildTimeout, opt.group)
+		if err := updater.Update(client, ctx, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.buildConcurrency, opt.confirm, opt.groupTimeout, opt.buildTimeout, opt.group); err != nil {
+			logrus.WithError(err).Error("Could not update")
+		}
 		logrus.Infof("Update completed in %s", time.Since(start))
 	}
 
