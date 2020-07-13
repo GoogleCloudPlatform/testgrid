@@ -48,6 +48,7 @@ type options struct {
 	wait             time.Duration
 	groupTimeout     time.Duration
 	buildTimeout     time.Duration
+	gridPrefix       string
 }
 
 // validate ensures sane options
