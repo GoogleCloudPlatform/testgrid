@@ -24,7 +24,7 @@ spec:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20200106-v0.0.1-alpha.4
         args:
-        - --config=gs://fejternetes/config
+        - --config=gs://k8s-testgrid-canary
         - --confirm
         - --wait=30m
 ---
