@@ -21,8 +21,135 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
+	"github.com/golang/protobuf/proto"
 )
+
+func TestCalculateTrend(t *testing.T) {
+	cases := []struct {
+		name                string
+		currentHealthiness  *summarypb.HealthinessInfo
+		previousHealthiness *summarypb.HealthinessInfo
+		expected            *summarypb.HealthinessInfo
+	}{
+		{
+			name: "typical input assigns correct ChangeFromLastInterval's",
+			currentHealthiness: &summarypb.HealthinessInfo{
+				Tests: []*summarypb.TestInfo{
+					{
+						DisplayName: "test2_should_be_DOWN",
+						Flakiness:   30.0,
+					},
+					{
+						DisplayName: "test1_should_be_UP",
+						Flakiness:   70.0,
+					},
+					{
+						DisplayName: "test3_should_be_NO_CHANGE",
+						Flakiness:   50.0,
+					},
+				},
+			},
+			previousHealthiness: &summarypb.HealthinessInfo{
+				Tests: []*summarypb.TestInfo{
+					{
+						DisplayName: "test1_should_be_UP",
+						Flakiness:   50.0,
+					},
+					{
+						DisplayName: "test2_should_be_DOWN",
+						Flakiness:   50.0,
+					},
+					{
+						DisplayName: "test3_should_be_NO_CHANGE",
+						Flakiness:   50.0,
+					},
+				},
+			},
+			expected: &summarypb.HealthinessInfo{
+				Tests: []*summarypb.TestInfo{
+					{
+						DisplayName:            "test2_should_be_DOWN",
+						Flakiness:              30.0,
+						ChangeFromLastInterval: summarypb.TestInfo_DOWN,
+					},
+					{
+						DisplayName:            "test1_should_be_UP",
+						Flakiness:              70.0,
+						ChangeFromLastInterval: summarypb.TestInfo_UP,
+					},
+					{
+						DisplayName:            "test3_should_be_NO_CHANGE",
+						Flakiness:              50.0,
+						ChangeFromLastInterval: summarypb.TestInfo_NO_CHANGE,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if CalculateTrend(tc.currentHealthiness, tc.previousHealthiness); !proto.Equal(tc.currentHealthiness, tc.expected) {
+				for _, expectedTest := range tc.expected.Tests {
+					// Linear search because the test cases are so small
+					for _, actualTest := range tc.currentHealthiness.Tests {
+						if actualTest.DisplayName != expectedTest.DisplayName {
+							continue
+						}
+						actual := actualTest.ChangeFromLastInterval
+						expected := expectedTest.ChangeFromLastInterval
+						if actual == expected {
+							continue
+						}
+
+						actualValue := int(actualTest.ChangeFromLastInterval)
+						expectedValue := int(expectedTest.ChangeFromLastInterval)
+						t.Logf("test: %s has trend of: %s (value: %d) but expected %s (value: %d)",
+							actualTest.DisplayName, actual, actualValue, expected, expectedValue)
+					}
+				}
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestGetTrend(t *testing.T) {
+	cases := []struct {
+		name              string
+		currentFlakiness  float32
+		previousFlakiness float32
+		expected          summarypb.TestInfo_Trend
+	}{
+		{
+			name:              "lower currentFlakiness returns TestInfo_DOWN",
+			currentFlakiness:  10.0,
+			previousFlakiness: 20.0,
+			expected:          summarypb.TestInfo_DOWN,
+		},
+		{
+			name:              "higher currentFlakiness returns TestInfo_UP",
+			currentFlakiness:  20.0,
+			previousFlakiness: 10.0,
+			expected:          summarypb.TestInfo_UP,
+		},
+		{
+			name:              "equal currentFlakiness and previousFlakiness returns TestInfo_NO_CHANGE",
+			currentFlakiness:  5.0,
+			previousFlakiness: 5.0,
+			expected:          summarypb.TestInfo_NO_CHANGE,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := getTrend(tc.currentFlakiness, tc.previousFlakiness); actual != tc.expected {
+				t.Errorf("getTrend returned actual: %d !+ expected: %d for inputs (%f, %f)", actual, tc.expected, tc.currentFlakiness, tc.previousFlakiness)
+			}
+		})
+	}
+}
 
 func TestIsWithinTimeFrame(t *testing.T) {
 	cases := []struct {
@@ -101,9 +228,9 @@ func TestParseGrid(t *testing.T) {
 			grid: &state.Grid{
 				Columns: []*state.Column{
 					{Started: 0},
-					{Started: 1},
-					{Started: 2},
-					{Started: 2},
+					{Started: 1000},
+					{Started: 2000},
+					{Started: 2000},
 				},
 				Rows: []*state.Row{
 					{
@@ -143,10 +270,10 @@ func TestParseGrid(t *testing.T) {
 			name: "grid with no analyzed results produces empty result list",
 			grid: &state.Grid{
 				Columns: []*state.Column{
-					{Started: -1},
-					{Started: 1},
-					{Started: 2},
-					{Started: 2},
+					{Started: -1000},
+					{Started: 1000},
+					{Started: 2000},
+					{Started: 2000},
 				},
 				Rows: []*state.Row{
 					{
@@ -155,10 +282,10 @@ func TestParseGrid(t *testing.T) {
 							state.Row_Result_value["NO_RESULT"], 4,
 						},
 						Messages: []string{
-							"this message should not show up in results_0",
-							"this message should not show up in results_1",
-							"this message should not show up in results_2",
-							"this message should not show up in results_3",
+							"this_message_should_not_show_up_in_results_0",
+							"this_message_should_not_show_up_in_results_1",
+							"this_message_should_not_show_up_in_results_2",
+							"this_message_should_not_show_up_in_results_3",
 						},
 					},
 				},
@@ -166,6 +293,48 @@ func TestParseGrid(t *testing.T) {
 			startTime: 0,
 			endTime:   2,
 			expected:  []*common.GridMetrics{},
+		},
+		{
+			name: "grid with some non-analyzed results properly assigns correct messages",
+			grid: &state.Grid{
+				Columns: []*state.Column{
+					{Started: 0},
+					{Started: 1000},
+					{Started: 1000},
+					{Started: 2000},
+					{Started: 2000},
+				},
+				Rows: []*state.Row{
+					{
+						Name: "test_1",
+						Results: []int32{
+							state.Row_Result_value["PASS"], 1,
+							state.Row_Result_value["NO_RESULT"], 2,
+							state.Row_Result_value["FAIL"], 2,
+						},
+						Messages: []string{
+							"this_message_should_not_show_up_in_results",
+							"this_message_should_show_up_as_an_infra_failure",
+							"",
+						},
+					},
+				},
+			},
+			startTime: 0,
+			endTime:   2,
+			expected: []*common.GridMetrics{
+				{
+					Name:             "test_1",
+					Passed:           1,
+					Failed:           1,
+					FlakyCount:       0,
+					AverageFlakiness: 0.0,
+					FailedInfraCount: 1,
+					InfraFailures: map[string]int{
+						"this_message_should_show_up_as_an_infra_failure": 1,
+					},
+				},
+			},
 		},
 	}
 

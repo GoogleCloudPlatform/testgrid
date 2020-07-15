@@ -39,6 +39,7 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/naiveanalyzer"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -237,6 +238,16 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		return nil, fmt.Errorf("load %s: %v", groupName, err)
 	}
 
+	var healthiness *summarypb.HealthinessInfo
+	if shouldRunHealthiness(tab) {
+		// TODO (itsazhuhere@): Change to rely on YAML defaults rather than consts
+		interval := int(tab.HealthAnalysisOptions.DaysOfAnalysis)
+		if interval <= 0 {
+			interval = DefaultInterval
+		}
+		healthiness = getHealthinessForInterval(grid, tab.Name, time.Now(), interval)
+	}
+
 	recent := recentColumns(tab, group)
 	grid.Rows, err = filterGrid(tab.BaseOptions, grid.Rows, recent)
 	if err != nil {
@@ -257,6 +268,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		// TODO(fejta): BugUrl
+		Healthiness: healthiness,
 	}, nil
 }
 
@@ -590,6 +602,37 @@ func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
 		return col.Build
 	}
 	return noGreens
+}
+
+func getHealthinessForInterval(grid *statepb.Grid, tabName string, currentTime time.Time, interval int) *summarypb.HealthinessInfo {
+	analyzer := naiveanalyzer.NaiveAnalyzer{}
+
+	now := goBackDays(0, currentTime)
+	oneInterval := goBackDays(interval, currentTime)
+	twoIntervals := goBackDays(2*interval, currentTime)
+
+	healthiness := CalculateHealthiness(grid, &analyzer, oneInterval, now, tabName)
+	pastHealthiness := CalculateHealthiness(grid, &analyzer, twoIntervals, oneInterval, tabName)
+	CalculateTrend(healthiness, pastHealthiness)
+
+	return healthiness
+}
+
+func goBackDays(days int, currentTime time.Time) int {
+	// goBackDays gets the time intervals for our flakiness report.
+	// The old version of this function would round to the 12am of the given day.
+	// Since the new flakiness report will be run with Summarizer and therefore more often
+	// than the once-a-week of the old flakiness report, we will not round to 12am anymore.
+	date := currentTime.AddDate(0, 0, -1*days)
+	intDate := int(date.Unix())
+	return intDate
+}
+
+func shouldRunHealthiness(tab *configpb.DashboardTab) bool {
+	if tab.HealthAnalysisOptions == nil {
+		return false
+	}
+	return tab.HealthAnalysisOptions.Enable
 }
 
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.

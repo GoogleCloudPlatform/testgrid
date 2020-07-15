@@ -28,6 +28,8 @@ import (
 
 const (
 	minRuns = 0
+	// DefaultInterval is the default number of days of analysis
+	DefaultInterval = 7
 )
 
 var (
@@ -46,6 +48,35 @@ func CalculateHealthiness(grid *state.Grid, analyzer flakinessAnalyzer, startTim
 	return analyzer.GetFlakiness(gridMetrics, minRuns, startTime, endTime, tab)
 }
 
+// CalculateTrend populates the ChangeFromLastInterval fields of each TestInfo by comparing
+// the current flakiness to the flakiness calculated for the last interval. Interval length
+// is a config value that is 7 days by default. The Trend enum defaults to UNKNOWN, so there
+// is no need to explicitly assign UNKNOWN when a test appears in currentHealthiness but not
+// in previousHealthiness.
+func CalculateTrend(currentHealthiness, previousHealthiness *summarypb.HealthinessInfo) {
+	previousFlakiness := map[string]float32{}
+	// Create a map for faster lookup and avoiding repeated iteration through Tests
+	for _, test := range previousHealthiness.Tests {
+		previousFlakiness[test.DisplayName] = test.Flakiness
+	}
+
+	for i, test := range currentHealthiness.Tests {
+		if value, ok := previousFlakiness[test.DisplayName]; ok {
+			currentHealthiness.Tests[i].ChangeFromLastInterval = getTrend(test.Flakiness, value)
+		}
+	}
+}
+
+func getTrend(currentFlakiness, previousFlakiness float32) summarypb.TestInfo_Trend {
+	if currentFlakiness < previousFlakiness {
+		return summarypb.TestInfo_DOWN
+	}
+	if currentFlakiness > previousFlakiness {
+		return summarypb.TestInfo_UP
+	}
+	return summarypb.TestInfo_NO_CHANGE
+}
+
 func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetrics {
 	// Get the relevant data for flakiness from each Grid (which represents
 	// a dashboard tab) as a list of GridMetrics structs
@@ -55,6 +86,12 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Multiply by 1000 because currently Column.Started is in milliseconds; this is used
+	// for comparisons later. startTime and endTime will be used in a Timestamp later that
+	// requires seconds, so we would like to impact that at little as possible.
+	startTime *= 1000
+	endTime *= 1000
 
 	// We create maps because result.Map returns a map where we can access each result
 	// through the test name, and at each instance we can increment our types.Result

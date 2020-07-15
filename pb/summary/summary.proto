@@ -76,6 +76,20 @@ message TestInfo {
 
   // The flakiness of the test, measured out of 100
   float flakiness = 8;
+
+  enum Trend{
+    UNKNOWN = 0;
+    NO_CHANGE = 1;
+    UP = 2;
+    DOWN = 3;
+  }
+
+  // The change of flakiness based on the last interval's flakiness
+  // e.g. if last interval the flakiness was 50, and now it's 75, the
+  // trend is UP. A trend of NO_CHANGE means last week and this week were
+  // exactly the same. The interval is set by each tab's config, with
+  // a default of 7 days.
+  Trend change_from_last_interval = 9;
 }
 
 // Summary of the flakiness and overall healthiness of a dashboard tab
