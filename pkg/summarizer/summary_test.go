@@ -31,10 +31,12 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 )
@@ -1769,6 +1771,149 @@ func TestLatestGreen(t *testing.T) {
 			}
 			if actual := latestGreen(&grid, tc.first); actual != tc.expected {
 				t.Errorf("%s != expected %s", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestGetHealthinessForInterval(t *testing.T) {
+	now := int64(1000000) // arbitrary time
+	secondsInDay := int64(86400)
+	// These values are *1000 because Column.Started is in milliseconds
+	withinCurrentInterval := (float64(now) - 0.5*float64(secondsInDay)) * 1000.0
+	withinPreviousInterval := (float64(now) - 1.5*float64(secondsInDay)) * 1000.0
+	notWithinAnyInterval := (float64(now) - 3.0*float64(secondsInDay)) * 1000.0
+	cases := []struct {
+		name     string
+		grid     *statepb.Grid
+		tabName  string
+		interval int
+		expected *summarypb.HealthinessInfo
+	}{
+		{
+			name: "typical inputs returns correct HealthinessInfo",
+			grid: &state.Grid{
+				Columns: []*state.Column{
+					{Started: withinCurrentInterval},
+					{Started: withinCurrentInterval},
+					{Started: withinPreviousInterval},
+					{Started: withinPreviousInterval},
+					{Started: notWithinAnyInterval},
+				},
+				Rows: []*state.Row{
+					{
+						Name: "test_1",
+						Results: []int32{
+							state.Row_Result_value["PASS"], 1,
+							state.Row_Result_value["FAIL"], 1,
+							state.Row_Result_value["FAIL"], 1,
+							state.Row_Result_value["FAIL"], 2,
+						},
+						Messages: []string{
+							"",
+							"",
+							"",
+							"infra_fail_1",
+							"",
+						},
+					},
+				},
+			},
+			tabName:  "tab1",
+			interval: 1, // enforce that this equals what secondsInDay is multiplied by below in the Timestamps
+			expected: &summarypb.HealthinessInfo{
+				Start: &timestamp.Timestamp{Seconds: now - secondsInDay},
+				End:   &timestamp.Timestamp{Seconds: now},
+				Tests: []*summarypb.TestInfo{
+					{
+						DisplayName:            "test_1",
+						TotalNonInfraRuns:      2,
+						PassedNonInfraRuns:     1,
+						FailedNonInfraRuns:     1,
+						TotalRunsWithInfra:     2,
+						Flakiness:              50.0,
+						ChangeFromLastInterval: summarypb.TestInfo_DOWN,
+					},
+				},
+				AverageFlakiness: 50.0,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := getHealthinessForInterval(tc.grid, tc.tabName, time.Unix(now, 0), tc.interval); !proto.Equal(actual, tc.expected) {
+				t.Errorf("actual: %+v != expected: %+v", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestGoBackDays(t *testing.T) {
+	cases := []struct {
+		name        string
+		days        int
+		currentTime time.Time
+		expected    int
+	}{
+		{
+			name:        "0 days returns same Time as input",
+			days:        0,
+			currentTime: time.Unix(0, 0).UTC(),
+			expected:    0,
+		},
+		{
+			name:        "positive days input returns that many days in the past",
+			days:        7,
+			currentTime: time.Unix(0, 0).UTC().AddDate(0, 0, 7), // Gives a date 7 days after Unix 0 time
+			expected:    0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := goBackDays(tc.days, tc.currentTime); actual != tc.expected {
+				t.Errorf("goBackDays gave actual: %d != expected: %d for days: %d and currentTime: %+v", actual, tc.expected, tc.days, tc.currentTime)
+			}
+		})
+	}
+}
+
+func TestShouldRunHealthiness(t *testing.T) {
+	cases := []struct {
+		name     string
+		tab      *configpb.DashboardTab
+		expected bool
+	}{
+		{
+			name: "tab with false Enable returns false",
+			tab: &configpb.DashboardTab{
+				HealthAnalysisOptions: &configpb.HealthAnalysisOptions{
+					Enable: false,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "tab with true Enable returns true",
+			tab: &configpb.DashboardTab{
+				HealthAnalysisOptions: &configpb.HealthAnalysisOptions{
+					Enable: true,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:     "tab with nil HealthAnalysisOptions returns false",
+			tab:      &configpb.DashboardTab{},
+			expected: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := shouldRunHealthiness(tc.tab); actual != tc.expected {
+				t.Errorf("actual: %t != expected: %t", actual, tc.expected)
 			}
 		})
 	}

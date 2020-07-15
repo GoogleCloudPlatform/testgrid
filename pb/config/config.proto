@@ -578,6 +578,8 @@ message DashboardTab {
   // and will opt you into the beta AutoBug.
   AutoBugOptions beta_autobug_options = 22;
 
+  // Options for the configuration of the flakiness analysis tool, on a per tab basis
+  HealthAnalysisOptions health_analysis_options = 23;
 }
 
 // Configuration options for dashboard tab alerts.
@@ -627,6 +629,19 @@ message Configuration {
 
   // A list of all the dashboard groups for a server.
   repeated DashboardGroup dashboard_groups = 3;
+}
+
+// A grouping of configuration options for the flakiness analysis tool.
+// Later configuration options could include the ability to choose different kinds of 
+// flakiness and choosing if and who to email a copy of the flakiness report.
+message HealthAnalysisOptions {
+  // Defaults to false; flakiness analysis is opt-in
+  bool enable = 1;
+
+  // Defines the number of days for one interval of analysis.
+  // i.e. flakiness will be analyzed for the previous N days starting from Now,
+  // and it will be compared to the calculated N days before that for trend analysis.
+  int32 days_of_analysis = 2;
 }
 
 // The DefaultConfiguration Proto is deprecated, and will be deleted after Nov 1, 2019
