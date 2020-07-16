@@ -33,6 +33,6 @@ kind: ServiceAccount
 metadata:
   annotations:
     # Uses same as updater
-    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: testgrid-canary@k8s-testgrid.iam.gserviceaccount.com
   name: summarizer
   namespace: testgrid-canary
