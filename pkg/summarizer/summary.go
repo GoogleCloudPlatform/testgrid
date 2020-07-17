@@ -25,6 +25,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
+	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -54,11 +55,11 @@ type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client *storage.Client, path gcs.Path, concurrency int, dashboard string, confirm bool) error {
+func Update(ctx context.Context, client *storage.Client, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
 	if concurrency < 1 {
 		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
-	cfg, err := config.ReadGCS(ctx, client.Bucket(path.Bucket()).Object(path.Object()))
+	cfg, err := config.ReadGCS(ctx, client.Bucket(configPath.Bucket()).Object(configPath.Object()))
 	if err != nil {
 		return fmt.Errorf("Failed to read config: %w", err)
 	}
@@ -72,12 +73,12 @@ func Update(ctx context.Context, client *storage.Client, path gcs.Path, concurre
 		if group == nil {
 			return nil, nil, nil
 		}
-		path, err := path.ResolveReference(&url.URL{Path: name})
+		groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(gridPathPrefix, name)})
 		if err != nil {
 			return group, nil, err
 		}
 		reader := func(ctx context.Context) (io.ReadCloser, time.Time, int64, error) {
-			return pathReader(ctx, client, *path)
+			return pathReader(ctx, client, *groupPath)
 		}
 		return group, reader, nil
 	}
@@ -100,13 +101,13 @@ func Update(ctx context.Context, client *storage.Client, path gcs.Path, concurre
 				if !confirm {
 					continue
 				}
-				path, err := path.ResolveReference(&url.URL{Path: summaryPath(dash.Name)})
+				summaryPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(summaryPathPrefix, summaryPath(dash.Name))})
 				if err != nil {
 					log.WithError(err).Error("Cannot resolve summary path")
 					errCh <- errors.New(dash.Name)
 					continue
 				}
-				if err := writeSummary(ctx, client, *path, sum); err != nil {
+				if err := writeSummary(ctx, client, *summaryPath, sum); err != nil {
 					log.WithError(err).Error("Cannot write summary")
 					errCh <- errors.New(dash.Name)
 					continue
