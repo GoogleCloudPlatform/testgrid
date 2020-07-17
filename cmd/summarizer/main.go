@@ -31,12 +31,14 @@ import (
 )
 
 type options struct {
-	config      gcs.Path // gcs://path/to/config/proto
-	creds       string
-	confirm     bool
-	dashboard   string
-	concurrency int
-	wait        time.Duration
+	config            gcs.Path // gcs://path/to/config/proto
+	creds             string
+	confirm           bool
+	dashboard         string
+	concurrency       int
+	wait              time.Duration
+	gridPathPrefix    string
+	summaryPathPrefix string
 }
 
 func (o *options) validate() error {
@@ -57,6 +59,8 @@ func gatherOptions() options {
 	flag.StringVar(&o.dashboard, "dashboard", "", "Only update named dashboard if set")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
+	flag.StringVar(&o.gridPathPrefix, "grid-path", "", "Read grid states under this GCS path.")
+	flag.StringVar(&o.summaryPathPrefix, "summary-path", "", "Write summaries under this GCS path.")
 	flag.Parse()
 	return o
 }
@@ -82,7 +86,7 @@ func main() {
 	updateOnce := func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
-		return summarizer.Update(ctx, client, opt.config, opt.concurrency, opt.dashboard, opt.confirm)
+		return summarizer.Update(ctx, client, opt.config, opt.concurrency, opt.dashboard, opt.gridPathPrefix, opt.summaryPathPrefix, opt.confirm)
 	}
 
 	if err := updateOnce(ctx); err != nil {
