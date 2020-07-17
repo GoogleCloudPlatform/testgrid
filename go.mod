@@ -6,7 +6,7 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/google/uuid v1.1.1
 	github.com/hashicorp/go-multierror v1.0.0
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
 	github.com/xlab/handysort v0.0.0-20150421192137-fb3537ed64a1 // indirect
 	google.golang.org/api v0.28.0
@@ -17,4 +17,4 @@ require (
 	vbom.ml/util v0.0.0-20180919145318-efcd4e0f9787
 )
 
-go 1.13
+go 1.14

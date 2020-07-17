@@ -5,10 +5,10 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "io_k8s_repo_infra",
-    strip_prefix = "repo-infra-0.0.4",
-    sha256 = "7ad484dc5558432ca0666cff68bfc584d52fdb7d3e08905405182a631af56128",
+    strip_prefix = "repo-infra-0.0.7",
+    sha256 = "54036881c2d1e55f76969777298e1c4a3cf44ba6c67fbba948c2bbeba91f19fe",
     urls = [
-        "https://github.com/kubernetes/repo-infra/archive/0.0.4.tar.gz",
+        "https://github.com/kubernetes/repo-infra/archive/v0.0.7.tar.gz",
     ],
 )
 
@@ -25,6 +25,8 @@ load("//:repos.bzl", "go_repositories")
 go_repositories()
 
 _repo_infra_go_repos()  # Load any missing repos that repo-infra depends on
+
+go_repositories()  # We appear to need this call both before and after in order to use our version of modules.
 
 http_archive(
     name = "io_bazel_rules_docker",

@@ -49,6 +49,7 @@ type options struct {
 	groupTimeout     time.Duration
 	buildTimeout     time.Duration
 	gridPrefix       string
+	jsonLogs         bool
 }
 
 // validate ensures sane options
@@ -71,7 +72,7 @@ func (o *options) validate() error {
 
 // gatherOptions reads options from flags
 func gatherOptions() options {
-	o := options{}
+	var o options
 	flag.Var(&o.config, "config", "gs://path/to/config.pb")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
@@ -83,6 +84,7 @@ func gatherOptions() options {
 	flag.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
 	flag.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	flag.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
+	flag.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
 	flag.Parse()
 	return o
 }
@@ -98,6 +100,11 @@ func main() {
 	if opt.debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	if opt.jsonLogs {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	}
+	logrus.SetReportCaller(true)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
