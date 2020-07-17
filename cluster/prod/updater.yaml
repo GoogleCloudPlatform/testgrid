@@ -25,6 +25,7 @@ spec:
         image: gcr.io/k8s-testgrid/updater:v20200714-v0.0.13-4-g708c3dd
         args:
         - --config=gs://k8s-testgrid
+        - --confirm
         - --wait=30m
 ---
 apiVersion: v1
