@@ -1832,10 +1832,12 @@ func TestGetHealthinessForInterval(t *testing.T) {
 						FailedNonInfraRuns:     1,
 						TotalRunsWithInfra:     2,
 						Flakiness:              50.0,
+						PreviousFlakiness:      []float32{100.0},
 						ChangeFromLastInterval: summarypb.TestInfo_DOWN,
 					},
 				},
-				AverageFlakiness: 50.0,
+				AverageFlakiness:  50.0,
+				PreviousFlakiness: []float32{100.0},
 			},
 		},
 	}
