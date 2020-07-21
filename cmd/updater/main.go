@@ -57,8 +57,8 @@ func (o *options) validate() error {
 	if o.config.String() == "" {
 		return errors.New("empty --config")
 	}
-	if o.config.Bucket() == "k8s-testgrid" && o.config.Object() != "beta/config" && o.confirm { // TODO(fejta): remove
-		return fmt.Errorf("--config=%s cannot write to gs://k8s-testgrid/config", o.config)
+	if o.config.Bucket() == "k8s-testgrid" && o.gridPrefix != "" && o.confirm {
+		return fmt.Errorf("--config=%s: cannot write grid state to gs://k8s-testgrid", o.config)
 	}
 	if o.groupConcurrency == 0 {
 		o.groupConcurrency = 4 * runtime.NumCPU()
