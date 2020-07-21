@@ -33,7 +33,8 @@ const (
 )
 
 var (
-	infraRegex = regexp.MustCompile(`^\w+$`)
+	infraRegex      = regexp.MustCompile(`^\w+$`)
+	testMethodRegex = regexp.MustCompile(`@TESTGRID@`)
 )
 
 type flakinessAnalyzer interface {
@@ -113,6 +114,9 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 	rowResults := result.Map(ctx, grid.Rows)
 
 	for key, ch := range rowResults {
+		if !isValidTestName(key) {
+			continue
+		}
 		i := -1
 		for nextRowResult := range ch {
 			i++
@@ -171,4 +175,10 @@ func getValueOfFlakyMetric(gridMetrics *common.GridMetrics) {
 
 func isWithinTimeFrame(column *state.Column, startTime, endTime int) bool {
 	return column.Started >= float64(startTime) && column.Started <= float64(endTime)
+}
+
+func isValidTestName(name string) bool {
+	// isValidTestName filters out test names, currently only tests with
+	// @TESTGRID@ which would otherwise make some summaries unnecessarily large
+	return !testMethodRegex.MatchString(name)
 }
