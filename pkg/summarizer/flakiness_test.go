@@ -384,3 +384,29 @@ func TestCategorizeFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidTestName(t *testing.T) {
+	cases := []struct {
+		name     string
+		testName string
+		expected bool
+	}{
+		{
+			name:     "regular name returns true",
+			testName: "valid_test",
+			expected: true,
+		},
+		{
+			name:     "name with substring '@TESTGRID@' returns false",
+			testName: "invalid_test_@TESTGRID@",
+			expected: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := isValidTestName(tc.testName); actual != tc.expected {
+				t.Errorf("isValidTestName returned %t for the name %s, but expected %t", actual, tc.testName, tc.expected)
+			}
+		})
+	}
+}
