@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
 
 const (
@@ -28,6 +29,43 @@ const (
 	// FailRunning maps RUNNING to FAIL
 	FailRunning = false
 )
+
+var (
+	statusSeverity = map[statepb.Row_Result]int{
+		statepb.Row_NO_RESULT:         0,
+		statepb.Row_PASS:              1,
+		statepb.Row_BUILD_PASSED:      2,
+		statepb.Row_PASS_WITH_ERRORS:  3,
+		statepb.Row_PASS_WITH_SKIPS:   4,
+		statepb.Row_RUNNING:           5,
+		statepb.Row_CATEGORIZED_ABORT: 6,
+		statepb.Row_UNKNOWN:           7,
+		statepb.Row_CANCEL:            8,
+		statepb.Row_BLOCKED:           9,
+		statepb.Row_TOOL_FAIL:         10,
+		statepb.Row_TIMED_OUT:         11,
+		statepb.Row_CATEGORIZED_FAIL:  12,
+		statepb.Row_BUILD_FAIL:        13,
+		statepb.Row_FAIL:              14,
+		statepb.Row_FLAKY:             15,
+	}
+)
+
+func statusLte(status, compareTo state.Row_Result) bool {
+	return statusSeverity[status] <= statusSeverity[compareTo]
+}
+
+func statusGte(status, compareTo state.Row_Result) bool {
+	return statusSeverity[status] >= statusSeverity[compareTo]
+}
+
+func isPassingStatus(status state.Row_Result) bool {
+	return statusGte(status, statepb.Row_PASS) && statusLte(status, statepb.Row_PASS_WITH_SKIPS)
+}
+
+func isFailingStatus(status state.Row_Result) bool {
+	return statusGte(status, statepb.Row_TOOL_FAIL) && statusLte(status, statepb.Row_PASS_WITH_SKIPS)
+}
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
 func Coalesce(result state.Row_Result, ignoreRunning bool) state.Row_Result {
