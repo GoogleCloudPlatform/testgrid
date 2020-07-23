@@ -90,7 +90,7 @@ message TestMetadata {
 
 // TestGrid columns (also known as TestCycle).
 message Column {
-  // Build ID.
+  // Unique instance of the job, typically BUILD_NUMBER from prow or a guid
   string build = 1;
 
   // Name associated with the column (such as the run/invocation ID).No two
@@ -98,12 +98,10 @@ message Column {
   // display of multiple columns with the same build_id.
   string name = 2;
 
-  // Timestamp for the column, typically the earliest timestamp of any test
-  // result in the column.
+  // Milliseconds since start of epoch (python time.time() * 1000)
   double started = 3;
 
-  // Additional custom column labels, displayed below the standard column
-  // headers of build_id, date, and time.
+  // Additional custom headers like commit, image used, etc.
   repeated string extra = 4;
 
   // Custom hotlist ids.
@@ -134,12 +132,12 @@ message Row {
   // The decoded values are Result enums
   repeated int32 results = 3;
 
-  // Test IDs for each test result in this test case. If used, there is one
-  // test ID per cycle with a non-empty status (where status is not NO_RESULT).
+  // Test IDs for each test result in this test case. 
+  // Must be present on every column, regardless of status.
   repeated string cell_ids = 4;
 
-  // Text messages for each test result in this test case. There is one text
-  // message per cycle with a non-empty status (where status is not NO_RESULT).
+  // Short description of the result, displayed on mouseover.
+  // Present for any column with a non-empty status (not NO_RESULT).
   repeated string messages = 5;
 
   reserved 6;
@@ -150,7 +148,10 @@ message Row {
 
   repeated Metric metrics = 8;  // Numerical performance/timing data, etc.
 
-  repeated string icons = 9;  // 1-5 chars inside cell (F for fail, etc)
+
+  // Short string to place inside the cell (F for fail, etc)
+  // Present for any column with a non-empty status (not NO_RESULT).
+  repeated string icons = 9;
 
   // IDs for bugs associated with results in this test case.
   repeated string bug_id = 10;
