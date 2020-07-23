@@ -432,17 +432,15 @@ func (m *TestMetadata) GetErrorType() string {
 
 // TestGrid columns (also known as TestCycle).
 type Column struct {
-	// Build ID.
+	// Unique instance of the job, typically BUILD_NUMBER from prow or a guid
 	Build string `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
 	// Name associated with the column (such as the run/invocation ID).No two
 	// columns should have the same build_id and name. The name field allows the
 	// display of multiple columns with the same build_id.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Timestamp for the column, typically the earliest timestamp of any test
-	// result in the column.
+	// Milliseconds since start of epoch (python time.time() * 1000)
 	Started float64 `protobuf:"fixed64,3,opt,name=started,proto3" json:"started,omitempty"`
-	// Additional custom column labels, displayed below the standard column
-	// headers of build_id, date, and time.
+	// Additional custom headers like commit, image used, etc.
 	Extra []string `protobuf:"bytes,4,rep,name=extra,proto3" json:"extra,omitempty"`
 	// Custom hotlist ids.
 	HotlistIds           string   `protobuf:"bytes,5,opt,name=hotlist_ids,json=hotlistIds,proto3" json:"hotlist_ids,omitempty"`
@@ -522,17 +520,19 @@ type Row struct {
 	//   [1, 5] -> [1, 1, 1, 1, 1]
 	// The decoded values are Result enums
 	Results []int32 `protobuf:"varint,3,rep,packed,name=results,proto3" json:"results,omitempty"`
-	// Test IDs for each test result in this test case. If used, there is one
-	// test ID per cycle with a non-empty status (where status is not NO_RESULT).
+	// Test IDs for each test result in this test case.
+	// Must be present on every column, regardless of status.
 	CellIds []string `protobuf:"bytes,4,rep,name=cell_ids,json=cellIds,proto3" json:"cell_ids,omitempty"`
-	// Text messages for each test result in this test case. There is one text
-	// message per cycle with a non-empty status (where status is not NO_RESULT).
+	// Short description of the result, displayed on mouseover.
+	// Present for any column with a non-empty status (not NO_RESULT).
 	Messages []string `protobuf:"bytes,5,rep,name=messages,proto3" json:"messages,omitempty"`
 	// Names of metrics associated with this test case. Stored separate from
 	// metric info (which may be omitted).
 	Metric  []string  `protobuf:"bytes,7,rep,name=metric,proto3" json:"metric,omitempty"`
 	Metrics []*Metric `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`
-	Icons   []string  `protobuf:"bytes,9,rep,name=icons,proto3" json:"icons,omitempty"`
+	// Short string to place inside the cell (F for fail, etc)
+	// Present for any column with a non-empty status (not NO_RESULT).
+	Icons []string `protobuf:"bytes,9,rep,name=icons,proto3" json:"icons,omitempty"`
 	// IDs for bugs associated with results in this test case.
 	BugId []string `protobuf:"bytes,10,rep,name=bug_id,json=bugId,proto3" json:"bug_id,omitempty"`
 	// An alert for the failure if there's a recent failure for this test case.
