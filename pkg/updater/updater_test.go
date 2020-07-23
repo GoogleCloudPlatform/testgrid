@@ -18,281 +18,32 @@ package updater
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 
-	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
+	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
 
-func TestExtractRows(t *testing.T) {
-	cases := []struct {
-		name     string
-		content  string
-		metadata map[string]string
-		rows     map[string][]Row
-		err      bool
-	}{
-		{
-			name:    "not xml",
-			content: `{"super": 123}`,
-			err:     true,
-		},
-		{
-			name:    "not junit",
-			content: `<amazing><content/></amazing>`,
-			err:     true,
-		},
-		{
-			name: "basic testsuite",
-			content: `
-			  <testsuite>
-			    <testcase name="good"/>
-			    <testcase name="bad"><failure/></testcase>
-			    <testcase name="skip"><skipped/></testcase>
-			  </testsuite>`,
-			rows: map[string][]Row{
-				"good": {
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "good",
-						},
-					},
-				},
-				"bad": {
-					{
-						Result: state.Row_FAIL,
-						Metadata: map[string]string{
-							"Tests name": "bad",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "basic testsuites",
-			content: `
-			  <testsuites>
-			  <testsuite>
-			    <testcase name="good"/>
-			  </testsuite>
-			  <testsuite>
-			    <testcase name="bad"><failure/></testcase>
-			    <testcase name="skip"><skipped/></testcase>
-			  </testsuite>
-			  </testsuites>`,
-			rows: map[string][]Row{
-				"good": {
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "good",
-						},
-					},
-				},
-				"bad": {
-					{
-						Result: state.Row_FAIL,
-						Metadata: map[string]string{
-							"Tests name": "bad",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "suite name",
-			content: `
-			  <testsuite name="hello">
-			    <testcase name="world" />
-			  </testsuite>`,
-			rows: map[string][]Row{
-				"hello.world": {
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "hello.world",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "duplicate target names",
-			content: `
-			  <testsuite>
-			    <testcase name="multi">
-			      <failure>doh</failure>
-		            </testcase>
-			    <testcase name="multi" />
-			  </testsuite>`,
-			rows: map[string][]Row{
-				"multi": {
-					{
-						Result: state.Row_FAIL,
-						Metadata: map[string]string{
-							"Tests name": "multi",
-						},
-					},
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "multi",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "basic timing",
-			content: `
-			  <testsuite>
-			    <testcase name="slow" time="100.1" />
-			    <testcase name="slow-failure" time="123456789">
-			      <failure>terrible</failure>
-			    </testcase>
-			    <testcase name="fast" time="0.0001" />
-			    <testcase name="nothing-elapsed" time="0" />
-			  </testsuite>`,
-			rows: map[string][]Row{
-				"slow": {
-					{
-						Result:  state.Row_PASS,
-						Metrics: map[string]float64{elapsedKey: 100.1},
-						Metadata: map[string]string{
-							"Tests name": "slow",
-						},
-					},
-				},
-				"slow-failure": {
-					{
-						Result:  state.Row_FAIL,
-						Metrics: map[string]float64{elapsedKey: 123456789},
-						Metadata: map[string]string{
-							"Tests name": "slow-failure",
-						},
-					},
-				},
-				"fast": {
-					{
-						Result:  state.Row_PASS,
-						Metrics: map[string]float64{elapsedKey: 0.0001},
-						Metadata: map[string]string{
-							"Tests name": "fast",
-						},
-					},
-				},
-				"nothing-elapsed": {
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "nothing-elapsed",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "add metadata",
-			content: `
-			  <testsuite>
-			    <testcase name="fancy" />
-			    <testcase name="ketchup" />
-			  </testsuite>`,
-			metadata: map[string]string{
-				"Context":   "debian",
-				"Timestamp": "1234",
-				"Thread":    "7",
-			},
-			rows: map[string][]Row{
-				"fancy": {
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "fancy",
-							"Context":    "debian",
-							"Timestamp":  "1234",
-							"Thread":     "7",
-						},
-					},
-				},
-				"ketchup": {
-					{
-						Result: state.Row_PASS,
-						Metadata: map[string]string{
-							"Tests name": "ketchup",
-							"Context":    "debian",
-							"Timestamp":  "1234",
-							"Thread":     "7",
-						},
-					},
-				},
-			},
-		},
-	}
+func TestUpdate(t *testing.T) {
+	// TODO(fejta): add coverage
+}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			rows := map[string][]Row{}
+func TestTestGroupPath(t *testing.T) {
+	// TODO(fejta): add coverage
+}
 
-			suites, err := junit.Parse([]byte(tc.content))
-			if err == nil {
-				rows = extractRows(suites, tc.metadata)
-			}
-			switch {
-			case err == nil && tc.err:
-				t.Error("failed to raise an error")
-			case err != nil && !tc.err:
-				t.Errorf("unexpected err: %v", err)
-			case len(rows) > len(tc.rows):
-				t.Errorf("extra rows: actual %v != expected %v", rows, tc.rows)
-			default:
-				for target, expectedRows := range tc.rows {
-					actualRows, ok := rows[target]
-					if !ok {
-						t.Errorf("missing row %s", target)
-						continue
-					} else if len(actualRows) != len(expectedRows) {
-						t.Errorf("bad results for %s: actual %v != expected %v", target, actualRows, expectedRows)
-						continue
-					}
-					for i, er := range expectedRows {
-						ar := actualRows[i]
-						if er.Result != ar.Result {
-							t.Errorf("%s %d actual %v != expected %v", target, i, ar.Result, er.Result)
-						}
+func TestUpdateGroup(t *testing.T) {
+	// TODO(fejta): add coverage
+}
 
-						if len(ar.Metrics) > len(er.Metrics) {
-							t.Errorf("extra %s %d metrics: actual %v != expected %v", target, i, ar.Metrics, er.Metrics)
-						} else {
-							for m, ev := range er.Metrics {
-								if av, ok := ar.Metrics[m]; !ok {
-									t.Errorf("%s %d missing %s metric", target, i, m)
-								} else if ev != av {
-									t.Errorf("%s %d bad %s metric: actual %f != expected %f", target, i, m, av, ev)
-								}
-							}
-						}
-
-						if len(ar.Metadata) > len(er.Metadata) {
-							t.Errorf("extra %s %d metadata: actual %v != expected %v", target, i, ar.Metadata, er.Metadata)
-						} else {
-							for m, ev := range er.Metadata {
-								if av, ok := ar.Metadata[m]; !ok {
-									t.Errorf("%s %d missing %s metadata", target, i, m)
-								} else if ev != av {
-									t.Errorf("%s %d bad %s metadata: actual %s != expected %s", target, i, m, av, ev)
-								}
-							}
-						}
-					}
-				}
-			}
-		})
-	}
+func TestConstructGrid(t *testing.T) {
+	// TODO(fejta): add coverage
 }
 
 func TestMarshalGrid(t *testing.T) {
@@ -324,6 +75,463 @@ func TestMarshalGrid(t *testing.T) {
 
 	if reflect.DeepEqual(b1, uncompressed) {
 		t.Errorf("should be compressed but is not: %v", b1)
+	}
+}
+
+func TestAppendMetric(t *testing.T) {
+	cases := []struct {
+		name     string
+		metric   state.Metric
+		idx      int32
+		value    float64
+		expected state.Metric
+	}{
+		{
+			name: "basically works",
+			expected: state.Metric{
+				Indices: []int32{0, 1},
+				Values:  []float64{0},
+			},
+		},
+		{
+			name:  "start metric at random column",
+			idx:   7,
+			value: 11,
+			expected: state.Metric{
+				Indices: []int32{7, 1},
+				Values:  []float64{11},
+			},
+		},
+		{
+			name: "continue existing series",
+			metric: state.Metric{
+				Indices: []int32{6, 2},
+				Values:  []float64{6.1, 6.2},
+			},
+			idx:   8,
+			value: 88,
+			expected: state.Metric{
+				Indices: []int32{6, 3},
+				Values:  []float64{6.1, 6.2, 88},
+			},
+		},
+		{
+			name: "start new series",
+			metric: state.Metric{
+				Indices: []int32{3, 2},
+				Values:  []float64{6.1, 6.2},
+			},
+			idx:   8,
+			value: 88,
+			expected: state.Metric{
+				Indices: []int32{3, 2, 8, 1},
+				Values:  []float64{6.1, 6.2, 88},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			appendMetric(&tc.metric, tc.idx, tc.value)
+			if diff := cmp.Diff(tc.metric, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("appendMetric() got unexpected diff (-got +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAppendCell(t *testing.T) {
+	cases := []struct {
+		name  string
+		row   state.Row
+		cell  cell
+		count int
+
+		expected state.Row
+	}{
+		{
+			name: "basically works",
+			expected: state.Row{
+				Results: []int32{0, 0},
+			},
+		},
+		{
+			name: "first result",
+			cell: cell{
+				result: state.Row_PASS,
+			},
+			count: 1,
+			expected: state.Row{
+				Results:  []int32{int32(state.Row_PASS), 1},
+				CellIds:  []string{""},
+				Messages: []string{""},
+				Icons:    []string{""},
+			},
+		},
+		{
+			name: "all fields filled",
+			cell: cell{
+				result:  state.Row_PASS,
+				cellID:  "cell-id",
+				message: "hi",
+				icon:    "there",
+				metrics: map[string]float64{
+					"pi":     3.14,
+					"golden": 1.618,
+				},
+			},
+			count: 1,
+			expected: state.Row{
+				Results:  []int32{int32(state.Row_PASS), 1},
+				CellIds:  []string{"cell-id"},
+				Messages: []string{"hi"},
+				Icons:    []string{"there"},
+				Metric: []string{
+					"golden",
+					"pi",
+				},
+				Metrics: []*state.Metric{
+					{
+						Name:    "pi",
+						Indices: []int32{0, 1},
+						Values:  []float64{3.14},
+					},
+					{
+						Name:    "golden",
+						Indices: []int32{0, 1},
+						Values:  []float64{1.618},
+					},
+				},
+			},
+		},
+		{
+			name: "append same result",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 3,
+				},
+				CellIds:  []string{"", "", ""},
+				Messages: []string{"", "", ""},
+				Icons:    []string{"", "", ""},
+			},
+			cell: cell{
+				result:  state.Row_FLAKY,
+				message: "echo",
+				cellID:  "again and",
+				icon:    "keeps going",
+			},
+			count: 2,
+			expected: state.Row{
+				Results:  []int32{int32(state.Row_FLAKY), 5},
+				CellIds:  []string{"", "", "", "again and", "again and"},
+				Messages: []string{"", "", "", "echo", "echo"},
+				Icons:    []string{"", "", "", "keeps going", "keeps going"},
+			},
+		},
+		{
+			name: "append different result",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 3,
+				},
+				CellIds:  []string{"", "", ""},
+				Messages: []string{"", "", ""},
+				Icons:    []string{"", "", ""},
+			},
+			cell: cell{
+				result: state.Row_PASS,
+			},
+			count: 2,
+			expected: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 3,
+					int32(state.Row_PASS), 2,
+				},
+				CellIds:  []string{"", "", "", "", ""},
+				Messages: []string{"", "", "", "", ""},
+				Icons:    []string{"", "", "", "", ""},
+			},
+		},
+		{
+			name: "append no result (results, cellIDs, no messages or icons)",
+			row: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 3,
+				},
+				CellIds:  []string{"", "", ""},
+				Messages: []string{"", "", ""},
+				Icons:    []string{"", "", ""},
+			},
+			cell: cell{
+				result: state.Row_NO_RESULT,
+			},
+			count: 2,
+			expected: state.Row{
+				Results: []int32{
+					int32(state.Row_FLAKY), 3,
+					int32(state.Row_NO_RESULT), 2,
+				},
+				CellIds:  []string{"", "", "", "", ""},
+				Messages: []string{"", "", ""},
+				Icons:    []string{"", "", ""},
+			},
+		},
+		{
+			name: "add metric to series",
+			row: state.Row{
+				Results:  []int32{int32(state.Row_PASS), 5},
+				CellIds:  []string{"", "", "", "", "c"},
+				Messages: []string{"", "", "", "", "m"},
+				Icons:    []string{"", "", "", "", "i"},
+				Metric: []string{
+					"continued-series",
+					"new-series",
+				},
+				Metrics: []*state.Metric{
+					{
+						Name:    "continued-series",
+						Indices: []int32{0, 5},
+						Values:  []float64{0, 1, 2, 3, 4},
+					},
+					{
+						Name:    "new-series",
+						Indices: []int32{2, 2},
+						Values:  []float64{2, 3},
+					},
+				},
+			},
+			cell: cell{
+				result: state.Row_PASS,
+				metrics: map[string]float64{
+					"continued-series": 5.1,
+					"new-series":       5.2,
+				},
+			},
+			count: 1,
+			expected: state.Row{
+				Results:  []int32{int32(state.Row_PASS), 6},
+				CellIds:  []string{"", "", "", "", "c", ""},
+				Messages: []string{"", "", "", "", "m", ""},
+				Icons:    []string{"", "", "", "", "i", ""},
+				Metric: []string{
+					"continued-series",
+					"new-series",
+				},
+				Metrics: []*state.Metric{
+					{
+						Name:    "continued-series",
+						Indices: []int32{0, 6},
+						Values:  []float64{0, 1, 2, 3, 4, 5.1},
+					},
+					{
+						Name:    "new-series",
+						Indices: []int32{2, 2, 5, 1},
+						Values:  []float64{2, 3, 5.2},
+					},
+				},
+			},
+		},
+		{
+			name:  "add a bunch of initial blank columns (eg a deleted row)",
+			cell:  emptyCell,
+			count: 7,
+			expected: state.Row{
+				Results: []int32{int32(state.Row_NO_RESULT), 7},
+				CellIds: []string{"", "", "", "", "", "", ""},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			appendCell(&tc.row, tc.cell, tc.count)
+			sort.SliceStable(tc.row.Metric, func(i, j int) bool {
+				return tc.row.Metric[i] < tc.row.Metric[j]
+			})
+			sort.SliceStable(tc.row.Metrics, func(i, j int) bool {
+				return tc.row.Metrics[i].Name < tc.row.Metrics[j].Name
+			})
+			sort.SliceStable(tc.expected.Metric, func(i, j int) bool {
+				return tc.expected.Metric[i] < tc.expected.Metric[j]
+			})
+			sort.SliceStable(tc.expected.Metrics, func(i, j int) bool {
+				return tc.expected.Metrics[i].Name < tc.expected.Metrics[j].Name
+			})
+			if diff := cmp.Diff(tc.row, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("appendCell() got unexpected diff (-got +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAppendColumn(t *testing.T) {
+	setupRow := func(row *state.Row, cells ...cell) *state.Row {
+		for _, c := range cells {
+			appendCell(row, c, 1)
+		}
+		return row
+	}
+	cases := []struct {
+		name     string
+		grid     state.Grid
+		col      inflatedColumn
+		expected state.Grid
+	}{
+		{
+			name: "append first column",
+			col:  inflatedColumn{column: &state.Column{Build: "10"}},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "10"},
+				},
+			},
+		},
+		{
+			name: "append additional column",
+			grid: state.Grid{
+				Columns: []*state.Column{
+					{Build: "10"},
+					{Build: "11"},
+				},
+			},
+			col: inflatedColumn{column: &state.Column{Build: "20"}},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "10"},
+					{Build: "11"},
+					{Build: "20"},
+				},
+			},
+		},
+		{
+			name: "add rows to first column",
+			col: inflatedColumn{
+				column: &state.Column{Build: "10"},
+				cells: map[string]cell{
+					"hello": {
+						result: state.Row_PASS,
+						cellID: "yes",
+						metrics: map[string]float64{
+							"answer": 42,
+						},
+					},
+					"world": {
+						result:  state.Row_FAIL,
+						message: "boom",
+						icon:    "X",
+					},
+				},
+			},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "10"},
+				},
+				Rows: []*state.Row{
+					setupRow(
+						&state.Row{
+							Name: "hello",
+							Id:   "hello",
+						},
+						cell{
+							result:  state.Row_PASS,
+							cellID:  "yes",
+							metrics: map[string]float64{"answer": 42},
+						}),
+					setupRow(&state.Row{
+						Name: "world",
+						Id:   "world",
+					}, cell{
+						result:  state.Row_FAIL,
+						message: "boom",
+						icon:    "X",
+					}),
+				},
+			},
+		},
+		{
+			name: "add empty cells",
+			grid: state.Grid{
+				Columns: []*state.Column{
+					{Build: "10"},
+					{Build: "11"},
+					{Build: "12"},
+				},
+				Rows: []*state.Row{
+					setupRow(
+						&state.Row{Name: "deleted"},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+					),
+					setupRow(
+						&state.Row{Name: "always"},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+					),
+				},
+			},
+			col: inflatedColumn{
+				column: &state.Column{Build: "20"},
+				cells: map[string]cell{
+					"always": {result: state.Row_PASS},
+					"new":    {result: state.Row_PASS},
+				},
+			},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "10"},
+					{Build: "11"},
+					{Build: "12"},
+					{Build: "20"},
+				},
+				Rows: []*state.Row{
+					setupRow(
+						&state.Row{Name: "deleted"},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						emptyCell,
+					),
+					setupRow(
+						&state.Row{Name: "always"},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+					),
+					setupRow(
+						&state.Row{
+							Name: "new",
+							Id:   "new",
+						},
+						emptyCell,
+						emptyCell,
+						emptyCell,
+						cell{result: state.Row_PASS},
+					),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := map[string]*state.Row{}
+			for _, r := range tc.grid.Rows {
+				rows[r.Name] = r
+			}
+			appendColumn(&tc.grid, rows, tc.col)
+			sort.SliceStable(tc.grid.Rows, func(i, j int) bool {
+				return tc.grid.Rows[i].Name < tc.grid.Rows[j].Name
+			})
+			sort.SliceStable(tc.expected.Rows, func(i, j int) bool {
+				return tc.expected.Rows[i].Name < tc.expected.Rows[j].Name
+			})
+			if diff := cmp.Diff(tc.grid, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("appendColumn() got unexpected diff (-got +want):\n%s", diff)
+			}
+		})
 	}
 }
 
