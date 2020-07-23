@@ -113,7 +113,7 @@ type Metric struct {
 	//   Indices: [0, 2, 6, 4]
 	//   Values: [0.1,0.2,6.1,6.2,6.3,6.4]
 	// Decoded 12-value equivalent is:
-	// [0.1, 0.2, nil, nil, nil, nil, nil, 6.1, 6.2, 6.3, 6.4, nil, nil, ...]
+	// [0.1, 0.2, nil, nil, nil, nil, 6.1, 6.2, 6.3, 6.4, nil, nil, ...]
 	Indices              []int32   `protobuf:"varint,2,rep,packed,name=indices,proto3" json:"indices,omitempty"`
 	Values               []float64 `protobuf:"fixed64,3,rep,packed,name=values,proto3" json:"values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
