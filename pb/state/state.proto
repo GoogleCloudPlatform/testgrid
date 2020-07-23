@@ -119,9 +119,17 @@ message Row {
     PASS_WITH_ERRORS = 2;
     PASS_WITH_SKIPS = 3;
     RUNNING = 4;
-    reserved 5 to 11;
+    CATEGORIZED_ABORT = 5;
+    UNKNOWN = 6;
+    CANCEL = 7;
+    BLOCKED = 8;
+    TIMED_OUT = 9;
+    CATEGORIZED_FAIL = 10;
+    BUILD_FAIL = 11;
     FAIL = 12;
     FLAKY = 13;
+    TOOL_FAIL = 14;
+    BUILD_PASSED = 15;
   }
 
   // Results for this row, run-length encoded to reduce size/improve performance.

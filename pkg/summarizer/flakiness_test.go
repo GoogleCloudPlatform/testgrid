@@ -239,7 +239,7 @@ func TestParseGrid(t *testing.T) {
 							state.Row_Result_value["PASS"], 1,
 							state.Row_Result_value["FAIL"], 1,
 							state.Row_Result_value["FLAKY"], 1,
-							state.Row_Result_value["FAIL"], 1,
+							state.Row_Result_value["CATEGORIZED_FAIL"], 1,
 						},
 						Messages: []string{
 							"",
@@ -327,6 +327,48 @@ func TestParseGrid(t *testing.T) {
 					Name:             "test_1",
 					Passed:           1,
 					Failed:           1,
+					FlakyCount:       0,
+					AverageFlakiness: 0.0,
+					FailedInfraCount: 1,
+					InfraFailures: map[string]int{
+						"this_message_should_show_up_as_an_infra_failure": 1,
+					},
+				},
+			},
+		},
+		{
+			name: "grid with columns outside of time frame correctly assigns messages",
+			grid: &state.Grid{
+				Columns: []*state.Column{
+					{Started: 0},
+					{Started: 1000},
+					{Started: 1000},
+					{Started: 7000},
+					{Started: 2000},
+				},
+				Rows: []*state.Row{
+					{
+						Name: "test_1",
+						Results: []int32{
+							state.Row_Result_value["PASS"], 1,
+							state.Row_Result_value["NO_RESULT"], 2,
+							state.Row_Result_value["FAIL"], 2,
+						},
+						Messages: []string{
+							"this_message_should_not_show_up_in_results",
+							"this_message_should_not_show_up_in_results",
+							"this_message_should_show_up_as_an_infra_failure",
+						},
+					},
+				},
+			},
+			startTime: 0,
+			endTime:   2,
+			expected: []*common.GridMetrics{
+				{
+					Name:             "test_1",
+					Passed:           1,
+					Failed:           0,
 					FlakyCount:       0,
 					AverageFlakiness: 0.0,
 					FailedInfraCount: 1,

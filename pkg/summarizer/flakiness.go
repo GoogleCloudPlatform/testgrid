@@ -100,13 +100,9 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 	// 0 of all counts.
 	gridMetricsMap := make(map[string]*common.GridMetrics, 0)
 	gridRows := make(map[string]*state.Row)
-	// Keeps track of which index of state.Row.Messages to access, because
-	// it can be different for each state.Row if there are any state.Row_NO_RESULT
-	rowToMessageIndex := make(map[string]int)
 
 	for i, row := range grid.Rows {
 		gridRows[row.Name] = grid.Rows[i]
-		rowToMessageIndex[row.Name] = 0
 		gridMetricsMap[row.Name] = common.NewGridMetrics(row.Name)
 	}
 
@@ -117,27 +113,37 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 		if !isValidTestName(key) {
 			continue
 		}
+		rowToMessageIndex := 0
 		i := -1
 		for nextRowResult := range ch {
 			i++
 			if i >= len(grid.Columns) {
 				break
 			}
+			rowResult := result.Coalesce(nextRowResult, result.FailRunning)
+
+			// We still need to increment rowToMessageIndex even if we want to skip counting
+			// this column.
 			if !isWithinTimeFrame(grid.Columns[i], startTime, endTime) {
+				switch rowResult {
+				case state.Row_NO_RESULT:
+					break
+				default:
+					rowToMessageIndex++
+				}
 				continue
 			}
-			switch result.Coalesce(nextRowResult, result.IgnoreRunning) {
+			switch rowResult {
 			case state.Row_NO_RESULT:
 				continue
 			case state.Row_FAIL:
-				index := rowToMessageIndex[key]
-				categorizeFailure(gridMetricsMap[key], gridRows[key].Messages[index])
+				categorizeFailure(gridMetricsMap[key], gridRows[key].Messages[rowToMessageIndex])
 			case state.Row_PASS:
 				gridMetricsMap[key].Passed++
 			case state.Row_FLAKY:
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
-			rowToMessageIndex[key]++
+			rowToMessageIndex++
 		}
 	}
 	gridMetrics := make([]*common.GridMetrics, 0)
