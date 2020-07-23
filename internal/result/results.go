@@ -51,20 +51,24 @@ var (
 	}
 )
 
-func statusLte(status, compareTo state.Row_Result) bool {
-	return statusSeverity[status] <= statusSeverity[compareTo]
+func resultLte(rowResult, compareTo state.Row_Result) bool {
+	return statusSeverity[rowResult] <= statusSeverity[compareTo]
 }
 
-func statusGte(status, compareTo state.Row_Result) bool {
-	return statusSeverity[status] >= statusSeverity[compareTo]
+func resultGte(rowResult, compareTo state.Row_Result) bool {
+	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
-func isPassingStatus(status state.Row_Result) bool {
-	return statusGte(status, statepb.Row_PASS) && statusLte(status, statepb.Row_PASS_WITH_SKIPS)
+// IsPassingResult returns true if the Row_Result is any of the passing results,
+// including PASS_WITH_SKIPS, BUILD_PASSED, and more.
+func IsPassingResult(rowResult state.Row_Result) bool {
+	return resultGte(rowResult, statepb.Row_PASS) && resultLte(rowResult, statepb.Row_PASS_WITH_SKIPS)
 }
 
-func isFailingStatus(status state.Row_Result) bool {
-	return statusGte(status, statepb.Row_TOOL_FAIL) && statusLte(status, statepb.Row_PASS_WITH_SKIPS)
+// IsFailingResult returns true if the Row_Result is any of the failing results,
+// including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
+func IsFailingResult(rowResult state.Row_Result) bool {
+	return resultGte(rowResult, statepb.Row_TOOL_FAIL) && resultLte(rowResult, statepb.Row_FAIL)
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
@@ -73,7 +77,7 @@ func Coalesce(result state.Row_Result, ignoreRunning bool) state.Row_Result {
 	if result == state.Row_NO_RESULT || result == state.Row_RUNNING && ignoreRunning {
 		return state.Row_NO_RESULT
 	}
-	if result == state.Row_FAIL || result == state.Row_RUNNING {
+	if IsFailingResult(result) || result == state.Row_RUNNING {
 		return state.Row_FAIL
 	}
 	if result == state.Row_FLAKY {

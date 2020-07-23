@@ -120,13 +120,7 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 			if i >= len(grid.Columns) {
 				break
 			}
-			var rowResult state.Row_Result
-			// 10 == CATEGORIZED_FAILURE
-			if nextRowResult == 10 {
-				rowResult = state.Row_FAIL
-			} else {
-				rowResult = result.Coalesce(nextRowResult, result.IgnoreRunning)
-			}
+			rowResult := result.Coalesce(nextRowResult, result.FailRunning)
 
 			// We still need to increment rowToMessageIndex even if we want to skip counting
 			// this column.
@@ -149,7 +143,6 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 			case state.Row_FLAKY:
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
-			//fmt.Printf("Infra message for RowResult %v: %s\n", nextRowResult, gridRows[key].Messages[rowToMessageIndex])
 			rowToMessageIndex++
 		}
 	}
