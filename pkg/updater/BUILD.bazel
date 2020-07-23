@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["updater.go"],
+    srcs = [
+        "inflate.go",
+        "updater.go",
+    ],
     importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/updater",
     visibility = ["//visibility:public"],
     deps = [
@@ -23,7 +26,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["updater_test.go"],
+    srcs = [
+        "inflate_test.go",
+        "updater_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//metadata/junit:go_default_library",
