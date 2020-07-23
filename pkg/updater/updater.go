@@ -456,8 +456,6 @@ func stamp(col *state.Column) *timestamp.Timestamp {
 	}
 }
 
-const elapsedKey = "seconds-elapsed"
-
 // readBuild asynchronously downloads the files in build from gcs and converts them into a build.
 func readBuild(parent context.Context, build Build, timeout time.Duration) (*Column, error) {
 	var wg sync.WaitGroup                               // Each subtask does wg.Add(1), then we wg.Wait() for them to finish
