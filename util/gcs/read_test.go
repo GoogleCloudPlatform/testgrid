@@ -17,7 +17,13 @@ limitations under the License.
 package gcs
 
 import (
+	"bytes"
+	"errors"
+	"io"
+	"reflect"
 	"testing"
+
+	"cloud.google.com/go/storage"
 )
 
 func TestParseSuitesMeta(t *testing.T) {
@@ -98,3 +104,114 @@ func TestParseSuitesMeta(t *testing.T) {
 	}
 
 }
+
+type fakeReader struct {
+	buf      *bytes.Buffer
+	readErr  error
+	closeErr error
+}
+
+func (fr *fakeReader) Read(p []byte) (int, error) {
+	if fr.readErr != nil {
+		return 0, fr.readErr
+	}
+	return fr.buf.Read(p)
+}
+
+func (fr *fakeReader) Close() error {
+	if fr.closeErr != nil {
+		return fr.closeErr
+	}
+	fr.readErr = errors.New("already closed")
+	fr.closeErr = fr.readErr
+	return nil
+}
+
+func TestReadJSON(t *testing.T) {
+	cases := []struct {
+		name     string
+		reader   fakeReader
+		openErr  error
+		actual   interface{}
+		expected interface{}
+		is       error
+	}{
+		{
+			name:     "basically works",
+			reader:   fakeReader{buf: bytes.NewBufferString("{}")},
+			actual:   &Started{},
+			expected: &Started{},
+		},
+		{
+			name:   "read a json object",
+			reader: fakeReader{buf: bytes.NewBufferString("{\"hello\": 5}")},
+			actual: &struct {
+				Hello int `json:"hello"`
+			}{},
+			expected: &struct {
+				Hello int `json:"hello"`
+			}{5},
+		},
+		{
+			name:    "ErrObjectNotExist on open returns an ErrObjectNotExist error",
+			openErr: storage.ErrObjectNotExist,
+			is:      storage.ErrObjectNotExist,
+		},
+		{
+			name:    "other open errors also error",
+			openErr: errors.New("injected open error"),
+		},
+		{
+			name: "read error errors",
+			reader: fakeReader{
+				buf:     bytes.NewBufferString("{}"),
+				readErr: errors.New("injected read error"),
+			},
+		},
+		{
+			name: "close error errors",
+			reader: fakeReader{
+				buf:      bytes.NewBufferString("{}"),
+				closeErr: errors.New("injected close error"),
+			},
+		},
+		{
+			name: "invalid json errors",
+			reader: fakeReader{
+				buf:      bytes.NewBufferString("{\"json\": \"hates trailing commas\",}"),
+				closeErr: errors.New("injected close error"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeOpen := func() (io.ReadCloser, error) {
+				if tc.openErr != nil {
+					return nil, tc.openErr
+				}
+				return &tc.reader, nil
+			}
+			err := readJSON(fakeOpen, tc.actual)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if tc.is != nil && !errors.Is(err, tc.is) {
+					t.Errorf("bad error: %v, wanted %v", err, tc.is)
+				}
+			case tc.expected == nil:
+				t.Error("failed to receive expected error")
+			default:
+				if !reflect.DeepEqual(tc.actual, tc.expected) {
+					t.Errorf("got %v, want %v", tc.actual, tc.expected)
+				}
+			}
+		})
+	}
+}
+
+// TODO(fejta): TestStarted
+// TODO(fejta): TestFinished
+// TODO(fejta): TestSuites

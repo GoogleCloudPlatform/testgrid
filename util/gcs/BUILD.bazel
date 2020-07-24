@@ -25,6 +25,7 @@ go_test(
         "read_test.go",
     ],
     embed = [":go_default_library"],
+    deps = ["@com_google_cloud_go_storage//:go_default_library"],
 )
 
 filegroup(
