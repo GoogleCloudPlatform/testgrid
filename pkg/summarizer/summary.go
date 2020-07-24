@@ -445,8 +445,8 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 			BuildLink:     alert.BuildLink,
 			BuildLinkText: alert.BuildLinkText,
 			BuildUrlText:  alert.BuildUrlText,
-			// TODO(fejta): LinkedBugs
-			FailTestLink: buildFailLink(alert.FailTestId, row.Id),
+			LinkedBugs:    row.BugId,
+			FailTestLink:  buildFailLink(alert.FailTestId, row.Id),
 		}
 		if alert.PassTime != nil {
 			sum.PassTimestamp = float64(alert.PassTime.Seconds)

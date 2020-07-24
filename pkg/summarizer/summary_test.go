@@ -927,8 +927,9 @@ func TestFailingTestSummaries(t *testing.T) {
 			rows: []*statepb.Row{
 				{},
 				{
-					Name: "foo-name",
-					Id:   "foo-target",
+					Name:  "foo-name",
+					Id:    "foo-target",
+					BugId: []string{"1234", "5678"},
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:    "bad",
 						PassBuildId:    "good",
@@ -941,8 +942,9 @@ func TestFailingTestSummaries(t *testing.T) {
 				},
 				{},
 				{
-					Name: "bar-name",
-					Id:   "bar-target",
+					Name:  "bar-name",
+					Id:    "bar-target",
+					BugId: []string{"1234"},
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:    "fbi",
 						PassBuildId:    "pbi",
@@ -968,6 +970,7 @@ func TestFailingTestSummaries(t *testing.T) {
 					BuildUrlText:   "of sandwich",
 					FailureMessage: "pop tart",
 					FailTestLink:   " foo-target",
+					LinkedBugs:     []string{"1234", "5678"},
 				},
 				{
 					DisplayName:    "bar-name",
@@ -980,6 +983,7 @@ func TestFailingTestSummaries(t *testing.T) {
 					BuildUrlText:   "but",
 					FailureMessage: "fm",
 					FailTestLink:   "819283y823-1232813 bar-target",
+					LinkedBugs:     []string{"1234"},
 				},
 			},
 		},
