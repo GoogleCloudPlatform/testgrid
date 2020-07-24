@@ -20,12 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
@@ -167,17 +166,30 @@ func parseSuitesMeta(name string) map[string]string {
 
 }
 
+// readOpener returns a reader and a possible error.
+type readOpener func() (io.ReadCloser, error)
+
+// gcsOpener adapts o.NewReader()'s return type to io.ReadCloser
+func gcsOpener(ctx context.Context, o *storage.ObjectHandle) readOpener {
+	return func() (io.ReadCloser, error) {
+		return o.NewReader(ctx)
+	}
+}
+
 // readJSON will decode the json object stored in GCS.
-func readJSON(ctx context.Context, obj *storage.ObjectHandle, i interface{}) error {
-	reader, err := obj.NewReader(ctx)
+func readJSON(open readOpener, i interface{}) error {
+	reader, err := open()
 	if err == storage.ErrObjectNotExist {
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("open: %v", err)
+		return fmt.Errorf("open: %w", err)
 	}
 	if err = json.NewDecoder(reader).Decode(i); err != nil {
-		return fmt.Errorf("decode: %v", err)
+		return fmt.Errorf("decode: %w", err)
+	}
+	if err := reader.Close(); err != nil {
+		return fmt.Errorf("close: %w", err)
 	}
 	return nil
 }
@@ -186,7 +198,7 @@ func readJSON(ctx context.Context, obj *storage.ObjectHandle, i interface{}) err
 func (build Build) Started(ctx context.Context) (*Started, error) {
 	uri := build.Prefix + "started.json"
 	var started Started
-	err := readJSON(ctx, build.Bucket.Object(uri), &started)
+	err := readJSON(gcsOpener(ctx, build.Bucket.Object(uri)), &started)
 	if err == storage.ErrObjectNotExist {
 		started.Pending = true
 		return &started, nil
@@ -201,7 +213,7 @@ func (build Build) Started(ctx context.Context) (*Started, error) {
 func (build Build) Finished(ctx context.Context) (*Finished, error) {
 	uri := build.Prefix + "finished.json"
 	var finished Finished
-	err := readJSON(ctx, build.Bucket.Object(uri), &finished)
+	err := readJSON(gcsOpener(ctx, build.Bucket.Object(uri)), &finished)
 	if err == storage.ErrObjectNotExist {
 		finished.Running = true
 		return &finished, nil
@@ -233,25 +245,6 @@ func (build Build) Artifacts(ctx context.Context, artifacts chan<- string) error
 	return nil
 }
 
-// readSuites parses the <testsuite> or <testsuites> object in obj
-func readSuites(ctx context.Context, obj *storage.ObjectHandle) (*junit.Suites, error) {
-	reader, err := obj.NewReader(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("open: %v", err)
-	}
-
-	buf, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("read: %v", err)
-	}
-
-	suites, err := junit.Parse(buf)
-	if err != nil {
-		return nil, fmt.Errorf("parse: %v", err)
-	}
-	return &suites, nil
-}
-
 // SuitesMeta holds testsuites xml and metadata from the filename
 type SuitesMeta struct {
 	Suites   junit.Suites      // suites data extracted from file contents
@@ -264,7 +257,8 @@ type SuitesMeta struct {
 // Note that junit suites are parsed in parallel, so there are no guarantees about suites ordering.
 func (build Build) Suites(parent context.Context, artifacts <-chan string, suites chan<- SuitesMeta) error {
 
-	var wg sync.WaitGroup
+	var work int
+
 	ec := make(chan error)
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -273,49 +267,41 @@ func (build Build) Suites(parent context.Context, artifacts <-chan string, suite
 		if meta == nil {
 			continue // not a junit file ignore it, ignore it
 		}
-		wg.Add(1)
 		// concurrently parse each file because there may be a lot of them, and
 		// each takes a non-trivial amount of time waiting for the network.
+		work++
 		go func(art string, meta map[string]string) {
-			defer wg.Done()
-			suitesData, err := readSuites(ctx, build.Bucket.Object(art))
-			if err != nil {
-				select {
-				case <-ctx.Done():
-				case ec <- err:
-				}
-				return
-			}
 			out := SuitesMeta{
-				Suites:   *suitesData,
 				Metadata: meta,
 				Path:     "gs://" + build.BucketPath + "/" + art,
 			}
+			if err := readJSON(gcsOpener(ctx, build.Bucket.Object(art)), &out.Suites); err != nil {
+				select {
+				case <-ctx.Done():
+				case ec <- fmt.Errorf("open %q: %w", art, err):
+				}
+				return
+			}
 			select {
 			case <-ctx.Done():
+				return
 			case suites <- out:
+			}
+
+			select {
+			case <-ctx.Done():
+			case ec <- nil:
 			}
 		}(art, meta)
 	}
 
-	go func() {
-		wg.Wait()
+	for ; work > 0; work-- {
 		select {
-		case ec <- nil: // tell parent we exited cleanly
-		case <-ctx.Done(): // parent already exited
+		case <-ctx.Done():
+			return fmt.Errorf("timeout: %w", ctx.Err())
+		case err := <-ec:
+			return err
 		}
-		close(ec) // no one will send t
-	}()
-
-	// TODO(fejta): refactor to return the suites chan, so we can control channel closure
-	// Until then don't return until all go functions return
-	select {
-	case <-ctx.Done(): // parent context marked as finished.
-		wg.Wait()
-		return ctx.Err()
-	case err := <-ec: // finished listing
-		cancel()
-		wg.Wait()
-		return err
 	}
+	return nil
 }
