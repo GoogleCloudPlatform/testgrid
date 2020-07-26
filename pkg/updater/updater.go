@@ -22,10 +22,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/url"
 	"path"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -576,7 +578,7 @@ func readBuild(parent context.Context, build Build, timeout time.Duration) (*Col
 	case finished = <-fc:
 	}
 	br := Column{
-		ID:      path.Base(build.Prefix),
+		ID:      path.Base(build.Path.Object()),
 		Started: started.Timestamp,
 	}
 	// Has the build finished?
@@ -730,7 +732,7 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 							log.WithFields(logrus.Fields{
 								"idx":     i,
 								"id":      c.ID,
-								"prefix":  b.Prefix,
+								"path":    b.Path,
 								"started": c.Started,
 								"stop":    stop.Unix(),
 							}).Debug("Stopped")
@@ -886,6 +888,26 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
+type gcsInterrogator struct {
+	client *storage.Client
+}
+
+func (g gcsInterrogator) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, error) {
+	r, err := g.client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
+	return r, err
+}
+
+func (g gcsInterrogator) Objects(ctx context.Context, path gcs.Path, delimiter string) gcs.Iterator {
+	p := path.Object()
+	if !strings.HasSuffix(p, "/") {
+		p += "/"
+	}
+	return g.client.Bucket(path.Bucket()).Objects(ctx, &storage.Query{
+		Delimiter: delimiter,
+		Prefix:    p,
+	})
+}
+
 func updateGroup(parent context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parent, groupTimeout)
 	defer cancel()
@@ -899,7 +921,8 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 
 	var g state.Grid
 	g.Columns = append(g.Columns, &state.Column{Build: "first", Started: 1})
-	builds, err := gcs.ListBuilds(ctx, client, tgPath)
+	interrogator := gcsInterrogator{client}
+	builds, err := gcs.ListBuilds(ctx, interrogator, tgPath)
 	if err != nil {
 		return fmt.Errorf("failed to list %s builds: %v", o, err)
 	}

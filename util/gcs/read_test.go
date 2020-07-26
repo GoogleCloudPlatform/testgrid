@@ -18,12 +18,22 @@ package gcs
 
 import (
 	"bytes"
+	"context"
+	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"net/url"
 	"reflect"
+	"sort"
+	"sync"
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
+
+	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
 
 func TestParseSuitesMeta(t *testing.T) {
@@ -212,6 +222,477 @@ func TestReadJSON(t *testing.T) {
 	}
 }
 
+type fakeIterator struct {
+	objects []storage.ObjectAttrs
+	idx     int
+	err     int // must be > 0
+}
+
+func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
+	if fi.idx >= len(fi.objects) {
+		return nil, iterator.Done
+	}
+	if fi.idx > 0 && fi.idx == fi.err {
+		return nil, errors.New("injected fakeIterator error")
+	}
+
+	o := fi.objects[fi.idx]
+	fi.idx++
+	return &o, nil
+}
+
+type fakeObject struct {
+	data    string
+	objects func() Iterator
+	open    error
+	read    error
+}
+
+func subdir(prefix string) storage.ObjectAttrs {
+	return storage.ObjectAttrs{Prefix: prefix}
+}
+
+func link(name, other string) storage.ObjectAttrs {
+	return storage.ObjectAttrs{
+		Metadata: map[string]string{"x-goog-meta-link": other},
+		Name:     name,
+	}
+}
+
+type fakeInterrogator map[Path]fakeObject
+
+func (fi fakeInterrogator) Objects(_ context.Context, path Path, _ string) Iterator {
+	f := fi[path].objects
+	if f == nil {
+		return &fakeIterator{}
+	}
+	return f()
+}
+
+func (fi fakeInterrogator) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+	o, ok := fi[path]
+	if !ok {
+		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
+	}
+	if o.open != nil {
+		return nil, o.open
+	}
+	return ioutil.NopCloser(&fakeReader{
+		buf:     bytes.NewBufferString(o.data),
+		readErr: o.read,
+	}), nil
+}
+
 // TODO(fejta): TestStarted
+func TestStarted(t *testing.T) {
+	cases := []struct {
+		name string
+	}{
+		{},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+		})
+	}
+}
+
 // TODO(fejta): TestFinished
-// TODO(fejta): TestSuites
+func TestFinished(t *testing.T) {
+	cases := []struct {
+		name string
+	}{
+		{},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+		})
+	}
+}
+
+func resolveOrDie(p Path, s string) Path {
+	out, err := p.ResolveReference(&url.URL{Path: s})
+	if err != nil {
+		panic(fmt.Sprintf("%s - %s", p, err))
+	}
+	return *out
+}
+
+func newPathOrDie(s string) Path {
+	p, err := NewPath(s)
+	if err != nil {
+		panic(err)
+	}
+	return *p
+}
+
+func TestReadSuites(t *testing.T) {
+	path := newPathOrDie("gs://bucket/object")
+	cases := []struct {
+		name         string
+		ctx          context.Context
+		interrogator fakeInterrogator
+		expected     *junit.Suites
+		checkErr     error
+	}{
+		{
+			name: "basically works",
+			interrogator: fakeInterrogator{
+				path: {
+					data: `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`,
+				},
+			},
+			expected: &junit.Suites{
+				XMLName: xml.Name{Local: "testsuites"},
+				Suites: []junit.Suite{
+					{
+						XMLName: xml.Name{Local: "testsuite"},
+						Results: []junit.Result{
+							{
+								Name: "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "not found returns not found error",
+			checkErr: storage.ErrObjectNotExist,
+		},
+		{
+			name: "invalid junit returns error",
+			interrogator: fakeInterrogator{
+				path: {data: `<wrong><type></type></wrong>`},
+			},
+		},
+		{
+			name: "read error returns error",
+			interrogator: fakeInterrogator{
+				path: {
+					read: errors.New("injected read error"),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := readSuites(tc.ctx, tc.interrogator, path)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("readSuites(): unexpected error: %v", err)
+				} else if tc.checkErr != nil && !errors.Is(err, tc.checkErr) {
+					t.Errorf("readSuites(): bad error %v, wanted %v", err, tc.checkErr)
+				}
+			case tc.expected == nil:
+				t.Error("readSuites(): failed to receive an error")
+			default:
+				if !reflect.DeepEqual(actual, tc.expected) {
+					t.Errorf("readSuites(): got %v, want %v", actual, tc.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestArtifacts(t *testing.T) {
+	path := newPathOrDie("gs://bucket/path/")
+	cases := []struct {
+		name     string
+		ctx      context.Context
+		iterator func() Iterator
+		expected []string
+		err      bool
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "cancelled context returns error",
+			iterator: func() Iterator {
+				return &fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{Name: "whatever"},
+						{Name: "stuff"},
+					},
+				}
+			},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+			err: true,
+		},
+		{
+			name: "iteration error returns error",
+			iterator: func() Iterator {
+				return &fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{Name: "hello"},
+						{Name: "boom"},
+						{Name: "world"},
+					},
+					err: 1,
+				}
+			},
+			err: true,
+		},
+		{
+			name: "multiple objects work",
+			iterator: func() Iterator {
+				return &fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{Name: "hello"},
+						{Name: "world"},
+					},
+				}
+			},
+			expected: []string{"hello", "world"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := Build{
+				Path:         path,
+				interrogator: fakeInterrogator{path: {objects: tc.iterator}},
+			}
+			var actual []string
+			ch := make(chan string)
+			var lock sync.Mutex
+			lock.Lock()
+			go func() {
+				defer lock.Unlock()
+				for a := range ch {
+					actual = append(actual, a)
+				}
+			}()
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			err := b.Artifacts(tc.ctx, ch)
+			close(ch)
+			lock.Lock()
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("Artifacts(): unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("Artifacts(): failed to receive an error")
+			default:
+				if !reflect.DeepEqual(actual, tc.expected) {
+					t.Errorf("Artifacts(): got %v, want %v", actual, tc.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestSuites(t *testing.T) {
+	cases := []struct {
+		name      string
+		ctx       context.Context
+		path      Path
+		artifacts map[string]string
+		expected  []SuitesMeta
+		err       bool
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "ignore random file",
+			path: newPathOrDie("gs://where/whatever"),
+			artifacts: map[string]string{
+				"/something/ignore.txt":  "hello",
+				"/something/ignore.json": "{}",
+			},
+		},
+		{
+			name: "support testsuite",
+			path: newPathOrDie("gs://where/whatever"),
+			artifacts: map[string]string{
+				"/something/junit.xml": `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`,
+			},
+			expected: []SuitesMeta{
+				{
+					Suites: junit.Suites{
+						XMLName: xml.Name{Local: "testsuites"},
+						Suites: []junit.Suite{
+							{
+								XMLName: xml.Name{Local: "testsuite"},
+								Results: []junit.Result{
+									{
+										Name: "foo",
+									},
+								},
+							},
+						},
+					},
+					Metadata: parseSuitesMeta("/something/junit.xml"),
+					Path:     "gs://where/something/junit.xml",
+				},
+			},
+		},
+		{
+			name: "support testsuites",
+			path: newPathOrDie("gs://where/whatever"),
+			artifacts: map[string]string{
+				"/something/junit.xml": `<testsuite><testcase name="foo"/></testsuite>`,
+			},
+			expected: []SuitesMeta{
+				{
+					Suites: junit.Suites{
+						Suites: []junit.Suite{
+							{
+								XMLName: xml.Name{Local: "testsuite"},
+								Results: []junit.Result{
+									{
+										Name: "foo",
+									},
+								},
+							},
+						},
+					},
+					Metadata: parseSuitesMeta("/something/junit.xml"),
+					Path:     "gs://where/something/junit.xml",
+				},
+			},
+		},
+		{
+			name: "capture metadata",
+			path: newPathOrDie("gs://where/whatever"),
+			artifacts: map[string]string{
+				"/something/junit_foo-context_20200708-1234_88.xml": `<testsuite><testcase name="foo"/></testsuite>`,
+				"/something/junit_bar-context_20211234-0808_33.xml": `<testsuite><testcase name="bar"/></testsuite>`,
+			},
+			expected: []SuitesMeta{
+				{
+					Suites: junit.Suites{
+						Suites: []junit.Suite{
+							{
+								XMLName: xml.Name{Local: "testsuite"},
+								Results: []junit.Result{
+									{
+										Name: "foo",
+									},
+								},
+							},
+						},
+					},
+					Metadata: parseSuitesMeta("/something/junit_foo-context_20200708-1234_88.xml"),
+					Path:     "gs://where/something/junit_foo-context_20200708-1234_88.xml",
+				},
+				{
+					Suites: junit.Suites{
+						Suites: []junit.Suite{
+							{
+								XMLName: xml.Name{Local: "testsuite"},
+								Results: []junit.Result{
+									{
+										Name: "bar",
+									},
+								},
+							},
+						},
+					},
+					Metadata: parseSuitesMeta("/something/junit_bar-context_20211234-0808_33.xml"),
+					Path:     "gs://where/something/junit_bar-context_20211234-0808_33.xml",
+				},
+			},
+		},
+		{
+			name: "read suites error returns errors",
+			path: newPathOrDie("gs://where/whatever"),
+			artifacts: map[string]string{
+				"/something/junit.xml": `this is invalid json`,
+			},
+			err: true,
+		},
+		{
+			name: "interrupted context returns error",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+			path: newPathOrDie("gs://where/whatever"),
+			artifacts: map[string]string{
+				"/something/junit_foo-context_20200708-1234_88.xml": `<testsuite><testcase name="foo"/></testsuite>`,
+			},
+			err: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fi := fakeInterrogator{}
+			b := Build{
+				Path:         tc.path,
+				interrogator: fi,
+			}
+			for s, data := range tc.artifacts {
+				fi[resolveOrDie(b.Path, s)] = fakeObject{data: data}
+			}
+
+			parent, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.ctx == nil {
+				tc.ctx = parent
+			}
+			arts := make(chan string)
+			go func() {
+				defer close(arts)
+				for a := range tc.artifacts {
+					select {
+					case arts <- a:
+					case <-parent.Done():
+						return
+					}
+				}
+			}()
+
+			var actual []SuitesMeta
+			suites := make(chan SuitesMeta)
+			var lock sync.Mutex
+			lock.Lock()
+			go func() {
+				defer lock.Unlock()
+				for sm := range suites {
+					actual = append(actual, sm)
+				}
+			}()
+
+			err := b.Suites(tc.ctx, arts, suites)
+			close(suites)
+			lock.Lock() // ensure actual is up to date
+			defer lock.Unlock()
+			// actual items appended in random order, so sort for consistency.
+			sort.SliceStable(actual, func(i, j int) bool {
+				return actual[i].Path < actual[j].Path
+			})
+			sort.SliceStable(tc.expected, func(i, j int) bool {
+				return tc.expected[i].Path < tc.expected[j].Path
+			})
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("Suites() unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("Suites() failed to receive expected error")
+			default:
+				if !reflect.DeepEqual(actual, tc.expected) {
+					t.Errorf("Suites() got %#v, want %#v", actual, tc.expected)
+				}
+			}
+		})
+	}
+}
