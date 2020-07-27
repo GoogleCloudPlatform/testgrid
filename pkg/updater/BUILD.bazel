@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "gcs.go",
         "inflate.go",
         "updater.go",
     ],
@@ -27,13 +28,16 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "gcs_test.go",
         "inflate_test.go",
         "updater_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
+        "//metadata:go_default_library",
         "//metadata/junit:go_default_library",
         "//pb/state:go_default_library",
+        "//util/gcs:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
         "@io_bazel_rules_go//proto/wkt:timestamp_go_proto",
     ],
