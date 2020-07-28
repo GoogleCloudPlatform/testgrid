@@ -260,18 +260,18 @@ func link(name, other string) storage.ObjectAttrs {
 	}
 }
 
-type fakeInterrogator map[Path]fakeObject
+type fakeClient map[Path]fakeObject
 
-func (fi fakeInterrogator) Objects(_ context.Context, path Path, _ string) Iterator {
-	f := fi[path].objects
+func (fc fakeClient) Objects(_ context.Context, path Path, _ string) Iterator {
+	f := fc[path].objects
 	if f == nil {
 		return &fakeIterator{}
 	}
 	return f()
 }
 
-func (fi fakeInterrogator) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
-	o, ok := fi[path]
+func (fc fakeClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+	o, ok := fc[path]
 	if !ok {
 		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
 	}
@@ -357,13 +357,13 @@ func TestStarted(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fi := fakeInterrogator{}
+			fc := fakeClient{}
 			if tc.object != nil {
-				fi[started] = *tc.object
+				fc[started] = *tc.object
 			}
 			b := Build{
-				Path:         path,
-				interrogator: fi,
+				Path:   path,
+				client: fc,
 			}
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
@@ -453,13 +453,13 @@ func TestFinished(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fi := fakeInterrogator{}
+			fc := fakeClient{}
 			if tc.object != nil {
-				fi[finished] = *tc.object
+				fc[finished] = *tc.object
 			}
 			b := Build{
-				Path:         path,
-				interrogator: fi,
+				Path:   path,
+				client: fc,
 			}
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
@@ -501,15 +501,15 @@ func newPathOrDie(s string) Path {
 func TestReadSuites(t *testing.T) {
 	path := newPathOrDie("gs://bucket/object")
 	cases := []struct {
-		name         string
-		ctx          context.Context
-		interrogator fakeInterrogator
-		expected     *junit.Suites
-		checkErr     error
+		name     string
+		ctx      context.Context
+		client   fakeClient
+		expected *junit.Suites
+		checkErr error
 	}{
 		{
 			name: "basically works",
-			interrogator: fakeInterrogator{
+			client: fakeClient{
 				path: {
 					data: `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`,
 				},
@@ -534,13 +534,13 @@ func TestReadSuites(t *testing.T) {
 		},
 		{
 			name: "invalid junit returns error",
-			interrogator: fakeInterrogator{
+			client: fakeClient{
 				path: {data: `<wrong><type></type></wrong>`},
 			},
 		},
 		{
 			name: "read error returns error",
-			interrogator: fakeInterrogator{
+			client: fakeClient{
 				path: {
 					read: errors.New("injected read error"),
 				},
@@ -550,7 +550,7 @@ func TestReadSuites(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := readSuites(tc.ctx, tc.interrogator, path)
+			actual, err := readSuites(tc.ctx, tc.client, path)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
@@ -629,8 +629,8 @@ func TestArtifacts(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			b := Build{
-				Path:         path,
-				interrogator: fakeInterrogator{path: {objects: tc.iterator}},
+				Path:   path,
+				client: fakeClient{path: {objects: tc.iterator}},
 			}
 			var actual []string
 			ch := make(chan string)
@@ -802,13 +802,13 @@ func TestSuites(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fi := fakeInterrogator{}
+			fc := fakeClient{}
 			b := Build{
-				Path:         tc.path,
-				interrogator: fi,
+				Path:   tc.path,
+				client: fc,
 			}
 			for s, data := range tc.artifacts {
-				fi[resolveOrDie(b.Path, s)] = fakeObject{data: data}
+				fc[resolveOrDie(b.Path, s)] = fakeObject{data: data}
 			}
 
 			parent, cancel := context.WithCancel(context.Background())
