@@ -33,6 +33,7 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
+	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
 
@@ -283,31 +284,199 @@ func (fi fakeInterrogator) Open(ctx context.Context, path Path) (io.ReadCloser, 
 	}), nil
 }
 
-// TODO(fejta): TestStarted
 func TestStarted(t *testing.T) {
+	path := newPathOrDie("gs://bucket/path/")
+	started := resolveOrDie(path, "started.json")
 	cases := []struct {
-		name string
+		name     string
+		ctx      context.Context
+		object   *fakeObject
+		expected *Started
+		checkErr error
 	}{
-		{},
+		{
+			name:     "basically works",
+			object:   &fakeObject{data: "{}"},
+			expected: &Started{},
+		},
+		{
+			name:   "canceled context returns error",
+			object: &fakeObject{},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+		},
+		{
+			name: "all fields parsed",
+			object: &fakeObject{
+				data: `{
+                    "timestamp": 1234,
+                    "node": "machine",
+                    "pull": "your leg",
+                    "repos": {
+                        "main": "deadbeef"
+                    },
+                    "repo-commit": "11111",
+                    "metadata": {
+                        "version": "fun",
+                        "float": 1.2,
+                        "object": {"yes": true}
+                    }
+                }`,
+			},
+			expected: &Started{
+				Started: metadata.Started{
+					Timestamp: 1234,
+					Node:      "machine",
+					Pull:      "your leg",
+					Repos: map[string]string{
+						"main": "deadbeef",
+					},
+					RepoCommit: "11111",
+					Metadata: metadata.Metadata{
+						"version": "fun",
+						"float":   1.2,
+						"object": map[string]interface{}{
+							"yes": true,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "missing object means pending",
+			expected: &Started{Pending: true},
+		},
+		{
+			name:   "read error returns an error",
+			object: &fakeObject{read: errors.New("injected read error")},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			fi := fakeInterrogator{}
+			if tc.object != nil {
+				fi[started] = *tc.object
+			}
+			b := Build{
+				Path:         path,
+				interrogator: fi,
+			}
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+			actual, err := b.Started(ctx)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("Started(): unexpected error: %v", err)
+				}
+			default:
+				if !reflect.DeepEqual(actual, tc.expected) {
+					t.Errorf("Started(): got %v, want %v", actual, tc.expected)
+				}
+			}
 
 		})
 	}
 }
 
-// TODO(fejta): TestFinished
 func TestFinished(t *testing.T) {
+	yes := true
+	path := newPathOrDie("gs://bucket/path/")
+	finished := resolveOrDie(path, "finished.json")
 	cases := []struct {
-		name string
+		name     string
+		ctx      context.Context
+		object   *fakeObject
+		expected *Finished
+		checkErr error
 	}{
-		{},
+		{
+			name:     "basically works",
+			object:   &fakeObject{data: "{}"},
+			expected: &Finished{},
+		},
+		{
+			name:   "canceled context returns error",
+			object: &fakeObject{},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+		},
+		{
+			name: "all fields parsed",
+			object: &fakeObject{
+				data: `{
+                    "timestamp": 1234,
+                    "passed": true,
+                    "metadata": {
+                        "version": "fun",
+                        "float": 1.2,
+                        "object": {"yes": true}
+                    }
+                }`,
+			},
+			expected: &Finished{
+				Finished: metadata.Finished{
+					Timestamp: func() *int64 {
+						var out int64 = 1234
+						return &out
+					}(),
+					Passed: &yes,
+					Metadata: metadata.Metadata{
+						"version": "fun",
+						"float":   1.2,
+						"object": map[string]interface{}{
+							"yes": true,
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "missing object means running",
+			expected: &Finished{Running: true},
+		},
+		{
+			name:   "read error returns an error",
+			object: &fakeObject{read: errors.New("injected read error")},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			fi := fakeInterrogator{}
+			if tc.object != nil {
+				fi[finished] = *tc.object
+			}
+			b := Build{
+				Path:         path,
+				interrogator: fi,
+			}
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+			actual, err := b.Finished(ctx)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("Finished(): unexpected error: %v", err)
+				}
+			default:
+				if !reflect.DeepEqual(actual, tc.expected) {
+					t.Errorf("Finished(): got %v, want %v", actual, tc.expected)
+				}
+			}
 
 		})
 	}
