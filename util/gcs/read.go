@@ -19,12 +19,15 @@ package gcs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
@@ -48,16 +51,26 @@ type Finished struct {
 	Running bool
 }
 
+// An iterator returns the attributes of the listed objects or an iterator.Done error.
+type Iterator interface {
+	Next() (*storage.ObjectAttrs, error)
+}
+
+// An interrogator lists objects and opens them for reading.
+type Interrogator interface {
+	Objects(ctx context.Context, prefix Path, delimiter string) Iterator
+	Open(ctx context.Context, path Path) (io.ReadCloser, error)
+}
+
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
-	Bucket         *storage.BucketHandle
-	Prefix         string
-	BucketPath     string
+	interrogator   Interrogator
+	Path           Path
 	originalPrefix string
 }
 
 func (build Build) String() string {
-	return "gs://" + build.BucketPath + "/" + build.Prefix
+	return "gs://" + build.Path.String()
 }
 
 // Builds is a slice of builds.
@@ -73,60 +86,59 @@ func (b Builds) Less(i, j int) bool {
 }
 
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
-func ListBuilds(parent context.Context, client *storage.Client, path Path) (Builds, error) {
+func ListBuilds(parent context.Context, interrogator Interrogator, path Path) (Builds, error) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	p := path.Object()
-	if !strings.HasSuffix(p, "/") {
-		p += "/"
-	}
-	bkt := client.Bucket(path.Bucket())
-	it := bkt.Objects(ctx, &storage.Query{
-		Delimiter: "/",
-		Prefix:    p,
-	})
+	it := interrogator.Objects(ctx, path, "/")
 	var all Builds
 	for {
 		objAttrs, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to list objects: %v", err)
+			return nil, fmt.Errorf("list objects: %w", err)
 		}
 
-		// if this is a link under directory, resolve the build value
+		// if this is a link under directory/, resolve the build value
+		// This is used for PR type jobs which we store in a PR specific prefix.
+		// The directory prefix contains a link header to the result
+		// under the PR specific prefix.
 		if link := objAttrs.Metadata["x-goog-meta-link"]; len(link) > 0 {
 			// links created by bootstrap.py have a space
 			link = strings.TrimSpace(link)
 			u, err := url.Parse(link)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse link for key %s: %v", objAttrs.Name, err)
+				return nil, fmt.Errorf("parse %s link: %v", objAttrs.Name, err)
 			}
 			if !strings.HasSuffix(u.Path, "/") {
 				u.Path += "/"
 			}
 			var linkPath Path
 			if err := linkPath.SetURL(u); err != nil {
-				return nil, fmt.Errorf("could not make GCS path for key %s: %v", objAttrs.Name, err)
+				return nil, fmt.Errorf("bad %s link path %s: %w", objAttrs.Name, u, err)
 			}
 			all = append(all, Build{
-				Bucket:         bkt,
-				Prefix:         linkPath.Object(),
-				BucketPath:     path.Bucket(),
+				interrogator:   interrogator,
+				Path:           linkPath,
 				originalPrefix: objAttrs.Name,
 			})
 			continue
 		}
 
-		if len(objAttrs.Prefix) == 0 {
-			continue
+		if objAttrs.Prefix == "" {
+			continue // not a symlink to a directory
+		}
+
+		loc := "gs://" + path.Bucket() + "/" + objAttrs.Prefix
+		path, err := NewPath(loc)
+		if err != nil {
+			return nil, fmt.Errorf("bad path %q: %w", loc, err)
 		}
 
 		all = append(all, Build{
-			Bucket:         bkt,
-			Prefix:         objAttrs.Prefix,
-			BucketPath:     path.Bucket(),
+			interrogator:   interrogator,
+			Path:           *path,
 			originalPrefix: objAttrs.Prefix,
 		})
 	}
@@ -147,7 +159,7 @@ func dropPrefix(name string) string {
 
 // parseSuitesMeta returns the metadata for this junit file (nil for a non-junit file).
 //
-// Expected format: junit_context_20180102-1256-07.xml
+// Expected format: junit_context_20180102-1256_07.xml
 // Results in {
 //   "Context": "context",
 //   "Timestamp": "20180102-1256",
@@ -170,16 +182,16 @@ func parseSuitesMeta(name string) map[string]string {
 type readOpener func() (io.ReadCloser, error)
 
 // gcsOpener adapts o.NewReader()'s return type to io.ReadCloser
-func gcsOpener(ctx context.Context, o *storage.ObjectHandle) readOpener {
+func gcsOpener(ctx context.Context, i Interrogator, p Path) readOpener {
 	return func() (io.ReadCloser, error) {
-		return o.NewReader(ctx)
+		return i.Open(ctx, p)
 	}
 }
 
 // readJSON will decode the json object stored in GCS.
 func readJSON(open readOpener, i interface{}) error {
 	reader, err := open()
-	if err == storage.ErrObjectNotExist {
+	if errors.Is(err, storage.ErrObjectNotExist) {
 		return err
 	}
 	if err != nil {
@@ -196,49 +208,54 @@ func readJSON(open readOpener, i interface{}) error {
 
 // Started parses the build's started metadata.
 func (build Build) Started(ctx context.Context) (*Started, error) {
-	uri := build.Prefix + "started.json"
+	path, err := build.Path.ResolveReference(&url.URL{Path: "started.json"})
+	if err != nil {
+		return nil, fmt.Errorf("resolve: %w", err)
+	}
 	var started Started
-	err := readJSON(gcsOpener(ctx, build.Bucket.Object(uri)), &started)
-	if err == storage.ErrObjectNotExist {
+	err = readJSON(gcsOpener(ctx, build.interrogator, *path), &started)
+	if errors.Is(err, storage.ErrObjectNotExist) {
 		started.Pending = true
 		return &started, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %v", uri, err)
+		return nil, fmt.Errorf("read: %w", err)
 	}
 	return &started, nil
 }
 
 // Finished parses the build's finished metadata.
 func (build Build) Finished(ctx context.Context) (*Finished, error) {
-	uri := build.Prefix + "finished.json"
+	path, err := build.Path.ResolveReference(&url.URL{Path: "finished.json"})
+	if err != nil {
+		return nil, fmt.Errorf("resolve: %w", err)
+	}
 	var finished Finished
-	err := readJSON(gcsOpener(ctx, build.Bucket.Object(uri)), &finished)
-	if err == storage.ErrObjectNotExist {
+	err = readJSON(gcsOpener(ctx, build.interrogator, *path), &finished)
+	if errors.Is(err, storage.ErrObjectNotExist) {
 		finished.Running = true
 		return &finished, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %v", uri, err)
+		return nil, fmt.Errorf("read: %w", err)
 	}
 	return &finished, nil
 }
 
 // Artifacts writes the object name of all paths under the build's artifact dir to the output channel.
 func (build Build) Artifacts(ctx context.Context, artifacts chan<- string) error {
-	pref := build.Prefix
-	objs := build.Bucket.Objects(ctx, &storage.Query{Prefix: pref})
+	objs := build.interrogator.Objects(ctx, build.Path, "")
 	for {
 		obj, err := objs.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed to list %s: %v", pref, err)
+			return fmt.Errorf("list %s: %w", build.Path, err)
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("interrupted listing %s", pref)
+			return ctx.Err()
 		case artifacts <- obj.Name:
 		}
 	}
@@ -252,11 +269,29 @@ type SuitesMeta struct {
 	Path     string
 }
 
+func readSuites(ctx context.Context, interrogator Interrogator, p Path) (*junit.Suites, error) {
+	r, err := interrogator.Open(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("open: %w", err)
+	}
+	defer r.Close()
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("read: %w", err)
+	}
+	suitesMeta, err := junit.Parse(buf)
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	return &suitesMeta, nil
+}
+
 // Suites takes a channel of artifact names, parses those representing junit suites, writing the result to the suites channel.
 //
 // Note that junit suites are parsed in parallel, so there are no guarantees about suites ordering.
 func (build Build) Suites(parent context.Context, artifacts <-chan string, suites chan<- SuitesMeta) error {
-
+	var wg sync.WaitGroup
+	defer wg.Wait() // ensure all goroutines exit before returning
 	var work int
 
 	ec := make(chan error)
@@ -270,18 +305,33 @@ func (build Build) Suites(parent context.Context, artifacts <-chan string, suite
 		// concurrently parse each file because there may be a lot of them, and
 		// each takes a non-trivial amount of time waiting for the network.
 		work++
+		wg.Add(1)
 		go func(art string, meta map[string]string) {
-			out := SuitesMeta{
-				Metadata: meta,
-				Path:     "gs://" + build.BucketPath + "/" + art,
+			defer wg.Done()
+			if art != "" && art[0] != '/' {
+				art = "/" + art
 			}
-			if err := readJSON(gcsOpener(ctx, build.Bucket.Object(art)), &out.Suites); err != nil {
+			path, err := build.Path.ResolveReference(&url.URL{Path: art})
+			if err != nil {
 				select {
 				case <-ctx.Done():
-				case ec <- fmt.Errorf("open %q: %w", art, err):
+				case ec <- fmt.Errorf("resolve %q: %w", art, err):
 				}
 				return
 			}
+			out := SuitesMeta{
+				Metadata: meta,
+				Path:     path.String(),
+			}
+			s, err := readSuites(ctx, build.interrogator, *path)
+			if err != nil {
+				select {
+				case <-ctx.Done():
+				case ec <- fmt.Errorf("read %s suites: %w", *path, err):
+				}
+				return
+			}
+			out.Suites = *s
 			select {
 			case <-ctx.Done():
 				return
@@ -300,7 +350,9 @@ func (build Build) Suites(parent context.Context, artifacts <-chan string, suite
 		case <-ctx.Done():
 			return fmt.Errorf("timeout: %w", ctx.Err())
 		case err := <-ec:
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
