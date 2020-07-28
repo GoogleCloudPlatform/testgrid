@@ -56,15 +56,15 @@ type Iterator interface {
 	Next() (*storage.ObjectAttrs, error)
 }
 
-// An interrogator lists objects and opens them for reading.
-type Interrogator interface {
+// A client lists objects and opens them for reading.
+type Client interface {
 	Objects(ctx context.Context, prefix Path, delimiter string) Iterator
 	Open(ctx context.Context, path Path) (io.ReadCloser, error)
 }
 
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
-	interrogator   Interrogator
+	client         Client
 	Path           Path
 	originalPrefix string
 }
@@ -86,10 +86,10 @@ func (b Builds) Less(i, j int) bool {
 }
 
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
-func ListBuilds(parent context.Context, interrogator Interrogator, path Path) (Builds, error) {
+func ListBuilds(parent context.Context, client Client, path Path) (Builds, error) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	it := interrogator.Objects(ctx, path, "/")
+	it := client.Objects(ctx, path, "/")
 	var all Builds
 	for {
 		objAttrs, err := it.Next()
@@ -119,7 +119,7 @@ func ListBuilds(parent context.Context, interrogator Interrogator, path Path) (B
 				return nil, fmt.Errorf("bad %s link path %s: %w", objAttrs.Name, u, err)
 			}
 			all = append(all, Build{
-				interrogator:   interrogator,
+				client:         client,
 				Path:           linkPath,
 				originalPrefix: objAttrs.Name,
 			})
@@ -137,7 +137,7 @@ func ListBuilds(parent context.Context, interrogator Interrogator, path Path) (B
 		}
 
 		all = append(all, Build{
-			interrogator:   interrogator,
+			client:         client,
 			Path:           *path,
 			originalPrefix: objAttrs.Prefix,
 		})
@@ -182,7 +182,7 @@ func parseSuitesMeta(name string) map[string]string {
 type readOpener func() (io.ReadCloser, error)
 
 // gcsOpener adapts o.NewReader()'s return type to io.ReadCloser
-func gcsOpener(ctx context.Context, i Interrogator, p Path) readOpener {
+func gcsOpener(ctx context.Context, i Client, p Path) readOpener {
 	return func() (io.ReadCloser, error) {
 		return i.Open(ctx, p)
 	}
@@ -213,7 +213,7 @@ func (build Build) Started(ctx context.Context) (*Started, error) {
 		return nil, fmt.Errorf("resolve: %w", err)
 	}
 	var started Started
-	err = readJSON(gcsOpener(ctx, build.interrogator, *path), &started)
+	err = readJSON(gcsOpener(ctx, build.client, *path), &started)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		started.Pending = true
 		return &started, nil
@@ -231,7 +231,7 @@ func (build Build) Finished(ctx context.Context) (*Finished, error) {
 		return nil, fmt.Errorf("resolve: %w", err)
 	}
 	var finished Finished
-	err = readJSON(gcsOpener(ctx, build.interrogator, *path), &finished)
+	err = readJSON(gcsOpener(ctx, build.client, *path), &finished)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		finished.Running = true
 		return &finished, nil
@@ -244,7 +244,7 @@ func (build Build) Finished(ctx context.Context) (*Finished, error) {
 
 // Artifacts writes the object name of all paths under the build's artifact dir to the output channel.
 func (build Build) Artifacts(ctx context.Context, artifacts chan<- string) error {
-	objs := build.interrogator.Objects(ctx, build.Path, "")
+	objs := build.client.Objects(ctx, build.Path, "")
 	for {
 		obj, err := objs.Next()
 		if err == iterator.Done {
@@ -269,8 +269,8 @@ type SuitesMeta struct {
 	Path     string
 }
 
-func readSuites(ctx context.Context, interrogator Interrogator, p Path) (*junit.Suites, error) {
-	r, err := interrogator.Open(ctx, p)
+func readSuites(ctx context.Context, client Client, p Path) (*junit.Suites, error) {
+	r, err := client.Open(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
@@ -323,7 +323,7 @@ func (build Build) Suites(parent context.Context, artifacts <-chan string, suite
 				Metadata: meta,
 				Path:     path.String(),
 			}
-			s, err := readSuites(ctx, build.interrogator, *path)
+			s, err := readSuites(ctx, build.client, *path)
 			if err != nil {
 				select {
 				case <-ctx.Done():
