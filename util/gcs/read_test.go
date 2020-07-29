@@ -37,6 +37,111 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
 
+func subdir(prefix string) storage.ObjectAttrs {
+	return storage.ObjectAttrs{Prefix: prefix}
+}
+
+func link(name, other string) storage.ObjectAttrs {
+	return storage.ObjectAttrs{
+		Metadata: map[string]string{"x-goog-meta-link": other},
+		Name:     name,
+	}
+}
+
+func TestListBuilds(t *testing.T) {
+	path := newPathOrDie("gs://bucket/path/to/build/")
+	cases := []struct {
+		name     string
+		iterator fakeIterator
+		expected Builds
+		err      bool
+		ctx      context.Context
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "multiple paths",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					subdir(resolveOrDie(path, "hello").Object()),
+					subdir(resolveOrDie(path, "world").Object()),
+				},
+			},
+			expected: Builds{
+				{
+					Path:           resolveOrDie(path, "world"),
+					originalPrefix: "path/to/build/world",
+				},
+				{
+					Path:           newPathOrDie("gs://bucket/path/to/build/hello"),
+					originalPrefix: resolveOrDie(path, "hello").Object(),
+				},
+			},
+		},
+		{
+			name: "cancelled context returns error",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					subdir(resolveOrDie(path, "hello").Object()),
+					subdir(resolveOrDie(path, "world").Object()),
+				},
+			},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+			err: true,
+		},
+		{
+			name: "iteration error returns error",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					subdir(resolveOrDie(path, "hello").Object()),
+					subdir(resolveOrDie(path, "world").Object()),
+					subdir(resolveOrDie(path, "more").Object()),
+				},
+				err: 1,
+			},
+			err: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fc := fakeClient{
+				path: {
+					objects: func(ctx context.Context) Iterator {
+						tc.iterator.ctx = ctx
+						return &tc.iterator
+					},
+				},
+			}
+			for i := range tc.expected {
+				tc.expected[i].client = fc
+			}
+			ctx := tc.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			actual, err := ListBuilds(ctx, fc, path)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("ListBuilds(): unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("ListBuilds(): failed to receive an error")
+			default:
+				if !reflect.DeepEqual(actual, tc.expected) {
+					t.Errorf("ListBuilds(): got %v, want %v", actual, tc.expected)
+				}
+			}
+		})
+	}
+}
+
 func TestParseSuitesMeta(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -227,9 +332,13 @@ type fakeIterator struct {
 	objects []storage.ObjectAttrs
 	idx     int
 	err     int // must be > 0
+	ctx     context.Context
 }
 
 func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
+	if fi.ctx != nil && fi.ctx.Err() != nil {
+		return nil, fi.ctx.Err()
+	}
 	if fi.idx >= len(fi.objects) {
 		return nil, iterator.Done
 	}
@@ -244,30 +353,19 @@ func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
 
 type fakeObject struct {
 	data    string
-	objects func() Iterator
+	objects func(context.Context) Iterator
 	open    error
 	read    error
 }
 
-func subdir(prefix string) storage.ObjectAttrs {
-	return storage.ObjectAttrs{Prefix: prefix}
-}
-
-func link(name, other string) storage.ObjectAttrs {
-	return storage.ObjectAttrs{
-		Metadata: map[string]string{"x-goog-meta-link": other},
-		Name:     name,
-	}
-}
-
 type fakeClient map[Path]fakeObject
 
-func (fc fakeClient) Objects(_ context.Context, path Path, _ string) Iterator {
+func (fc fakeClient) Objects(ctx context.Context, path Path, _ string) Iterator {
 	f := fc[path].objects
 	if f == nil {
 		return &fakeIterator{}
 	}
-	return f()
+	return f(ctx)
 }
 
 func (fc fakeClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
@@ -574,7 +672,7 @@ func TestArtifacts(t *testing.T) {
 	cases := []struct {
 		name     string
 		ctx      context.Context
-		iterator func() Iterator
+		iterator func(context.Context) Iterator
 		expected []string
 		err      bool
 	}{
@@ -583,12 +681,13 @@ func TestArtifacts(t *testing.T) {
 		},
 		{
 			name: "cancelled context returns error",
-			iterator: func() Iterator {
+			iterator: func(ctx context.Context) Iterator {
 				return &fakeIterator{
 					objects: []storage.ObjectAttrs{
 						{Name: "whatever"},
 						{Name: "stuff"},
 					},
+					ctx: ctx,
 				}
 			},
 			ctx: func() context.Context {
@@ -600,7 +699,7 @@ func TestArtifacts(t *testing.T) {
 		},
 		{
 			name: "iteration error returns error",
-			iterator: func() Iterator {
+			iterator: func(ctx context.Context) Iterator {
 				return &fakeIterator{
 					objects: []storage.ObjectAttrs{
 						{Name: "hello"},
@@ -608,18 +707,20 @@ func TestArtifacts(t *testing.T) {
 						{Name: "world"},
 					},
 					err: 1,
+					ctx: ctx,
 				}
 			},
 			err: true,
 		},
 		{
 			name: "multiple objects work",
-			iterator: func() Iterator {
+			iterator: func(ctx context.Context) Iterator {
 				return &fakeIterator{
 					objects: []storage.ObjectAttrs{
 						{Name: "hello"},
 						{Name: "world"},
 					},
+					ctx: ctx,
 				}
 			},
 			expected: []string{"hello", "world"},
