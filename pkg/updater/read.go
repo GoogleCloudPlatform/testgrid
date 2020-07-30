@@ -1,0 +1,311 @@
+/*
+Copyright 2020 The TestGrid Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package updater
+
+import (
+	"compress/zlib"
+	"context"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"path"
+	"sync"
+	"time"
+
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+
+	"cloud.google.com/go/storage"
+	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
+)
+
+func downloadGrid(ctx context.Context, client *storage.Client, path gcs.Path) (*state.Grid, error) {
+	var g state.Grid
+	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
+	if err != nil && err == storage.ErrObjectNotExist {
+		return &g, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("open: %w", err)
+	}
+	defer r.Close()
+	zr, err := zlib.NewReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("open zlib: %w", err)
+	}
+	pbuf, err := ioutil.ReadAll(zr)
+	if err != nil {
+		return nil, fmt.Errorf("decompress: %w", err)
+	}
+	err = proto.Unmarshal(pbuf, &g)
+	return &g, err
+}
+
+// readColumns will list, download and process builds into inflatedColumns.
+func readColumns(parent context.Context, client gcsClient, group configpb.TestGroup, builds []gcs.Build, max int, dur time.Duration, concurrency int) ([]inflatedColumn, error) {
+	// Spawn build readers
+	if concurrency == 0 {
+		return nil, errors.New("zero readers")
+	}
+
+	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.GcsPrefix)
+
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	var stop time.Time
+	if dur != 0 {
+		stop = time.Now().Add(-dur)
+	}
+	if lb := len(builds); lb > max {
+		log.WithField("total", lb).WithField("max", max).Debug("Truncating")
+		builds = builds[:max]
+	}
+	cols := make([]inflatedColumn, len(builds))
+	log.WithField("duration", dur).Debug("Updating")
+	ec := make(chan error)
+	old := make(chan int)
+
+	// Send build indices to readers
+	indices := make(chan int)
+	go func() {
+		defer close(indices)
+		for i := range builds {
+			select {
+			case <-ctx.Done():
+				return
+			case <-old:
+				return
+			case indices <- i:
+			}
+		}
+	}()
+
+	var heads []string
+	for _, h := range group.ColumnHeader {
+		heads = append(heads, h.String())
+	}
+
+	// Concurrently receive indices and read builds
+	for i := 0; i < concurrency; i++ {
+		nameCfg := makeNameConfig(group.TestNameConfig)
+		go func() {
+			for {
+				var idx int
+				var open bool
+				select {
+				case <-ctx.Done():
+					return
+				case idx, open = <-indices:
+				}
+
+				if !open {
+					select {
+					case <-ctx.Done():
+					case ec <- nil:
+					}
+					return
+				}
+
+				b := builds[idx]
+
+				// use ctx so we finish reading, even if buildCtx is done
+				inner, cancel := context.WithDeadline(ctx, stop)
+				defer cancel()
+				result, err := readResult(inner, client, b)
+				if err != nil {
+					cancel()
+					select {
+					case <-ctx.Done():
+					case ec <- fmt.Errorf("read %s: %w", b, err):
+					}
+					return
+				}
+				id := path.Base(b.Path.Object())
+				col := convertResult(nameCfg, id, heads, *result)
+				cols[idx] = col
+				if int64(col.column.Started) < stop.Unix() {
+					select {
+					case <-ctx.Done():
+						return
+					case old <- idx: // stop emitting new indices.
+						log.WithFields(logrus.Fields{
+							"idx":     idx,
+							"id":      id,
+							"path":    b.Path,
+							"started": int64(col.column.Started / 1000),
+							"stop":    stop.Unix(),
+						}).Debug("Stopped")
+					}
+				}
+			}
+		}()
+	}
+
+	for ; concurrency > 0; concurrency-- {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case err := <-ec:
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return cols, nil
+}
+
+// readResult will download all GCS artifacts in parallel.
+//
+// Specifically download the following files:
+// * started.json
+// * finished.json
+// * any junit.xml files under the artifacts directory.
+func readResult(parent context.Context, client gcsClient, build gcs.Build) (*gcsResult, error) {
+	ctx, cancel := context.WithCancel(parent) // Allows aborting after first error
+	defer cancel()
+	var result gcsResult
+	ec := make(chan error) // Receives errors from anyone
+
+	var work int
+
+	// Download started.json
+	work++
+	go func() {
+		s, err := build.Started(ctx, client)
+		if err != nil {
+			err = fmt.Errorf("started: %w", err)
+		}
+		result.started = *s
+		select {
+		case <-ctx.Done():
+		case ec <- err:
+		}
+	}()
+
+	// Download finished.json
+	work++
+	go func() {
+		f, err := build.Finished(ctx, client)
+		if err != nil {
+			err = fmt.Errorf("finished: %w", err)
+		}
+		result.finished = *f
+
+		select {
+		case <-ctx.Done():
+		case ec <- err:
+		}
+	}()
+
+	// Download suites
+	work++
+	go func() {
+		var err error
+		result.suites, err = readSuites(ctx, client, build)
+		if err != nil {
+			err = fmt.Errorf("suites: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+		case ec <- err:
+		}
+	}()
+
+	for ; work > 0; work-- {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout: %w", ctx.Err())
+		case err := <-ec:
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &result, nil
+}
+
+// readSuites asynchrounously lists and downloads junit.xml files
+func readSuites(parent context.Context, client gcsClient, build gcs.Build) ([]gcs.SuitesMeta, error) {
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	var work int
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	ec := make(chan error)
+	// List artifacts to the artifacts channel
+	artifacts := make(chan string) // Receives names of arifacts
+	work++
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(artifacts) // No more artifacts
+		err := build.Artifacts(ctx, client, artifacts)
+		if err != nil {
+			err = fmt.Errorf("list: %w", err)
+		}
+		select {
+		case ec <- err:
+		case <-ctx.Done():
+		}
+	}()
+
+	// Download each artifact
+	// With parallelism: 60s without: 220s
+	suitesChan := make(chan gcs.SuitesMeta)
+	work++
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(suitesChan) // No more rows
+		err := build.Suites(ctx, client, artifacts, suitesChan)
+		if err != nil {
+			err = fmt.Errorf("download: %w", err)
+		}
+
+		select {
+		case ec <- err:
+		case <-ctx.Done():
+		}
+	}()
+
+	var suites []gcs.SuitesMeta
+	for work > 0 {
+		// Add each downloaded artifact to the returned list.
+
+		// Abort if we get an expired context and/or an error.
+		// Otherwise keep going until the channel closes
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout: %w", ctx.Err())
+		case err := <-ec:
+			if err != nil {
+				return nil, err // already wrapped.
+			}
+			work--
+		case suite, more := <-suitesChan:
+			if !more {
+				return suites, nil
+			}
+			suites = append(suites, suite)
+		}
+	}
+	return suites, nil
+}
