@@ -53,7 +53,7 @@ func TestListBuilds(t *testing.T) {
 	cases := []struct {
 		name     string
 		iterator fakeIterator
-		expected Builds
+		expected []Build
 		err      bool
 		ctx      context.Context
 	}{
@@ -68,7 +68,7 @@ func TestListBuilds(t *testing.T) {
 					subdir(resolveOrDie(path, "world").Object()),
 				},
 			},
-			expected: Builds{
+			expected: []Build{
 				{
 					Path:           resolveOrDie(path, "world"),
 					originalPrefix: "path/to/build/world",
@@ -110,22 +110,12 @@ func TestListBuilds(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fc := fakeClient{
-				path: {
-					objects: func(ctx context.Context) Iterator {
-						tc.iterator.ctx = ctx
-						return &tc.iterator
-					},
-				},
-			}
-			for i := range tc.expected {
-				tc.expected[i].client = fc
-			}
+			fl := fakeLister{path: tc.iterator}
 			ctx := tc.ctx
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			actual, err := ListBuilds(ctx, fc, path)
+			actual, err := ListBuilds(ctx, fl, path)
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -221,6 +211,112 @@ func TestParseSuitesMeta(t *testing.T) {
 
 }
 
+func TestReadJSON(t *testing.T) {
+	cases := []struct {
+		name     string
+		obj      *fakeObject
+		actual   interface{}
+		expected interface{}
+		is       error
+	}{
+		{
+			name:     "basically works",
+			obj:      &fakeObject{data: "{}"},
+			actual:   &Started{},
+			expected: &Started{},
+		},
+		{
+			name: "read a json object",
+			obj:  &fakeObject{data: "{\"hello\": 5}"},
+			actual: &struct {
+				Hello int `json:"hello"`
+			}{},
+			expected: &struct {
+				Hello int `json:"hello"`
+			}{5},
+		},
+		{
+			name: "ErrObjectNotExist on open returns an ErrObjectNotExist error",
+			is:   storage.ErrObjectNotExist,
+		},
+		{
+			name: "other open errors also error",
+			obj:  &fakeObject{openErr: errors.New("injected open error")},
+		},
+		{
+			name: "read error errors",
+			obj: &fakeObject{
+				data:    "{}",
+				readErr: errors.New("injected read error"),
+			},
+		},
+		{
+			name: "close error errors",
+			obj: &fakeObject{
+				data:     "{}",
+				closeErr: errors.New("injected close error"),
+			},
+		},
+		{
+			name: "invalid json errors",
+			obj: &fakeObject{
+				data:     "{\"json\": \"hates trailing commas\",}",
+				closeErr: errors.New("injected close error"),
+			},
+		},
+	}
+
+	path := newPathOrDie("gs://bucket/path/to/something")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fo := fakeOpener{}
+			if tc.obj != nil {
+				fo[path] = *tc.obj
+			}
+			err := readJSON(context.Background(), fo, path, tc.actual)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if tc.is != nil && !errors.Is(err, tc.is) {
+					t.Errorf("bad error: %v, wanted %v", err, tc.is)
+				}
+			case tc.expected == nil:
+				t.Error("failed to receive expected error")
+			default:
+				if !reflect.DeepEqual(tc.actual, tc.expected) {
+					t.Errorf("got %v, want %v", tc.actual, tc.expected)
+				}
+			}
+		})
+	}
+}
+
+type fakeOpener map[Path]fakeObject
+
+func (fo fakeOpener) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+	o, ok := fo[path]
+	if !ok {
+		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
+	}
+	if o.openErr != nil {
+		return nil, o.openErr
+	}
+	return ioutil.NopCloser(&fakeReader{
+		buf:      bytes.NewBufferString(o.data),
+		readErr:  o.readErr,
+		closeErr: o.closeErr,
+	}), nil
+}
+
+type fakeObject struct {
+	data     string
+	openErr  error
+	readErr  error
+	closeErr error
+}
+
 type fakeReader struct {
 	buf      *bytes.Buffer
 	readErr  error
@@ -243,89 +339,12 @@ func (fr *fakeReader) Close() error {
 	return nil
 }
 
-func TestReadJSON(t *testing.T) {
-	cases := []struct {
-		name     string
-		reader   fakeReader
-		openErr  error
-		actual   interface{}
-		expected interface{}
-		is       error
-	}{
-		{
-			name:     "basically works",
-			reader:   fakeReader{buf: bytes.NewBufferString("{}")},
-			actual:   &Started{},
-			expected: &Started{},
-		},
-		{
-			name:   "read a json object",
-			reader: fakeReader{buf: bytes.NewBufferString("{\"hello\": 5}")},
-			actual: &struct {
-				Hello int `json:"hello"`
-			}{},
-			expected: &struct {
-				Hello int `json:"hello"`
-			}{5},
-		},
-		{
-			name:    "ErrObjectNotExist on open returns an ErrObjectNotExist error",
-			openErr: storage.ErrObjectNotExist,
-			is:      storage.ErrObjectNotExist,
-		},
-		{
-			name:    "other open errors also error",
-			openErr: errors.New("injected open error"),
-		},
-		{
-			name: "read error errors",
-			reader: fakeReader{
-				buf:     bytes.NewBufferString("{}"),
-				readErr: errors.New("injected read error"),
-			},
-		},
-		{
-			name: "close error errors",
-			reader: fakeReader{
-				buf:      bytes.NewBufferString("{}"),
-				closeErr: errors.New("injected close error"),
-			},
-		},
-		{
-			name: "invalid json errors",
-			reader: fakeReader{
-				buf:      bytes.NewBufferString("{\"json\": \"hates trailing commas\",}"),
-				closeErr: errors.New("injected close error"),
-			},
-		},
-	}
+type fakeLister map[Path]fakeIterator
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			fakeOpen := func() (io.ReadCloser, error) {
-				if tc.openErr != nil {
-					return nil, tc.openErr
-				}
-				return &tc.reader, nil
-			}
-			err := readJSON(fakeOpen, tc.actual)
-			switch {
-			case err != nil:
-				if tc.expected != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
-				if tc.is != nil && !errors.Is(err, tc.is) {
-					t.Errorf("bad error: %v, wanted %v", err, tc.is)
-				}
-			case tc.expected == nil:
-				t.Error("failed to receive expected error")
-			default:
-				if !reflect.DeepEqual(tc.actual, tc.expected) {
-					t.Errorf("got %v, want %v", tc.actual, tc.expected)
-				}
-			}
-		})
-	}
+func (fl fakeLister) Objects(ctx context.Context, path Path, _ string) Iterator {
+	f := fl[path]
+	f.ctx = ctx
+	return &f
 }
 
 type fakeIterator struct {
@@ -336,7 +355,7 @@ type fakeIterator struct {
 }
 
 func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
-	if fi.ctx != nil && fi.ctx.Err() != nil {
+	if fi.ctx.Err() != nil {
 		return nil, fi.ctx.Err()
 	}
 	if fi.idx >= len(fi.objects) {
@@ -349,37 +368,6 @@ func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
 	o := fi.objects[fi.idx]
 	fi.idx++
 	return &o, nil
-}
-
-type fakeObject struct {
-	data    string
-	objects func(context.Context) Iterator
-	open    error
-	read    error
-}
-
-type fakeClient map[Path]fakeObject
-
-func (fc fakeClient) Objects(ctx context.Context, path Path, _ string) Iterator {
-	f := fc[path].objects
-	if f == nil {
-		return &fakeIterator{}
-	}
-	return f(ctx)
-}
-
-func (fc fakeClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
-	o, ok := fc[path]
-	if !ok {
-		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
-	}
-	if o.open != nil {
-		return nil, o.open
-	}
-	return ioutil.NopCloser(&fakeReader{
-		buf:     bytes.NewBufferString(o.data),
-		readErr: o.read,
-	}), nil
 }
 
 func TestStarted(t *testing.T) {
@@ -449,26 +437,23 @@ func TestStarted(t *testing.T) {
 		},
 		{
 			name:   "read error returns an error",
-			object: &fakeObject{read: errors.New("injected read error")},
+			object: &fakeObject{readErr: errors.New("injected read error")},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fc := fakeClient{}
+			fo := fakeOpener{}
 			if tc.object != nil {
-				fc[started] = *tc.object
+				fo[started] = *tc.object
 			}
-			b := Build{
-				Path:   path,
-				client: fc,
-			}
+			b := Build{Path: path}
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
 			}
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
-			actual, err := b.Started(ctx)
+			actual, err := b.Started(ctx, fo)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
@@ -545,26 +530,23 @@ func TestFinished(t *testing.T) {
 		},
 		{
 			name:   "read error returns an error",
-			object: &fakeObject{read: errors.New("injected read error")},
+			object: &fakeObject{readErr: errors.New("injected read error")},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fc := fakeClient{}
+			fo := fakeOpener{}
 			if tc.object != nil {
-				fc[finished] = *tc.object
+				fo[finished] = *tc.object
 			}
-			b := Build{
-				Path:   path,
-				client: fc,
-			}
+			b := Build{Path: path}
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
 			}
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
-			actual, err := b.Finished(ctx)
+			actual, err := b.Finished(ctx, fo)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
@@ -601,13 +583,13 @@ func TestReadSuites(t *testing.T) {
 	cases := []struct {
 		name     string
 		ctx      context.Context
-		client   fakeClient
+		opener   fakeOpener
 		expected *junit.Suites
 		checkErr error
 	}{
 		{
 			name: "basically works",
-			client: fakeClient{
+			opener: fakeOpener{
 				path: {
 					data: `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`,
 				},
@@ -632,15 +614,15 @@ func TestReadSuites(t *testing.T) {
 		},
 		{
 			name: "invalid junit returns error",
-			client: fakeClient{
+			opener: fakeOpener{
 				path: {data: `<wrong><type></type></wrong>`},
 			},
 		},
 		{
 			name: "read error returns error",
-			client: fakeClient{
+			opener: fakeOpener{
 				path: {
-					read: errors.New("injected read error"),
+					readErr: errors.New("injected read error"),
 				},
 			},
 		},
@@ -648,7 +630,7 @@ func TestReadSuites(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := readSuites(tc.ctx, tc.client, path)
+			actual, err := readSuites(tc.ctx, tc.opener, path)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
@@ -672,7 +654,7 @@ func TestArtifacts(t *testing.T) {
 	cases := []struct {
 		name     string
 		ctx      context.Context
-		iterator func(context.Context) Iterator
+		iterator fakeIterator
 		expected []string
 		err      bool
 	}{
@@ -681,14 +663,11 @@ func TestArtifacts(t *testing.T) {
 		},
 		{
 			name: "cancelled context returns error",
-			iterator: func(ctx context.Context) Iterator {
-				return &fakeIterator{
-					objects: []storage.ObjectAttrs{
-						{Name: "whatever"},
-						{Name: "stuff"},
-					},
-					ctx: ctx,
-				}
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					{Name: "whatever"},
+					{Name: "stuff"},
+				},
 			},
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
@@ -699,29 +678,23 @@ func TestArtifacts(t *testing.T) {
 		},
 		{
 			name: "iteration error returns error",
-			iterator: func(ctx context.Context) Iterator {
-				return &fakeIterator{
-					objects: []storage.ObjectAttrs{
-						{Name: "hello"},
-						{Name: "boom"},
-						{Name: "world"},
-					},
-					err: 1,
-					ctx: ctx,
-				}
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					{Name: "hello"},
+					{Name: "boom"},
+					{Name: "world"},
+				},
+				err: 1,
 			},
 			err: true,
 		},
 		{
 			name: "multiple objects work",
-			iterator: func(ctx context.Context) Iterator {
-				return &fakeIterator{
-					objects: []storage.ObjectAttrs{
-						{Name: "hello"},
-						{Name: "world"},
-					},
-					ctx: ctx,
-				}
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					{Name: "hello"},
+					{Name: "world"},
+				},
 			},
 			expected: []string{"hello", "world"},
 		},
@@ -730,8 +703,7 @@ func TestArtifacts(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			b := Build{
-				Path:   path,
-				client: fakeClient{path: {objects: tc.iterator}},
+				Path: path,
 			}
 			var actual []string
 			ch := make(chan string)
@@ -746,7 +718,8 @@ func TestArtifacts(t *testing.T) {
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
 			}
-			err := b.Artifacts(tc.ctx, ch)
+			fl := fakeLister{path: tc.iterator}
+			err := b.Artifacts(tc.ctx, fl, ch)
 			close(ch)
 			lock.Lock()
 			switch {
@@ -903,13 +876,12 @@ func TestSuites(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fc := fakeClient{}
+			fo := fakeOpener{}
 			b := Build{
-				Path:   tc.path,
-				client: fc,
+				Path: tc.path,
 			}
 			for s, data := range tc.artifacts {
-				fc[resolveOrDie(b.Path, s)] = fakeObject{data: data}
+				fo[resolveOrDie(b.Path, s)] = fakeObject{data: data}
 			}
 
 			parent, cancel := context.WithCancel(context.Background())
@@ -940,7 +912,7 @@ func TestSuites(t *testing.T) {
 				}
 			}()
 
-			err := b.Suites(tc.ctx, arts, suites)
+			err := b.Suites(tc.ctx, fo, arts, suites)
 			close(suites)
 			lock.Lock() // ensure actual is up to date
 			defer lock.Unlock()

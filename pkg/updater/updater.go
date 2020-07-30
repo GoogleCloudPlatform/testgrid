@@ -49,9 +49,6 @@ import (
 // Build holds data to builds stored in GCS.
 type Build = gcs.Build
 
-// Builds holds a slice of builds, which will sort naturally (aka 2 < 10).
-type Builds = gcs.Builds
-
 // testGroupPath() returns the path to a test_group proto given this proto
 func testGroupPath(g gcs.Path, name string) (*gcs.Path, error) {
 	u, err := url.Parse(name)
@@ -458,8 +455,13 @@ func stamp(col *state.Column) *timestamp.Timestamp {
 	}
 }
 
+type gcsClient interface {
+	gcs.Lister
+	gcs.Opener
+}
+
 // readBuild asynchronously downloads the files in build from gcs and converts them into a build.
-func readBuild(parent context.Context, build Build, timeout time.Duration) (*Column, error) {
+func readBuild(parent context.Context, client gcsClient, build Build, timeout time.Duration) (*Column, error) {
 	var wg sync.WaitGroup                               // Each subtask does wg.Add(1), then we wg.Wait() for them to finish
 	ctx, cancel := context.WithTimeout(parent, timeout) // Allows aborting after first error
 	defer cancel()
@@ -471,7 +473,7 @@ func readBuild(parent context.Context, build Build, timeout time.Duration) (*Col
 	go func() {
 		defer wg.Done()
 		defer close(sc)
-		started, err := build.Started(ctx)
+		started, err := build.Started(ctx, client)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -491,7 +493,7 @@ func readBuild(parent context.Context, build Build, timeout time.Duration) (*Col
 	go func() {
 		defer wg.Done()
 		defer close(fc)
-		finished, err := build.Finished(ctx)
+		finished, err := build.Finished(ctx, client)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -511,7 +513,7 @@ func readBuild(parent context.Context, build Build, timeout time.Duration) (*Col
 	go func() {
 		defer wg.Done()
 		defer close(artifacts) // No more artifacts
-		if err := build.Artifacts(ctx, artifacts); err != nil {
+		if err := build.Artifacts(ctx, client, artifacts); err != nil {
 			select {
 			case <-ctx.Done():
 			case ec <- err:
@@ -526,7 +528,7 @@ func readBuild(parent context.Context, build Build, timeout time.Duration) (*Col
 	go func() {
 		defer wg.Done()
 		defer close(suitesChan) // No more rows
-		if err := build.Suites(ctx, artifacts, suitesChan); err != nil {
+		if err := build.Suites(ctx, client, artifacts, suitesChan); err != nil {
 			select {
 			case <-ctx.Done():
 			case ec <- err:
@@ -646,17 +648,8 @@ func Headers(group configpb.TestGroup) []string {
 	return extra
 }
 
-// Rows is a slice of Row pointers
-type Rows []*state.Row
-
-func (r Rows) Len() int      { return len(r) }
-func (r Rows) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
-func (r Rows) Less(i, j int) bool {
-	return sortorder.NaturalLess(r[i].Name, r[j].Name)
-}
-
 // readBuilds will asynchronously construct a Grid for the group out of the specified builds.
-func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds, max int, dur time.Duration, concurrency int, timeout time.Duration) (*state.Grid, error) {
+func readBuilds(parent context.Context, client gcsClient, group configpb.TestGroup, builds []Build, max int, dur time.Duration, concurrency int, timeout time.Duration) (*state.Grid, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, fmt.Errorf("zero readers for %s", group.Name)
@@ -714,7 +707,7 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 					b := builds[i]
 
 					// use ctx so we finish reading, even if buildCtx is done
-					c, err := readBuild(ctx, b, timeout)
+					c, err := readBuild(ctx, client, b, timeout)
 					if err != nil {
 						select {
 						case <-buildCtx.Done():
@@ -795,7 +788,9 @@ func readBuilds(parent context.Context, group configpb.TestGroup, builds Builds,
 			break // Just process the first result < stop.Unix()
 		}
 	}
-	sort.Stable(Rows(grid.Rows))
+	sort.SliceStable(grid.Rows, func(i, j int) bool {
+		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
+	})
 	return grid, nil
 }
 
@@ -934,7 +929,7 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 		dur = Days(7)
 	}
 	const maxCols = 50
-	grid, err := readBuilds(ctx, tg, builds, maxCols, dur, concurrency, buildTimeout)
+	grid, err := readBuilds(ctx, interrogator, tg, builds, maxCols, dur, concurrency, buildTimeout)
 	if err != nil {
 		return err
 	}

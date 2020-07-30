@@ -30,12 +30,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Build holds data to builds stored in GCS.
-type Build = gcs.Build
-
-// Builds holds a slice of builds, which will sort naturally (aka 2 < 10).
-type Builds = gcs.Builds
-
 // options configures the updater
 type options struct {
 	config           gcs.Path // gs://path/to/config/proto
