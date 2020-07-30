@@ -56,15 +56,18 @@ type Iterator interface {
 	Next() (*storage.ObjectAttrs, error)
 }
 
-// A client lists objects and opens them for reading.
-type Client interface {
+// A Lister returns objects under a prefix.
+type Lister interface {
 	Objects(ctx context.Context, prefix Path, delimiter string) Iterator
+}
+
+// An Opener opens a path for reading.
+type Opener interface {
 	Open(ctx context.Context, path Path) (io.ReadCloser, error)
 }
 
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
-	client         Client
 	Path           Path
 	originalPrefix string
 }
@@ -73,24 +76,12 @@ func (build Build) String() string {
 	return "gs://" + build.Path.String()
 }
 
-// Builds is a slice of builds.
-type Builds []Build
-
-func (b Builds) Len() int      { return len(b) }
-func (b Builds) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-
-// Expect builds to be in monotonically increasing order.
-// So build8 < build9 < build10 < build888
-func (b Builds) Less(i, j int) bool {
-	return sortorder.NaturalLess(b[i].originalPrefix, b[j].originalPrefix)
-}
-
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
-func ListBuilds(parent context.Context, client Client, path Path) (Builds, error) {
+func ListBuilds(parent context.Context, lister Lister, path Path) ([]Build, error) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	it := client.Objects(ctx, path, "/")
-	var all Builds
+	it := lister.Objects(ctx, path, "/")
+	var all []Build
 	for {
 		objAttrs, err := it.Next()
 		if errors.Is(err, iterator.Done) {
@@ -119,7 +110,6 @@ func ListBuilds(parent context.Context, client Client, path Path) (Builds, error
 				return nil, fmt.Errorf("bad %s link path %s: %w", objAttrs.Name, u, err)
 			}
 			all = append(all, Build{
-				client:         client,
 				Path:           linkPath,
 				originalPrefix: objAttrs.Name,
 			})
@@ -137,12 +127,14 @@ func ListBuilds(parent context.Context, client Client, path Path) (Builds, error
 		}
 
 		all = append(all, Build{
-			client:         client,
 			Path:           *path,
 			originalPrefix: objAttrs.Prefix,
 		})
 	}
-	sort.Sort(sort.Reverse(all))
+	sort.SliceStable(all, func(i, j int) bool {
+		// ! because we want the latest (aka largest) items first.
+		return !sortorder.NaturalLess(all[i].originalPrefix, all[j].originalPrefix)
+	})
 	return all, nil
 }
 
@@ -178,19 +170,9 @@ func parseSuitesMeta(name string) map[string]string {
 
 }
 
-// readOpener returns a reader and a possible error.
-type readOpener func() (io.ReadCloser, error)
-
-// gcsOpener adapts o.NewReader()'s return type to io.ReadCloser
-func gcsOpener(ctx context.Context, i Client, p Path) readOpener {
-	return func() (io.ReadCloser, error) {
-		return i.Open(ctx, p)
-	}
-}
-
 // readJSON will decode the json object stored in GCS.
-func readJSON(open readOpener, i interface{}) error {
-	reader, err := open()
+func readJSON(ctx context.Context, opener Opener, p Path, i interface{}) error {
+	reader, err := opener.Open(ctx, p)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		return err
 	}
@@ -207,13 +189,13 @@ func readJSON(open readOpener, i interface{}) error {
 }
 
 // Started parses the build's started metadata.
-func (build Build) Started(ctx context.Context) (*Started, error) {
+func (build Build) Started(ctx context.Context, opener Opener) (*Started, error) {
 	path, err := build.Path.ResolveReference(&url.URL{Path: "started.json"})
 	if err != nil {
 		return nil, fmt.Errorf("resolve: %w", err)
 	}
 	var started Started
-	err = readJSON(gcsOpener(ctx, build.client, *path), &started)
+	err = readJSON(ctx, opener, *path, &started)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		started.Pending = true
 		return &started, nil
@@ -225,13 +207,13 @@ func (build Build) Started(ctx context.Context) (*Started, error) {
 }
 
 // Finished parses the build's finished metadata.
-func (build Build) Finished(ctx context.Context) (*Finished, error) {
+func (build Build) Finished(ctx context.Context, opener Opener) (*Finished, error) {
 	path, err := build.Path.ResolveReference(&url.URL{Path: "finished.json"})
 	if err != nil {
 		return nil, fmt.Errorf("resolve: %w", err)
 	}
 	var finished Finished
-	err = readJSON(gcsOpener(ctx, build.client, *path), &finished)
+	err = readJSON(ctx, opener, *path, &finished)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		finished.Running = true
 		return &finished, nil
@@ -243,8 +225,8 @@ func (build Build) Finished(ctx context.Context) (*Finished, error) {
 }
 
 // Artifacts writes the object name of all paths under the build's artifact dir to the output channel.
-func (build Build) Artifacts(ctx context.Context, artifacts chan<- string) error {
-	objs := build.client.Objects(ctx, build.Path, "")
+func (build Build) Artifacts(ctx context.Context, lister Lister, artifacts chan<- string) error {
+	objs := lister.Objects(ctx, build.Path, "") // no delim so we get all objects.
 	for {
 		obj, err := objs.Next()
 		if err == iterator.Done {
@@ -269,8 +251,8 @@ type SuitesMeta struct {
 	Path     string
 }
 
-func readSuites(ctx context.Context, client Client, p Path) (*junit.Suites, error) {
-	r, err := client.Open(ctx, p)
+func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, error) {
+	r, err := opener.Open(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
@@ -289,7 +271,7 @@ func readSuites(ctx context.Context, client Client, p Path) (*junit.Suites, erro
 // Suites takes a channel of artifact names, parses those representing junit suites, writing the result to the suites channel.
 //
 // Note that junit suites are parsed in parallel, so there are no guarantees about suites ordering.
-func (build Build) Suites(parent context.Context, artifacts <-chan string, suites chan<- SuitesMeta) error {
+func (build Build) Suites(parent context.Context, opener Opener, artifacts <-chan string, suites chan<- SuitesMeta) error {
 	var wg sync.WaitGroup
 	defer wg.Wait() // ensure all goroutines exit before returning
 	var work int
@@ -323,7 +305,7 @@ func (build Build) Suites(parent context.Context, artifacts <-chan string, suite
 				Metadata: meta,
 				Path:     path.String(),
 			}
-			s, err := readSuites(ctx, build.client, *path)
+			s, err := readSuites(ctx, opener, *path)
 			if err != nil {
 				select {
 				case <-ctx.Done():
