@@ -58,32 +58,37 @@ func downloadGrid(ctx context.Context, client *storage.Client, path gcs.Path) (*
 }
 
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(parent context.Context, client gcsClient, group configpb.TestGroup, builds []gcs.Build, max int, dur time.Duration, concurrency int) ([]inflatedColumn, error) {
+func readColumns(parent context.Context, client gcsClient, group configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, errors.New("zero readers")
 	}
 
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	var maxLock sync.Mutex
+
 	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.GcsPrefix)
+
+	stop := stopTime.Unix() * 1000
 
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	var stop time.Time
-	if dur != 0 {
-		stop = time.Now().Add(-dur)
-	}
 	if lb := len(builds); lb > max {
 		log.WithField("total", lb).WithField("max", max).Debug("Truncating")
 		builds = builds[:max]
 	}
-	cols := make([]inflatedColumn, len(builds))
-	log.WithField("duration", dur).Debug("Updating")
+	maxIdx := len(builds)
+	cols := make([]inflatedColumn, maxIdx)
+	log.WithField("timeout", buildTimeout).Debug("Updating")
 	ec := make(chan error)
 	old := make(chan int)
 
 	// Send build indices to readers
 	indices := make(chan int)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(indices)
 		for i := range builds {
 			select {
@@ -98,13 +103,15 @@ func readColumns(parent context.Context, client gcsClient, group configpb.TestGr
 
 	var heads []string
 	for _, h := range group.ColumnHeader {
-		heads = append(heads, h.String())
+		heads = append(heads, h.ConfigurationValue)
 	}
 
 	// Concurrently receive indices and read builds
+	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		nameCfg := makeNameConfig(group.TestNameConfig)
 		go func() {
+			defer wg.Done()
 			for {
 				var idx int
 				var open bool
@@ -125,7 +132,7 @@ func readColumns(parent context.Context, client gcsClient, group configpb.TestGr
 				b := builds[idx]
 
 				// use ctx so we finish reading, even if buildCtx is done
-				inner, cancel := context.WithDeadline(ctx, stop)
+				inner, cancel := context.WithTimeout(ctx, buildTimeout)
 				defer cancel()
 				result, err := readResult(inner, client, b)
 				if err != nil {
@@ -138,21 +145,35 @@ func readColumns(parent context.Context, client gcsClient, group configpb.TestGr
 				}
 				id := path.Base(b.Path.Object())
 				col := convertResult(nameCfg, id, heads, *result)
-				cols[idx] = col
-				if int64(col.column.Started) < stop.Unix() {
-					select {
-					case <-ctx.Done():
-						return
-					case old <- idx: // stop emitting new indices.
-						log.WithFields(logrus.Fields{
-							"idx":     idx,
-							"id":      id,
-							"path":    b.Path,
-							"started": int64(col.column.Started / 1000),
-							"stop":    stop.Unix(),
-						}).Debug("Stopped")
-					}
+				if int64(col.column.Started) < stop {
+					// Multiple go-routines may all read an old result.
+					// So we need to use a mutex to read the
+					wg.Add(1)
+					maxLock.Lock()
+					go func() {
+						defer wg.Done()
+						defer maxLock.Unlock()
+						if maxIdx == len(builds) {
+							// still vending new indices to download, stop this.
+							select {
+							case <-ctx.Done():
+								return
+							case old <- idx:
+								log.WithFields(logrus.Fields{
+									"idx":     idx,
+									"id":      id,
+									"path":    b.Path,
+									"started": int64(col.column.Started / 1000),
+									"stop":    stopTime,
+								}).Debug("Stopped")
+							}
+						}
+						if maxIdx > idx+1 {
+							maxIdx = idx + 1 // this is the newest old result
+						}
+					}()
 				}
+				cols[idx] = col
 			}
 		}()
 	}
@@ -168,7 +189,7 @@ func readColumns(parent context.Context, client gcsClient, group configpb.TestGr
 		}
 	}
 
-	return cols, nil
+	return cols[0:maxIdx], nil
 }
 
 // readResult will download all GCS artifacts in parallel.
@@ -191,8 +212,9 @@ func readResult(parent context.Context, client gcsClient, build gcs.Build) (*gcs
 		s, err := build.Started(ctx, client)
 		if err != nil {
 			err = fmt.Errorf("started: %w", err)
+		} else {
+			result.started = *s
 		}
-		result.started = *s
 		select {
 		case <-ctx.Done():
 		case ec <- err:
@@ -205,9 +227,9 @@ func readResult(parent context.Context, client gcsClient, build gcs.Build) (*gcs
 		f, err := build.Finished(ctx, client)
 		if err != nil {
 			err = fmt.Errorf("finished: %w", err)
+		} else {
+			result.finished = *f
 		}
-		result.finished = *f
-
 		select {
 		case <-ctx.Done():
 		case ec <- err:
