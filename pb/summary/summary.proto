@@ -48,6 +48,7 @@ message FailingTestSummary {
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.
+// Next ID: 11
 message TestInfo {
   // The display name of the test, typically what is shown for each row in TestGrid
   string display_name = 1;
@@ -76,6 +77,9 @@ message TestInfo {
 
   // The flakiness of the test, measured out of 100
   float flakiness = 8;
+
+  // The flakiness of the test from previous intervals
+  repeated float previous_flakiness = 10;
 
   enum Trend{
     UNKNOWN = 0;
@@ -110,6 +114,8 @@ message HealthinessInfo {
   // The flakiness out of 100 (think percentage but drop the sign)
   float average_flakiness = 4;
 
+  // The average flakiness for previous intervals
+  repeated float previous_flakiness = 5;
 }
 
 // Summary of a dashboard tab.

@@ -616,6 +616,7 @@ func getHealthinessForInterval(grid *statepb.Grid, tabName string, currentTime t
 	pastHealthiness := CalculateHealthiness(grid, &analyzer, twoIntervals, oneInterval, tabName)
 	CalculateTrend(healthiness, pastHealthiness)
 
+	healthiness.PreviousFlakiness = []float32{pastHealthiness.AverageFlakiness}
 	return healthiness
 }
 

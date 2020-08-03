@@ -72,16 +72,19 @@ func TestCalculateTrend(t *testing.T) {
 					{
 						DisplayName:            "test2_should_be_DOWN",
 						Flakiness:              30.0,
+						PreviousFlakiness:      []float32{50.0},
 						ChangeFromLastInterval: summarypb.TestInfo_DOWN,
 					},
 					{
 						DisplayName:            "test1_should_be_UP",
 						Flakiness:              70.0,
+						PreviousFlakiness:      []float32{50.0},
 						ChangeFromLastInterval: summarypb.TestInfo_UP,
 					},
 					{
 						DisplayName:            "test3_should_be_NO_CHANGE",
 						Flakiness:              50.0,
+						PreviousFlakiness:      []float32{50.0},
 						ChangeFromLastInterval: summarypb.TestInfo_NO_CHANGE,
 					},
 				},

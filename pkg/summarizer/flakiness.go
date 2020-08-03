@@ -64,6 +64,7 @@ func CalculateTrend(currentHealthiness, previousHealthiness *summarypb.Healthine
 	for i, test := range currentHealthiness.Tests {
 		if value, ok := previousFlakiness[test.DisplayName]; ok {
 			currentHealthiness.Tests[i].ChangeFromLastInterval = getTrend(test.Flakiness, value)
+			currentHealthiness.Tests[i].PreviousFlakiness = []float32{value}
 		}
 	}
 }
