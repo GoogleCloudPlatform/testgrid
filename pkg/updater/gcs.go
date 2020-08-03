@@ -53,7 +53,7 @@ func convertResult(nameCfg nameConfig, id string, headers []string, result gcsRe
 
 	for _, h := range headers {
 		val, ok := meta[h]
-		if !ok && h == "Commit" {
+		if !ok && h == "Commit" && version != metadata.Missing {
 			val = version
 		} else if !ok && overall.result != state.Row_RUNNING {
 			val = "missing"

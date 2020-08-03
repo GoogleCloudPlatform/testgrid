@@ -95,18 +95,6 @@ func makeJunit(passed, failed []string) string {
 	return xmlData(suite)
 }
 
-type fakeBuild struct {
-	id           string
-	started      *fakeObject
-	finished     *fakeObject
-	artifacts    map[string]fakeObject
-	rawJunit     *fakeObject
-	passed       []string
-	failed       []string
-	junitName    string
-	rawJUnitName string
-}
-
 func pint64(n int64) *int64 {
 	return &n
 }
@@ -660,35 +648,7 @@ func TestReadColumns(t *testing.T) {
 				fakeOpener: fakeOpener{},
 			}
 
-			var builds []gcs.Build
-			for _, build := range tc.builds {
-				buildPath := resolveOrDie(&path, build.id+"/")
-				builds = append(builds, gcs.Build{Path: *buildPath})
-				fi := fakeIterator{}
-
-				if build.started != nil {
-					p := resolveOrDie(buildPath, "started.json")
-					fi.objects = append(fi.objects, storage.ObjectAttrs{
-						Name: p.Object(),
-					})
-					client.fakeOpener[*p] = *build.started
-				}
-				if build.finished != nil {
-					p := resolveOrDie(buildPath, "finished.json")
-					fi.objects = append(fi.objects, storage.ObjectAttrs{
-						Name: p.Object(),
-					})
-					client.fakeOpener[*p] = *build.finished
-				}
-				for n, fo := range build.artifacts {
-					p := resolveOrDie(buildPath, n)
-					fi.objects = append(fi.objects, storage.ObjectAttrs{
-						Name: p.Object(),
-					})
-					client.fakeOpener[*p] = fo
-				}
-				client.fakeLister[*buildPath] = fi
-			}
+			builds := client.addBuilds(path, tc.builds...)
 
 			if tc.concurrency == 0 {
 				tc.concurrency = 1
@@ -1197,4 +1157,55 @@ func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
 	o := fi.objects[fi.idx]
 	fi.idx++
 	return &o, nil
+}
+
+func (fc *fakeClient) addBuilds(path gcs.Path, fakes ...fakeBuild) []gcs.Build {
+	var builds []gcs.Build
+	for _, build := range fakes {
+		buildPath := resolveOrDie(&path, build.id+"/")
+		builds = append(builds, gcs.Build{Path: *buildPath})
+		fi := fakeIterator{}
+
+		if build.started != nil {
+			p := resolveOrDie(buildPath, "started.json")
+			fi.objects = append(fi.objects, storage.ObjectAttrs{
+				Name: p.Object(),
+			})
+			fc.fakeOpener[*p] = *build.started
+		}
+		if build.finished != nil {
+			p := resolveOrDie(buildPath, "finished.json")
+			fi.objects = append(fi.objects, storage.ObjectAttrs{
+				Name: p.Object(),
+			})
+			fc.fakeOpener[*p] = *build.finished
+		}
+		if len(build.passed)+len(build.failed) > 0 {
+			p := resolveOrDie(buildPath, "junit_automatic.xml")
+			fc.fakeOpener[*p] = fakeObject{data: makeJunit(build.passed, build.failed)}
+			fi.objects = append(fi.objects, storage.ObjectAttrs{
+				Name: p.Object(),
+			})
+		}
+		for n, fo := range build.artifacts {
+			p := resolveOrDie(buildPath, n)
+			fi.objects = append(fi.objects, storage.ObjectAttrs{
+				Name: p.Object(),
+			})
+			fc.fakeOpener[*p] = fo
+		}
+		fc.fakeLister[*buildPath] = fi
+	}
+	return builds
+
+}
+
+type fakeBuild struct {
+	id        string
+	started   *fakeObject
+	finished  *fakeObject
+	artifacts map[string]fakeObject
+	rawJunit  *fakeObject
+	passed    []string
+	failed    []string
 }
