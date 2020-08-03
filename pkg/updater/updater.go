@@ -31,17 +31,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/testgrid/config"
-	"github.com/GoogleCloudPlatform/testgrid/internal/result"
-	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
-	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
 	"vbom.ml/util/sortorder"
+
+	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/internal/result"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 func Update(client *storage.Client, parent context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {

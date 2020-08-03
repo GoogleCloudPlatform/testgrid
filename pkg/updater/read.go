@@ -35,9 +35,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func downloadGrid(ctx context.Context, client *storage.Client, path gcs.Path) (*state.Grid, error) {
+func downloadGrid(ctx context.Context, opener gcs.Opener, path gcs.Path) (*state.Grid, error) {
 	var g state.Grid
-	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
+	r, err := opener.Open(ctx, path)
 	if err != nil && err == storage.ErrObjectNotExist {
 		return &g, nil
 	}

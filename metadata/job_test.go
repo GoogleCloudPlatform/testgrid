@@ -134,7 +134,7 @@ func TestVersion(t *testing.T) {
 	}{
 		{
 			name:     "missing by default",
-			expected: missing,
+			expected: Missing,
 		},
 		{
 			name: "DEPRECATED: finished job version over started",
@@ -236,13 +236,13 @@ func TestSetVersion(t *testing.T) {
 			name:     "missing by default",
 			started:  true,
 			finished: true,
-			expected: missing,
+			expected: Missing,
 		},
 		{
 			name:       "can pass in nothing",
 			repoCommit: "ignore",
 			jobVersion: "me",
-			expected:   missing,
+			expected:   Missing,
 		},
 		{
 			name:       "match repo commit when job version not set",

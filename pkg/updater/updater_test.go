@@ -24,12 +24,14 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 	"vbom.ml/util/sortorder"
 
+	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -95,8 +97,7 @@ func TestTestGroupPath(t *testing.T) {
 }
 
 type fakeUploadClient struct {
-	fakeLister
-	fakeOpener
+	fakeClient
 	fakeUploader
 }
 
@@ -125,27 +126,218 @@ type fakeUpload struct {
 	err          error
 }
 
+func jsonStarted(stamp int64) *fakeObject {
+	return &fakeObject{
+		data: jsonData(metadata.Started{Timestamp: stamp}),
+	}
+}
+
+func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject {
+	return &fakeObject{
+		data: jsonData(metadata.Finished{
+			Timestamp: &stamp,
+			Passed:    &passed,
+			Metadata:  meta,
+		}),
+	}
+}
+
 func TestUpdateGroup(t *testing.T) {
+	mustGrid := func(grid state.Grid) []byte {
+		buf, err := marshalGrid(grid)
+		if err != nil {
+			t.Fatal("marshalGrid() got error: %v", err)
+		}
+		return buf
+	}
+	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
 	cases := []struct {
 		name         string
 		ctx          context.Context
+		builds       []fakeBuild
 		client       fakeUploadClient
 		group        configpb.TestGroup
 		concurrency  int
-		write        bool
+		skipWrite    bool
 		groupTimeout *time.Duration
 		buildTimeout *time.Duration
-		expected     fakeUpload
+		expected     *fakeUpload
+		err          bool
 	}{
 		{
 			name: "basically works",
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			builds: []fakeBuild{
+				{
+					id:      "99",
+					started: jsonStarted(now + 99),
+				},
+				{
+					id:      "80",
+					started: jsonStarted(now + 80),
+					finished: jsonFinished(now+81, true, metadata.Metadata{
+						metadata.JobVersion: "build80",
+					}),
+					passed: []string{"good1", "good2", "flaky"},
+				},
+				{
+					id:      "50",
+					started: jsonStarted(now + 50),
+					finished: jsonFinished(now+51, false, metadata.Metadata{
+						metadata.JobVersion: "build50",
+					}),
+					passed: []string{"good1", "good2"},
+					failed: []string{"flaky"},
+				},
+				{
+					id:      "10",
+					started: jsonStarted(now + 10),
+					finished: jsonFinished(now+11, true, metadata.Metadata{
+						metadata.JobVersion: "build10",
+					}),
+					passed: []string{"good1", "good2", "flaky"},
+				},
+			},
+			expected: &fakeUpload{
+				buf: mustGrid(state.Grid{
+					Columns: []*state.Column{
+						{
+							Build:   "99",
+							Started: float64(now+99) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "80",
+							Started: float64(now+80) * 1000,
+							Extra:   []string{"build80"},
+						},
+						{
+							Build:   "50",
+							Started: float64(now+50) * 1000,
+							Extra:   []string{"build50"},
+						},
+						{
+							Build:   "10",
+							Started: float64(now+10) * 1000,
+							Extra:   []string{"build10"},
+						},
+					},
+					Rows: []*state.Row{
+						setupRow(
+							&state.Row{
+								Name: "Overall",
+								Id:   "Overall",
+							},
+							cell{
+								result:  state.Row_RUNNING,
+								message: "Build still running...",
+								icon:    "R",
+							},
+							cell{
+								result:  state.Row_PASS,
+								metrics: setElapsed(nil, 1),
+							},
+							cell{
+								result:  state.Row_FAIL,
+								metrics: setElapsed(nil, 1),
+							},
+							cell{
+								result:  state.Row_PASS,
+								metrics: setElapsed(nil, 1),
+							},
+						),
+						setupRow(
+							&state.Row{
+								Name: "flaky",
+								Id:   "flaky",
+							},
+							cell{result: state.Row_NO_RESULT},
+							cell{result: state.Row_PASS},
+							cell{
+								result:  state.Row_FAIL,
+								message: "flaky",
+								icon:    "F",
+							},
+							cell{result: state.Row_PASS},
+						),
+						setupRow(
+							&state.Row{
+								Name: "good1",
+								Id:   "good1",
+							},
+							cell{result: state.Row_NO_RESULT},
+							cell{result: state.Row_PASS},
+							cell{result: state.Row_PASS},
+							cell{result: state.Row_PASS},
+						),
+						setupRow(
+							&state.Row{
+								Name: "good2",
+								Id:   "good2",
+							},
+							cell{result: state.Row_NO_RESULT},
+							cell{result: state.Row_PASS},
+							cell{result: state.Row_PASS},
+							cell{result: state.Row_PASS},
+						),
+					},
+				}),
+				cacheControl: "no-cache",
+				worldRead:    gcs.DefaultAcl,
 			},
 		},
-		// TODO(fejta): finish this
+		{
+			name:      "do not write when requested",
+			skipWrite: true,
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			builds: []fakeBuild{
+				{
+					id:      "99",
+					started: jsonStarted(now + 99),
+				},
+				{
+					id:      "80",
+					started: jsonStarted(now + 80),
+					finished: jsonFinished(now+81, true, metadata.Metadata{
+						metadata.JobVersion: "build80",
+					}),
+					passed: []string{"good1", "good2", "flaky"},
+				},
+				{
+					id:      "50",
+					started: jsonStarted(now + 50),
+					finished: jsonFinished(now+51, false, metadata.Metadata{
+						metadata.JobVersion: "build50",
+					}),
+					passed: []string{"good1", "good2"},
+					failed: []string{"flaky"},
+				},
+				{
+					id:      "10",
+					started: jsonStarted(now + 10),
+					finished: jsonFinished(now+11, true, metadata.Metadata{
+						metadata.JobVersion: "build10",
+					}),
+					passed: []string{"good1", "good2", "flaky"},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -155,6 +347,10 @@ func TestUpdateGroup(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
+
+			if tc.concurrency == 0 {
+				tc.concurrency = 1
+			}
 			if tc.groupTimeout == nil {
 				tc.groupTimeout = &defaultTimeout
 			}
@@ -162,16 +358,69 @@ func TestUpdateGroup(t *testing.T) {
 				tc.buildTimeout = &defaultTimeout
 			}
 
-			_ = updateGroup(
+			client := fakeUploadClient{
+				fakeUploader: fakeUploader{},
+				fakeClient: fakeClient{
+					fakeLister: fakeLister{},
+					fakeOpener: fakeOpener{},
+				},
+			}
+
+			buildsPath := newPathOrDie("gs://" + tc.group.GcsPrefix)
+			fi := client.fakeLister[buildsPath]
+			for _, build := range client.addBuilds(buildsPath, tc.builds...) {
+				fi.objects = append(fi.objects, storage.ObjectAttrs{
+					Prefix: build.Path.Object(),
+				})
+			}
+			client.fakeLister[buildsPath] = fi
+
+			err := updateGroup(
 				ctx,
-				tc.client,
+				client,
 				tc.group,
 				uploadPath,
 				tc.concurrency,
-				tc.write,
+				!tc.skipWrite,
 				*tc.groupTimeout,
 				*tc.buildTimeout,
 			)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("updateGroup() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Error("updateGroup() failed to receive an exception")
+			default:
+				expected := fakeUploader{}
+				if tc.expected != nil {
+					expected[uploadPath] = *tc.expected
+				}
+				actual := client.fakeUploader
+				diff := cmp.Diff(actual, expected, cmp.AllowUnexported(gcs.Path{}, fakeUpload{}), protocmp.Transform())
+				if diff == "" {
+					return
+				}
+				t.Errorf("updateGroup() got unexpected diff (-have, +want):\n%s", diff)
+				fakeDownloader := fakeOpener{
+					uploadPath: {data: string(actual[uploadPath].buf)},
+				}
+				actualGrid, err := downloadGrid(ctx, fakeDownloader, uploadPath)
+				if err != nil {
+					t.Errorf("actual downloadGrid() got unexpected error: %v", err)
+				}
+				fakeDownloader[uploadPath] = fakeObject{data: string(tc.expected.buf)}
+				expectedGrid, err := downloadGrid(ctx, fakeDownloader, uploadPath)
+				if err != nil {
+					t.Errorf("expected downloadGrid() got unexpected error: %v", err)
+				}
+				diff = cmp.Diff(actualGrid, expectedGrid, protocmp.Transform())
+				if diff == "" {
+					return
+				}
+				t.Errorf("downloadGrid() got unexpected diff (-have, +want):\n%s", diff)
+			}
 		})
 	}
 }

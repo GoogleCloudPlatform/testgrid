@@ -141,7 +141,7 @@ func firstFilled(def string, options ...string) string {
 	return def
 }
 
-const missing = "missing"
+const Missing = "missing"
 
 // Version extracts the job's custom version or else the checked out repo commit.
 func Version(started Started, finished Finished) string {
@@ -158,7 +158,7 @@ func Version(started Started, finished Finished) string {
 	}
 
 	val := firstFilled(
-		missing,
+		Missing,
 		finished.DeprecatedJobVersion, started.DeprecatedJobVersion,
 		started.DeprecatedRepoVersion, finished.DeprecatedRepoVersion,
 		meta("revision"), meta("repo-commit"),
