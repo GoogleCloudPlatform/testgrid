@@ -57,6 +57,11 @@ func downloadGrid(ctx context.Context, client *storage.Client, path gcs.Path) (*
 	return &g, err
 }
 
+type gcsClient interface {
+	gcs.Lister
+	gcs.Opener
+}
+
 // readColumns will list, download and process builds into inflatedColumns.
 func readColumns(parent context.Context, client gcsClient, group configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
 	// Spawn build readers

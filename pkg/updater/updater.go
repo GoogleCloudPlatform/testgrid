@@ -57,6 +57,7 @@ func Update(client *storage.Client, parent context.Context, configPath gcs.Path,
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
 
+	gc := realGCSClient{client: client}
 	for i := 0; i < groupConcurrency; i++ {
 		wg.Add(1)
 		go func() {
@@ -64,7 +65,7 @@ func Update(client *storage.Client, parent context.Context, configPath gcs.Path,
 				location := path.Join(gridPrefix, tg.Name)
 				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
-					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
+					err = updateGroup(ctx, gc, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
 				}
 				if err != nil {
 					log.WithField("group", tg.Name).WithError(err).Error("Error updating group")
@@ -140,9 +141,9 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
-type gcsClient interface {
-	gcs.Lister
-	gcs.Opener
+type gcsUploadClient interface {
+	gcsClient
+	Upload(context.Context, gcs.Path, []byte, bool, string) error
 }
 
 type realGCSClient struct {
@@ -165,7 +166,11 @@ func (rgc realGCSClient) Objects(ctx context.Context, path gcs.Path, delimiter s
 	})
 }
 
-func updateGroup(parent context.Context, client *storage.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
+func (rgc realGCSClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldReadable bool, cacheControl string) error {
+	return gcs.Upload(ctx, rgc.client, path, buf, worldReadable, cacheControl)
+}
+
+func updateGroup(parent context.Context, client gcsUploadClient, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parent, groupTimeout)
 	defer cancel()
 	log := logrus.WithField("group", tg.Name)
@@ -175,8 +180,7 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 		return fmt.Errorf("set group path: %w", err)
 	}
 
-	gc := realGCSClient{client: client}
-	builds, err := gcs.ListBuilds(ctx, gc, tgPath)
+	builds, err := gcs.ListBuilds(ctx, client, tgPath)
 	if err != nil {
 		return fmt.Errorf("list builds: %w", err)
 	}
@@ -190,7 +194,7 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 	const maxCols = 50
 
 	stop := time.Now().Add(-dur)
-	cols, err := readColumns(ctx, gc, tg, builds, stop, maxCols, buildTimeout, concurrency)
+	cols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
 	if err != nil {
 		return fmt.Errorf("read columns: %w", err)
 	}
@@ -206,7 +210,7 @@ func updateGroup(parent context.Context, client *storage.Client, tg configpb.Tes
 	} else {
 		log.Debug("Writing")
 		// TODO(fejta): configurable cache value
-		if err := gcs.Upload(ctx, client, gridPath, buf, gcs.DefaultAcl, "no-cache"); err != nil {
+		if err := client.Upload(ctx, gridPath, buf, gcs.DefaultAcl, "no-cache"); err != nil {
 			return fmt.Errorf("upload: %w", err)
 		}
 	}
@@ -245,6 +249,15 @@ func constructGrid(group configpb.TestGroup, cols []inflatedColumn) state.Grid {
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
 	})
+
+	for _, row := range grid.Rows {
+		sort.SliceStable(row.Metric, func(i, j int) bool {
+			return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
+		})
+		sort.SliceStable(row.Metrics, func(i, j int) bool {
+			return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
+		})
+	}
 	return grid
 }
 

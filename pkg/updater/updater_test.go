@@ -17,17 +17,23 @@ limitations under the License.
 package updater
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
+	"vbom.ml/util/sortorder"
 
 	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 func TestUpdate(t *testing.T) {
@@ -35,15 +41,412 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestTestGroupPath(t *testing.T) {
-	// TODO(fejta): add coverage
+	path := newPathOrDie("gs://bucket/config")
+	pNewPathOrDie := func(s string) *gcs.Path {
+		p := newPathOrDie(s)
+		return &p
+	}
+	cases := []struct {
+		name      string
+		groupName string
+		expected  *gcs.Path
+	}{
+		{
+			name:     "basically works",
+			expected: &path,
+		},
+		{
+			name:      "invalid group name errors",
+			groupName: "---://foo",
+		},
+		{
+			name:      "bucket change errors",
+			groupName: "gs://honey-bucket/config",
+		},
+		{
+			name:      "normal behavior works",
+			groupName: "random-group",
+			expected:  pNewPathOrDie("gs://bucket/random-group"),
+		},
+		{
+			name:      "target a subfolder works",
+			groupName: "beta/random-group",
+			expected:  pNewPathOrDie("gs://bucket/beta/random-group"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := testGroupPath(path, tc.groupName)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("testGroupPath(%v, %v) got unexpected error: %v", path, tc.groupName, err)
+				}
+			case tc.expected == nil:
+				t.Errorf("testGroupPath(%v, %v) failed to receive an error", path, tc.groupName)
+			default:
+				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcs.Path{})); diff != "" {
+					t.Errorf("testGroupPath(%v, %v) got unexpected diff (-have, +want):\n%s", path, tc.groupName, diff)
+				}
+			}
+		})
+	}
+}
+
+type fakeUploadClient struct {
+	fakeLister
+	fakeOpener
+	fakeUploader
+}
+
+type fakeUploader map[gcs.Path]fakeUpload
+
+func (fuc fakeUploader) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cacheControl string) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("injected interrupt: %w", err)
+	}
+	if err := fuc[path].err; err != nil {
+		return fmt.Errorf("injected upload error: %w", err)
+	}
+
+	fuc[path] = fakeUpload{
+		buf:          buf,
+		cacheControl: cacheControl,
+		worldRead:    worldRead,
+	}
+	return nil
+}
+
+type fakeUpload struct {
+	buf          []byte
+	cacheControl string
+	worldRead    bool
+	err          error
 }
 
 func TestUpdateGroup(t *testing.T) {
-	// TODO(fejta): add coverage
+	uploadPath := newPathOrDie("gs://fake/upload/location")
+	defaultTimeout := 5 * time.Minute
+	cases := []struct {
+		name         string
+		ctx          context.Context
+		client       fakeUploadClient
+		group        configpb.TestGroup
+		concurrency  int
+		write        bool
+		groupTimeout *time.Duration
+		buildTimeout *time.Duration
+		expected     fakeUpload
+	}{
+		{
+			name: "basically works",
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+			},
+		},
+		// TODO(fejta): finish this
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+			if tc.groupTimeout == nil {
+				tc.groupTimeout = &defaultTimeout
+			}
+			if tc.buildTimeout == nil {
+				tc.buildTimeout = &defaultTimeout
+			}
+
+			_ = updateGroup(
+				ctx,
+				tc.client,
+				tc.group,
+				uploadPath,
+				tc.concurrency,
+				tc.write,
+				*tc.groupTimeout,
+				*tc.buildTimeout,
+			)
+		})
+	}
 }
 
 func TestConstructGrid(t *testing.T) {
-	// TODO(fejta): add coverage
+	cases := []struct {
+		name     string
+		group    configpb.TestGroup
+		cols     []inflatedColumn
+		expected state.Grid
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "multiple columns",
+			cols: []inflatedColumn{
+				{
+					column: &state.Column{Build: "15"},
+					cells: map[string]cell{
+						"green": {
+							result: state.Row_PASS,
+						},
+						"red": {
+							result: state.Row_FAIL,
+						},
+						"only-15": {
+							result: state.Row_FLAKY,
+						},
+					},
+				},
+				{
+					column: &state.Column{Build: "10"},
+					cells: map[string]cell{
+						"full": {
+							result:  state.Row_PASS,
+							cellID:  "cell",
+							icon:    "icon",
+							message: "message",
+							metrics: map[string]float64{
+								"elapsed": 1,
+								"keys":    2,
+							},
+						},
+						"green": {
+							result: state.Row_PASS,
+						},
+						"red": {
+							result: state.Row_FAIL,
+						},
+						"only-10": {
+							result: state.Row_FLAKY,
+						},
+					},
+				},
+			},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "15"},
+					{Build: "10"},
+				},
+				Rows: []*state.Row{
+					setupRow(
+						&state.Row{
+							Name: "full",
+							Id:   "full",
+						},
+						emptyCell,
+						cell{
+							result:  state.Row_PASS,
+							cellID:  "cell",
+							icon:    "icon",
+							message: "message",
+							metrics: map[string]float64{
+								"elapsed": 1,
+								"keys":    2,
+							},
+						},
+					),
+					setupRow(
+						&state.Row{
+							Name: "green",
+							Id:   "green",
+						},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+					),
+					setupRow(
+						&state.Row{
+							Name: "only-10",
+							Id:   "only-10",
+						},
+						emptyCell,
+						cell{result: state.Row_FLAKY},
+					),
+					setupRow(
+						&state.Row{
+							Name: "only-15",
+							Id:   "only-15",
+						},
+						cell{result: state.Row_FLAKY},
+						emptyCell,
+					),
+					setupRow(
+						&state.Row{
+							Name: "red",
+							Id:   "red",
+						},
+						cell{result: state.Row_FAIL},
+						cell{result: state.Row_FAIL},
+					),
+				},
+			},
+		},
+		{
+			name: "open alert",
+			group: configpb.TestGroup{
+				NumFailuresToAlert: 2,
+			},
+			cols: []inflatedColumn{
+				{
+					column: &state.Column{Build: "4"},
+					cells: map[string]cell{
+						"just-flaky": {
+							result: state.Row_FAIL,
+						},
+						"broken": {
+							result: state.Row_FAIL,
+						},
+					},
+				},
+				{
+					column: &state.Column{Build: "3"},
+					cells: map[string]cell{
+						"just-flaky": {
+							result: state.Row_PASS,
+						},
+						"broken": {
+							result: state.Row_FAIL,
+						},
+					},
+				},
+			},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "4"},
+					{Build: "3"},
+				},
+				Rows: []*state.Row{
+					setupRow(
+						&state.Row{
+							Name: "broken",
+							Id:   "broken",
+						},
+						cell{result: state.Row_FAIL},
+						cell{result: state.Row_FAIL},
+					),
+					setupRow(
+						&state.Row{
+							Name: "just-flaky",
+							Id:   "just-flaky",
+						},
+						cell{result: state.Row_FAIL},
+						cell{result: state.Row_PASS},
+					),
+				},
+			},
+		},
+		{
+			name: "close alert",
+			group: configpb.TestGroup{
+				NumPassesToDisableAlert: 2,
+				NumFailuresToAlert:      1,
+			},
+			cols: []inflatedColumn{
+				{
+					column: &state.Column{Build: "4"},
+					cells: map[string]cell{
+						"still-broken": {
+							result: state.Row_PASS,
+						},
+						"fixed": {
+							result: state.Row_PASS,
+						},
+					},
+				},
+				{
+					column: &state.Column{Build: "3"},
+					cells: map[string]cell{
+						"still-broken": {
+							result: state.Row_FAIL,
+						},
+						"fixed": {
+							result: state.Row_PASS,
+						},
+					},
+				},
+				{
+					column: &state.Column{Build: "2"},
+					cells: map[string]cell{
+						"still-broken": {
+							result: state.Row_FAIL,
+						},
+						"fixed": {
+							result: state.Row_FAIL,
+						},
+					},
+				},
+				{
+					column: &state.Column{Build: "1"},
+					cells: map[string]cell{
+						"still-broken": {
+							result: state.Row_FAIL,
+						},
+						"fixed": {
+							result: state.Row_FAIL,
+						},
+					},
+				},
+			},
+			expected: state.Grid{
+				Columns: []*state.Column{
+					{Build: "4"},
+					{Build: "3"},
+					{Build: "2"},
+					{Build: "1"},
+				},
+				Rows: []*state.Row{
+					setupRow(
+						&state.Row{
+							Name: "fixed",
+							Id:   "fixed",
+						},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_FAIL},
+						cell{result: state.Row_FAIL},
+					),
+					setupRow(
+						&state.Row{
+							Name: "still-broken",
+							Id:   "still-broken",
+						},
+						cell{result: state.Row_PASS},
+						cell{result: state.Row_FAIL},
+						cell{result: state.Row_FAIL},
+						cell{result: state.Row_FAIL},
+					),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := constructGrid(tc.group, tc.cols)
+			failuresOpen := int(tc.group.NumFailuresToAlert)
+			passesClose := int(tc.group.NumPassesToDisableAlert)
+			if failuresOpen > 0 && passesClose == 0 {
+				passesClose = 1
+			}
+			alertRows(tc.expected.Columns, tc.expected.Rows, failuresOpen, passesClose)
+			for _, row := range tc.expected.Rows {
+				sort.SliceStable(row.Metric, func(i, j int) bool {
+					return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
+				})
+				sort.SliceStable(row.Metrics, func(i, j int) bool {
+					return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
+				})
+			}
+			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("constructGrid() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestMarshalGrid(t *testing.T) {
@@ -364,13 +767,14 @@ func TestAppendCell(t *testing.T) {
 	}
 }
 
-func TestAppendColumn(t *testing.T) {
-	setupRow := func(row *state.Row, cells ...cell) *state.Row {
-		for _, c := range cells {
-			appendCell(row, c, 1)
-		}
-		return row
+func setupRow(row *state.Row, cells ...cell) *state.Row {
+	for _, c := range cells {
+		appendCell(row, c, 1)
 	}
+	return row
+}
+
+func TestAppendColumn(t *testing.T) {
 	cases := []struct {
 		name     string
 		grid     state.Grid
