@@ -31,6 +31,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/iterator"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
@@ -80,6 +81,25 @@ func TestListBuilds(t *testing.T) {
 			},
 		},
 		{
+			name: "presubmit symlinks work correctly",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					link("second", "gs://second-bucket/somewhere"),
+					link("first", "gs://another-bucket/path/inside"),
+				},
+			},
+			expected: []Build{
+				{
+					Path:           newPathOrDie("gs://second-bucket/somewhere/"),
+					originalPrefix: "second",
+				},
+				{
+					Path:           newPathOrDie("gs://another-bucket/path/inside/"),
+					originalPrefix: "first",
+				},
+			},
+		},
+		{
 			name: "cancelled context returns error",
 			iterator: fakeIterator{
 				objects: []storage.ObjectAttrs{
@@ -125,8 +145,8 @@ func TestListBuilds(t *testing.T) {
 			case tc.err:
 				t.Errorf("ListBuilds(): failed to receive an error")
 			default:
-				if !reflect.DeepEqual(actual, tc.expected) {
-					t.Errorf("ListBuilds(): got %v, want %v", actual, tc.expected)
+				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(Build{}, Path{})); diff != "" {
+					t.Errorf("ListBuilds(): got unexpected diff (-have, +want):\n%s", diff)
 				}
 			}
 		})
