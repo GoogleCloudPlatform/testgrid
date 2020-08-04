@@ -500,9 +500,9 @@ func MarshalBytes(c *configpb.Configuration) ([]byte, error) {
 	return proto.Marshal(c)
 }
 
-// ReadGCS reads the config from gcs and unmarshals it into a Configuration struct.
-func ReadGCS(ctx context.Context, obj *storage.ObjectHandle) (*configpb.Configuration, error) {
-	r, err := obj.NewReader(ctx)
+// ReadGCS opens the config at path and unmarshals it into a Configuration proto.
+func ReadGCS(ctx context.Context, opener gcs.Opener, path gcs.Path) (*configpb.Configuration, error) {
+	r, err := opener.Open(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config: %v", err)
 	}
@@ -523,11 +523,11 @@ func ReadPath(path string) (*configpb.Configuration, error) {
 // The ctx and client are only relevant when path refers to GCS.
 func Read(path string, ctx context.Context, client *storage.Client) (*configpb.Configuration, error) {
 	if strings.HasPrefix(path, "gs://") {
-		var gcsPath gcs.Path
-		if err := gcsPath.Set(path); err != nil {
-			return nil, fmt.Errorf("bad gcs path: %v", err)
+		gcsPath, err := gcs.NewPath(path)
+		if err != nil {
+			return nil, fmt.Errorf("bad path: %v", err)
 		}
-		return ReadGCS(ctx, client.Bucket(gcsPath.Bucket()).Object(gcsPath.Object()))
+		return ReadGCS(ctx, gcs.NewClient(client), *gcsPath)
 	}
 	return ReadPath(path)
 }

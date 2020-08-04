@@ -36,6 +36,7 @@ go_test(
     ],
     embed = [":go_default_library"],
     deps = [
+        "//config:go_default_library",
         "//metadata:go_default_library",
         "//metadata/junit:go_default_library",
         "//pb/config:go_default_library",

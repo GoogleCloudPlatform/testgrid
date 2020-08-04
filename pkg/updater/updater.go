@@ -22,16 +22,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/url"
 	"path"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
@@ -44,20 +41,19 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-func Update(client *storage.Client, parent context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
+func Update(client gcs.Client, parent context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
-	cfg, err := config.ReadGCS(ctx, client.Bucket(configPath.Bucket()).Object(configPath.Object()))
+	cfg, err := config.ReadGCS(ctx, client, configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("read config: %w", err)
 	}
 	log.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
 
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
 
-	gc := realGCSClient{client: client}
 	for i := 0; i < groupConcurrency; i++ {
 		wg.Add(1)
 		go func() {
@@ -65,7 +61,7 @@ func Update(client *storage.Client, parent context.Context, configPath gcs.Path,
 				location := path.Join(gridPrefix, tg.Name)
 				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
-					err = updateGroup(ctx, gc, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
+					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
 				}
 				if err != nil {
 					log.WithField("group", tg.Name).WithError(err).Error("Error updating group")
@@ -141,36 +137,7 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
-type gcsUploadClient interface {
-	gcsClient
-	Upload(context.Context, gcs.Path, []byte, bool, string) error
-}
-
-type realGCSClient struct {
-	client *storage.Client
-}
-
-func (rgc realGCSClient) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, error) {
-	r, err := rgc.client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
-	return r, err
-}
-
-func (rgc realGCSClient) Objects(ctx context.Context, path gcs.Path, delimiter string) gcs.Iterator {
-	p := path.Object()
-	if !strings.HasSuffix(p, "/") {
-		p += "/"
-	}
-	return rgc.client.Bucket(path.Bucket()).Objects(ctx, &storage.Query{
-		Delimiter: delimiter,
-		Prefix:    p,
-	})
-}
-
-func (rgc realGCSClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldReadable bool, cacheControl string) error {
-	return gcs.Upload(ctx, rgc.client, path, buf, worldReadable, cacheControl)
-}
-
-func updateGroup(parent context.Context, client gcsUploadClient, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
+func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parent, groupTimeout)
 	defer cancel()
 	log := logrus.WithField("group", tg.Name)

@@ -31,6 +31,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"vbom.ml/util/sortorder"
 
+	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -39,7 +40,143 @@ import (
 )
 
 func TestUpdate(t *testing.T) {
-	// TODO(fejta): add coverage
+	defaultTimeout := 5 * time.Minute
+	configPath := newPathOrDie("gs://bucket/path/to/config")
+	cases := []struct {
+		name             string
+		ctx              context.Context
+		config           configpb.Configuration
+		configErr        error
+		builds           map[string][]fakeBuild
+		gridPrefix       string
+		groupConcurrency int
+		buildConcurrency int
+		skipConfirm      bool
+		groupTimeout     *time.Duration
+		buildTimeout     *time.Duration
+		group            string
+
+		expected fakeUploader
+		err      bool
+	}{
+		{
+			name: "basically works",
+			config: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:             "hello",
+						GcsPrefix:        "kubernetes-jenkins/path/to/job",
+						DaysOfResults:    7,
+						NumColumnsRecent: 6,
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "hello-tab",
+								TestGroupName: "hello",
+							},
+						},
+					},
+				},
+			},
+			expected: fakeUploader{
+				*resolveOrDie(&configPath, "hello"): {
+					buf:          mustGrid(state.Grid{}),
+					cacheControl: "no-cache",
+					worldRead:    gcs.DefaultAcl,
+				},
+			},
+		},
+		// TODO(fejta): more cases
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+
+			if tc.groupConcurrency == 0 {
+				tc.groupConcurrency = 1
+			}
+			if tc.buildConcurrency == 0 {
+				tc.buildConcurrency = 1
+			}
+			if tc.groupTimeout == nil {
+				tc.groupTimeout = &defaultTimeout
+			}
+			if tc.buildTimeout == nil {
+				tc.buildTimeout = &defaultTimeout
+			}
+
+			client := fakeUploadClient{
+				fakeUploader: fakeUploader{},
+				fakeClient: fakeClient{
+					fakeLister: fakeLister{},
+					fakeOpener: fakeOpener{},
+				},
+			}
+
+			client.fakeOpener[configPath] = fakeObject{
+				data: func() string {
+					b, err := config.MarshalBytes(&tc.config)
+					if err != nil {
+						t.Fatal("config.MarshalBytes() errored: %v", err)
+					}
+					return string(b)
+				}(),
+				readErr: tc.configErr,
+			}
+
+			for _, group := range tc.config.TestGroups {
+				builds, ok := tc.builds[group.Name]
+				if !ok {
+					continue
+				}
+				buildsPath := newPathOrDie("gs://" + group.GcsPrefix)
+				fi := client.fakeLister[buildsPath]
+				for _, build := range client.addBuilds(buildsPath, builds...) {
+					fi.objects = append(fi.objects, storage.ObjectAttrs{
+						Prefix: build.Path.Object(),
+					})
+				}
+				client.fakeLister[buildsPath] = fi
+			}
+
+			err := Update(
+				client,
+				ctx,
+				configPath,
+				tc.gridPrefix,
+				tc.groupConcurrency,
+				tc.buildConcurrency,
+				!tc.skipConfirm,
+				*tc.groupTimeout,
+				*tc.buildTimeout,
+				tc.group,
+			)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("Update() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Error("Update() failed to receive an errro")
+			default:
+				actual := client.fakeUploader
+				diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(fakeUpload{}))
+				if diff == "" {
+					return
+				}
+				t.Errorf("Update() uploaded files got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestTestGroupPath(t *testing.T) {
@@ -142,14 +279,15 @@ func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject 
 	}
 }
 
-func TestUpdateGroup(t *testing.T) {
-	mustGrid := func(grid state.Grid) []byte {
-		buf, err := marshalGrid(grid)
-		if err != nil {
-			t.Fatal("marshalGrid() got error: %v", err)
-		}
-		return buf
+func mustGrid(grid state.Grid) []byte {
+	buf, err := marshalGrid(grid)
+	if err != nil {
+		panic(err)
 	}
+	return buf
+}
+
+func TestUpdateGroup(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
@@ -157,7 +295,6 @@ func TestUpdateGroup(t *testing.T) {
 		name         string
 		ctx          context.Context
 		builds       []fakeBuild
-		client       fakeUploadClient
 		group        configpb.TestGroup
 		concurrency  int
 		skipWrite    bool
