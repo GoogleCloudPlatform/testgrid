@@ -583,6 +583,44 @@ func TestFilterGrid(t *testing.T) {
 			},
 		},
 		{
+			name: "exclude all test methods",
+			baseOptions: url.Values{
+				includeFilter: []string{"test"},
+			}.Encode(),
+			rows: []*statepb.Row{
+				{
+					Name: "test-1",
+					Id:   "test-1",
+				},
+				{
+					Name: "method-1",
+					Id:   "test-1@TESTGRID@method-1",
+				},
+				{
+					Name: "method-2",
+					Id:   "test-1@TESTGRID@method-2",
+				},
+				{
+					Name: "test-2",
+					Id:   "test-2",
+				},
+				{
+					Name: "method-1",
+					Id:   "test-2@TESTGRID@method-1",
+				},
+			},
+			expected: []*statepb.Row{
+				{
+					Name: "test-1",
+					Id:   "test-1",
+				},
+				{
+					Name: "test-2",
+					Id:   "test-2",
+				},
+			},
+		},
+		{
 			name: "bad inclusion regexp errors",
 			baseOptions: url.Values{
 				includeFilter: []string{"this.("},
