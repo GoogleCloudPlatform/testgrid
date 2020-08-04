@@ -103,11 +103,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	client, err := gcs.ClientWithCreds(ctx, opt.creds)
+	storageClient, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
 		logrus.Fatalf("Failed to create storage client: %v", err)
 	}
-	defer client.Close()
+	defer storageClient.Close()
+
+	client := gcs.NewClient(storageClient)
 
 	updateOnce := func() {
 		start := time.Now()

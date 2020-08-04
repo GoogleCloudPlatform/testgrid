@@ -31,6 +31,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"vbom.ml/util/sortorder"
 
+	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -39,7 +40,143 @@ import (
 )
 
 func TestUpdate(t *testing.T) {
-	// TODO(fejta): add coverage
+	defaultTimeout := 5 * time.Minute
+	configPath := newPathOrDie("gs://bucket/path/to/config")
+	cases := []struct {
+		name             string
+		ctx              context.Context
+		config           configpb.Configuration
+		configErr        error
+		builds           map[string][]fakeBuild
+		gridPrefix       string
+		groupConcurrency int
+		buildConcurrency int
+		skipConfirm      bool
+		groupTimeout     *time.Duration
+		buildTimeout     *time.Duration
+		group            string
+
+		expected fakeUploader
+		err      bool
+	}{
+		{
+			name: "basically works",
+			config: configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:             "hello",
+						GcsPrefix:        "kubernetes-jenkins/path/to/job",
+						DaysOfResults:    7,
+						NumColumnsRecent: 6,
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "hello-tab",
+								TestGroupName: "hello",
+							},
+						},
+					},
+				},
+			},
+			expected: fakeUploader{
+				*resolveOrDie(&configPath, "hello"): {
+					buf:          mustGrid(state.Grid{}),
+					cacheControl: "no-cache",
+					worldRead:    gcs.DefaultAcl,
+				},
+			},
+		},
+		// TODO(fejta): more cases
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+
+			if tc.groupConcurrency == 0 {
+				tc.groupConcurrency = 1
+			}
+			if tc.buildConcurrency == 0 {
+				tc.buildConcurrency = 1
+			}
+			if tc.groupTimeout == nil {
+				tc.groupTimeout = &defaultTimeout
+			}
+			if tc.buildTimeout == nil {
+				tc.buildTimeout = &defaultTimeout
+			}
+
+			client := fakeUploadClient{
+				fakeUploader: fakeUploader{},
+				fakeClient: fakeClient{
+					fakeLister: fakeLister{},
+					fakeOpener: fakeOpener{},
+				},
+			}
+
+			client.fakeOpener[configPath] = fakeObject{
+				data: func() string {
+					b, err := config.MarshalBytes(&tc.config)
+					if err != nil {
+						t.Fatal("config.MarshalBytes() errored: %v", err)
+					}
+					return string(b)
+				}(),
+				readErr: tc.configErr,
+			}
+
+			for _, group := range tc.config.TestGroups {
+				builds, ok := tc.builds[group.Name]
+				if !ok {
+					continue
+				}
+				buildsPath := newPathOrDie("gs://" + group.GcsPrefix)
+				fi := client.fakeLister[buildsPath]
+				for _, build := range client.addBuilds(buildsPath, builds...) {
+					fi.objects = append(fi.objects, storage.ObjectAttrs{
+						Prefix: build.Path.Object(),
+					})
+				}
+				client.fakeLister[buildsPath] = fi
+			}
+
+			err := Update(
+				client,
+				ctx,
+				configPath,
+				tc.gridPrefix,
+				tc.groupConcurrency,
+				tc.buildConcurrency,
+				!tc.skipConfirm,
+				*tc.groupTimeout,
+				*tc.buildTimeout,
+				tc.group,
+			)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("Update() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Error("Update() failed to receive an errro")
+			default:
+				actual := client.fakeUploader
+				diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(fakeUpload{}))
+				if diff == "" {
+					return
+				}
+				t.Errorf("Update() uploaded files got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestTestGroupPath(t *testing.T) {
@@ -142,14 +279,15 @@ func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject 
 	}
 }
 
-func TestUpdateGroup(t *testing.T) {
-	mustGrid := func(grid state.Grid) []byte {
-		buf, err := marshalGrid(grid)
-		if err != nil {
-			t.Fatal("marshalGrid() got error: %v", err)
-		}
-		return buf
+func mustGrid(grid state.Grid) []byte {
+	buf, err := marshalGrid(grid)
+	if err != nil {
+		panic(err)
 	}
+	return buf
+}
+
+func TestUpdateGroup(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
@@ -157,7 +295,6 @@ func TestUpdateGroup(t *testing.T) {
 		name         string
 		ctx          context.Context
 		builds       []fakeBuild
-		client       fakeUploadClient
 		group        configpb.TestGroup
 		concurrency  int
 		skipWrite    bool
@@ -420,6 +557,488 @@ func TestUpdateGroup(t *testing.T) {
 					return
 				}
 				t.Errorf("downloadGrid() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestMergeColumns(t *testing.T) {
+	cases := []struct {
+		name     string
+		newCols  []inflatedColumn
+		oldCols  []inflatedColumn
+		expected []inflatedColumn
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "only new cols",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "hello",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "world",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "hello",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "world",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+		},
+		{
+			name: "only old cols",
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "ancient",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "graveyard",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "ancient",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "graveyard",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+		},
+		{
+			name: "accept all when old are all older than new",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+			},
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+		},
+		{
+			name: "accept all new and oldest old, reject olds which are >= new",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-200",
+						Started: 200,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 200"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+			},
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "old-500",
+						Started: 500,
+					},
+					cells: map[string]cell{
+						"test": {message: "reject old"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-150",
+						Started: 150,
+					},
+					cells: map[string]cell{
+						"test": {message: "reject old"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-200",
+						Started: 200,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 200"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+		},
+		{
+			name: "accept all new and oldest old, reject old duplicates",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-110",
+						Started: 110,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 110"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-90",
+						Started: 90,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 90"},
+					},
+				},
+			},
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "shared-110",
+						Started: 110,
+						Extra:   []string{"reject old"},
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-100",
+						Started: 100,
+						Extra:   []string{"reject old"},
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-90",
+						Started: 90,
+						Extra:   []string{"reject old"},
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-110",
+						Started: 110,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 110"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-90",
+						Started: 90,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 90"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := mergeColumns(tc.newCols, tc.oldCols)
+			internals := cmp.AllowUnexported(inflatedColumn{}, cell{})
+			if diff := cmp.Diff(actual, tc.expected, internals, protocmp.Transform()); diff != "" {
+				t.Error("mergeColumns() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}

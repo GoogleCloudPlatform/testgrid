@@ -59,7 +59,7 @@ func Update(ctx context.Context, client *storage.Client, configPath gcs.Path, co
 	if concurrency < 1 {
 		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
-	cfg, err := config.ReadGCS(ctx, client.Bucket(configPath.Bucket()).Object(configPath.Object()))
+	cfg, err := config.ReadGCS(ctx, gcs.NewClient(client), configPath)
 	if err != nil {
 		return fmt.Errorf("Failed to read config: %w", err)
 	}

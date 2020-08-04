@@ -22,16 +22,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/url"
 	"path"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
@@ -44,20 +41,19 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-func Update(client *storage.Client, parent context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
+func Update(client gcs.Client, parent context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
-	cfg, err := config.ReadGCS(ctx, client.Bucket(configPath.Bucket()).Object(configPath.Object()))
+	cfg, err := config.ReadGCS(ctx, client, configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("read config: %w", err)
 	}
 	log.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
 
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
 
-	gc := realGCSClient{client: client}
 	for i := 0; i < groupConcurrency; i++ {
 		wg.Add(1)
 		go func() {
@@ -65,7 +61,7 @@ func Update(client *storage.Client, parent context.Context, configPath gcs.Path,
 				location := path.Join(gridPrefix, tg.Name)
 				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
-					err = updateGroup(ctx, gc, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
+					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
 				}
 				if err != nil {
 					log.WithField("group", tg.Name).WithError(err).Error("Error updating group")
@@ -141,36 +137,7 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
-type gcsUploadClient interface {
-	gcsClient
-	Upload(context.Context, gcs.Path, []byte, bool, string) error
-}
-
-type realGCSClient struct {
-	client *storage.Client
-}
-
-func (rgc realGCSClient) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, error) {
-	r, err := rgc.client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
-	return r, err
-}
-
-func (rgc realGCSClient) Objects(ctx context.Context, path gcs.Path, delimiter string) gcs.Iterator {
-	p := path.Object()
-	if !strings.HasSuffix(p, "/") {
-		p += "/"
-	}
-	return rgc.client.Bucket(path.Bucket()).Objects(ctx, &storage.Query{
-		Delimiter: delimiter,
-		Prefix:    p,
-	})
-}
-
-func (rgc realGCSClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldReadable bool, cacheControl string) error {
-	return gcs.Upload(ctx, rgc.client, path, buf, worldReadable, cacheControl)
-}
-
-func updateGroup(parent context.Context, client gcsUploadClient, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
+func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parent, groupTimeout)
 	defer cancel()
 	log := logrus.WithField("group", tg.Name)
@@ -194,10 +161,35 @@ func updateGroup(parent context.Context, client gcsUploadClient, tg configpb.Tes
 	const maxCols = 50
 
 	stop := time.Now().Add(-dur)
-	cols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
+
+	var oldCols []inflatedColumn
+
+	old, err := downloadGrid(ctx, client, gridPath)
+	if err != nil {
+		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
+	}
+	if old != nil {
+		oldCols = inflateGrid(old, stop, time.Now().Add(-4*time.Hour))
+	}
+
+	if len(oldCols) > 0 {
+		newStop := time.Unix(int64(oldCols[0].column.Started/1000), 0)
+		if newStop.After(stop) {
+			log.WithFields(logrus.Fields{
+				"old columns": len(oldCols),
+				"previously":  stop,
+				"stop":        newStop,
+			}).Info("Advanced stop")
+			stop = newStop
+		}
+	}
+
+	newCols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
 	if err != nil {
 		return fmt.Errorf("read columns: %w", err)
 	}
+
+	cols := mergeColumns(newCols, oldCols)
 
 	grid := constructGrid(tg, cols)
 	buf, err := marshalGrid(grid)
@@ -219,6 +211,27 @@ func updateGroup(parent context.Context, client gcsUploadClient, tg configpb.Tes
 		"rows": len(grid.Rows),
 	}).Info("Wrote grid")
 	return nil
+}
+
+// mergeColumns combines newCols and oldCols.
+//
+// When old and new both contain a column, chooses the new column.
+func mergeColumns(newCols, oldCols []inflatedColumn) []inflatedColumn {
+	// accept all the new columns
+	out := append([]inflatedColumn{}, newCols...)
+	if len(out) == 0 {
+		return oldCols
+	}
+
+	// accept all the old columns which are older than the accepted columns.
+	oldestCol := out[len(out)-1].column
+	for i := 0; i < len(oldCols); i++ {
+		if oldCols[i].column.Started > oldestCol.Started || oldCols[i].column.Build == oldestCol.Build {
+			continue
+		}
+		return append(out, oldCols[i:]...)
+	}
+	return out
 }
 
 // days converts days float into a time.Duration, assuming a 24 hour day.

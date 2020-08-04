@@ -57,13 +57,8 @@ func downloadGrid(ctx context.Context, opener gcs.Opener, path gcs.Path) (*state
 	return &g, err
 }
 
-type gcsClient interface {
-	gcs.Lister
-	gcs.Opener
-}
-
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(parent context.Context, client gcsClient, group configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
+func readColumns(parent context.Context, client gcs.Downloader, group configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, errors.New("zero readers")
@@ -203,7 +198,7 @@ func readColumns(parent context.Context, client gcsClient, group configpb.TestGr
 // * started.json
 // * finished.json
 // * any junit.xml files under the artifacts directory.
-func readResult(parent context.Context, client gcsClient, build gcs.Build) (*gcsResult, error) {
+func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) (*gcsResult, error) {
 	ctx, cancel := context.WithCancel(parent) // Allows aborting after first error
 	defer cancel()
 	var result gcsResult
@@ -270,7 +265,7 @@ func readResult(parent context.Context, client gcsClient, build gcs.Build) (*gcs
 }
 
 // readSuites asynchrounously lists and downloads junit.xml files
-func readSuites(parent context.Context, client gcsClient, build gcs.Build) ([]gcs.SuitesMeta, error) {
+func readSuites(parent context.Context, client gcs.Downloader, build gcs.Build) ([]gcs.SuitesMeta, error) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	var work int
