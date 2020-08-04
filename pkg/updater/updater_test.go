@@ -562,6 +562,488 @@ func TestUpdateGroup(t *testing.T) {
 	}
 }
 
+func TestMergeColumns(t *testing.T) {
+	cases := []struct {
+		name     string
+		newCols  []inflatedColumn
+		oldCols  []inflatedColumn
+		expected []inflatedColumn
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "only new cols",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "hello",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "world",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "hello",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "world",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+		},
+		{
+			name: "only old cols",
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "ancient",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "graveyard",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build: "ancient",
+					},
+					cells: map[string]cell{
+						"this": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build: "graveyard",
+					},
+					cells: map[string]cell{
+						"that": {result: state.Row_FAIL},
+					},
+				},
+			},
+		},
+		{
+			name: "accept all when old are all older than new",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+			},
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+		},
+		{
+			name: "accept all new and oldest old, reject olds which are >= new",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-200",
+						Started: 200,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 200"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+			},
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "old-500",
+						Started: 500,
+					},
+					cells: map[string]cell{
+						"test": {message: "reject old"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-150",
+						Started: 150,
+					},
+					cells: map[string]cell{
+						"test": {message: "reject old"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-200",
+						Started: 200,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 200"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+		},
+		{
+			name: "accept all new and oldest old, reject old duplicates",
+			newCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-110",
+						Started: 110,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 110"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-90",
+						Started: 90,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 90"},
+					},
+				},
+			},
+			oldCols: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "shared-110",
+						Started: 110,
+						Extra:   []string{"reject old"},
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-100",
+						Started: 100,
+						Extra:   []string{"reject old"},
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-90",
+						Started: 90,
+						Extra:   []string{"reject old"},
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+			expected: []inflatedColumn{
+				{
+					column: &state.Column{
+						Build:   "new-1000",
+						Started: 1000,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_RUNNING},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "new-900",
+						Started: 900,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_PASS},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-110",
+						Started: 110,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 110"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-100",
+						Started: 100,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 100"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "shared-90",
+						Started: 90,
+					},
+					cells: map[string]cell{
+						"test": {message: "accept new 90"},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-50",
+						Started: 50,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FAIL},
+					},
+				},
+				{
+					column: &state.Column{
+						Build:   "old-40",
+						Started: 40,
+					},
+					cells: map[string]cell{
+						"test": {result: state.Row_FLAKY},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := mergeColumns(tc.newCols, tc.oldCols)
+			internals := cmp.AllowUnexported(inflatedColumn{}, cell{})
+			if diff := cmp.Diff(actual, tc.expected, internals, protocmp.Transform()); diff != "" {
+				t.Error("mergeColumns() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestConstructGrid(t *testing.T) {
 	cases := []struct {
 		name     string

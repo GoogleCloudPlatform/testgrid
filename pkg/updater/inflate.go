@@ -69,8 +69,11 @@ func inflateGrid(grid *state.Grid, earliest, latest time.Time) []inflatedColumn 
 			item.cells[rowName] = <-rowCells
 		}
 		when := int64(col.Started / 1000)
-		if when < earliest.Unix() || when > latest.Unix() {
+		if when > latest.Unix() {
 			continue
+		}
+		if when < earliest.Unix() {
+			break
 		}
 		cols = append(cols, item)
 

@@ -161,10 +161,35 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 	const maxCols = 50
 
 	stop := time.Now().Add(-dur)
-	cols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
+
+	var oldCols []inflatedColumn
+
+	old, err := downloadGrid(ctx, client, gridPath)
+	if err != nil {
+		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
+	}
+	if old != nil {
+		oldCols = inflateGrid(old, stop, time.Now().Add(-4*time.Hour))
+	}
+
+	if len(oldCols) > 0 {
+		newStop := time.Unix(int64(oldCols[0].column.Started/1000), 0)
+		if newStop.After(stop) {
+			log.WithFields(logrus.Fields{
+				"old columns": len(oldCols),
+				"previously":  stop,
+				"stop":        newStop,
+			}).Info("Advanced stop")
+			stop = newStop
+		}
+	}
+
+	newCols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
 	if err != nil {
 		return fmt.Errorf("read columns: %w", err)
 	}
+
+	cols := mergeColumns(newCols, oldCols)
 
 	grid := constructGrid(tg, cols)
 	buf, err := marshalGrid(grid)
@@ -186,6 +211,27 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 		"rows": len(grid.Rows),
 	}).Info("Wrote grid")
 	return nil
+}
+
+// mergeColumns combines newCols and oldCols.
+//
+// When old and new both contain a column, chooses the new column.
+func mergeColumns(newCols, oldCols []inflatedColumn) []inflatedColumn {
+	// accept all the new columns
+	out := append([]inflatedColumn{}, newCols...)
+	if len(out) == 0 {
+		return oldCols
+	}
+
+	// accept all the old columns which are older than the accepted columns.
+	oldestCol := out[len(out)-1].column
+	for i := 0; i < len(oldCols); i++ {
+		if oldCols[i].column.Started > oldestCol.Started || oldCols[i].column.Build == oldestCol.Build {
+			continue
+		}
+		return append(out, oldCols[i:]...)
+	}
+	return out
 }
 
 // days converts days float into a time.Duration, assuming a 24 hour day.
