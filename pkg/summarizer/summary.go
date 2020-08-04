@@ -327,6 +327,8 @@ func filterGrid(baseOptions string, rows []*statepb.Row, recent int) ([]*statepb
 
 	rows = recentRows(rows, recent)
 
+	rows = filterMethods(rows)
+
 	for _, include := range vals[includeFilter] {
 		if rows, err = includeRows(rows, include); err != nil {
 			return nil, fmt.Errorf("bad %s=%s: %v", includeFilter, include, err)
@@ -359,6 +361,18 @@ func recentRows(in []*statepb.Row, recent int) []*statepb.Row {
 		rows = append(rows, r)
 	}
 	return rows
+}
+
+// filterMethods returns the subset of rows that do not have test method names
+func filterMethods(rows []*statepb.Row) []*statepb.Row {
+	var filtered []*statepb.Row
+	for _, r := range rows {
+		if !isValidTestName(r.Id) {
+			continue
+		}
+		filtered = append(filtered, r)
+	}
+	return filtered
 }
 
 // includeRows returns the subset of rows that match the regex
