@@ -149,15 +149,14 @@ func readColumns(parent context.Context, client gcs.Downloader, group configpb.T
 					// Multiple go-routines may all read an old result.
 					// So we need to use a mutex to read the
 					wg.Add(1)
-					maxLock.Lock()
 					go func() {
 						defer wg.Done()
+						maxLock.Lock()
 						defer maxLock.Unlock()
 						if maxIdx == len(builds) {
 							// still vending new indices to download, stop this.
 							select {
 							case <-ctx.Done():
-								return
 							case old <- idx:
 								log.WithFields(logrus.Fields{
 									"idx":     idx,
@@ -188,6 +187,10 @@ func readColumns(parent context.Context, client gcs.Downloader, group configpb.T
 			}
 		}
 	}
+
+	// wait for the consistent maxIdx value
+	cancel()  // no need to notify about an old index
+	wg.Wait() // wait for all the old indexes to sync
 
 	return cols[0:maxIdx], nil
 }

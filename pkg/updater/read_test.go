@@ -625,6 +625,95 @@ func TestReadColumns(t *testing.T) {
 			},
 		},
 		{
+			name:        "truncate columns after the newest old result with high concurrency",
+			concurrency: 30,
+			stop:        time.Unix(now+13, 0), // should capture 13 and 12
+			builds: []fakeBuild{
+				{
+					id: "13",
+					started: &fakeObject{
+						data: jsonData(metadata.Started{Timestamp: now + 13}),
+					},
+					finished: &fakeObject{
+						data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 26),
+							Passed:    &yes,
+						}),
+					},
+				},
+				{
+					id: "12",
+					started: &fakeObject{
+						data: jsonData(metadata.Started{Timestamp: now + 12}),
+					},
+					finished: &fakeObject{
+						data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 24),
+							Passed:    &yes,
+						}),
+					},
+				},
+				{
+					id: "11",
+					started: &fakeObject{
+						data: jsonData(metadata.Started{Timestamp: now + 11}),
+					},
+					finished: &fakeObject{
+						data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 22),
+							Passed:    &yes,
+						}),
+					},
+				},
+				{
+					id: "10",
+					started: &fakeObject{
+						data: jsonData(metadata.Started{Timestamp: now + 10}),
+					},
+					finished: &fakeObject{
+						data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 20),
+							Passed:    &yes,
+						}),
+					},
+				},
+			},
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+			},
+			expected: []inflatedColumn{
+				{
+					column: &statepb.Column{
+						Build:   "13",
+						Started: float64(now+13) * 1000,
+					},
+					cells: map[string]cell{
+						"Overall": {
+							result: statepb.Row_PASS,
+							metrics: map[string]float64{
+								"seconds-elapsed": 13,
+							},
+						},
+					},
+				},
+				{
+					column: &statepb.Column{
+						Build:   "12",
+						Started: float64(now+12) * 1000,
+					},
+					cells: map[string]cell{
+						"Overall": {
+							result: statepb.Row_PASS,
+							metrics: map[string]float64{
+								"seconds-elapsed": 12,
+							},
+						},
+					},
+				},
+				// drop 11 and 10
+			},
+		},
+		{
 			name: "cancelled context returns error",
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
