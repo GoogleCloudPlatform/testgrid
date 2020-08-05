@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
 
 // inflatedColumn holds all the entries for a given column.
@@ -29,13 +29,13 @@ import (
 // * Column state metadata and
 // * cell values for every row in this column
 type inflatedColumn struct {
-	column *state.Column
+	column *statepb.Column
 	cells  map[string]cell
 }
 
 // cell holds a row's values for a given column
 type cell struct {
-	result state.Row_Result
+	result statepb.Row_Result
 
 	cellID string
 
@@ -46,7 +46,7 @@ type cell struct {
 }
 
 // inflateGrid inflates the grid's rows into an inflatedColumn channel.
-func inflateGrid(grid *state.Grid, earliest, latest time.Time) []inflatedColumn {
+func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []inflatedColumn {
 	var cols []inflatedColumn
 
 	// nothing is blocking, so no need for a parent context.
@@ -82,7 +82,7 @@ func inflateGrid(grid *state.Grid, earliest, latest time.Time) []inflatedColumn 
 }
 
 // inflateRow inflates the values for each column into a cell channel.
-func inflateRow(parent context.Context, row *state.Row) <-chan cell {
+func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
 	out := make(chan cell)
 
 	go func() {
@@ -119,7 +119,7 @@ func inflateRow(parent context.Context, row *state.Row) <-chan cell {
 				}
 				c.metrics[name] = *val
 			}
-			if result != state.Row_NO_RESULT {
+			if result != statepb.Row_NO_RESULT {
 				c.icon = row.Icons[filledIdx]
 				c.message = row.Messages[filledIdx]
 				filledIdx++
@@ -136,7 +136,7 @@ func inflateRow(parent context.Context, row *state.Row) <-chan cell {
 }
 
 // inflateMetric inflates the sparse-encoded metric values into a channel
-func inflateMetric(ctx context.Context, metric *state.Metric) <-chan *float64 {
+func inflateMetric(ctx context.Context, metric *statepb.Metric) <-chan *float64 {
 	out := make(chan *float64)
 	go func() {
 		defer close(out)
@@ -172,8 +172,8 @@ func inflateMetric(ctx context.Context, metric *state.Metric) <-chan *float64 {
 }
 
 // inflateResults inflates the run-length encoded row results into a channel.
-func inflateResults(ctx context.Context, results []int32) <-chan state.Row_Result {
-	out := make(chan state.Row_Result)
+func inflateResults(ctx context.Context, results []int32) <-chan statepb.Row_Result {
+	out := make(chan statepb.Row_Result)
 	go func() {
 		defer close(out)
 		for idx := 0; idx < len(results); idx++ {
@@ -183,7 +183,7 @@ func inflateResults(ctx context.Context, results []int32) <-chan state.Row_Resul
 				select {
 				case <-ctx.Done():
 					return
-				case out <- state.Row_Result(val):
+				case out <- statepb.Row_Result(val):
 				}
 			}
 		}

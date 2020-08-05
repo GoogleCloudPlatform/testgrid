@@ -21,7 +21,7 @@ import (
 	"regexp"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 )
@@ -44,7 +44,7 @@ type flakinessAnalyzer interface {
 // CalculateHealthiness extracts the test run data from each row (which represents a test)
 // of the Grid and then analyzes it with an implementation of flakinessAnalyzer, which has
 // implementations in the subdir naive and can be injected as needed.
-func CalculateHealthiness(grid *state.Grid, analyzer flakinessAnalyzer, startTime int, endTime int, tab string) *summarypb.HealthinessInfo {
+func CalculateHealthiness(grid *statepb.Grid, analyzer flakinessAnalyzer, startTime int, endTime int, tab string) *summarypb.HealthinessInfo {
 	gridMetrics := parseGrid(grid, startTime, endTime)
 	return analyzer.GetFlakiness(gridMetrics, minRuns, startTime, endTime, tab)
 }
@@ -79,7 +79,7 @@ func getTrend(currentFlakiness, previousFlakiness float32) summarypb.TestInfo_Tr
 	return summarypb.TestInfo_NO_CHANGE
 }
 
-func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetrics {
+func parseGrid(grid *statepb.Grid, startTime int, endTime int) []*common.GridMetrics {
 	// Get the relevant data for flakiness from each Grid (which represents
 	// a dashboard tab) as a list of GridMetrics structs
 
@@ -100,7 +100,7 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 	// using the same key. At the end we can filter out those types.Result that had
 	// 0 of all counts.
 	gridMetricsMap := make(map[string]*common.GridMetrics, 0)
-	gridRows := make(map[string]*state.Row)
+	gridRows := make(map[string]*statepb.Row)
 
 	for i, row := range grid.Rows {
 		gridRows[row.Name] = grid.Rows[i]
@@ -127,21 +127,21 @@ func parseGrid(grid *state.Grid, startTime int, endTime int) []*common.GridMetri
 			// this column.
 			if !isWithinTimeFrame(grid.Columns[i], startTime, endTime) {
 				switch rowResult {
-				case state.Row_NO_RESULT:
-					break
+				case statepb.Row_NO_RESULT:
+					// Ignore NO_RESULT (e.g. blank cell)
 				default:
 					rowToMessageIndex++
 				}
 				continue
 			}
 			switch rowResult {
-			case state.Row_NO_RESULT:
+			case statepb.Row_NO_RESULT:
 				continue
-			case state.Row_FAIL:
+			case statepb.Row_FAIL:
 				categorizeFailure(gridMetricsMap[key], gridRows[key].Messages[rowToMessageIndex])
-			case state.Row_PASS:
+			case statepb.Row_PASS:
 				gridMetricsMap[key].Passed++
-			case state.Row_FLAKY:
+			case statepb.Row_FLAKY:
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
 			rowToMessageIndex++
@@ -180,7 +180,7 @@ func getValueOfFlakyMetric(gridMetrics *common.GridMetrics) {
 	gridMetrics.AverageFlakiness += (flakiness - gridMetrics.AverageFlakiness) / float64(gridMetrics.FlakyCount)
 }
 
-func isWithinTimeFrame(column *state.Column, startTime, endTime int) bool {
+func isWithinTimeFrame(column *statepb.Column, startTime, endTime int) bool {
 	return column.Started >= float64(startTime) && column.Started <= float64(endTime)
 }
 

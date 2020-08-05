@@ -35,7 +35,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -84,7 +84,7 @@ func TestUpdate(t *testing.T) {
 			},
 			expected: fakeUploader{
 				*resolveOrDie(&configPath, "hello"): {
-					buf:          mustGrid(state.Grid{}),
+					buf:          mustGrid(statepb.Grid{}),
 					cacheControl: "no-cache",
 					worldRead:    gcs.DefaultAcl,
 				},
@@ -126,7 +126,7 @@ func TestUpdate(t *testing.T) {
 				data: func() string {
 					b, err := config.MarshalBytes(&tc.config)
 					if err != nil {
-						t.Fatal("config.MarshalBytes() errored: %v", err)
+						t.Fatalf("config.MarshalBytes() errored: %v", err)
 					}
 					return string(b)
 				}(),
@@ -279,7 +279,7 @@ func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject 
 	}
 }
 
-func mustGrid(grid state.Grid) []byte {
+func mustGrid(grid statepb.Grid) []byte {
 	buf, err := marshalGrid(grid)
 	if err != nil {
 		panic(err)
@@ -345,8 +345,8 @@ func TestUpdateGroup(t *testing.T) {
 				},
 			},
 			expected: &fakeUpload{
-				buf: mustGrid(state.Grid{
-					Columns: []*state.Column{
+				buf: mustGrid(statepb.Grid{
+					Columns: []*statepb.Column{
 						{
 							Build:   "99",
 							Started: float64(now+99) * 1000,
@@ -368,63 +368,63 @@ func TestUpdateGroup(t *testing.T) {
 							Extra:   []string{"build10"},
 						},
 					},
-					Rows: []*state.Row{
+					Rows: []*statepb.Row{
 						setupRow(
-							&state.Row{
+							&statepb.Row{
 								Name: "Overall",
 								Id:   "Overall",
 							},
 							cell{
-								result:  state.Row_RUNNING,
+								result:  statepb.Row_RUNNING,
 								message: "Build still running...",
 								icon:    "R",
 							},
 							cell{
-								result:  state.Row_PASS,
+								result:  statepb.Row_PASS,
 								metrics: setElapsed(nil, 1),
 							},
 							cell{
-								result:  state.Row_FAIL,
+								result:  statepb.Row_FAIL,
 								metrics: setElapsed(nil, 1),
 							},
 							cell{
-								result:  state.Row_PASS,
+								result:  statepb.Row_PASS,
 								metrics: setElapsed(nil, 1),
 							},
 						),
 						setupRow(
-							&state.Row{
+							&statepb.Row{
 								Name: "flaky",
 								Id:   "flaky",
 							},
-							cell{result: state.Row_NO_RESULT},
-							cell{result: state.Row_PASS},
+							cell{result: statepb.Row_NO_RESULT},
+							cell{result: statepb.Row_PASS},
 							cell{
-								result:  state.Row_FAIL,
+								result:  statepb.Row_FAIL,
 								message: "flaky",
 								icon:    "F",
 							},
-							cell{result: state.Row_PASS},
+							cell{result: statepb.Row_PASS},
 						),
 						setupRow(
-							&state.Row{
+							&statepb.Row{
 								Name: "good1",
 								Id:   "good1",
 							},
-							cell{result: state.Row_NO_RESULT},
-							cell{result: state.Row_PASS},
-							cell{result: state.Row_PASS},
-							cell{result: state.Row_PASS},
+							cell{result: statepb.Row_NO_RESULT},
+							cell{result: statepb.Row_PASS},
+							cell{result: statepb.Row_PASS},
+							cell{result: statepb.Row_PASS},
 						),
 						setupRow(
-							&state.Row{
+							&statepb.Row{
 								Name: "good2",
 								Id:   "good2",
 							},
-							cell{result: state.Row_NO_RESULT},
-							cell{result: state.Row_PASS},
-							cell{result: state.Row_PASS},
-							cell{result: state.Row_PASS},
+							cell{result: statepb.Row_NO_RESULT},
+							cell{result: statepb.Row_PASS},
+							cell{result: statepb.Row_PASS},
+							cell{result: statepb.Row_PASS},
 						),
 					},
 				}),
@@ -576,37 +576,37 @@ func TestMergeColumns(t *testing.T) {
 			name: "only new cols",
 			newCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "hello",
 					},
 					cells: map[string]cell{
-						"this": {result: state.Row_PASS},
+						"this": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "world",
 					},
 					cells: map[string]cell{
-						"that": {result: state.Row_FAIL},
+						"that": {result: statepb.Row_FAIL},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "hello",
 					},
 					cells: map[string]cell{
-						"this": {result: state.Row_PASS},
+						"this": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "world",
 					},
 					cells: map[string]cell{
-						"that": {result: state.Row_FAIL},
+						"that": {result: statepb.Row_FAIL},
 					},
 				},
 			},
@@ -615,37 +615,37 @@ func TestMergeColumns(t *testing.T) {
 			name: "only old cols",
 			oldCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "ancient",
 					},
 					cells: map[string]cell{
-						"this": {result: state.Row_PASS},
+						"this": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "graveyard",
 					},
 					cells: map[string]cell{
-						"that": {result: state.Row_FAIL},
+						"that": {result: statepb.Row_FAIL},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "ancient",
 					},
 					cells: map[string]cell{
-						"this": {result: state.Row_PASS},
+						"this": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build: "graveyard",
 					},
 					cells: map[string]cell{
-						"that": {result: state.Row_FAIL},
+						"that": {result: statepb.Row_FAIL},
 					},
 				},
 			},
@@ -654,79 +654,79 @@ func TestMergeColumns(t *testing.T) {
 			name: "accept all when old are all older than new",
 			newCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_RUNNING},
+						"test": {result: statepb.Row_RUNNING},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_PASS},
+						"test": {result: statepb.Row_PASS},
 					},
 				},
 			},
 			oldCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FLAKY},
+						"test": {result: statepb.Row_FLAKY},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_RUNNING},
+						"test": {result: statepb.Row_RUNNING},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_PASS},
+						"test": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FLAKY},
+						"test": {result: statepb.Row_FLAKY},
 					},
 				},
 			},
@@ -735,25 +735,25 @@ func TestMergeColumns(t *testing.T) {
 			name: "accept all new and oldest old, reject olds which are >= new",
 			newCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_RUNNING},
+						"test": {result: statepb.Row_RUNNING},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_PASS},
+						"test": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-200",
 						Started: 200,
 					},
@@ -762,7 +762,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-100",
 						Started: 100,
 					},
@@ -773,7 +773,7 @@ func TestMergeColumns(t *testing.T) {
 			},
 			oldCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-500",
 						Started: 500,
 					},
@@ -782,7 +782,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-150",
 						Started: 150,
 					},
@@ -791,45 +791,45 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FLAKY},
+						"test": {result: statepb.Row_FLAKY},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_RUNNING},
+						"test": {result: statepb.Row_RUNNING},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_PASS},
+						"test": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-200",
 						Started: 200,
 					},
@@ -838,7 +838,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-100",
 						Started: 100,
 					},
@@ -847,21 +847,21 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FLAKY},
+						"test": {result: statepb.Row_FLAKY},
 					},
 				},
 			},
@@ -870,25 +870,25 @@ func TestMergeColumns(t *testing.T) {
 			name: "accept all new and oldest old, reject old duplicates",
 			newCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_RUNNING},
+						"test": {result: statepb.Row_RUNNING},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_PASS},
+						"test": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-110",
 						Started: 110,
 					},
@@ -897,7 +897,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-100",
 						Started: 100,
 					},
@@ -906,7 +906,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-90",
 						Started: 90,
 					},
@@ -917,75 +917,75 @@ func TestMergeColumns(t *testing.T) {
 			},
 			oldCols: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-110",
 						Started: 110,
 						Extra:   []string{"reject old"},
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-100",
 						Started: 100,
 						Extra:   []string{"reject old"},
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-90",
 						Started: 90,
 						Extra:   []string{"reject old"},
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FLAKY},
+						"test": {result: statepb.Row_FLAKY},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_RUNNING},
+						"test": {result: statepb.Row_RUNNING},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_PASS},
+						"test": {result: statepb.Row_PASS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-110",
 						Started: 110,
 					},
@@ -994,7 +994,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-100",
 						Started: 100,
 					},
@@ -1003,7 +1003,7 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "shared-90",
 						Started: 90,
 					},
@@ -1012,21 +1012,21 @@ func TestMergeColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FAIL},
+						"test": {result: statepb.Row_FAIL},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
 					cells: map[string]cell{
-						"test": {result: state.Row_FLAKY},
+						"test": {result: statepb.Row_FLAKY},
 					},
 				},
 			},
@@ -1038,7 +1038,7 @@ func TestMergeColumns(t *testing.T) {
 			actual := mergeColumns(tc.newCols, tc.oldCols)
 			internals := cmp.AllowUnexported(inflatedColumn{}, cell{})
 			if diff := cmp.Diff(actual, tc.expected, internals, protocmp.Transform()); diff != "" {
-				t.Error("mergeColumns() got unexpected diff (-have, +want):\n%s", diff)
+				t.Errorf("mergeColumns() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
@@ -1049,7 +1049,7 @@ func TestConstructGrid(t *testing.T) {
 		name     string
 		group    configpb.TestGroup
 		cols     []inflatedColumn
-		expected state.Grid
+		expected statepb.Grid
 	}{
 		{
 			name: "basically works",
@@ -1058,24 +1058,24 @@ func TestConstructGrid(t *testing.T) {
 			name: "multiple columns",
 			cols: []inflatedColumn{
 				{
-					column: &state.Column{Build: "15"},
+					column: &statepb.Column{Build: "15"},
 					cells: map[string]cell{
 						"green": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 						"red": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 						"only-15": {
-							result: state.Row_FLAKY,
+							result: statepb.Row_FLAKY,
 						},
 					},
 				},
 				{
-					column: &state.Column{Build: "10"},
+					column: &statepb.Column{Build: "10"},
 					cells: map[string]cell{
 						"full": {
-							result:  state.Row_PASS,
+							result:  statepb.Row_PASS,
 							cellID:  "cell",
 							icon:    "icon",
 							message: "message",
@@ -1085,31 +1085,31 @@ func TestConstructGrid(t *testing.T) {
 							},
 						},
 						"green": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 						"red": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 						"only-10": {
-							result: state.Row_FLAKY,
+							result: statepb.Row_FLAKY,
 						},
 					},
 				},
 			},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "15"},
 					{Build: "10"},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "full",
 							Id:   "full",
 						},
 						emptyCell,
 						cell{
-							result:  state.Row_PASS,
+							result:  statepb.Row_PASS,
 							cellID:  "cell",
 							icon:    "icon",
 							message: "message",
@@ -1120,36 +1120,36 @@ func TestConstructGrid(t *testing.T) {
 						},
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "green",
 							Id:   "green",
 						},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "only-10",
 							Id:   "only-10",
 						},
 						emptyCell,
-						cell{result: state.Row_FLAKY},
+						cell{result: statepb.Row_FLAKY},
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "only-15",
 							Id:   "only-15",
 						},
-						cell{result: state.Row_FLAKY},
+						cell{result: statepb.Row_FLAKY},
 						emptyCell,
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "red",
 							Id:   "red",
 						},
-						cell{result: state.Row_FAIL},
-						cell{result: state.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
 					),
 				},
 			},
@@ -1161,49 +1161,49 @@ func TestConstructGrid(t *testing.T) {
 			},
 			cols: []inflatedColumn{
 				{
-					column: &state.Column{Build: "4"},
+					column: &statepb.Column{Build: "4"},
 					cells: map[string]cell{
 						"just-flaky": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 						"broken": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 					},
 				},
 				{
-					column: &state.Column{Build: "3"},
+					column: &statepb.Column{Build: "3"},
 					cells: map[string]cell{
 						"just-flaky": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 						"broken": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 					},
 				},
 			},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "4"},
 					{Build: "3"},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "broken",
 							Id:   "broken",
 						},
-						cell{result: state.Row_FAIL},
-						cell{result: state.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "just-flaky",
 							Id:   "just-flaky",
 						},
-						cell{result: state.Row_FAIL},
-						cell{result: state.Row_PASS},
+						cell{result: statepb.Row_FAIL},
+						cell{result: statepb.Row_PASS},
 					),
 				},
 			},
@@ -1216,77 +1216,77 @@ func TestConstructGrid(t *testing.T) {
 			},
 			cols: []inflatedColumn{
 				{
-					column: &state.Column{Build: "4"},
+					column: &statepb.Column{Build: "4"},
 					cells: map[string]cell{
 						"still-broken": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 						"fixed": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 					},
 				},
 				{
-					column: &state.Column{Build: "3"},
+					column: &statepb.Column{Build: "3"},
 					cells: map[string]cell{
 						"still-broken": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 						"fixed": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 					},
 				},
 				{
-					column: &state.Column{Build: "2"},
+					column: &statepb.Column{Build: "2"},
 					cells: map[string]cell{
 						"still-broken": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 						"fixed": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 					},
 				},
 				{
-					column: &state.Column{Build: "1"},
+					column: &statepb.Column{Build: "1"},
 					cells: map[string]cell{
 						"still-broken": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 						"fixed": {
-							result: state.Row_FAIL,
+							result: statepb.Row_FAIL,
 						},
 					},
 				},
 			},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "4"},
 					{Build: "3"},
 					{Build: "2"},
 					{Build: "1"},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "fixed",
 							Id:   "fixed",
 						},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_FAIL},
-						cell{result: state.Row_FAIL},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "still-broken",
 							Id:   "still-broken",
 						},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_FAIL},
-						cell{result: state.Row_FAIL},
-						cell{result: state.Row_FAIL},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
+						cell{result: statepb.Row_FAIL},
 					),
 				},
 			},
@@ -1318,14 +1318,14 @@ func TestConstructGrid(t *testing.T) {
 }
 
 func TestMarshalGrid(t *testing.T) {
-	g1 := state.Grid{
-		Columns: []*state.Column{
+	g1 := statepb.Grid{
+		Columns: []*statepb.Column{
 			{Build: "alpha"},
 			{Build: "second"},
 		},
 	}
-	g2 := state.Grid{
-		Columns: []*state.Column{
+	g2 := statepb.Grid{
+		Columns: []*statepb.Column{
 			{Build: "first"},
 			{Build: "second"},
 		},
@@ -1352,14 +1352,14 @@ func TestMarshalGrid(t *testing.T) {
 func TestAppendMetric(t *testing.T) {
 	cases := []struct {
 		name     string
-		metric   state.Metric
+		metric   statepb.Metric
 		idx      int32
 		value    float64
-		expected state.Metric
+		expected statepb.Metric
 	}{
 		{
 			name: "basically works",
-			expected: state.Metric{
+			expected: statepb.Metric{
 				Indices: []int32{0, 1},
 				Values:  []float64{0},
 			},
@@ -1368,33 +1368,33 @@ func TestAppendMetric(t *testing.T) {
 			name:  "start metric at random column",
 			idx:   7,
 			value: 11,
-			expected: state.Metric{
+			expected: statepb.Metric{
 				Indices: []int32{7, 1},
 				Values:  []float64{11},
 			},
 		},
 		{
 			name: "continue existing series",
-			metric: state.Metric{
+			metric: statepb.Metric{
 				Indices: []int32{6, 2},
 				Values:  []float64{6.1, 6.2},
 			},
 			idx:   8,
 			value: 88,
-			expected: state.Metric{
+			expected: statepb.Metric{
 				Indices: []int32{6, 3},
 				Values:  []float64{6.1, 6.2, 88},
 			},
 		},
 		{
 			name: "start new series",
-			metric: state.Metric{
+			metric: statepb.Metric{
 				Indices: []int32{3, 2},
 				Values:  []float64{6.1, 6.2},
 			},
 			idx:   8,
 			value: 88,
-			expected: state.Metric{
+			expected: statepb.Metric{
 				Indices: []int32{3, 2, 8, 1},
 				Values:  []float64{6.1, 6.2, 88},
 			},
@@ -1414,26 +1414,26 @@ func TestAppendMetric(t *testing.T) {
 func TestAppendCell(t *testing.T) {
 	cases := []struct {
 		name  string
-		row   state.Row
+		row   statepb.Row
 		cell  cell
 		count int
 
-		expected state.Row
+		expected statepb.Row
 	}{
 		{
 			name: "basically works",
-			expected: state.Row{
+			expected: statepb.Row{
 				Results: []int32{0, 0},
 			},
 		},
 		{
 			name: "first result",
 			cell: cell{
-				result: state.Row_PASS,
+				result: statepb.Row_PASS,
 			},
 			count: 1,
-			expected: state.Row{
-				Results:  []int32{int32(state.Row_PASS), 1},
+			expected: statepb.Row{
+				Results:  []int32{int32(statepb.Row_PASS), 1},
 				CellIds:  []string{""},
 				Messages: []string{""},
 				Icons:    []string{""},
@@ -1442,7 +1442,7 @@ func TestAppendCell(t *testing.T) {
 		{
 			name: "all fields filled",
 			cell: cell{
-				result:  state.Row_PASS,
+				result:  statepb.Row_PASS,
 				cellID:  "cell-id",
 				message: "hi",
 				icon:    "there",
@@ -1452,8 +1452,8 @@ func TestAppendCell(t *testing.T) {
 				},
 			},
 			count: 1,
-			expected: state.Row{
-				Results:  []int32{int32(state.Row_PASS), 1},
+			expected: statepb.Row{
+				Results:  []int32{int32(statepb.Row_PASS), 1},
 				CellIds:  []string{"cell-id"},
 				Messages: []string{"hi"},
 				Icons:    []string{"there"},
@@ -1461,7 +1461,7 @@ func TestAppendCell(t *testing.T) {
 					"golden",
 					"pi",
 				},
-				Metrics: []*state.Metric{
+				Metrics: []*statepb.Metric{
 					{
 						Name:    "pi",
 						Indices: []int32{0, 1},
@@ -1477,23 +1477,23 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "append same result",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 3,
+					int32(statepb.Row_FLAKY), 3,
 				},
 				CellIds:  []string{"", "", ""},
 				Messages: []string{"", "", ""},
 				Icons:    []string{"", "", ""},
 			},
 			cell: cell{
-				result:  state.Row_FLAKY,
+				result:  statepb.Row_FLAKY,
 				message: "echo",
 				cellID:  "again and",
 				icon:    "keeps going",
 			},
 			count: 2,
-			expected: state.Row{
-				Results:  []int32{int32(state.Row_FLAKY), 5},
+			expected: statepb.Row{
+				Results:  []int32{int32(statepb.Row_FLAKY), 5},
 				CellIds:  []string{"", "", "", "again and", "again and"},
 				Messages: []string{"", "", "", "echo", "echo"},
 				Icons:    []string{"", "", "", "keeps going", "keeps going"},
@@ -1501,22 +1501,22 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "append different result",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 3,
+					int32(statepb.Row_FLAKY), 3,
 				},
 				CellIds:  []string{"", "", ""},
 				Messages: []string{"", "", ""},
 				Icons:    []string{"", "", ""},
 			},
 			cell: cell{
-				result: state.Row_PASS,
+				result: statepb.Row_PASS,
 			},
 			count: 2,
-			expected: state.Row{
+			expected: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 3,
-					int32(state.Row_PASS), 2,
+					int32(statepb.Row_FLAKY), 3,
+					int32(statepb.Row_PASS), 2,
 				},
 				CellIds:  []string{"", "", "", "", ""},
 				Messages: []string{"", "", "", "", ""},
@@ -1525,22 +1525,22 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "append no result (results, cellIDs, no messages or icons)",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 3,
+					int32(statepb.Row_FLAKY), 3,
 				},
 				CellIds:  []string{"", "", ""},
 				Messages: []string{"", "", ""},
 				Icons:    []string{"", "", ""},
 			},
 			cell: cell{
-				result: state.Row_NO_RESULT,
+				result: statepb.Row_NO_RESULT,
 			},
 			count: 2,
-			expected: state.Row{
+			expected: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 3,
-					int32(state.Row_NO_RESULT), 2,
+					int32(statepb.Row_FLAKY), 3,
+					int32(statepb.Row_NO_RESULT), 2,
 				},
 				CellIds:  []string{"", "", "", "", ""},
 				Messages: []string{"", "", ""},
@@ -1549,8 +1549,8 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "add metric to series",
-			row: state.Row{
-				Results:  []int32{int32(state.Row_PASS), 5},
+			row: statepb.Row{
+				Results:  []int32{int32(statepb.Row_PASS), 5},
 				CellIds:  []string{"", "", "", "", "c"},
 				Messages: []string{"", "", "", "", "m"},
 				Icons:    []string{"", "", "", "", "i"},
@@ -1558,7 +1558,7 @@ func TestAppendCell(t *testing.T) {
 					"continued-series",
 					"new-series",
 				},
-				Metrics: []*state.Metric{
+				Metrics: []*statepb.Metric{
 					{
 						Name:    "continued-series",
 						Indices: []int32{0, 5},
@@ -1572,15 +1572,15 @@ func TestAppendCell(t *testing.T) {
 				},
 			},
 			cell: cell{
-				result: state.Row_PASS,
+				result: statepb.Row_PASS,
 				metrics: map[string]float64{
 					"continued-series": 5.1,
 					"new-series":       5.2,
 				},
 			},
 			count: 1,
-			expected: state.Row{
-				Results:  []int32{int32(state.Row_PASS), 6},
+			expected: statepb.Row{
+				Results:  []int32{int32(statepb.Row_PASS), 6},
 				CellIds:  []string{"", "", "", "", "c", ""},
 				Messages: []string{"", "", "", "", "m", ""},
 				Icons:    []string{"", "", "", "", "i", ""},
@@ -1588,7 +1588,7 @@ func TestAppendCell(t *testing.T) {
 					"continued-series",
 					"new-series",
 				},
-				Metrics: []*state.Metric{
+				Metrics: []*statepb.Metric{
 					{
 						Name:    "continued-series",
 						Indices: []int32{0, 6},
@@ -1606,8 +1606,8 @@ func TestAppendCell(t *testing.T) {
 			name:  "add a bunch of initial blank columns (eg a deleted row)",
 			cell:  emptyCell,
 			count: 7,
-			expected: state.Row{
-				Results: []int32{int32(state.Row_NO_RESULT), 7},
+			expected: statepb.Row{
+				Results: []int32{int32(statepb.Row_NO_RESULT), 7},
 				CellIds: []string{"", "", "", "", "", "", ""},
 			},
 		},
@@ -1635,7 +1635,7 @@ func TestAppendCell(t *testing.T) {
 	}
 }
 
-func setupRow(row *state.Row, cells ...cell) *state.Row {
+func setupRow(row *statepb.Row, cells ...cell) *statepb.Row {
 	for _, c := range cells {
 		appendCell(row, c, 1)
 	}
@@ -1645,30 +1645,30 @@ func setupRow(row *state.Row, cells ...cell) *state.Row {
 func TestAppendColumn(t *testing.T) {
 	cases := []struct {
 		name     string
-		grid     state.Grid
+		grid     statepb.Grid
 		col      inflatedColumn
-		expected state.Grid
+		expected statepb.Grid
 	}{
 		{
 			name: "append first column",
-			col:  inflatedColumn{column: &state.Column{Build: "10"}},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			col:  inflatedColumn{column: &statepb.Column{Build: "10"}},
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "10"},
 				},
 			},
 		},
 		{
 			name: "append additional column",
-			grid: state.Grid{
-				Columns: []*state.Column{
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
 				},
 			},
-			col: inflatedColumn{column: &state.Column{Build: "20"}},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			col: inflatedColumn{column: &statepb.Column{Build: "20"}},
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
 					{Build: "20"},
@@ -1678,42 +1678,42 @@ func TestAppendColumn(t *testing.T) {
 		{
 			name: "add rows to first column",
 			col: inflatedColumn{
-				column: &state.Column{Build: "10"},
+				column: &statepb.Column{Build: "10"},
 				cells: map[string]cell{
 					"hello": {
-						result: state.Row_PASS,
+						result: statepb.Row_PASS,
 						cellID: "yes",
 						metrics: map[string]float64{
 							"answer": 42,
 						},
 					},
 					"world": {
-						result:  state.Row_FAIL,
+						result:  statepb.Row_FAIL,
 						message: "boom",
 						icon:    "X",
 					},
 				},
 			},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "10"},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "hello",
 							Id:   "hello",
 						},
 						cell{
-							result:  state.Row_PASS,
+							result:  statepb.Row_PASS,
 							cellID:  "yes",
 							metrics: map[string]float64{"answer": 42},
 						}),
-					setupRow(&state.Row{
+					setupRow(&statepb.Row{
 						Name: "world",
 						Id:   "world",
 					}, cell{
-						result:  state.Row_FAIL,
+						result:  statepb.Row_FAIL,
 						message: "boom",
 						icon:    "X",
 					}),
@@ -1722,65 +1722,65 @@ func TestAppendColumn(t *testing.T) {
 		},
 		{
 			name: "add empty cells",
-			grid: state.Grid{
-				Columns: []*state.Column{
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
 					{Build: "12"},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					setupRow(
-						&state.Row{Name: "deleted"},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
+						&statepb.Row{Name: "deleted"},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
 					),
 					setupRow(
-						&state.Row{Name: "always"},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
+						&statepb.Row{Name: "always"},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
 					),
 				},
 			},
 			col: inflatedColumn{
-				column: &state.Column{Build: "20"},
+				column: &statepb.Column{Build: "20"},
 				cells: map[string]cell{
-					"always": {result: state.Row_PASS},
-					"new":    {result: state.Row_PASS},
+					"always": {result: statepb.Row_PASS},
+					"new":    {result: statepb.Row_PASS},
 				},
 			},
-			expected: state.Grid{
-				Columns: []*state.Column{
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
 					{Build: "12"},
 					{Build: "20"},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					setupRow(
-						&state.Row{Name: "deleted"},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
+						&statepb.Row{Name: "deleted"},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
 						emptyCell,
 					),
 					setupRow(
-						&state.Row{Name: "always"},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
-						cell{result: state.Row_PASS},
+						&statepb.Row{Name: "always"},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
+						cell{result: statepb.Row_PASS},
 					),
 					setupRow(
-						&state.Row{
+						&statepb.Row{
 							Name: "new",
 							Id:   "new",
 						},
 						emptyCell,
 						emptyCell,
 						emptyCell,
-						cell{result: state.Row_PASS},
+						cell{result: statepb.Row_PASS},
 					),
 				},
 			},
@@ -1789,7 +1789,7 @@ func TestAppendColumn(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rows := map[string]*state.Row{}
+			rows := map[string]*statepb.Row{}
 			for _, r := range tc.grid.Rows {
 				rows[r.Name] = r
 			}
@@ -1808,33 +1808,33 @@ func TestAppendColumn(t *testing.T) {
 }
 
 func TestAlertRow(t *testing.T) {
-	var columns []*state.Column
+	var columns []*statepb.Column
 	for i, id := range []string{"a", "b", "c", "d", "e", "f"} {
-		columns = append(columns, &state.Column{
+		columns = append(columns, &statepb.Column{
 			Build:   id,
 			Started: 100 - float64(i),
 		})
 	}
 	cases := []struct {
 		name      string
-		row       state.Row
+		row       statepb.Row
 		failOpen  int
 		passClose int
-		expected  *state.AlertInfo
+		expected  *statepb.AlertInfo
 	}{
 		{
 			name: "never alert by default",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FAIL), 6,
+					int32(statepb.Row_FAIL), 6,
 				},
 			},
 		},
 		{
 			name: "passes do not alert",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_PASS), 6,
+					int32(statepb.Row_PASS), 6,
 				},
 			},
 			failOpen:  1,
@@ -1842,30 +1842,30 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "flakes do not alert",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 6,
+					int32(statepb.Row_FLAKY), 6,
 				},
 			},
 			failOpen: 1,
 		},
 		{
 			name: "intermittent failures do not alert",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FAIL), 2,
-					int32(state.Row_PASS), 1,
-					int32(state.Row_FAIL), 2,
+					int32(statepb.Row_FAIL), 2,
+					int32(statepb.Row_PASS), 1,
+					int32(statepb.Row_FAIL), 2,
 				},
 			},
 			failOpen: 3,
 		},
 		{
 			name: "new failures alert",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FAIL), 3,
-					int32(state.Row_PASS), 3,
+					int32(statepb.Row_FAIL), 3,
+					int32(statepb.Row_PASS), 3,
 				},
 				Messages: []string{"hello", "no", "no again", "very wrong"},
 				CellIds:  []string{"yes", "no", "no again", "very wrong"},
@@ -1875,10 +1875,10 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "too few passes do not close",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_PASS), 2,
-					int32(state.Row_FAIL), 4,
+					int32(statepb.Row_PASS), 2,
+					int32(statepb.Row_FAIL), 4,
 				},
 				Messages: []string{"nope", "no", "yay", "very wrong"},
 				CellIds:  []string{"wrong", "no", "yep", "very wrong"},
@@ -1889,10 +1889,10 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "flakes do not close",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FLAKY), 2,
-					int32(state.Row_FAIL), 4,
+					int32(statepb.Row_FLAKY), 2,
+					int32(statepb.Row_FAIL), 4,
 				},
 				Messages: []string{"nope", "no", "yay", "very wrong"},
 				CellIds:  []string{"wrong", "no", "yep", "very wrong"},
@@ -1902,13 +1902,13 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "count failures after flaky passes",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FAIL), 1,
-					int32(state.Row_FLAKY), 1,
-					int32(state.Row_FAIL), 1,
-					int32(state.Row_PASS), 1,
-					int32(state.Row_FAIL), 2,
+					int32(statepb.Row_FAIL), 1,
+					int32(statepb.Row_FLAKY), 1,
+					int32(statepb.Row_FAIL), 1,
+					int32(statepb.Row_PASS), 1,
+					int32(statepb.Row_FAIL), 2,
 				},
 				Messages: []string{"nope", "no", "buu", "wrong", "this one"},
 				CellIds:  []string{"wrong", "no", "buzz", "wrong2", "good job"},
@@ -1919,21 +1919,21 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "close alert",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_PASS), 1,
-					int32(state.Row_FAIL), 5,
+					int32(statepb.Row_PASS), 1,
+					int32(statepb.Row_FAIL), 5,
 				},
 			},
 			failOpen: 1,
 		},
 		{
 			name: "track through empty results",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_FAIL), 1,
-					int32(state.Row_NO_RESULT), 1,
-					int32(state.Row_FAIL), 4,
+					int32(statepb.Row_FAIL), 1,
+					int32(statepb.Row_NO_RESULT), 1,
+					int32(statepb.Row_FAIL), 4,
 				},
 				Messages: []string{"yay", "no", "buu", "wrong", "nono"},
 				CellIds:  []string{"yay-cell", "no", "buzz", "wrong2", "nada"},
@@ -1944,12 +1944,12 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "track passes through empty results",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_PASS), 1,
-					int32(state.Row_NO_RESULT), 1,
-					int32(state.Row_PASS), 1,
-					int32(state.Row_FAIL), 3,
+					int32(statepb.Row_PASS), 1,
+					int32(statepb.Row_NO_RESULT), 1,
+					int32(statepb.Row_PASS), 1,
+					int32(statepb.Row_FAIL), 3,
 				},
 			},
 			failOpen:  1,
@@ -1957,10 +1957,10 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "running cells advance compressed index",
-			row: state.Row{
+			row: statepb.Row{
 				Results: []int32{
-					int32(state.Row_RUNNING), 1,
-					int32(state.Row_FAIL), 5,
+					int32(statepb.Row_RUNNING), 1,
+					int32(statepb.Row_FAIL), 5,
 				},
 				Messages: []string{"running0", "fail1-expected", "fail2", "fail3", "fail4", "fail5"},
 				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
@@ -2002,7 +2002,7 @@ func TestBuildID(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			col := state.Column{
+			col := statepb.Column{
 				Build: tc.build,
 			}
 			if tc.extra != "" {
@@ -2018,7 +2018,7 @@ func TestBuildID(t *testing.T) {
 func TestStamp(t *testing.T) {
 	cases := []struct {
 		name     string
-		col      *state.Column
+		col      *statepb.Column
 		expected *timestamp.Timestamp
 	}{
 		{
@@ -2026,7 +2026,7 @@ func TestStamp(t *testing.T) {
 		},
 		{
 			name: "no nanos",
-			col: &state.Column{
+			col: &statepb.Column{
 				Started: 2,
 			},
 			expected: &timestamp.Timestamp{
@@ -2036,7 +2036,7 @@ func TestStamp(t *testing.T) {
 		},
 		{
 			name: "has nanos",
-			col: &state.Column{
+			col: &statepb.Column{
 				Started: 1.1,
 			},
 			expected: &timestamp.Timestamp{

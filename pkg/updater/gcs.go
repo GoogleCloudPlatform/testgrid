@@ -22,7 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -39,7 +39,7 @@ type gcsResult struct {
 func convertResult(nameCfg nameConfig, id string, headers []string, result gcsResult) inflatedColumn {
 	overall := overallCell(result)
 	out := inflatedColumn{
-		column: &state.Column{
+		column: &statepb.Column{
 			Build:   id,
 			Started: float64(result.started.Timestamp * 1000),
 		},
@@ -55,7 +55,7 @@ func convertResult(nameCfg nameConfig, id string, headers []string, result gcsRe
 		val, ok := meta[h]
 		if !ok && h == "Commit" && version != metadata.Missing {
 			val = version
-		} else if !ok && overall.result != state.Row_RUNNING {
+		} else if !ok && overall.result != statepb.Row_RUNNING {
 			val = "missing"
 		}
 		out.column.Extra = append(out.column.Extra, val)
@@ -80,15 +80,15 @@ func convertResult(nameCfg nameConfig, id string, headers []string, result gcsRe
 
 			switch {
 			case r.Failure != nil:
-				c.result = state.Row_FAIL
+				c.result = statepb.Row_FAIL
 				if c.message != "" {
 					c.icon = "F"
 				}
 			case r.Skipped != nil:
-				c.result = state.Row_PASS_WITH_SKIPS
+				c.result = statepb.Row_PASS_WITH_SKIPS
 				c.icon = "S"
 			default:
-				c.result = state.Row_PASS
+				c.result = statepb.Row_PASS
 			}
 
 			parsed := make([]interface{}, len(nameCfg.parts))
@@ -127,13 +127,13 @@ func convertResult(nameCfg nameConfig, id string, headers []string, result gcsRe
 		}
 	}
 
-	if overall.result == state.Row_FAIL && overall.message == "" { // Ensure failing build has a failing cell and/or overall message
+	if overall.result == statepb.Row_FAIL && overall.message == "" { // Ensure failing build has a failing cell and/or overall message
 		var found bool
 		for n, c := range out.cells {
 			if n == "Overall" {
 				continue
 			}
-			if c.result == state.Row_FAIL {
+			if c.result == statepb.Row_FAIL {
 				found = true // Failing test, huzzah!
 				break
 			}
@@ -159,17 +159,17 @@ func overallCell(result gcsResult) cell {
 	switch {
 	case finished > 0: // completed result
 		if result.finished.Passed != nil && *result.finished.Passed {
-			c.result = state.Row_PASS
+			c.result = statepb.Row_PASS
 		} else {
-			c.result = state.Row_FAIL
+			c.result = statepb.Row_FAIL
 		}
 		c.metrics = setElapsed(nil, float64(finished-result.started.Timestamp))
 	case time.Now().Add(-24*time.Hour).Unix() > result.started.Timestamp:
-		c.result = state.Row_FAIL
+		c.result = statepb.Row_FAIL
 		c.message = "Build did not complete within 24 hours"
 		c.icon = "T"
 	default:
-		c.result = state.Row_RUNNING
+		c.result = statepb.Row_RUNNING
 		c.message = "Build still running..."
 		c.icon = "R"
 	}

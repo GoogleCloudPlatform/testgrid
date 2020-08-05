@@ -19,7 +19,6 @@ package result
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
 
@@ -51,48 +50,48 @@ var (
 	}
 )
 
-func resultLte(rowResult, compareTo state.Row_Result) bool {
+func resultLte(rowResult, compareTo statepb.Row_Result) bool {
 	return statusSeverity[rowResult] <= statusSeverity[compareTo]
 }
 
-func resultGte(rowResult, compareTo state.Row_Result) bool {
+func resultGte(rowResult, compareTo statepb.Row_Result) bool {
 	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
 // IsPassingResult returns true if the Row_Result is any of the passing results,
 // including PASS_WITH_SKIPS, BUILD_PASSED, and more.
-func IsPassingResult(rowResult state.Row_Result) bool {
+func IsPassingResult(rowResult statepb.Row_Result) bool {
 	return resultGte(rowResult, statepb.Row_PASS) && resultLte(rowResult, statepb.Row_PASS_WITH_SKIPS)
 }
 
 // IsFailingResult returns true if the Row_Result is any of the failing results,
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
-func IsFailingResult(rowResult state.Row_Result) bool {
+func IsFailingResult(rowResult statepb.Row_Result) bool {
 	return resultGte(rowResult, statepb.Row_TOOL_FAIL) && resultLte(rowResult, statepb.Row_FAIL)
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
-func Coalesce(result state.Row_Result, ignoreRunning bool) state.Row_Result {
+func Coalesce(result statepb.Row_Result, ignoreRunning bool) statepb.Row_Result {
 	// TODO(fejta): other result types, not used by k8s testgrid
-	if result == state.Row_NO_RESULT || result == state.Row_RUNNING && ignoreRunning {
-		return state.Row_NO_RESULT
+	if result == statepb.Row_NO_RESULT || result == statepb.Row_RUNNING && ignoreRunning {
+		return statepb.Row_NO_RESULT
 	}
-	if IsFailingResult(result) || result == state.Row_RUNNING {
-		return state.Row_FAIL
+	if IsFailingResult(result) || result == statepb.Row_RUNNING {
+		return statepb.Row_FAIL
 	}
-	if result == state.Row_FLAKY {
+	if result == statepb.Row_FLAKY {
 		return result
 	}
-	return state.Row_PASS
+	return statepb.Row_PASS
 }
 
 // Iter returns a channel that outputs the result for each column, decoding the run-length-encoding.
-func Iter(ctx context.Context, results []int32) <-chan state.Row_Result {
-	out := make(chan state.Row_Result)
+func Iter(ctx context.Context, results []int32) <-chan statepb.Row_Result {
+	out := make(chan statepb.Row_Result)
 	go func() {
 		defer close(out)
 		for i := 0; i+1 < len(results); i += 2 {
-			result := state.Row_Result(results[i])
+			result := statepb.Row_Result(results[i])
 			count := results[i+1]
 			for count > 0 {
 				select {
@@ -113,8 +112,8 @@ func Iter(ctx context.Context, results []int32) <-chan state.Row_Result {
 }
 
 // Map returns a per-column result output channel for each row.
-func Map(ctx context.Context, rows []*state.Row) map[string]<-chan state.Row_Result {
-	iters := map[string]<-chan state.Row_Result{}
+func Map(ctx context.Context, rows []*statepb.Row) map[string]<-chan statepb.Row_Result {
+	iters := map[string]<-chan statepb.Row_Result{}
 	for _, r := range rows {
 		iters[r.Name] = Iter(ctx, r.Results)
 	}

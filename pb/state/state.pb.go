@@ -38,6 +38,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+// TODO(michelle192837): Update uses of this to use test_status instead.
 type Row_Result int32
 
 const (

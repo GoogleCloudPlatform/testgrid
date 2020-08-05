@@ -36,7 +36,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 )
@@ -1834,22 +1833,22 @@ func TestGetHealthinessForInterval(t *testing.T) {
 	}{
 		{
 			name: "typical inputs returns correct HealthinessInfo",
-			grid: &state.Grid{
-				Columns: []*state.Column{
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
 					{Started: withinCurrentInterval},
 					{Started: withinCurrentInterval},
 					{Started: withinPreviousInterval},
 					{Started: withinPreviousInterval},
 					{Started: notWithinAnyInterval},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name: "test_1",
 						Results: []int32{
-							state.Row_Result_value["PASS"], 1,
-							state.Row_Result_value["FAIL"], 1,
-							state.Row_Result_value["FAIL"], 1,
-							state.Row_Result_value["FAIL"], 2,
+							statepb.Row_Result_value["PASS"], 1,
+							statepb.Row_Result_value["FAIL"], 1,
+							statepb.Row_Result_value["FAIL"], 1,
+							statepb.Row_Result_value["FAIL"], 2,
 						},
 						Messages: []string{
 							"",

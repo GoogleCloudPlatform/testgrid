@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 	"github.com/golang/protobuf/proto"
@@ -157,14 +157,14 @@ func TestGetTrend(t *testing.T) {
 func TestIsWithinTimeFrame(t *testing.T) {
 	cases := []struct {
 		name      string
-		column    *state.Column
+		column    *statepb.Column
 		startTime int
 		endTime   int
 		expected  bool
 	}{
 		{
 			name: "column within time frame returns true",
-			column: &state.Column{
+			column: &statepb.Column{
 				Started: 1.0,
 			},
 			startTime: 0,
@@ -173,7 +173,7 @@ func TestIsWithinTimeFrame(t *testing.T) {
 		},
 		{
 			name: "column before time frame returns false",
-			column: &state.Column{
+			column: &statepb.Column{
 				Started: 1.0,
 			},
 			startTime: 3,
@@ -182,7 +182,7 @@ func TestIsWithinTimeFrame(t *testing.T) {
 		},
 		{
 			name: "column after time frame returns false",
-			column: &state.Column{
+			column: &statepb.Column{
 				Started: 4.0,
 			},
 			startTime: 0,
@@ -191,7 +191,7 @@ func TestIsWithinTimeFrame(t *testing.T) {
 		},
 		{
 			name: "function is inclusive with column at start time",
-			column: &state.Column{
+			column: &statepb.Column{
 				Started: 0.0,
 			},
 			startTime: 0,
@@ -200,7 +200,7 @@ func TestIsWithinTimeFrame(t *testing.T) {
 		},
 		{
 			name: "function is inclusive with column at end time",
-			column: &state.Column{
+			column: &statepb.Column{
 				Started: 2.0,
 			},
 			startTime: 0,
@@ -221,28 +221,28 @@ func TestIsWithinTimeFrame(t *testing.T) {
 func TestParseGrid(t *testing.T) {
 	cases := []struct {
 		name      string
-		grid      *state.Grid
+		grid      *statepb.Grid
 		startTime int
 		endTime   int
 		expected  []*common.GridMetrics
 	}{
 		{
 			name: "grid with all analyzed result types produces correct result list",
-			grid: &state.Grid{
-				Columns: []*state.Column{
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
 					{Started: 0},
 					{Started: 1000},
 					{Started: 2000},
 					{Started: 2000},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name: "test_1",
 						Results: []int32{
-							state.Row_Result_value["PASS"], 1,
-							state.Row_Result_value["FAIL"], 1,
-							state.Row_Result_value["FLAKY"], 1,
-							state.Row_Result_value["CATEGORIZED_FAIL"], 1,
+							statepb.Row_Result_value["PASS"], 1,
+							statepb.Row_Result_value["FAIL"], 1,
+							statepb.Row_Result_value["FLAKY"], 1,
+							statepb.Row_Result_value["CATEGORIZED_FAIL"], 1,
 						},
 						Messages: []string{
 							"",
@@ -271,18 +271,18 @@ func TestParseGrid(t *testing.T) {
 		},
 		{
 			name: "grid with no analyzed results produces empty result list",
-			grid: &state.Grid{
-				Columns: []*state.Column{
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
 					{Started: -1000},
 					{Started: 1000},
 					{Started: 2000},
 					{Started: 2000},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name: "test_1",
 						Results: []int32{
-							state.Row_Result_value["NO_RESULT"], 4,
+							statepb.Row_Result_value["NO_RESULT"], 4,
 						},
 						Messages: []string{
 							"this_message_should_not_show_up_in_results_0",
@@ -299,21 +299,21 @@ func TestParseGrid(t *testing.T) {
 		},
 		{
 			name: "grid with some non-analyzed results properly assigns correct messages",
-			grid: &state.Grid{
-				Columns: []*state.Column{
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
 					{Started: 0},
 					{Started: 1000},
 					{Started: 1000},
 					{Started: 2000},
 					{Started: 2000},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name: "test_1",
 						Results: []int32{
-							state.Row_Result_value["PASS"], 1,
-							state.Row_Result_value["NO_RESULT"], 2,
-							state.Row_Result_value["FAIL"], 2,
+							statepb.Row_Result_value["PASS"], 1,
+							statepb.Row_Result_value["NO_RESULT"], 2,
+							statepb.Row_Result_value["FAIL"], 2,
 						},
 						Messages: []string{
 							"this_message_should_not_show_up_in_results",
@@ -341,21 +341,21 @@ func TestParseGrid(t *testing.T) {
 		},
 		{
 			name: "grid with columns outside of time frame correctly assigns messages",
-			grid: &state.Grid{
-				Columns: []*state.Column{
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
 					{Started: 0},
 					{Started: 1000},
 					{Started: 1000},
 					{Started: 7000},
 					{Started: 2000},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name: "test_1",
 						Results: []int32{
-							state.Row_Result_value["PASS"], 1,
-							state.Row_Result_value["NO_RESULT"], 2,
-							state.Row_Result_value["FAIL"], 2,
+							statepb.Row_Result_value["PASS"], 1,
+							statepb.Row_Result_value["NO_RESULT"], 2,
+							statepb.Row_Result_value["FAIL"], 2,
 						},
 						Messages: []string{
 							"this_message_should_not_show_up_in_results",
