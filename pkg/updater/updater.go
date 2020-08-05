@@ -138,21 +138,32 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
+func groupPath(tg configpb.TestGroup) (*gcs.Path, error) {
+	u, err := url.Parse("gs://" + tg.GcsPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	if u.Path != "" && u.Path[len(u.Path)-1] != '/' {
+		u.Path += "/"
+	}
+
+	var p gcs.Path
+	if err := p.SetURL(u); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
 func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parent, groupTimeout)
 	defer cancel()
 	log := logrus.WithField("group", tg.Name)
 
-	var tgPath gcs.Path
-	if err := tgPath.Set("gs://" + tg.GcsPrefix); err != nil {
-		return fmt.Errorf("set group path: %w", err)
+	tgPath, err := groupPath(tg)
+	if err != nil {
+		return fmt.Errorf("group path: %w", err)
 	}
 
-	builds, err := gcs.ListBuilds(ctx, client, tgPath)
-	if err != nil {
-		return fmt.Errorf("list builds: %w", err)
-	}
-	log.WithField("total", len(builds)).Debug("Listed builds")
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -173,7 +184,12 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 		oldCols = inflateGrid(old, stop, time.Now().Add(-4*time.Hour))
 	}
 
+	var since *gcs.Path
 	if len(oldCols) > 0 {
+		since, err = tgPath.ResolveReference(&url.URL{Path: oldCols[0].column.Build})
+		if err != nil {
+			log.WithError(err).Warning("Failed to resolve offset")
+		}
 		newStop := time.Unix(int64(oldCols[0].column.Started/1000), 0)
 		if newStop.After(stop) {
 			log.WithFields(logrus.Fields{
@@ -184,6 +200,12 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 			stop = newStop
 		}
 	}
+
+	builds, err := gcs.ListBuilds(ctx, client, *tgPath, since)
+	if err != nil {
+		return fmt.Errorf("list builds: %w", err)
+	}
+	log.WithField("total", len(builds)).Debug("Listed builds")
 
 	newCols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
 	if err != nil {

@@ -53,10 +53,12 @@ func TestListBuilds(t *testing.T) {
 	path := newPathOrDie("gs://bucket/path/to/build/")
 	cases := []struct {
 		name     string
+		ctx      context.Context
 		iterator fakeIterator
+		offset   *Path
+
 		expected []Build
 		err      bool
-		ctx      context.Context
 	}{
 		{
 			name: "basically works",
@@ -84,8 +86,8 @@ func TestListBuilds(t *testing.T) {
 			name: "presubmit symlinks work correctly",
 			iterator: fakeIterator{
 				objects: []storage.ObjectAttrs{
-					link("second", "gs://second-bucket/somewhere"),
 					link("first", "gs://another-bucket/path/inside"),
+					link("second", "gs://second-bucket/somewhere"),
 				},
 			},
 			expected: []Build{
@@ -126,7 +128,69 @@ func TestListBuilds(t *testing.T) {
 			},
 			err: true,
 		},
-		// TODO(fejta): presubmit directory
+		{
+			name: "listing latest builds works correctly",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					subdir(resolveOrDie(path, "hello").Object()),
+					subdir(resolveOrDie(path, "more").Object()),
+					subdir(resolveOrDie(path, "world").Object()),
+				},
+			},
+			offset: pResolveOrDie(path, "more"),
+			expected: []Build{
+				{
+					Path:           resolveOrDie(path, "world"),
+					originalPrefix: resolveOrDie(path, "world").Object(),
+				},
+				{
+					Path:           resolveOrDie(path, "more"),
+					originalPrefix: resolveOrDie(path, "more").Object(),
+				},
+			},
+		},
+		{
+			name: "listing latest linked builds works correctly",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					subdir(resolveOrDie(path, "hello").Object()),
+					subdir(resolveOrDie(path, "more").Object()),
+					subdir(resolveOrDie(path, "world").Object()),
+				},
+			},
+			offset: pResolveOrDie(path, "more"),
+			expected: []Build{
+				{
+					Path:           resolveOrDie(path, "world"),
+					originalPrefix: resolveOrDie(path, "world").Object(),
+				},
+				{
+					Path:           resolveOrDie(path, "more"),
+					originalPrefix: resolveOrDie(path, "more").Object(),
+				},
+			},
+		},
+		{
+			name: "listing latest presubmit symlinks work correctly",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					link("first", "gs://another-bucket/path/inside"),
+					link("second", "gs://second-bucket/somewhere"),
+					link("third", "gs://third-bucket/else"),
+				},
+			},
+			offset: pResolveOrDie(path, "second"),
+			expected: []Build{
+				{
+					Path:           newPathOrDie("gs://third-bucket/else/"),
+					originalPrefix: "third",
+				},
+				{
+					Path:           newPathOrDie("gs://second-bucket/somewhere/"),
+					originalPrefix: "second",
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -136,7 +200,7 @@ func TestListBuilds(t *testing.T) {
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			actual, err := ListBuilds(ctx, fl, path)
+			actual, err := ListBuilds(ctx, fl, path, tc.offset)
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -362,9 +426,10 @@ func (fr *fakeReader) Close() error {
 
 type fakeLister map[Path]fakeIterator
 
-func (fl fakeLister) Objects(ctx context.Context, path Path, _ string) Iterator {
+func (fl fakeLister) Objects(ctx context.Context, path Path, _, offset string) Iterator {
 	f := fl[path]
 	f.ctx = ctx
+	f.offset = offset
 	return &f
 }
 
@@ -373,11 +438,22 @@ type fakeIterator struct {
 	idx     int
 	err     int // must be > 0
 	ctx     context.Context
+	offset  string
 }
 
 func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
 	if fi.ctx.Err() != nil {
 		return nil, fi.ctx.Err()
+	}
+	for fi.idx < len(fi.objects) {
+		if fi.offset == "" {
+			break
+		}
+		name, prefix := fi.objects[fi.idx].Name, fi.objects[fi.idx].Prefix
+		if (name == "" || name >= fi.offset) && (prefix == "" || prefix >= fi.offset) {
+			break
+		}
+		fi.idx++
 	}
 	if fi.idx >= len(fi.objects) {
 		return nil, iterator.Done
@@ -589,6 +665,11 @@ func resolveOrDie(p Path, s string) Path {
 		panic(fmt.Sprintf("%s - %s", p, err))
 	}
 	return *out
+}
+
+func pResolveOrDie(p Path, s string) *Path {
+	out := resolveOrDie(p, s)
+	return &out
 }
 
 func newPathOrDie(s string) Path {

@@ -1214,7 +1214,7 @@ func (fr *fakeReader) Close() error {
 
 type fakeLister map[gcs.Path]fakeIterator
 
-func (fl fakeLister) Objects(ctx context.Context, path gcs.Path, _ string) gcs.Iterator {
+func (fl fakeLister) Objects(ctx context.Context, path gcs.Path, _, offset string) gcs.Iterator {
 	f := fl[path]
 	f.ctx = ctx
 	return &f
@@ -1225,6 +1225,7 @@ type fakeIterator struct {
 	idx     int
 	err     int // must be > 0
 	ctx     context.Context
+	offset  string
 }
 
 type fakeClient struct {
@@ -1235,6 +1236,19 @@ type fakeClient struct {
 func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
 	if fi.ctx.Err() != nil {
 		return nil, fi.ctx.Err()
+	}
+	for fi.idx < len(fi.objects) {
+		if fi.offset == "" {
+			break
+		}
+		name, prefix := fi.objects[fi.idx].Name, fi.objects[fi.idx].Prefix
+		if name != "" && name < fi.offset {
+			continue
+		}
+		if prefix != "" && prefix < fi.offset {
+			continue
+		}
+		fi.idx++
 	}
 	if fi.idx >= len(fi.objects) {
 		return nil, iterator.Done

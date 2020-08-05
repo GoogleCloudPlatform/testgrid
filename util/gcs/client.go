@@ -35,6 +35,21 @@ type Downloader interface {
 	Opener
 }
 
+// A Lister returns objects under a prefix.
+type Lister interface {
+	Objects(ctx context.Context, prefix Path, delimiter, start string) Iterator
+}
+
+// An iterator returns the attributes of the listed objects or an iterator.Done error.
+type Iterator interface {
+	Next() (*storage.ObjectAttrs, error)
+}
+
+// An Opener opens a path for reading.
+type Opener interface {
+	Open(ctx context.Context, path Path) (io.ReadCloser, error)
+}
+
 type Client interface {
 	Uploader
 	Downloader
@@ -54,14 +69,15 @@ func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, er
 	return r, err
 }
 
-func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter string) Iterator {
+func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {
 	p := path.Object()
 	if !strings.HasSuffix(p, "/") {
 		p += "/"
 	}
 	return rgc.client.Bucket(path.Bucket()).Objects(ctx, &storage.Query{
-		Delimiter: delimiter,
-		Prefix:    p,
+		Delimiter:   delimiter,
+		Prefix:      p,
+		StartOffset: startOffset,
 	})
 }
 
