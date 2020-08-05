@@ -37,6 +37,7 @@ type options struct {
 	creds            string
 	confirm          bool
 	debug            bool
+	trace            bool
 	group            string
 	groupConcurrency int
 	buildConcurrency int
@@ -72,6 +73,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	fs.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
+	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.StringVar(&o.group, "test-group", "", "Only update named group if set")
 	fs.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
@@ -97,7 +99,10 @@ func main() {
 	if !opt.confirm {
 		logrus.Warning("--confirm=false (DRY-RUN): will not write to gcs")
 	}
-	if opt.debug {
+	switch {
+	case opt.trace:
+		logrus.SetLevel(logrus.TraceLevel)
+	case opt.debug:
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
@@ -116,6 +121,11 @@ func main() {
 	defer storageClient.Close()
 
 	client := gcs.NewClient(storageClient)
+
+	logrus.WithFields(logrus.Fields{
+		"group": opt.groupConcurrency,
+		"build": opt.buildConcurrency,
+	}).Info("Configured concurrency")
 
 	updateOnce := func() {
 		start := time.Now()
