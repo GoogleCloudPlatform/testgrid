@@ -33,7 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
 	"cloud.google.com/go/storage"
@@ -153,13 +153,13 @@ func TestReadColumns(t *testing.T) {
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result:  state.Row_FAIL,
+							result:  statepb.Row_FAIL,
 							icon:    "F",
 							message: "Build failed outside of test results",
 							metrics: map[string]float64{
@@ -169,13 +169,13 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
@@ -233,7 +233,7 @@ func TestReadColumns(t *testing.T) {
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 						Extra: []string{
@@ -243,7 +243,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result:  state.Row_FAIL,
+							result:  statepb.Row_FAIL,
 							icon:    "F",
 							message: "Build failed outside of test results",
 							metrics: map[string]float64{
@@ -253,7 +253,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 						Extra: []string{
@@ -263,7 +263,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
@@ -315,30 +315,30 @@ func TestReadColumns(t *testing.T) {
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
 						},
 						"name good - context context-a - thread 33": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 						"name bad - context context-a - thread 33": {
-							result:  state.Row_FAIL,
+							result:  statepb.Row_FAIL,
 							icon:    "F",
 							message: "bad",
 						},
 						"name good - context context-b - thread 44": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 						"name bad - context context-b - thread 44": {
-							result:  state.Row_FAIL,
+							result:  statepb.Row_FAIL,
 							icon:    "F",
 							message: "bad",
 						},
@@ -392,13 +392,13 @@ func TestReadColumns(t *testing.T) {
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},
@@ -406,13 +406,13 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 11,
 							},
@@ -479,13 +479,13 @@ func TestReadColumns(t *testing.T) {
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "13",
 						Started: float64(now+13) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 13,
 							},
@@ -493,13 +493,13 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},
@@ -567,13 +567,13 @@ func TestReadColumns(t *testing.T) {
 			},
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "13",
 						Started: float64(now+13) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 13,
 							},
@@ -581,13 +581,13 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},
@@ -595,13 +595,13 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 11,
 							},
@@ -609,13 +609,13 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
@@ -873,7 +873,7 @@ func TestReadResult(t *testing.T) {
 			for name, fo := range tc.data {
 				p, err := path.ResolveReference(&url.URL{Path: name})
 				if err != nil {
-					t.Fatal("path.ResolveReference(%q): %w", name, err)
+					t.Fatalf("path.ResolveReference(%q): %w", name, err)
 				}
 				fi.objects = append(fi.objects, storage.ObjectAttrs{
 					Name: p.Object(),
@@ -1042,7 +1042,7 @@ func TestReadSuites(t *testing.T) {
 			for name, fo := range tc.data {
 				p, err := path.ResolveReference(&url.URL{Path: name})
 				if err != nil {
-					t.Fatal("path.ResolveReference(%q): %w", name, err)
+					t.Fatalf("path.ResolveReference(%q): %w", name, err)
 				}
 				fi.objects = append(fi.objects, storage.ObjectAttrs{
 					Name: p.Object(),

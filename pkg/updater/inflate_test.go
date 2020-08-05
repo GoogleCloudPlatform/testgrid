@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
 
 func blank(n int) []string {
@@ -47,7 +47,7 @@ func TestInflateGrid(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		grid     state.Grid
+		grid     statepb.Grid
 		earliest time.Time
 		latest   time.Time
 		expected []inflatedColumn
@@ -57,8 +57,8 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "preserve column data",
-			grid: state.Grid{
-				Columns: []*state.Column{
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
 					{
 						Build:      "build",
 						Name:       "name",
@@ -78,7 +78,7 @@ func TestInflateGrid(t *testing.T) {
 			latest: hours[23],
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:      "build",
 						Name:       "name",
 						Started:    5,
@@ -88,7 +88,7 @@ func TestInflateGrid(t *testing.T) {
 					cells: map[string]cell{},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:      "second build",
 						Name:       "second name",
 						Started:    10,
@@ -101,8 +101,8 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "preserve row data",
-			grid: state.Grid{
-				Columns: []*state.Column{
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
 					{
 						Build:   "b1",
 						Name:    "n1",
@@ -114,17 +114,17 @@ func TestInflateGrid(t *testing.T) {
 						Started: 2,
 					},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name: "name",
 						Results: []int32{
-							int32(state.Row_FAIL), 2,
+							int32(statepb.Row_FAIL), 2,
 						},
 						CellIds:  []string{"this", "that"},
 						Messages: []string{"important", "notice"},
 						Icons:    []string{"I1", "I2"},
 						Metric:   []string{"this", "that"},
-						Metrics: []*state.Metric{
+						Metrics: []*statepb.Metric{
 							{
 								Indices: []int32{0, 2},
 								Values:  []float64{0.1, 0.2},
@@ -139,7 +139,7 @@ func TestInflateGrid(t *testing.T) {
 					{
 						Name: "second",
 						Results: []int32{
-							int32(state.Row_PASS), 2,
+							int32(statepb.Row_PASS), 2,
 						},
 						CellIds:  blank(2),
 						Messages: blank(2),
@@ -151,14 +151,14 @@ func TestInflateGrid(t *testing.T) {
 			latest: hours[23],
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "b1",
 						Name:    "n1",
 						Started: 1,
 					},
 					cells: map[string]cell{
 						"name": {
-							result:  state.Row_FAIL,
+							result:  statepb.Row_FAIL,
 							cellID:  "this",
 							message: "important",
 							icon:    "I1",
@@ -167,19 +167,19 @@ func TestInflateGrid(t *testing.T) {
 							},
 						},
 						"second": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "b2",
 						Name:    "n2",
 						Started: 2,
 					},
 					cells: map[string]cell{
 						"name": {
-							result:  state.Row_FAIL,
+							result:  statepb.Row_FAIL,
 							cellID:  "that",
 							message: "notice",
 							icon:    "I2",
@@ -189,7 +189,7 @@ func TestInflateGrid(t *testing.T) {
 							},
 						},
 						"second": {
-							result: state.Row_PASS,
+							result: statepb.Row_PASS,
 						},
 					},
 				},
@@ -197,8 +197,8 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "drop latest columns",
-			grid: state.Grid{
-				Columns: []*state.Column{
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
 					{
 						Build:   "latest1",
 						Started: millis(hours[23]),
@@ -216,17 +216,17 @@ func TestInflateGrid(t *testing.T) {
 						Started: millis(hours[10]),
 					},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name:     "hello",
 						CellIds:  blank(4),
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(state.Row_RUNNING), 1,
-							int32(state.Row_PASS), 1,
-							int32(state.Row_FAIL), 1,
-							int32(state.Row_FLAKY), 1,
+							int32(statepb.Row_RUNNING), 1,
+							int32(statepb.Row_PASS), 1,
+							int32(statepb.Row_FAIL), 1,
+							int32(statepb.Row_FLAKY), 1,
 						},
 					},
 					{
@@ -235,7 +235,7 @@ func TestInflateGrid(t *testing.T) {
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(state.Row_PASS_WITH_SKIPS), 4,
+							int32(statepb.Row_PASS_WITH_SKIPS), 4,
 						},
 					},
 				},
@@ -243,31 +243,31 @@ func TestInflateGrid(t *testing.T) {
 			latest: hours[20],
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "keep1",
 						Started: millis(hours[20]) + 999,
 					},
 					cells: map[string]cell{
-						"hello": {result: state.Row_FAIL},
-						"world": {result: state.Row_PASS_WITH_SKIPS},
+						"hello": {result: statepb.Row_FAIL},
+						"world": {result: statepb.Row_PASS_WITH_SKIPS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "keep2",
 						Started: millis(hours[10]),
 					},
 					cells: map[string]cell{
-						"hello": {result: state.Row_FLAKY},
-						"world": {result: state.Row_PASS_WITH_SKIPS},
+						"hello": {result: statepb.Row_FLAKY},
+						"world": {result: statepb.Row_PASS_WITH_SKIPS},
 					},
 				},
 			},
 		},
 		{
 			name: "drop old columns",
-			grid: state.Grid{
-				Columns: []*state.Column{
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
 					{
 						Build:   "current1",
 						Started: millis(hours[20]),
@@ -285,17 +285,17 @@ func TestInflateGrid(t *testing.T) {
 						Started: millis(hours[0]),
 					},
 				},
-				Rows: []*state.Row{
+				Rows: []*statepb.Row{
 					{
 						Name:     "hello",
 						CellIds:  blank(4),
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(state.Row_RUNNING), 1,
-							int32(state.Row_PASS), 1,
-							int32(state.Row_FAIL), 1,
-							int32(state.Row_FLAKY), 1,
+							int32(statepb.Row_RUNNING), 1,
+							int32(statepb.Row_PASS), 1,
+							int32(statepb.Row_FAIL), 1,
+							int32(statepb.Row_FLAKY), 1,
 						},
 					},
 					{
@@ -304,7 +304,7 @@ func TestInflateGrid(t *testing.T) {
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(state.Row_PASS_WITH_SKIPS), 4,
+							int32(statepb.Row_PASS_WITH_SKIPS), 4,
 						},
 					},
 				},
@@ -313,23 +313,23 @@ func TestInflateGrid(t *testing.T) {
 			earliest: hours[10],
 			expected: []inflatedColumn{
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "current1",
 						Started: millis(hours[20]),
 					},
 					cells: map[string]cell{
-						"hello": {result: state.Row_RUNNING},
-						"world": {result: state.Row_PASS_WITH_SKIPS},
+						"hello": {result: statepb.Row_RUNNING},
+						"world": {result: statepb.Row_PASS_WITH_SKIPS},
 					},
 				},
 				{
-					column: &state.Column{
+					column: &statepb.Column{
 						Build:   "current2",
 						Started: millis(hours[10]),
 					},
 					cells: map[string]cell{
-						"hello": {result: state.Row_PASS},
-						"world": {result: state.Row_PASS_WITH_SKIPS},
+						"hello": {result: statepb.Row_PASS},
+						"world": {result: statepb.Row_PASS_WITH_SKIPS},
 					},
 				},
 			},
@@ -340,7 +340,7 @@ func TestInflateGrid(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := inflateGrid(&tc.grid, tc.earliest, tc.latest)
 			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("inflateGrid(%v) got %s, want %s", tc.grid, actual, tc.expected)
+				t.Errorf("inflateGrid(%v) got %v, want %v", tc.grid, actual, tc.expected)
 			}
 		})
 
@@ -350,7 +350,7 @@ func TestInflateGrid(t *testing.T) {
 func TestInflateRow(t *testing.T) {
 	cases := []struct {
 		name     string
-		row      state.Row
+		row      statepb.Row
 		expected []cell
 	}{
 		{
@@ -358,28 +358,28 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "preserve cell ids",
-			row: state.Row{
+			row: statepb.Row{
 				CellIds:  []string{"cell-a", "cell-b"},
 				Icons:    blank(2),
 				Messages: blank(2),
 				Results: []int32{
-					int32(state.Row_PASS), 2,
+					int32(statepb.Row_PASS), 2,
 				},
 			},
 			expected: []cell{
 				{
-					result: state.Row_PASS,
+					result: statepb.Row_PASS,
 					cellID: "cell-a",
 				},
 				{
-					result: state.Row_PASS,
+					result: statepb.Row_PASS,
 					cellID: "cell-b",
 				},
 			},
 		},
 		{
 			name: "only finished columns contain icons and messages",
-			row: state.Row{
+			row: statepb.Row{
 				CellIds: blank(8),
 				Icons: []string{
 					"F1", "~1", "~2",
@@ -388,30 +388,30 @@ func TestInflateRow(t *testing.T) {
 					"fail", "flake-first", "flake-second",
 				},
 				Results: []int32{
-					int32(state.Row_NO_RESULT), 2,
-					int32(state.Row_FAIL), 1,
-					int32(state.Row_NO_RESULT), 2,
-					int32(state.Row_FLAKY), 2,
-					int32(state.Row_NO_RESULT), 1,
+					int32(statepb.Row_NO_RESULT), 2,
+					int32(statepb.Row_FAIL), 1,
+					int32(statepb.Row_NO_RESULT), 2,
+					int32(statepb.Row_FLAKY), 2,
+					int32(statepb.Row_NO_RESULT), 1,
 				},
 			},
 			expected: []cell{
 				{},
 				{},
 				{
-					result:  state.Row_FAIL,
+					result:  statepb.Row_FAIL,
 					icon:    "F1",
 					message: "fail",
 				},
 				{},
 				{},
 				{
-					result:  state.Row_FLAKY,
+					result:  statepb.Row_FLAKY,
 					icon:    "~1",
 					message: "flake-first",
 				},
 				{
-					result:  state.Row_FLAKY,
+					result:  statepb.Row_FLAKY,
 					icon:    "~2",
 					message: "flake-second",
 				},
@@ -420,15 +420,15 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "find metric name from row when missing",
-			row: state.Row{
+			row: statepb.Row{
 				CellIds:  blank(1),
 				Icons:    blank(1),
 				Messages: blank(1),
 				Results: []int32{
-					int32(state.Row_PASS), 1,
+					int32(statepb.Row_PASS), 1,
 				},
 				Metric: []string{"found-it"},
-				Metrics: []*state.Metric{
+				Metrics: []*statepb.Metric{
 					{
 						Indices: []int32{0, 1},
 						Values:  []float64{7},
@@ -437,7 +437,7 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: state.Row_PASS,
+					result: statepb.Row_PASS,
 					metrics: map[string]float64{
 						"found-it": 7,
 					},
@@ -446,15 +446,15 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "prioritize local metric name",
-			row: state.Row{
+			row: statepb.Row{
 				CellIds:  blank(1),
 				Icons:    blank(1),
 				Messages: blank(1),
 				Results: []int32{
-					int32(state.Row_PASS), 1,
+					int32(statepb.Row_PASS), 1,
 				},
 				Metric: []string{"ignore-this"},
-				Metrics: []*state.Metric{
+				Metrics: []*statepb.Metric{
 					{
 						Name:    "oh yeah",
 						Indices: []int32{0, 1},
@@ -464,7 +464,7 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: state.Row_PASS,
+					result: statepb.Row_PASS,
 					metrics: map[string]float64{
 						"oh yeah": 7,
 					},
@@ -522,7 +522,7 @@ func TestInflateMetic(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var actual []*float64
-			metric := state.Metric{
+			metric := statepb.Metric{
 				Name:    tc.name,
 				Indices: tc.indices,
 				Values:  tc.values,
@@ -542,7 +542,7 @@ func TestInflateResults(t *testing.T) {
 	cases := []struct {
 		name     string
 		results  []int32
-		expected []state.Row_Result
+		expected []statepb.Row_Result
 	}{
 		{
 			name: "basically works",
@@ -550,38 +550,38 @@ func TestInflateResults(t *testing.T) {
 		{
 			name: "first documented example with multiple values works",
 			results: []int32{
-				int32(state.Row_NO_RESULT), 3,
-				int32(state.Row_PASS), 4,
+				int32(statepb.Row_NO_RESULT), 3,
+				int32(statepb.Row_PASS), 4,
 			},
-			expected: []state.Row_Result{
-				state.Row_NO_RESULT,
-				state.Row_NO_RESULT,
-				state.Row_NO_RESULT,
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_PASS,
+			expected: []statepb.Row_Result{
+				statepb.Row_NO_RESULT,
+				statepb.Row_NO_RESULT,
+				statepb.Row_NO_RESULT,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
 			},
 		},
 		{
 			name: "first item is the type",
 			results: []int32{
-				int32(state.Row_RUNNING), 1, // RUNNING == 4
+				int32(statepb.Row_RUNNING), 1, // RUNNING == 4
 			},
-			expected: []state.Row_Result{
-				state.Row_RUNNING,
+			expected: []statepb.Row_Result{
+				statepb.Row_RUNNING,
 			},
 		},
 		{
 			name: "second item is the number of repetitions",
 			results: []int32{
-				int32(state.Row_PASS), 4, // Running == 1
+				int32(statepb.Row_PASS), 4, // Running == 1
 			},
-			expected: []state.Row_Result{
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_PASS,
-				state.Row_PASS,
+			expected: []statepb.Row_Result{
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
+				statepb.Row_PASS,
 			},
 		},
 	}
@@ -589,7 +589,7 @@ func TestInflateResults(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ch := inflateResults(context.Background(), tc.results)
-			var actual []state.Row_Result
+			var actual []statepb.Row_Result
 			for r := range ch {
 				actual = append(actual, r)
 			}

@@ -27,7 +27,7 @@ import (
 	"time"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
 	"cloud.google.com/go/storage"
@@ -35,8 +35,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func downloadGrid(ctx context.Context, opener gcs.Opener, path gcs.Path) (*state.Grid, error) {
-	var g state.Grid
+func downloadGrid(ctx context.Context, opener gcs.Opener, path gcs.Path) (*statepb.Grid, error) {
+	var g statepb.Grid
 	r, err := opener.Open(ctx, path)
 	if err != nil && err == storage.ErrObjectNotExist {
 		return &g, nil

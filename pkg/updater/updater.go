@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package updater reads the latest test results and saves updated state.
 package updater
 
 import (
@@ -37,7 +38,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -245,10 +246,10 @@ func days(d float64) time.Duration {
 // constructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(group configpb.TestGroup, cols []inflatedColumn) state.Grid {
+func constructGrid(group configpb.TestGroup, cols []inflatedColumn) statepb.Grid {
 	// Add the columns into a grid message
-	var grid state.Grid
-	rows := map[string]*state.Row{} // For fast target => row lookup
+	var grid statepb.Grid
+	rows := map[string]*statepb.Row{} // For fast target => row lookup
 	failsOpen := int(group.NumFailuresToAlert)
 	passesClose := int(group.NumPassesToDisableAlert)
 	if failsOpen > 0 && passesClose == 0 {
@@ -275,7 +276,7 @@ func constructGrid(group configpb.TestGroup, cols []inflatedColumn) state.Grid {
 }
 
 // marhshalGrid serializes a state proto into zlib-compressed bytes.
-func marshalGrid(grid state.Grid) ([]byte, error) {
+func marshalGrid(grid statepb.Grid) ([]byte, error) {
 	buf, err := proto.Marshal(&grid)
 	if err != nil {
 		return nil, fmt.Errorf("marshal: %w", err)
@@ -295,7 +296,7 @@ func marshalGrid(grid state.Grid) ([]byte, error) {
 //
 // Handles the details of sparse-encoding the results.
 // Indices must be monotonically increasing for the same metric.
-func appendMetric(metric *state.Metric, idx int32, value float64) {
+func appendMetric(metric *statepb.Metric, idx int32, value float64) {
 	if l := int32(len(metric.Indices)); l == 0 || metric.Indices[l-2]+metric.Indices[l-1] != idx {
 		// If we append V to idx 9 and metric.Indices = [3, 4] then the last filled index is 3+4-1=7
 		// So that means we have holes in idx 7 and 8, so start a new group.
@@ -306,12 +307,12 @@ func appendMetric(metric *state.Metric, idx int32, value float64) {
 	metric.Values = append(metric.Values, value)
 }
 
-var emptyCell = cell{result: state.Row_NO_RESULT}
+var emptyCell = cell{result: statepb.Row_NO_RESULT}
 
 // appendCell adds the rowResult column to the row.
 //
 // Handles the details like missing fields and run-length-encoding the result.
-func appendCell(row *state.Row, cell cell, count int) {
+func appendCell(row *statepb.Row, cell cell, count int) {
 	latest := int32(cell.result)
 	n := len(row.Results)
 	switch {
@@ -323,11 +324,11 @@ func appendCell(row *state.Row, cell cell, count int) {
 
 	for i := 0; i < count; i++ {
 		row.CellIds = append(row.CellIds, cell.cellID)
-		if cell.result == state.Row_NO_RESULT {
+		if cell.result == statepb.Row_NO_RESULT {
 			continue
 		}
 		for metricName, measurement := range cell.metrics {
-			var metric *state.Metric
+			var metric *statepb.Metric
 			var ok bool
 			for _, name := range row.Metric {
 				if name == metricName {
@@ -345,7 +346,7 @@ func appendCell(row *state.Row, cell cell, count int) {
 				metric = nil
 			}
 			if metric == nil {
-				metric = &state.Metric{Name: metricName}
+				metric = &statepb.Metric{Name: metricName}
 				row.Metrics = append(row.Metrics, metric)
 			}
 			// len()-1 because we already appended the cell id
@@ -386,10 +387,10 @@ func makeNameConfig(tnc *configpb.TestNameConfig) nameConfig {
 // * adding auto metadata like duration, commit as well as any user-added metadata
 // * extracting build metadata into the appropriate column header
 // * Ensuring row names are unique and formatted with metadata
-func appendColumn(grid *state.Grid, rows map[string]*state.Row, inflated inflatedColumn) {
+func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated inflatedColumn) {
 	grid.Columns = append(grid.Columns, inflated.column)
 
-	missing := map[string]*state.Row{}
+	missing := map[string]*statepb.Row{}
 	for name, row := range rows {
 		missing[name] = row
 	}
@@ -399,7 +400,7 @@ func appendColumn(grid *state.Grid, rows map[string]*state.Row, inflated inflate
 
 		row, ok := rows[name]
 		if !ok {
-			row = &state.Row{
+			row = &statepb.Row{
 				Name: name,
 				Id:   name,
 			}
@@ -418,14 +419,14 @@ func appendColumn(grid *state.Grid, rows map[string]*state.Row, inflated inflate
 }
 
 // alertRows configures the alert for every row that has one.
-func alertRows(cols []*state.Column, rows []*state.Row, openFailures, closePasses int) {
+func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int) {
 	for _, r := range rows {
 		r.AlertInfo = alertRow(cols, r, openFailures, closePasses)
 	}
 }
 
 // alertRow returns an AlertInfo proto if there have been failuresToOpen consecutive failures more recently than passesToClose.
-func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClose int) *state.AlertInfo {
+func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int) *statepb.AlertInfo {
 	if failuresToOpen == 0 {
 		return nil
 	}
@@ -436,8 +437,8 @@ func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClos
 	var passes int
 	var compressedIdx int
 	ch := result.Iter(ctx, row.Results)
-	var lastFail *state.Column
-	var latestPass *state.Column
+	var lastFail *statepb.Column
+	var latestPass *statepb.Column
 	var failIdx int
 	// find the first number of consecutive passesToClose (no alert)
 	// or else failuresToOpen (alert).
@@ -445,13 +446,13 @@ func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClos
 		// TODO(fejta): ignore old running
 		rawRes := <-ch
 		res := result.Coalesce(rawRes, result.IgnoreRunning)
-		if res == state.Row_NO_RESULT {
-			if rawRes == state.Row_RUNNING {
+		if res == statepb.Row_NO_RESULT {
+			if rawRes == statepb.Row_RUNNING {
 				compressedIdx++
 			}
 			continue
 		}
-		if res == state.Row_PASS {
+		if res == statepb.Row_PASS {
 			passes++
 			if failures >= failuresToOpen {
 				latestPass = col // most recent pass before outage
@@ -462,7 +463,7 @@ func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClos
 			}
 			failures = 0
 		}
-		if res == state.Row_FAIL {
+		if res == statepb.Row_FAIL {
 			passes = 0
 			failures++
 			totalFailures++
@@ -471,7 +472,7 @@ func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClos
 			}
 			lastFail = col
 		}
-		if res == state.Row_FLAKY {
+		if res == statepb.Row_FLAKY {
 			passes = 0
 			if failures >= failuresToOpen {
 				break // cannot definitively say which commit is at fault
@@ -489,12 +490,12 @@ func alertRow(cols []*state.Column, row *state.Row, failuresToOpen, passesToClos
 }
 
 // alertInfo returns an alert proto with the configured fields
-func alertInfo(failures int32, msg, cellId string, fail, pass *state.Column) *state.AlertInfo {
-	return &state.AlertInfo{
+func alertInfo(failures int32, msg, cellID string, fail, pass *statepb.Column) *statepb.AlertInfo {
+	return &statepb.AlertInfo{
 		FailCount:      failures,
 		FailBuildId:    buildID(fail),
 		FailTime:       stamp(fail),
-		FailTestId:     cellId,
+		FailTestId:     cellID,
 		FailureMessage: msg,
 		PassTime:       stamp(pass),
 		PassBuildId:    buildID(pass),
@@ -502,7 +503,7 @@ func alertInfo(failures int32, msg, cellId string, fail, pass *state.Column) *st
 }
 
 // buildID extracts the ID from the first extra row or else the Build field.
-func buildID(col *state.Column) string {
+func buildID(col *statepb.Column) string {
 	if col == nil {
 		return ""
 	}
@@ -515,7 +516,7 @@ func buildID(col *state.Column) string {
 const billion = 1e9
 
 // stamp converts seconds into a timestamp proto
-func stamp(col *state.Column) *timestamp.Timestamp {
+func stamp(col *statepb.Column) *timestamp.Timestamp {
 	if col == nil {
 		return nil
 	}

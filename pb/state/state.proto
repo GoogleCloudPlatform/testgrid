@@ -113,6 +113,7 @@ message Row {
   string name = 1; // Display name, which might process id to append/filter info.
   string id = 2;  // raw id for the row, such as the bazel target or golang package.
 
+  // TODO(michelle192837): Update uses of this to use test_status instead.
   enum Result {
     NO_RESULT = 0;
     PASS = 1;
@@ -140,7 +141,7 @@ message Row {
   // The decoded values are Result enums
   repeated int32 results = 3;
 
-  // Test IDs for each test result in this test case. 
+  // Test IDs for each test result in this test case.
   // Must be present on every column, regardless of status.
   repeated string cell_ids = 4;
 
