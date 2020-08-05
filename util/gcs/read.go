@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/url"
 	"regexp"
@@ -51,21 +50,6 @@ type Finished struct {
 	Running bool
 }
 
-// An iterator returns the attributes of the listed objects or an iterator.Done error.
-type Iterator interface {
-	Next() (*storage.ObjectAttrs, error)
-}
-
-// A Lister returns objects under a prefix.
-type Lister interface {
-	Objects(ctx context.Context, prefix Path, delimiter string) Iterator
-}
-
-// An Opener opens a path for reading.
-type Opener interface {
-	Open(ctx context.Context, path Path) (io.ReadCloser, error)
-}
-
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
 	Path           Path
@@ -77,10 +61,14 @@ func (build Build) String() string {
 }
 
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
-func ListBuilds(parent context.Context, lister Lister, path Path) ([]Build, error) {
+func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) ([]Build, error) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	it := lister.Objects(ctx, path, "/")
+	var offset string
+	if after != nil {
+		offset = after.Object()
+	}
+	it := lister.Objects(ctx, path, "/", offset)
 	var all []Build
 	for {
 		objAttrs, err := it.Next()
@@ -179,6 +167,7 @@ func readJSON(ctx context.Context, opener Opener, p Path, i interface{}) error {
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
 	}
+	defer reader.Close()
 	if err = json.NewDecoder(reader).Decode(i); err != nil {
 		return fmt.Errorf("decode: %w", err)
 	}
@@ -226,7 +215,7 @@ func (build Build) Finished(ctx context.Context, opener Opener) (*Finished, erro
 
 // Artifacts writes the object name of all paths under the build's artifact dir to the output channel.
 func (build Build) Artifacts(ctx context.Context, lister Lister, artifacts chan<- string) error {
-	objs := lister.Objects(ctx, build.Path, "") // no delim so we get all objects.
+	objs := lister.Objects(ctx, build.Path, "", "") // no delim or offset so we get all objects.
 	for {
 		obj, err := objs.Next()
 		if err == iterator.Done {
