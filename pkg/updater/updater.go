@@ -180,7 +180,7 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 				"old columns": len(oldCols),
 				"previously":  stop,
 				"stop":        newStop,
-			}).Info("Advanced stop")
+			}).Debug("Advanced stop")
 			stop = newStop
 		}
 	}
