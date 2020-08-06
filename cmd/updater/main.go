@@ -21,6 +21,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 
@@ -51,7 +52,7 @@ func (o *options) validate() error {
 	if o.config.String() == "" {
 		return errors.New("empty --config")
 	}
-	if o.config.Bucket() == "k8s-testgrid" && o.gridPrefix != "" && o.confirm {
+	if o.config.Bucket() == "k8s-testgrid" && o.gridPrefix == "" && o.confirm {
 		return fmt.Errorf("--config=%s: cannot write grid state to gs://k8s-testgrid", o.config)
 	}
 	if o.groupConcurrency == 0 {
@@ -65,22 +66,27 @@ func (o *options) validate() error {
 }
 
 // gatherOptions reads options from flags
-func gatherOptions() options {
+func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	var o options
-	flag.Var(&o.config, "config", "gs://path/to/config.pb")
-	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
-	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
-	flag.StringVar(&o.group, "test-group", "", "Only update named group if set")
-	flag.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
-	flag.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
-	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
-	flag.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
-	flag.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
-	flag.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
-	flag.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
-	flag.Parse()
+	fs.Var(&o.config, "config", "gs://path/to/config.pb")
+	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
+	fs.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
+	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
+	fs.StringVar(&o.group, "test-group", "", "Only update named group if set")
+	fs.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
+	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
+	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
+	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
+	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
+	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
+	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
+	fs.Parse(args)
 	return o
+}
+
+// gatherOptions reads options from flags
+func gatherOptions() options {
+	return gatherFlagOptions(flag.CommandLine, os.Args[1:]...)
 }
 
 func main() {
