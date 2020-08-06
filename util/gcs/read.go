@@ -52,8 +52,9 @@ type Finished struct {
 
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
-	Path           Path
-	originalPrefix string
+	Path              Path
+	originalPrefix    string
+	suitesConcurrency int // override the max number of concurrent suite downloads
 }
 
 func (build Build) String() string {
@@ -262,12 +263,21 @@ func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, erro
 // Note that junit suites are parsed in parallel, so there are no guarantees about suites ordering.
 func (build Build) Suites(parent context.Context, opener Opener, artifacts <-chan string, suites chan<- SuitesMeta) error {
 	var wg sync.WaitGroup
-	defer wg.Wait() // ensure all goroutines exit before returning
 	var work int
 
 	ec := make(chan error)
 	ctx, cancel := context.WithCancel(parent)
+
+	// semaphore sets a ceiling of size go-routines slots
+	size := build.suitesConcurrency
+	if size == 0 {
+		size = 5
+	}
+	semaphore := make(chan int, size)
+	defer close(semaphore) // close after all goroutines are done
+	defer wg.Wait()        // ensure all goroutines exit before returning
 	defer cancel()
+
 	for art := range artifacts {
 		meta := parseSuitesMeta(art)
 		if meta == nil {
@@ -277,8 +287,11 @@ func (build Build) Suites(parent context.Context, opener Opener, artifacts <-cha
 		// each takes a non-trivial amount of time waiting for the network.
 		work++
 		wg.Add(1)
+
 		go func(art string, meta map[string]string) {
+			semaphore <- 1 // wait for free slot
 			defer wg.Done()
+			defer func() { <-semaphore }() // free up slot
 			if art != "" && art[0] != '/' {
 				art = "/" + art
 			}
