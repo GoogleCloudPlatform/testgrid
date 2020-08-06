@@ -842,12 +842,14 @@ func TestArtifacts(t *testing.T) {
 
 func TestSuites(t *testing.T) {
 	cases := []struct {
-		name      string
-		ctx       context.Context
-		path      Path
-		artifacts map[string]string
-		expected  []SuitesMeta
-		err       bool
+		name        string
+		ctx         context.Context
+		path        Path
+		artifacts   map[string]string
+		concurrency int
+
+		expected []SuitesMeta
+		err      bool
 	}{
 		{
 			name: "basically works",
@@ -885,6 +887,45 @@ func TestSuites(t *testing.T) {
 					Path:     "gs://where/something/junit.xml",
 				},
 			},
+		},
+		{
+			name:        "support testsuite with minimal concurrency",
+			concurrency: 1,
+			path:        newPathOrDie("gs://where/whatever"),
+			artifacts: func() map[string]string {
+				out := map[string]string{}
+				for i := 0; i < 3; i++ {
+					out[fmt.Sprintf("/something/junit_%d.xml", i)] = `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`
+				}
+				return out
+			}(),
+			expected: func() []SuitesMeta {
+				templ := SuitesMeta{
+					Suites: junit.Suites{
+						XMLName: xml.Name{Local: "testsuites"},
+						Suites: []junit.Suite{
+							{
+								XMLName: xml.Name{Local: "testsuite"},
+								Results: []junit.Result{
+									{
+										Name: "foo",
+									},
+								},
+							},
+						},
+					},
+					Metadata: parseSuitesMeta("/something/junit.xml"),
+					Path:     "gs://where/something/junit.xml",
+				}
+				var out []SuitesMeta
+				for i := 0; i < 3; i++ {
+					name := fmt.Sprintf("/something/junit_%d.xml", i)
+					templ.Metadata = parseSuitesMeta(name)
+					templ.Path = "gs://where" + name
+					out = append(out, templ)
+				}
+				return out
+			}(),
 		},
 		{
 			name: "support testsuites",
@@ -980,7 +1021,8 @@ func TestSuites(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fo := fakeOpener{}
 			b := Build{
-				Path: tc.path,
+				Path:              tc.path,
+				suitesConcurrency: tc.concurrency,
 			}
 			for s, data := range tc.artifacts {
 				fo[resolveOrDie(b.Path, s)] = fakeObject{data: data}
