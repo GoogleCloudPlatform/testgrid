@@ -158,6 +158,23 @@ func groupPath(tg configpb.TestGroup) (*gcs.Path, error) {
 	return &p, nil
 }
 
+// truncateRunning filters out all columns until the oldest still running column.
+//
+// If there are 20 columns where all are complete except the 3rd and 7th, this will
+// return the 8th and later columns.
+func truncateRunning(cols []inflatedColumn) []inflatedColumn {
+	if len(cols) == 0 {
+		return cols
+	}
+	var stillRunning int
+	for i, c := range cols {
+		if c.cells["Overall"].result == statepb.Row_RUNNING {
+			stillRunning = i + 1
+		}
+	}
+	return cols[stillRunning:]
+}
+
 func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parent, groupTimeout)
 	defer cancel()
@@ -185,7 +202,7 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
 	if old != nil {
-		oldCols = inflateGrid(old, stop, time.Now().Add(-4*time.Hour))
+		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-4*time.Hour)))
 	}
 
 	var since *gcs.Path
