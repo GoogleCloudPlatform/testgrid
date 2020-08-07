@@ -287,6 +287,91 @@ func mustGrid(grid statepb.Grid) []byte {
 	return buf
 }
 
+func TestTruncateRunning(t *testing.T) {
+	cases := []struct {
+		name     string
+		cols     []inflatedColumn
+		expected func([]inflatedColumn) []inflatedColumn
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "keep everything (no Overall)",
+			cols: []inflatedColumn{
+				{column: &statepb.Column{Build: "this"}},
+				{column: &statepb.Column{Build: "that"}},
+				{column: &statepb.Column{Build: "another"}},
+			},
+		},
+		{
+			name: "keep everything completed",
+			cols: []inflatedColumn{
+				{
+					column: &statepb.Column{Build: "passed"},
+					cells:  map[string]cell{"Overall": {result: statepb.Row_PASS}},
+				},
+				{
+					column: &statepb.Column{Build: "failed"},
+					cells:  map[string]cell{"Overall": {result: statepb.Row_FAIL}},
+				},
+			},
+		},
+		{
+			name: "drop everything before oldest running",
+			cols: []inflatedColumn{
+				{column: &statepb.Column{Build: "this1"}},
+				{column: &statepb.Column{Build: "this2"}},
+				{
+					column: &statepb.Column{Build: "running1"},
+					cells:  map[string]cell{"Overall": {result: statepb.Row_RUNNING}},
+				},
+				{column: &statepb.Column{Build: "this3"}},
+				{
+					column: &statepb.Column{Build: "running2"},
+					cells:  map[string]cell{"Overall": {result: statepb.Row_RUNNING}},
+				},
+				{column: &statepb.Column{Build: "this4"}},
+				{column: &statepb.Column{Build: "this5"}},
+				{column: &statepb.Column{Build: "this6"}},
+				{column: &statepb.Column{Build: "this7"}},
+			},
+			expected: func(cols []inflatedColumn) []inflatedColumn {
+				return cols[5:] // this4 and earlier
+			},
+		},
+		{
+			name: "drop all as all are running",
+			cols: []inflatedColumn{
+				{
+					column: &statepb.Column{Build: "running1"},
+					cells:  map[string]cell{"Overall": {result: statepb.Row_RUNNING}},
+				},
+				{
+					column: &statepb.Column{Build: "running2"},
+					cells:  map[string]cell{"Overall": {result: statepb.Row_RUNNING}},
+				},
+			},
+			expected: func(cols []inflatedColumn) []inflatedColumn {
+				return cols[2:]
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := truncateRunning(tc.cols)
+			expected := tc.cols
+			if tc.expected != nil {
+				expected = tc.expected(expected)
+			}
+			if diff := cmp.Diff(actual, expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+				t.Errorf("truncateRunning() got unexpected diff:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestUpdateGroup(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
