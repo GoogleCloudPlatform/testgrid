@@ -26,6 +26,7 @@ import (
 	"math"
 	"net/url"
 	"path"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -67,6 +68,9 @@ func Update(client gcs.Client, parent context.Context, configPath gcs.Path, grid
 				if err != nil {
 					log.WithField("group", tg.Name).WithError(err).Error("Error updating group")
 				}
+				// run the garbage collector after each group to minimize
+				// extraneous memory usage.
+				runtime.GC()
 			}
 			wg.Done()
 		}()
