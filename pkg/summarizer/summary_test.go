@@ -604,8 +604,8 @@ func TestFilterGrid(t *testing.T) {
 					Id:   "test-2",
 				},
 				{
-					Name: "method-1",
-					Id:   "test-2@TESTGRID@method-1",
+					Name: "test-2@TESTGRID@method-1",
+					Id:   "method-1",
 				},
 			},
 			expected: []*statepb.Row{
