@@ -367,7 +367,7 @@ func recentRows(in []*statepb.Row, recent int) []*statepb.Row {
 func filterMethods(rows []*statepb.Row) []*statepb.Row {
 	var filtered []*statepb.Row
 	for _, r := range rows {
-		if !isValidTestName(r.Id) {
+		if !isValidTestName(r.Id) || !isValidTestName(r.Name) {
 			continue
 		}
 		filtered = append(filtered, r)
