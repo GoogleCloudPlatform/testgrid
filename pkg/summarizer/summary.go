@@ -449,12 +449,13 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 		}
 		alert := row.AlertInfo
 		sum := summarypb.FailingTestSummary{
-			DisplayName:    row.Name,
-			TestName:       row.Id,
-			FailBuildId:    alert.FailBuildId,
-			FailCount:      alert.FailCount,
-			FailureMessage: alert.FailureMessage,
-			PassBuildId:    alert.PassBuildId,
+			DisplayName:       row.Name,
+			TestName:          row.Id,
+			FailBuildId:       alert.FailBuildId,
+			LatestFailBuildId: alert.LatestFailBuildId,
+			FailCount:         alert.FailCount,
+			FailureMessage:    alert.FailureMessage,
+			PassBuildId:       alert.PassBuildId,
 			// TODO(fejta): better build info
 			BuildLink:     alert.BuildLink,
 			BuildLinkText: alert.BuildLinkText,
