@@ -168,6 +168,9 @@ message DashboardTabSummary {
 
   // Metrics for the recent healthiness of a tab
   HealthinessInfo healthiness = 12;
+
+  // All the issue IDs linked to this tab.
+  repeated string linked_issues = 13;
 }
 
 // Summary state of a dashboard.
