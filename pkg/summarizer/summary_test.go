@@ -26,12 +26,15 @@ import (
 	"io/ioutil"
 	"net/url"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
@@ -447,6 +450,86 @@ func TestRecentColumns(t *testing.T) {
 			}
 			if actual := recentColumns(tabCfg, groupCfg); actual != tc.expected {
 				t.Errorf("actual %d != expected %d", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestAllLinkedIssues(t *testing.T) {
+	cases := []struct {
+		name string
+		rows []*statepb.Row
+		want []string
+	}{
+		{
+			name: "no rows",
+			rows: []*statepb.Row{},
+			want: []string{},
+		},
+		{
+			name: "rows with no linked issues",
+			rows: []*statepb.Row{
+				{
+					Name:    "test-1",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+				},
+				{
+					Name:    "test-2",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+				},
+				{
+					Name:    "test-3",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+				},
+			},
+			want: []string{},
+		},
+		{
+			name: "multiple linked issues",
+			rows: []*statepb.Row{
+				{
+					Name:    "test-1",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+					BugId:   []string{"1", "2"},
+				},
+				{
+					Name:    "test-2",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+					BugId:   []string{"5"},
+				},
+				{
+					Name:    "test-3",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+					BugId:   []string{"10", "7"},
+				},
+			},
+			want: []string{"1", "2", "5", "7", "10"},
+		},
+		{
+			name: "multiple linked issues with duplicates",
+			rows: []*statepb.Row{
+				{
+					Name:    "test-1",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+					BugId:   []string{"1", "2"},
+				},
+				{
+					Name:    "test-2",
+					Results: []int32{int32(statepb.Row_PASS), 10},
+					BugId:   []string{"2", "3"},
+				},
+			},
+			want: []string{"1", "2", "3"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := allLinkedIssues(tc.rows)
+			sort.Strings(got)
+			strSort := cmpopts.SortSlices(func(a, b string) bool { return a < b })
+			if diff := cmp.Diff(tc.want, got, strSort); diff != "" {
+				t.Errorf("allLinkedIssues() unexpected diff (-want +got): %s", diff)
 			}
 		})
 	}

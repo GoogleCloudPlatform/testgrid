@@ -269,7 +269,8 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		// TODO(fejta): BugUrl
-		Healthiness: healthiness,
+		Healthiness:  healthiness,
+		LinkedIssues: allLinkedIssues(grid.Rows),
 	}, nil
 }
 
@@ -520,6 +521,20 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 		return summarypb.DashboardTabSummary_PASS
 	}
 	return summarypb.DashboardTabSummary_UNKNOWN
+}
+
+func allLinkedIssues(rows []*statepb.Row) []string {
+	issueSet := make(map[string]bool)
+	for _, row := range rows {
+		for _, issueID := range row.BugId {
+			issueSet[issueID] = true
+		}
+	}
+	linkedIssues := []string{}
+	for issueID := range issueSet {
+		linkedIssues = append(linkedIssues, issueID)
+	}
+	return linkedIssues
 }
 
 // Culminate set of metrics related to a section of the Grid
