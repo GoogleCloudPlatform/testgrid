@@ -6,17 +6,20 @@ metadata:
   namespace: testgrid-canary
   labels:
     component: summarizer
+    channel: stable
     app: testgrid
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: testgrid
+      channel: stable
       component: summarizer
   template:
     metadata:
       labels:
         component: summarizer
+        channel: stable
         app: testgrid
     spec:
       serviceAccountName: summarizer
@@ -42,6 +45,7 @@ spec:
   selector:
     matchLabels:
       app: testgrid
+      channel: beta
       component: beta-summarizer
   template:
     metadata:
