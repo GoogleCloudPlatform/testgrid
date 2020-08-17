@@ -45,11 +45,11 @@ _go_repositories()
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
-git_repository(
+http_archive(
     name = "io_bazel_rules_k8s",
-    commit = "c7db606023bef31ca5c2ad49942f33c6137cb7f8",
-    remote = "https://github.com/bazelbuild/rules_k8s.git",
-    shallow_since = "1571437004 -0400",
+    strip_prefix = "rules_k8s-0.5",
+    urls = ["https://github.com/bazelbuild/rules_k8s/archive/v0.5.tar.gz"],
+    sha256 = "773aa45f2421a66c8aa651b8cecb8ea51db91799a405bd7b913d77052ac7261a",
 )
 
 load("@io_bazel_rules_k8s//k8s:k8s.bzl", "k8s_repositories")
