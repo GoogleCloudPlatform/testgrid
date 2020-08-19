@@ -31,7 +31,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: testgrid-summarizer
+  name: beta-summarizer
   namespace: testgrid
   labels:
     component: summarizer-beta
