@@ -28,6 +28,37 @@ spec:
         - --confirm
         - --wait=5m
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-summarizer
+  namespace: testgrid
+  labels:
+    component: summarizer-beta
+    app: testgrid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer-beta
+  template:
+    metadata:
+      labels:
+        component: summarizer-beta
+        app: testgrid
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20200807-v0.0.17-8-gd205182
+        args:
+        - --config=gs://k8s-testgrid/config
+        - --confirm
+        - --grid-path=grid
+        - --summary-path=summary
+        - --wait=5m
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
