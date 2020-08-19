@@ -128,7 +128,7 @@ func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) (
 }
 
 // junit_CONTEXT_TIMESTAMP_THREAD.xml
-var re = regexp.MustCompile(`.+/junit(_[^_]+)?(_\d+-\d+)?(_\d+)?\.xml$`)
+var re = regexp.MustCompile(`.+/junit((_[^_]+)?(_\d+-\d+)?(_\d+)?|.+)?\.xml$`)
 
 // dropPrefix removes the _ in _CONTEXT to help keep the regexp simple
 func dropPrefix(name string) string {
@@ -151,10 +151,14 @@ func parseSuitesMeta(name string) map[string]string {
 	if mat == nil {
 		return nil
 	}
+	c, ti, th := dropPrefix(mat[2]), dropPrefix(mat[3]), dropPrefix(mat[4])
+	if c == "" && ti == "" && th == "" {
+		c = mat[1]
+	}
 	return map[string]string{
-		"Context":   dropPrefix(mat[1]),
-		"Timestamp": dropPrefix(mat[2]),
-		"Thread":    dropPrefix(mat[3]),
+		"Context":   c,
+		"Timestamp": ti,
+		"Thread":    th,
 	}
 
 }

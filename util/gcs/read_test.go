@@ -270,6 +270,11 @@ func TestParseSuitesMeta(t *testing.T) {
 			timestamp: "20180102-1234",
 			thread:    "5555",
 		},
+		{
+			name:    "accept weird junit name",
+			input:   "./junit.e2e_suite.3.xml",
+			context: ".e2e_suite.3",
+		},
 	}
 
 	for _, tc := range cases {
