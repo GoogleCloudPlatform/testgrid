@@ -130,6 +130,9 @@ func unmarshalXML(buf []byte, i interface{}) error {
 
 func Parse(buf []byte) (Suites, error) {
 	var suites Suites
+	if len(buf) == 0 {
+		return suites, nil
+	}
 	// Try to parse it as a <testsuites/> object
 	err := unmarshalXML(buf, &suites)
 	if err != nil {
