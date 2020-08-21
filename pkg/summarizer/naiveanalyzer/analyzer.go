@@ -74,7 +74,7 @@ func calculateNaiveFlakiness(test *common.GridMetrics, minRuns int) (*summarypb.
 	failedCount := int32(test.Failed)
 	totalCount := int32(test.Passed) + int32(test.Failed)
 	totalCountWithInfra := totalCount + int32(test.FailedInfraCount)
-	if totalCount < int32(minRuns) {
+	if totalCount <= 0 || totalCount < int32(minRuns) {
 		return &summarypb.TestInfo{}, false
 	}
 	flakiness := 100 * float32(failedCount) / float32(totalCount)
