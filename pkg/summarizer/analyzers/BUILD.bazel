@@ -2,8 +2,11 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["analyzer.go"],
-    importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/naiveanalyzer",
+    srcs = [
+        "baseanalyzer.go",
+        "flipanalyzer.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/analyzers",
     visibility = ["//visibility:public"],
     deps = [
         "//pb/summary:go_default_library",
@@ -14,7 +17,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["analyzer_test.go"],
+    srcs = [
+        "baseanalyzer_test.go",
+        "flipanalyzer_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//pb/summary:go_default_library",

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package naiveanalyzer
+package analyzers
 
 import (
 	"reflect"
@@ -46,7 +46,7 @@ func createTimestamp(time int) *timestamp.Timestamp {
 	return timestamp
 }
 
-func TestGetFlakiness(t *testing.T) {
+func TestGetFlakinessBase(t *testing.T) {
 	cases := []struct {
 		name      string
 		metrics   []*common.GridMetrics
@@ -84,7 +84,7 @@ func TestGetFlakiness(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			analyzer := NaiveAnalyzer{}
+			analyzer := BaseAnalyzer{}
 			if actual := analyzer.GetFlakiness(tc.metrics, tc.minRuns, tc.startDate, tc.endDate, tc.tab); !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("\nactual %+v \n!= \nexpected %+v", actual, tc.expected)
 			}
