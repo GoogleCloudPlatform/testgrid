@@ -22,6 +22,7 @@ import (
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/analyzers"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 	"github.com/golang/protobuf/proto"
 )
@@ -220,11 +221,12 @@ func TestIsWithinTimeFrame(t *testing.T) {
 
 func TestParseGrid(t *testing.T) {
 	cases := []struct {
-		name      string
-		grid      *statepb.Grid
-		startTime int
-		endTime   int
-		expected  []*common.GridMetrics
+		name                   string
+		grid                   *statepb.Grid
+		startTime              int
+		endTime                int
+		expectedMetrics        []*common.GridMetrics
+		expectedFilteredStatus map[string][]analyzers.StatusCategory
 	}{
 		{
 			name: "grid with all analyzed result types produces correct result list",
@@ -255,7 +257,7 @@ func TestParseGrid(t *testing.T) {
 			},
 			startTime: 0,
 			endTime:   2,
-			expected: []*common.GridMetrics{
+			expectedMetrics: []*common.GridMetrics{
 				{
 					Name:             "test_1",
 					Passed:           1,
@@ -266,6 +268,11 @@ func TestParseGrid(t *testing.T) {
 					InfraFailures: map[string]int{
 						"infra_fail_1": 1,
 					},
+				},
+			},
+			expectedFilteredStatus: map[string][]analyzers.StatusCategory{
+				"test_1": {
+					analyzers.StatusPass, analyzers.StatusFail, analyzers.StatusFlaky,
 				},
 			},
 		},
@@ -293,9 +300,12 @@ func TestParseGrid(t *testing.T) {
 					},
 				},
 			},
-			startTime: 0,
-			endTime:   2,
-			expected:  []*common.GridMetrics{},
+			startTime:       0,
+			endTime:         2,
+			expectedMetrics: []*common.GridMetrics{},
+			expectedFilteredStatus: map[string][]analyzers.StatusCategory{
+				"test_1": {},
+			},
 		},
 		{
 			name: "grid with some non-analyzed results properly assigns correct messages",
@@ -325,7 +335,7 @@ func TestParseGrid(t *testing.T) {
 			},
 			startTime: 0,
 			endTime:   2,
-			expected: []*common.GridMetrics{
+			expectedMetrics: []*common.GridMetrics{
 				{
 					Name:             "test_1",
 					Passed:           1,
@@ -336,6 +346,11 @@ func TestParseGrid(t *testing.T) {
 					InfraFailures: map[string]int{
 						"this_message_should_show_up_as_an_infra_failure": 1,
 					},
+				},
+			},
+			expectedFilteredStatus: map[string][]analyzers.StatusCategory{
+				"test_1": {
+					analyzers.StatusPass, analyzers.StatusFail,
 				},
 			},
 		},
@@ -367,7 +382,7 @@ func TestParseGrid(t *testing.T) {
 			},
 			startTime: 0,
 			endTime:   2,
-			expected: []*common.GridMetrics{
+			expectedMetrics: []*common.GridMetrics{
 				{
 					Name:             "test_1",
 					Passed:           1,
@@ -380,51 +395,50 @@ func TestParseGrid(t *testing.T) {
 					},
 				},
 			},
+			expectedFilteredStatus: map[string][]analyzers.StatusCategory{
+				"test_1": {
+					analyzers.StatusPass,
+				},
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := parseGrid(tc.grid, tc.startTime, tc.endTime); !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("\nactual %+v \n!= \nexpected %+v", actual[0], tc.expected[0])
+			actualMetrics, actualFS := parseGrid(tc.grid, tc.startTime, tc.endTime)
+			if !reflect.DeepEqual(actualMetrics, tc.expectedMetrics) {
+				t.Errorf("Metrics disagree:\nactual %+v \n!= \nexpected %+v", actualMetrics[0], tc.expectedMetrics[0])
+			}
+			if !reflect.DeepEqual(actualFS, tc.expectedFilteredStatus) {
+				t.Errorf("Status disagree:\nactual %+v \n!= \nexpected %+v", actualFS, tc.expectedFilteredStatus)
 			}
 		})
 	}
 }
 
-func TestCategorizeFailure(t *testing.T) {
+func TestIsInfraFailure(t *testing.T) {
 	cases := []struct {
 		name     string
 		message  string
-		expected *common.GridMetrics
+		expected bool
 	}{
 		{
-			name:    "typical matched string increments counts correctly",
-			message: "whatever_valid_word_character_string_with_no_spaces",
-			expected: &common.GridMetrics{
-				FailedInfraCount: 1,
-				InfraFailures: map[string]int{
-					"whatever_valid_word_character_string_with_no_spaces": 1,
-				},
-			},
+			name:     "typical matched string increments counts correctly",
+			message:  "whatever_valid_word_character_string_with_no_spaces",
+			expected: true,
 		},
 		{
-			name:    "unmatched string increments Failed and not other counts",
-			message: "message with spaces should no get matched",
-			expected: &common.GridMetrics{
-				Failed:        1,
-				InfraFailures: map[string]int{},
-			},
+			name:     "unmatched string increments Failed and not other counts",
+			message:  "message with spaces should no get matched",
+			expected: false,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			checkMetric := &common.GridMetrics{}
-			checkMetric.InfraFailures = map[string]int{}
-			categorizeFailure(checkMetric, tc.message)
-			if !reflect.DeepEqual(checkMetric, tc.expected) {
-				t.Errorf("actual: %+v != expected: %+v", checkMetric, tc.expected)
+			if !(isInfraFailure(tc.message) == tc.expected) {
+				t.Errorf("isInfraFailure(%v) != Expected %v", tc.message, tc.expected)
+
 			}
 		})
 	}

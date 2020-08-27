@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package naiveanalyzer
+// Package analyzers represents ways to analyze healthiness and flakiness of tests
+package analyzers
 
 import (
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
@@ -22,21 +23,19 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
-const analyzerName = "naiveanalyzer"
-
 // IntString is for sorting, primarily intended for map[string]int as implemented below
 type IntString struct {
 	s string
 	i int
 }
 
-// NaiveAnalyzer implements functions that calculate flakiness as a ratio of failed tests to total tests
-type NaiveAnalyzer struct {
+// BaseAnalyzer implements functions that calculate flakiness as a ratio of failed tests to total tests
+type BaseAnalyzer struct {
 }
 
 // GetFlakiness returns a HealthinessInfo message with data to display flakiness as a ratio of failed tests
 // to total tests
-func (na *NaiveAnalyzer) GetFlakiness(gridMetrics []*common.GridMetrics, minRuns int, startDate int, endDate int, tab string) *summarypb.HealthinessInfo {
+func (na *BaseAnalyzer) GetFlakiness(gridMetrics []*common.GridMetrics, minRuns int, startDate int, endDate int, tab string) *summarypb.HealthinessInfo {
 	testInfoList := []*summarypb.TestInfo{}
 	for _, test := range gridMetrics {
 		testInfo, success := calculateNaiveFlakiness(test, minRuns)

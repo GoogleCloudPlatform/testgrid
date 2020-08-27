@@ -40,7 +40,6 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
-	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/naiveanalyzer"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -636,14 +635,12 @@ func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
 }
 
 func getHealthinessForInterval(grid *statepb.Grid, tabName string, currentTime time.Time, interval int) *summarypb.HealthinessInfo {
-	analyzer := naiveanalyzer.NaiveAnalyzer{}
-
 	now := goBackDays(0, currentTime)
 	oneInterval := goBackDays(interval, currentTime)
 	twoIntervals := goBackDays(2*interval, currentTime)
 
-	healthiness := CalculateHealthiness(grid, &analyzer, oneInterval, now, tabName)
-	pastHealthiness := CalculateHealthiness(grid, &analyzer, twoIntervals, oneInterval, tabName)
+	healthiness := CalculateHealthiness(grid, oneInterval, now, tabName)
+	pastHealthiness := CalculateHealthiness(grid, twoIntervals, oneInterval, tabName)
 	CalculateTrend(healthiness, pastHealthiness)
 
 	healthiness.PreviousFlakiness = []float32{pastHealthiness.AverageFlakiness}

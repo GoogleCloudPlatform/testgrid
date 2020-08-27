@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/analyzers"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 )
 
@@ -38,14 +39,17 @@ var (
 )
 
 type flakinessAnalyzer interface {
-	GetFlakiness(gridMetrics []*common.GridMetrics, minRuns int, startDate int, endDate int, tab string) *summarypb.HealthinessInfo
+	GetFlakiness(gridMetrics []*common.GridMetrics, relevantFilteredStatus map[string][]statepb.Row_Result, minRuns int, startDate int, endDate int, tab string) *summarypb.HealthinessInfo
 }
 
 // CalculateHealthiness extracts the test run data from each row (which represents a test)
 // of the Grid and then analyzes it with an implementation of flakinessAnalyzer, which has
 // implementations in the subdir naive and can be injected as needed.
-func CalculateHealthiness(grid *statepb.Grid, analyzer flakinessAnalyzer, startTime int, endTime int, tab string) *summarypb.HealthinessInfo {
-	gridMetrics := parseGrid(grid, startTime, endTime)
+func CalculateHealthiness(grid *statepb.Grid, startTime int, endTime int, tab string) *summarypb.HealthinessInfo {
+	gridMetrics, relevantFilteredStatus := parseGrid(grid, startTime, endTime)
+	analyzer := analyzers.FlipAnalyzer{
+		RelevantStatus: relevantFilteredStatus,
+	}
 	return analyzer.GetFlakiness(gridMetrics, minRuns, startTime, endTime, tab)
 }
 
@@ -79,7 +83,7 @@ func getTrend(currentFlakiness, previousFlakiness float32) summarypb.TestInfo_Tr
 	return summarypb.TestInfo_NO_CHANGE
 }
 
-func parseGrid(grid *statepb.Grid, startTime int, endTime int) []*common.GridMetrics {
+func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMetrics, map[string][]analyzers.StatusCategory) {
 	// Get the relevant data for flakiness from each Grid (which represents
 	// a dashboard tab) as a list of GridMetrics structs
 
@@ -102,9 +106,13 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) []*common.GridMet
 	gridMetricsMap := make(map[string]*common.GridMetrics, 0)
 	gridRows := make(map[string]*statepb.Row)
 
+	// For each filtered test, status of non-infra-failure tests
+	rowStatuses := make(map[string][]analyzers.StatusCategory)
+
 	for i, row := range grid.Rows {
 		gridRows[row.Name] = grid.Rows[i]
 		gridMetricsMap[row.Name] = common.NewGridMetrics(row.Name)
+		rowStatuses[row.Name] = []analyzers.StatusCategory{}
 	}
 
 	// result.Map is written in a way that assumes each test/row name is unique
@@ -138,10 +146,19 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) []*common.GridMet
 			case statepb.Row_NO_RESULT:
 				continue
 			case statepb.Row_FAIL:
-				categorizeFailure(gridMetricsMap[key], gridRows[key].Messages[rowToMessageIndex])
+				message := gridRows[key].Messages[rowToMessageIndex]
+				if isInfraFailure(message) {
+					gridMetricsMap[key].FailedInfraCount++
+					gridMetricsMap[key].InfraFailures[message] = gridMetricsMap[key].InfraFailures[message] + 1
+				} else {
+					gridMetricsMap[key].Failed++
+					rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFail)
+				}
 			case statepb.Row_PASS:
 				gridMetricsMap[key].Passed++
+				rowStatuses[key] = append(rowStatuses[key], analyzers.StatusPass)
 			case statepb.Row_FLAKY:
+				rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFlaky)
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
 			rowToMessageIndex++
@@ -153,16 +170,11 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) []*common.GridMet
 			gridMetrics = append(gridMetrics, metric)
 		}
 	}
-	return gridMetrics
+	return gridMetrics, rowStatuses
 }
 
-func categorizeFailure(resultCounts *common.GridMetrics, message string) {
-	if message == "" || !infraRegex.MatchString(message) {
-		resultCounts.Failed++
-		return
-	}
-	resultCounts.FailedInfraCount++
-	resultCounts.InfraFailures[message] = resultCounts.InfraFailures[message] + 1
+func isInfraFailure(message string) bool {
+	return (message != "" && infraRegex.MatchString(message))
 }
 
 func getValueOfFlakyMetric(gridMetrics *common.GridMetrics) {
