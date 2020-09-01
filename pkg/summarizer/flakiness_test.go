@@ -17,6 +17,7 @@ limitations under the License.
 package summarizer
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -277,6 +278,83 @@ func TestParseGrid(t *testing.T) {
 			},
 		},
 		{
+			name: "grid with failing columns produces correct status list",
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Started: 0},
+					{Started: 1000},
+					{Started: 2000},
+					{Started: 2000},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name: "test_1",
+						Results: []int32{
+							statepb.Row_Result_value["PASS"], 1,
+							statepb.Row_Result_value["FAIL"], 1,
+							statepb.Row_Result_value["FLAKY"], 1,
+							statepb.Row_Result_value["CATEGORIZED_FAIL"], 1,
+						},
+						Messages: []string{
+							"",
+							"",
+							"",
+							"infra_fail_1",
+						},
+					},
+					{
+						Name: "test_2",
+						Results: []int32{
+							statepb.Row_Result_value["PASS"], 1,
+							statepb.Row_Result_value["FAIL"], 1,
+							statepb.Row_Result_value["FAIL"], 1,
+							statepb.Row_Result_value["CATEGORIZED_FAIL"], 1,
+						},
+						Messages: []string{
+							"",
+							"",
+							"",
+							"infra_fail_1",
+						},
+					},
+				},
+			},
+			startTime: 0,
+			endTime:   2,
+			expectedMetrics: []*common.GridMetrics{
+				{
+					Name:             "test_1",
+					Passed:           1,
+					Failed:           1,
+					FlakyCount:       1,
+					AverageFlakiness: 50.0,
+					FailedInfraCount: 1,
+					InfraFailures: map[string]int{
+						"infra_fail_1": 1,
+					},
+				},
+				{
+					Name:             "test_2",
+					Passed:           1,
+					Failed:           2,
+					FlakyCount:       0,
+					AverageFlakiness: 2 / 3,
+					FailedInfraCount: 1,
+					InfraFailures: map[string]int{
+						"infra_fail_1": 1,
+					},
+				},
+			},
+			expectedFilteredStatus: map[string][]analyzers.StatusCategory{
+				"test_1": {
+					analyzers.StatusPass, analyzers.StatusFlaky,
+				},
+				"test_2": {
+					analyzers.StatusPass, analyzers.StatusFail,
+				},
+			},
+		},
+		{
 			name: "grid with no analyzed results produces empty result list",
 			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
@@ -465,6 +543,95 @@ func TestIsValidTestName(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if actual := isValidTestName(tc.testName); actual != tc.expected {
 				t.Errorf("isValidTestName returned %t for the name %s, but expected %t", actual, tc.testName, tc.expected)
+			}
+		})
+	}
+}
+
+func TestFailingColumns(t *testing.T) {
+	p := statepb.Row_Result_value["PASS"]
+	f := statepb.Row_Result_value["FAIL"]
+	fl := statepb.Row_Result_value["FLAKY"]
+	cases := []struct {
+		name       string
+		rows       []*statepb.Row
+		numColumns int
+		expected   []bool
+	}{
+		{
+			name: "Some failing columns",
+			rows: []*statepb.Row{
+				{
+					Name: "//test1 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1, p, 1, f, 1,
+					},
+				},
+				{
+					Name: "//test2 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1, p, 1, f, 1,
+					},
+				},
+				{
+					Name: "//test3 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1, p, 1, fl, 1,
+					},
+				},
+				{
+					Name: "//test4 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1, p, 1, f, 1,
+					},
+				},
+			},
+			numColumns: 5,
+			expected:   []bool{false, true, false, false, false},
+		},
+		{
+			name: "Unequal Length rows",
+			rows: []*statepb.Row{
+				{
+					Name: "//test1 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1,
+					},
+				},
+				{
+					Name: "//test2 - [env1]",
+					Results: []int32{
+						p, 1, f, 1,
+					},
+				},
+				{
+					Name: "//test3 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1, p, 1,
+					},
+				},
+			},
+			numColumns: 3,
+			expected:   []bool{false, true, false},
+		},
+		{
+			name: "Only one test",
+			rows: []*statepb.Row{
+				{
+					Name: "//test1 - [env1]",
+					Results: []int32{
+						p, 1, f, 1, p, 1,
+					},
+				},
+			},
+			numColumns: 3,
+			expected:   []bool{false, false, false},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := failingColumns(context.Background(), tc.numColumns, tc.rows); !reflect.DeepEqual(actual, tc.expected) {
+				t.Errorf("failingColumns(ctx, %v %v)=%v; expected %v", tc.numColumns, tc.rows, actual, tc.expected)
 			}
 		})
 	}
