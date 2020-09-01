@@ -40,6 +40,7 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -355,7 +356,7 @@ func recentRows(in []*statepb.Row, recent int) []*statepb.Row {
 		if r.Results == nil {
 			continue
 		}
-		if statepb.Row_Result(r.Results[0]) == statepb.Row_NO_RESULT && int(r.Results[1]) >= recent {
+		if statuspb.TestStatus(r.Results[0]) == statuspb.TestStatus_NO_RESULT && int(r.Results[1]) >= recent {
 			continue
 		}
 		rows = append(rows, r)
@@ -502,10 +503,10 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 		for r := range resultCh {
 			// TODO(fejta): fail old running results.
 			r = coalesceResult(r, result.IgnoreRunning)
-			if r == statepb.Row_NO_RESULT {
+			if r == statuspb.TestStatus_NO_RESULT {
 				continue
 			}
-			if r != statepb.Row_PASS {
+			if r != statuspb.TestStatus_PASS {
 				return summarypb.DashboardTabSummary_FLAKY
 			}
 			found = true
@@ -558,11 +559,11 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 			// TODO(fejta): fail old running cols
 			switch coalesceResult(<-ch, result.IgnoreRunning) {
 			//TODO(michelle192837): Create utility to standardize pass/fail boundaries
-			case statepb.Row_PASS, statepb.Row_PASS_WITH_ERRORS, statepb.Row_PASS_WITH_SKIPS:
+			case statuspb.TestStatus_PASS, statuspb.TestStatus_PASS_WITH_ERRORS, statuspb.TestStatus_PASS_WITH_SKIPS:
 				passes++
 				passingCells++
 				filledCells++
-			case statepb.Row_NO_RESULT:
+			case statuspb.TestStatus_NO_RESULT:
 				// noop
 			default:
 				failures++
@@ -615,10 +616,10 @@ func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
 		var passes bool
 		for _, resultCh := range results {
 			result := coalesceResult(<-resultCh, result.FailRunning)
-			if result == statepb.Row_PASS {
+			if result == statuspb.TestStatus_PASS {
 				passes = true
 			}
-			if result == statepb.Row_FLAKY || result == statepb.Row_FAIL {
+			if result == statuspb.TestStatus_FLAKY || result == statuspb.TestStatus_FAIL {
 				failures = true
 				break
 			}
@@ -665,16 +666,16 @@ func shouldRunHealthiness(tab *configpb.DashboardTab) bool {
 }
 
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
-func coalesceResult(rowResult statepb.Row_Result, ignoreRunning bool) statepb.Row_Result {
+func coalesceResult(rowResult statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatus {
 	return result.Coalesce(rowResult, ignoreRunning)
 }
 
 // resultIter returns a channel that outputs the result for each column, decoding the run-length-encoding.
-func resultIter(ctx context.Context, results []int32) <-chan statepb.Row_Result {
+func resultIter(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
 	return result.Iter(ctx, results)
 }
 
 // results returns a per-column result output channel for each row.
-func results(ctx context.Context, rows []*statepb.Row) map[string]<-chan statepb.Row_Result {
+func results(ctx context.Context, rows []*statepb.Row) map[string]<-chan statuspb.TestStatus {
 	return result.Map(ctx, rows)
 }

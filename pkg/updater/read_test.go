@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
 	"cloud.google.com/go/storage"
@@ -159,7 +160,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result:  statepb.Row_FAIL,
+							result:  statuspb.TestStatus_FAIL,
 							icon:    "F",
 							message: "Build failed outside of test results",
 							metrics: map[string]float64{
@@ -175,7 +176,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
@@ -243,7 +244,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result:  statepb.Row_FAIL,
+							result:  statuspb.TestStatus_FAIL,
 							icon:    "F",
 							message: "Build failed outside of test results",
 							metrics: map[string]float64{
@@ -263,7 +264,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
@@ -321,24 +322,24 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
 						},
 						"name good - context context-a - thread 33": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 						},
 						"name bad - context context-a - thread 33": {
-							result:  statepb.Row_FAIL,
+							result:  statuspb.TestStatus_FAIL,
 							icon:    "F",
 							message: "bad",
 						},
 						"name good - context context-b - thread 44": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 						},
 						"name bad - context context-b - thread 44": {
-							result:  statepb.Row_FAIL,
+							result:  statuspb.TestStatus_FAIL,
 							icon:    "F",
 							message: "bad",
 						},
@@ -398,7 +399,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},
@@ -412,7 +413,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 11,
 							},
@@ -485,7 +486,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 13,
 							},
@@ -499,7 +500,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},
@@ -573,7 +574,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 13,
 							},
@@ -587,7 +588,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},
@@ -601,7 +602,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 11,
 							},
@@ -615,7 +616,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 10,
 							},
@@ -689,7 +690,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 13,
 							},
@@ -703,7 +704,7 @@ func TestReadColumns(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"Overall": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"seconds-elapsed": 12,
 							},

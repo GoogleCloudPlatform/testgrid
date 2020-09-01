@@ -21,6 +21,7 @@ import (
 	"time"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
 // inflatedColumn holds all the entries for a given column.
@@ -35,7 +36,7 @@ type inflatedColumn struct {
 
 // cell holds a row's values for a given column
 type cell struct {
-	result statepb.Row_Result
+	result statuspb.TestStatus
 
 	cellID string
 
@@ -119,7 +120,7 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
 				}
 				c.metrics[name] = *val
 			}
-			if result != statepb.Row_NO_RESULT {
+			if result != statuspb.TestStatus_NO_RESULT {
 				c.icon = row.Icons[filledIdx]
 				c.message = row.Messages[filledIdx]
 				filledIdx++
@@ -172,8 +173,8 @@ func inflateMetric(ctx context.Context, metric *statepb.Metric) <-chan *float64 
 }
 
 // inflateResults inflates the run-length encoded row results into a channel.
-func inflateResults(ctx context.Context, results []int32) <-chan statepb.Row_Result {
-	out := make(chan statepb.Row_Result)
+func inflateResults(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
+	out := make(chan statuspb.TestStatus)
 	go func() {
 		defer close(out)
 		for idx := 0; idx < len(results); idx++ {
@@ -183,7 +184,7 @@ func inflateResults(ctx context.Context, results []int32) <-chan statepb.Row_Res
 				select {
 				case <-ctx.Done():
 					return
-				case out <- statepb.Row_Result(val):
+				case out <- statuspb.TestStatus(val):
 				}
 			}
 		}

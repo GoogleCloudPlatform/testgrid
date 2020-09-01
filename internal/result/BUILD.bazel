@@ -5,7 +5,10 @@ go_library(
     srcs = ["results.go"],
     importpath = "github.com/GoogleCloudPlatform/testgrid/internal/result",
     visibility = ["//:__subpackages__"],
-    deps = ["//pb/state:go_default_library"],
+    deps = [
+        "//pb/state:go_default_library",
+        "//pb/test_status:go_default_library",
+    ],
 )
 
 filegroup(
