@@ -117,6 +117,7 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 
 	// result.Map is written in a way that assumes each test/row name is unique
 	rowResults := result.Map(ctx, grid.Rows)
+	failingColumns := failingColumns(ctx, len(grid.Columns), grid.Rows)
 
 	for key, ch := range rowResults {
 		if !isValidTestName(key) {
@@ -152,13 +153,19 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 					gridMetricsMap[key].InfraFailures[message] = gridMetricsMap[key].InfraFailures[message] + 1
 				} else {
 					gridMetricsMap[key].Failed++
-					rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFail)
+					if !failingColumns[i] {
+						rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFail)
+					}
 				}
 			case statepb.Row_PASS:
 				gridMetricsMap[key].Passed++
-				rowStatuses[key] = append(rowStatuses[key], analyzers.StatusPass)
+				if !failingColumns[i] {
+					rowStatuses[key] = append(rowStatuses[key], analyzers.StatusPass)
+				}
 			case statepb.Row_FLAKY:
-				rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFlaky)
+				if !failingColumns[i] {
+					rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFlaky)
+				}
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
 			rowToMessageIndex++
@@ -171,6 +178,32 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 		}
 	}
 	return gridMetrics, rowStatuses
+}
+
+// failingColumns iterates over the grid in column-major order
+// and returns a slice of bool indicating whether a column is 100% failing.
+func failingColumns(ctx context.Context, numColumns int, rows []*statepb.Row) []bool {
+	// Convert to map of iterators to handle run-length encoding.
+	rowResults := result.Map(ctx, rows)
+	out := make([]bool, numColumns)
+	if len(rows) <= 1 {
+		// If we only have one test, don't do this metric.
+		return out
+	}
+	for i := 0; i < numColumns; i++ {
+		out[i] = true
+		for _, row := range rowResults {
+			rr, more := <-row
+			if !more {
+				continue
+			}
+			crr := result.Coalesce(rr, true)
+			if crr == statepb.Row_PASS || crr == statepb.Row_FLAKY {
+				out[i] = false
+			}
+		}
+	}
+	return out
 }
 
 func isInfraFailure(message string) bool {
