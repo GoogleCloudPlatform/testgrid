@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -50,7 +51,7 @@ func TestConvertResult(t *testing.T) {
 				column: &statepb.Column{},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_FAIL,
+						result:  statuspb.TestStatus_FAIL,
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
 					},
@@ -90,7 +91,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_FAIL,
+						result:  statuspb.TestStatus_FAIL,
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
 					},
@@ -130,7 +131,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_RUNNING,
+						result:  statuspb.TestStatus_RUNNING,
 						icon:    "R",
 						message: "Build still running...",
 					},
@@ -177,13 +178,13 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_FAIL,
+						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
 						message: "Build failed outside of test results",
 						metrics: setElapsed(nil, 1),
 					},
 					"this.that": {
-						result: statepb.Row_PASS,
+						result: statuspb.TestStatus_PASS,
 					},
 				},
 			},
@@ -257,39 +258,39 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_FAIL,
+						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
 					"elapsed": {
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 5),
 					},
 					"failed no message": {
-						result: statepb.Row_FAIL,
+						result: statuspb.TestStatus_FAIL,
 					},
 					"failed": {
 						message: "boom",
-						result:  statepb.Row_FAIL,
+						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
 					},
 					"failed other message": {
 						message: "irrelevant message",
-						result:  statepb.Row_FAIL,
+						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
 					},
 					// no invisible skip
 					"visible skip": {
-						result:  statepb.Row_PASS_WITH_SKIPS,
+						result:  statuspb.TestStatus_PASS_WITH_SKIPS,
 						message: "tl;dr",
 						icon:    "S",
 					},
 					"stderr message": {
 						message: "ouch",
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 					},
 					"stdout message": {
 						message: "bellybutton",
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 					},
 				},
 			},
@@ -355,14 +356,14 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
 					"elapsed - first [second]": {
-						result: statepb.Row_PASS,
+						result: statuspb.TestStatus_PASS,
 					},
 					"other - hey []": {
-						result: statepb.Row_PASS,
+						result: statuspb.TestStatus_PASS,
 					},
 				},
 			},
@@ -432,19 +433,19 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: map[string]cell{
 					"Overall": {
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
 					"same - same": {
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
 					"same - same [1]": {
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 2),
 					},
 					"same - same [2]": {
-						result:  statepb.Row_PASS,
+						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 3),
 					},
 				},
@@ -491,7 +492,7 @@ func TestOverallCell(t *testing.T) {
 				},
 			},
 			expected: cell{
-				result:  statepb.Row_FAIL,
+				result:  statuspb.TestStatus_FAIL,
 				message: "Build did not complete within 24 hours",
 				icon:    "T",
 			},
@@ -512,7 +513,7 @@ func TestOverallCell(t *testing.T) {
 				},
 			},
 			expected: cell{
-				result:  statepb.Row_PASS,
+				result:  statuspb.TestStatus_PASS,
 				metrics: setElapsed(nil, 150),
 			},
 		},
@@ -532,7 +533,7 @@ func TestOverallCell(t *testing.T) {
 				},
 			},
 			expected: cell{
-				result:  statepb.Row_FAIL,
+				result:  statuspb.TestStatus_FAIL,
 				metrics: setElapsed(nil, 150),
 			},
 		},
@@ -551,7 +552,7 @@ func TestOverallCell(t *testing.T) {
 				},
 			},
 			expected: cell{
-				result:  statepb.Row_FAIL,
+				result:  statuspb.TestStatus_FAIL,
 				metrics: setElapsed(nil, 150),
 			},
 		},

@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/analyzers"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 )
@@ -39,7 +40,7 @@ var (
 )
 
 type flakinessAnalyzer interface {
-	GetFlakiness(gridMetrics []*common.GridMetrics, relevantFilteredStatus map[string][]statepb.Row_Result, minRuns int, startDate int, endDate int, tab string) *summarypb.HealthinessInfo
+	GetFlakiness(gridMetrics []*common.GridMetrics, relevantFilteredStatus map[string][]statuspb.TestStatus, minRuns int, startDate int, endDate int, tab string) *summarypb.HealthinessInfo
 }
 
 // CalculateHealthiness extracts the test run data from each row (which represents a test)
@@ -136,7 +137,7 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 			// this column.
 			if !isWithinTimeFrame(grid.Columns[i], startTime, endTime) {
 				switch rowResult {
-				case statepb.Row_NO_RESULT:
+				case statuspb.TestStatus_NO_RESULT:
 					// Ignore NO_RESULT (e.g. blank cell)
 				default:
 					rowToMessageIndex++
@@ -144,9 +145,9 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 				continue
 			}
 			switch rowResult {
-			case statepb.Row_NO_RESULT:
+			case statuspb.TestStatus_NO_RESULT:
 				continue
-			case statepb.Row_FAIL:
+			case statuspb.TestStatus_FAIL:
 				message := gridRows[key].Messages[rowToMessageIndex]
 				if isInfraFailure(message) {
 					gridMetricsMap[key].FailedInfraCount++
@@ -157,15 +158,11 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 						rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFail)
 					}
 				}
-			case statepb.Row_PASS:
+			case statuspb.TestStatus_PASS:
 				gridMetricsMap[key].Passed++
-				if !failingColumns[i] {
-					rowStatuses[key] = append(rowStatuses[key], analyzers.StatusPass)
-				}
-			case statepb.Row_FLAKY:
-				if !failingColumns[i] {
-					rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFlaky)
-				}
+				rowStatuses[key] = append(rowStatuses[key], analyzers.StatusPass)
+			case statuspb.TestStatus_FLAKY:
+				rowStatuses[key] = append(rowStatuses[key], analyzers.StatusFlaky)
 				getValueOfFlakyMetric(gridMetricsMap[key])
 			}
 			rowToMessageIndex++
@@ -198,7 +195,7 @@ func failingColumns(ctx context.Context, numColumns int, rows []*statepb.Row) []
 				continue
 			}
 			crr := result.Coalesce(rr, true)
-			if crr == statepb.Row_PASS || crr == statepb.Row_FLAKY {
+			if crr == statuspb.TestStatus_PASS || crr == statuspb.TestStatus_FLAKY {
 				out[i] = false
 			}
 		}

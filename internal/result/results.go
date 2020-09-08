@@ -20,6 +20,7 @@ import (
 	"context"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
 const (
@@ -30,68 +31,68 @@ const (
 )
 
 var (
-	statusSeverity = map[statepb.Row_Result]int{
-		statepb.Row_NO_RESULT:         0,
-		statepb.Row_PASS:              1,
-		statepb.Row_BUILD_PASSED:      2,
-		statepb.Row_PASS_WITH_ERRORS:  3,
-		statepb.Row_PASS_WITH_SKIPS:   4,
-		statepb.Row_RUNNING:           5,
-		statepb.Row_CATEGORIZED_ABORT: 6,
-		statepb.Row_UNKNOWN:           7,
-		statepb.Row_CANCEL:            8,
-		statepb.Row_BLOCKED:           9,
-		statepb.Row_TOOL_FAIL:         10,
-		statepb.Row_TIMED_OUT:         11,
-		statepb.Row_CATEGORIZED_FAIL:  12,
-		statepb.Row_BUILD_FAIL:        13,
-		statepb.Row_FAIL:              14,
-		statepb.Row_FLAKY:             15,
+	statusSeverity = map[statuspb.TestStatus]int{
+		statuspb.TestStatus_NO_RESULT:         0,
+		statuspb.TestStatus_PASS:              1,
+		statuspb.TestStatus_BUILD_PASSED:      2,
+		statuspb.TestStatus_PASS_WITH_ERRORS:  3,
+		statuspb.TestStatus_PASS_WITH_SKIPS:   4,
+		statuspb.TestStatus_RUNNING:           5,
+		statuspb.TestStatus_CATEGORIZED_ABORT: 6,
+		statuspb.TestStatus_UNKNOWN:           7,
+		statuspb.TestStatus_CANCEL:            8,
+		statuspb.TestStatus_BLOCKED:           9,
+		statuspb.TestStatus_TOOL_FAIL:         10,
+		statuspb.TestStatus_TIMED_OUT:         11,
+		statuspb.TestStatus_CATEGORIZED_FAIL:  12,
+		statuspb.TestStatus_BUILD_FAIL:        13,
+		statuspb.TestStatus_FAIL:              14,
+		statuspb.TestStatus_FLAKY:             15,
 	}
 )
 
-func resultLte(rowResult, compareTo statepb.Row_Result) bool {
+func resultLte(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] <= statusSeverity[compareTo]
 }
 
-func resultGte(rowResult, compareTo statepb.Row_Result) bool {
+func resultGte(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
 // IsPassingResult returns true if the Row_Result is any of the passing results,
 // including PASS_WITH_SKIPS, BUILD_PASSED, and more.
-func IsPassingResult(rowResult statepb.Row_Result) bool {
-	return resultGte(rowResult, statepb.Row_PASS) && resultLte(rowResult, statepb.Row_PASS_WITH_SKIPS)
+func IsPassingResult(rowResult statuspb.TestStatus) bool {
+	return resultGte(rowResult, statuspb.TestStatus_PASS) && resultLte(rowResult, statuspb.TestStatus_PASS_WITH_SKIPS)
 }
 
 // IsFailingResult returns true if the Row_Result is any of the failing results,
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
-func IsFailingResult(rowResult statepb.Row_Result) bool {
-	return resultGte(rowResult, statepb.Row_TOOL_FAIL) && resultLte(rowResult, statepb.Row_FAIL)
+func IsFailingResult(rowResult statuspb.TestStatus) bool {
+	return resultGte(rowResult, statuspb.TestStatus_TOOL_FAIL) && resultLte(rowResult, statuspb.TestStatus_FAIL)
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
-func Coalesce(result statepb.Row_Result, ignoreRunning bool) statepb.Row_Result {
+func Coalesce(result statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatus {
 	// TODO(fejta): other result types, not used by k8s testgrid
-	if result == statepb.Row_NO_RESULT || result == statepb.Row_RUNNING && ignoreRunning {
-		return statepb.Row_NO_RESULT
+	if result == statuspb.TestStatus_NO_RESULT || result == statuspb.TestStatus_RUNNING && ignoreRunning {
+		return statuspb.TestStatus_NO_RESULT
 	}
-	if IsFailingResult(result) || result == statepb.Row_RUNNING {
-		return statepb.Row_FAIL
+	if IsFailingResult(result) || result == statuspb.TestStatus_RUNNING {
+		return statuspb.TestStatus_FAIL
 	}
-	if result == statepb.Row_FLAKY {
+	if result == statuspb.TestStatus_FLAKY {
 		return result
 	}
-	return statepb.Row_PASS
+	return statuspb.TestStatus_PASS
 }
 
 // Iter returns a channel that outputs the result for each column, decoding the run-length-encoding.
-func Iter(ctx context.Context, results []int32) <-chan statepb.Row_Result {
-	out := make(chan statepb.Row_Result)
+func Iter(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
+	out := make(chan statuspb.TestStatus)
 	go func() {
 		defer close(out)
 		for i := 0; i+1 < len(results); i += 2 {
-			result := statepb.Row_Result(results[i])
+			result := statuspb.TestStatus(results[i])
 			count := results[i+1]
 			for count > 0 {
 				select {
@@ -112,8 +113,8 @@ func Iter(ctx context.Context, results []int32) <-chan statepb.Row_Result {
 }
 
 // Map returns a per-column result output channel for each row.
-func Map(ctx context.Context, rows []*statepb.Row) map[string]<-chan statepb.Row_Result {
-	iters := map[string]<-chan statepb.Row_Result{}
+func Map(ctx context.Context, rows []*statepb.Row) map[string]<-chan statuspb.TestStatus {
+	iters := map[string]<-chan statuspb.TestStatus{}
 	for _, r := range rows {
 		iters[r.Name] = Iter(ctx, r.Results)
 	}

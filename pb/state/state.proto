@@ -12,14 +12,15 @@ import "pb/config/config.proto";
 // A metric and its values for each test cycle.
 message Metric {
   string name = 1;  // Name of metric, such as duration
-  // Sparse encoding of values. Indices is a list of pairs of <index, count> that
-  // details columns with metric values. So given:
+  // Sparse encoding of values. Indices is a list of pairs of <index, count>
+  // that details columns with metric values. So given:
   //   Indices: [0, 2, 6, 4]
   //   Values: [0.1,0.2,6.1,6.2,6.3,6.4]
   // Decoded 12-value equivalent is:
   // [0.1, 0.2, nil, nil, nil, nil, 6.1, 6.2, 6.3, 6.4, nil, nil, ...]
-  repeated int32 indices = 2; // n=index of first value, n+1=count of filled values
-  repeated double values = 3; // only present for columns with a metric value
+  repeated int32 indices =
+      2;  // n=index of first value, n+1=count of filled values
+  repeated double values = 3;  // only present for columns with a metric value
 }
 
 message UpdatePhaseData {
@@ -114,31 +115,11 @@ message Column {
 
 // TestGrid rows (also known as TestRow)
 message Row {
-  string name = 1; // Display name, which might process id to append/filter info.
+  string name = 1;  // Display name, which might process id to append/filter info.
   string id = 2;  // raw id for the row, such as the bazel target or golang package.
 
-  // TODO(michelle192837): Update uses of this to use test_status instead.
-  enum Result {
-    NO_RESULT = 0;
-    PASS = 1;
-    PASS_WITH_ERRORS = 2;
-    PASS_WITH_SKIPS = 3;
-    RUNNING = 4;
-    CATEGORIZED_ABORT = 5;
-    UNKNOWN = 6;
-    CANCEL = 7;
-    BLOCKED = 8;
-    TIMED_OUT = 9;
-    CATEGORIZED_FAIL = 10;
-    BUILD_FAIL = 11;
-    FAIL = 12;
-    FLAKY = 13;
-    TOOL_FAIL = 14;
-    BUILD_PASSED = 15;
-  }
-
-  // Results for this row, run-length encoded to reduce size/improve performance.
-  // Thus (encoded -> decoded equivalent):
+  // Results for this row, run-length encoded to reduce size/improve
+  // performance. Thus (encoded -> decoded equivalent):
   //   [0, 3, 5, 4] -> [0, 0, 0, 5, 5, 5, 5]
   //   [5, 1] -> [5]
   //   [1, 5] -> [1, 1, 1, 1, 1]
@@ -160,7 +141,6 @@ message Row {
   repeated string metric = 7;
 
   repeated Metric metrics = 8;  // Numerical performance/timing data, etc.
-
 
   // Short string to place inside the cell (F for fail, etc)
   // Present for any column with a non-empty status (not NO_RESULT).

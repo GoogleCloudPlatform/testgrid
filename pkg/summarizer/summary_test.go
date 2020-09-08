@@ -41,6 +41,7 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
 type fakeGroup struct {
@@ -471,15 +472,15 @@ func TestAllLinkedIssues(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "test-1",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 				},
 				{
 					Name:    "test-2",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 				},
 				{
 					Name:    "test-3",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 				},
 			},
 			want: []string{},
@@ -489,17 +490,17 @@ func TestAllLinkedIssues(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "test-1",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 					BugId:   []string{"1", "2"},
 				},
 				{
 					Name:    "test-2",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 					BugId:   []string{"5"},
 				},
 				{
 					Name:    "test-3",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 					BugId:   []string{"10", "7"},
 				},
 			},
@@ -510,12 +511,12 @@ func TestAllLinkedIssues(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "test-1",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 					BugId:   []string{"1", "2"},
 				},
 				{
 					Name:    "test-2",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 					BugId:   []string{"2", "3"},
 				},
 			},
@@ -586,17 +587,17 @@ func TestFilterGrid(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "include-food",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 				},
 				{
 					Name:    "exclude-included-bart",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 				},
 				{
 					Name: "ignore-included-stale",
 					Results: []int32{
-						int32(statepb.Row_NO_RESULT), 5,
-						int32(statepb.Row_PASS_WITH_SKIPS), 10,
+						int32(statuspb.TestStatus_NO_RESULT), 5,
+						int32(statuspb.TestStatus_PASS_WITH_SKIPS), 10,
 					},
 				},
 			},
@@ -604,7 +605,7 @@ func TestFilterGrid(t *testing.T) {
 			expected: []*statepb.Row{
 				{
 					Name:    "include-food",
-					Results: []int32{int32(statepb.Row_PASS), 10},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
 				},
 			},
 		},
@@ -722,12 +723,12 @@ func TestFilterGrid(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, r := range tc.rows {
 				if r.Results == nil {
-					r.Results = []int32{int32(statepb.Row_PASS), 100}
+					r.Results = []int32{int32(statuspb.TestStatus_PASS), 100}
 				}
 			}
 			for _, r := range tc.expected {
 				if r.Results == nil {
-					r.Results = []int32{int32(statepb.Row_PASS), 100}
+					r.Results = []int32{int32(statuspb.TestStatus_PASS), 100}
 				}
 			}
 			actual, err := filterGrid(tc.baseOptions, tc.rows, tc.recent)
@@ -761,7 +762,7 @@ func TestRecentRows(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "include",
-					Results: []int32{int32(statepb.Row_PASS), recent},
+					Results: []int32{int32(statuspb.TestStatus_PASS), recent},
 				},
 				{
 					Name: "skip-nil-results",
@@ -774,11 +775,11 @@ func TestRecentRows(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "include",
-					Results: []int32{int32(statepb.Row_PASS), recent},
+					Results: []int32{int32(statuspb.TestStatus_PASS), recent},
 				},
 				{
 					Name:    "skip-this-one-with-no-recent-results",
-					Results: []int32{int32(statepb.Row_NO_RESULT), recent},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), recent},
 				},
 			},
 			expected: []string{"include"},
@@ -789,23 +790,23 @@ func TestRecentRows(t *testing.T) {
 				{
 					Name: "head skips",
 					Results: []int32{
-						int32(statepb.Row_NO_RESULT), recent - 1,
-						int32(statepb.Row_PASS_WITH_SKIPS), recent,
+						int32(statuspb.TestStatus_NO_RESULT), recent - 1,
+						int32(statuspb.TestStatus_PASS_WITH_SKIPS), recent,
 					},
 				},
 				{
 					Name: "tail skips",
 					Results: []int32{
-						int32(statepb.Row_FLAKY), recent - 1,
-						int32(statepb.Row_NO_RESULT), recent,
+						int32(statuspb.TestStatus_FLAKY), recent - 1,
+						int32(statuspb.TestStatus_NO_RESULT), recent,
 					},
 				},
 				{
 					Name: "middle skips",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 1,
-						int32(statepb.Row_NO_RESULT), recent - 2,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_NO_RESULT), recent - 2,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 			},
@@ -1157,7 +1158,7 @@ func TestOverallStatus(t *testing.T) {
 			recent: 1,
 			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(statepb.Row_PASS), 1},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 1},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
@@ -1167,7 +1168,7 @@ func TestOverallStatus(t *testing.T) {
 			recent: 1,
 			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(statepb.Row_FAIL), 1},
+					Results: []int32{int32(statuspb.TestStatus_FAIL), 1},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_FLAKY,
@@ -1177,16 +1178,16 @@ func TestOverallStatus(t *testing.T) {
 			recent: 5,
 			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(statepb.Row_NO_RESULT), 1},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 1},
 				},
 				{
-					Results: []int32{int32(statepb.Row_PASS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 				{
-					Results: []int32{int32(statepb.Row_NO_RESULT), 2},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 2},
 				},
 				{
-					Results: []int32{int32(statepb.Row_PASS), 2},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
@@ -1197,8 +1198,8 @@ func TestOverallStatus(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Results: []int32{
-						int32(statepb.Row_PASS), 3,
-						int32(statepb.Row_FAIL), 5,
+						int32(statuspb.TestStatus_PASS), 3,
+						int32(statuspb.TestStatus_FAIL), 5,
 					},
 				},
 			},
@@ -1209,7 +1210,7 @@ func TestOverallStatus(t *testing.T) {
 			recent: 50,
 			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(statepb.Row_PASS), 1},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 1},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
@@ -1219,7 +1220,7 @@ func TestOverallStatus(t *testing.T) {
 			recent: 1,
 			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(statepb.Row_PASS_WITH_SKIPS), 1},
+					Results: []int32{int32(statuspb.TestStatus_PASS_WITH_SKIPS), 1},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
@@ -1229,7 +1230,7 @@ func TestOverallStatus(t *testing.T) {
 			recent: 1,
 			rows: []*statepb.Row{
 				{
-					Results: []int32{int32(statepb.Row_PASS_WITH_SKIPS), 1},
+					Results: []int32{int32(statuspb.TestStatus_PASS_WITH_SKIPS), 1},
 				},
 			},
 			broken:   true,
@@ -1277,11 +1278,11 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "green eggs",
-					Results: []int32{int32(statepb.Row_PASS), 2},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 				{
 					Name:    "and ham",
-					Results: []int32{int32(statepb.Row_PASS), 2},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
 			recent:       2,
@@ -1296,11 +1297,11 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "not with a fox",
-					Results: []int32{int32(statepb.Row_FAIL), 2},
+					Results: []int32{int32(statuspb.TestStatus_FAIL), 2},
 				},
 				{
 					Name:    "not in a box",
-					Results: []int32{int32(statepb.Row_FLAKY), 2},
+					Results: []int32{int32(statuspb.TestStatus_FLAKY), 2},
 				},
 			},
 			recent:       2,
@@ -1316,15 +1317,15 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "first doughnut is best",
 					Results: []int32{
-						int32(statepb.Row_PASS), 1,
-						int32(statepb.Row_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
 					},
 				},
 				{
 					Name: "fine wine gets better",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 			},
@@ -1341,11 +1342,11 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "a",
-					Results: []int32{int32(statepb.Row_PASS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 				{
 					Name:    "b",
-					Results: []int32{int32(statepb.Row_PASS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
 			passingCols:  3,
@@ -1363,7 +1364,7 @@ func TestGridMetrics(t *testing.T) {
 				},
 				{
 					Name:    "filled",
-					Results: []int32{int32(statepb.Row_PASS), 2},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
 			passingCols:  2,
@@ -1378,7 +1379,7 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "data",
-					Results: []int32{int32(statepb.Row_PASS), 100},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 100},
 				},
 			},
 			passingCols:  2,
@@ -1393,27 +1394,27 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "always empty",
-					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 				{
 					Name: "first empty",
 					Results: []int32{
-						int32(statepb.Row_NO_RESULT), 1,
-						int32(statepb.Row_PASS), 2,
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_PASS), 2,
 					},
 				},
 				{
 					Name: "always pass",
 					Results: []int32{
-						int32(statepb.Row_PASS), 3,
+						int32(statuspb.TestStatus_PASS), 3,
 					},
 				},
 				{
 					Name: "empty, fail, pass",
 					Results: []int32{
-						int32(statepb.Row_NO_RESULT), 1,
-						int32(statepb.Row_FAIL), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 			},
@@ -1430,7 +1431,7 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "four passes",
 					Results: []int32{
-						int32(statepb.Row_PASS), 4,
+						int32(statuspb.TestStatus_PASS), 4,
 					},
 				},
 			},
@@ -1447,13 +1448,13 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "four passes",
 					Results: []int32{
-						int32(statepb.Row_PASS), 4,
+						int32(statuspb.TestStatus_PASS), 4,
 					},
 				},
 				{
 					Name: "four fails",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 4,
+						int32(statuspb.TestStatus_FAIL), 4,
 					},
 				},
 			},
@@ -1469,18 +1470,18 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "always empty",
-					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 				{
 					Name: "first empty",
 					Results: []int32{
-						int32(statepb.Row_NO_RESULT), 1,
-						int32(statepb.Row_PASS), 2,
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_PASS), 2,
 					},
 				},
 				{
 					Name:    "always empty",
-					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 			},
 			passingCols:  2,
@@ -1495,7 +1496,7 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "always empty",
-					Results: []int32{int32(statepb.Row_NO_RESULT), 3},
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 			},
 			passingCols:  0,
@@ -1510,11 +1511,11 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "always empty",
-					Results: []int32{int32(statepb.Row_PASS_WITH_SKIPS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS_WITH_SKIPS), 3},
 				},
 				{
 					Name:    "all pass",
-					Results: []int32{int32(statepb.Row_PASS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
 			passingCols:  3,
@@ -1529,11 +1530,11 @@ func TestGridMetrics(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "always empty",
-					Results: []int32{int32(statepb.Row_PASS_WITH_ERRORS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS_WITH_ERRORS), 3},
 				},
 				{
 					Name:    "all pass",
-					Results: []int32{int32(statepb.Row_PASS), 3},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
 			passingCols:  3,
@@ -1549,13 +1550,13 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "four passes",
 					Results: []int32{
-						int32(statepb.Row_PASS), 4,
+						int32(statuspb.TestStatus_PASS), 4,
 					},
 				},
 				{
 					Name: "four fails",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 4,
+						int32(statuspb.TestStatus_FAIL), 4,
 					},
 				},
 			},
@@ -1574,13 +1575,13 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "four passes",
 					Results: []int32{
-						int32(statepb.Row_PASS), 4,
+						int32(statuspb.TestStatus_PASS), 4,
 					},
 				},
 				{
 					Name: "four fails",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 4,
+						int32(statuspb.TestStatus_FAIL), 4,
 					},
 				},
 			},
@@ -1599,14 +1600,14 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "four passes",
 					Results: []int32{
-						int32(statepb.Row_PASS), 4,
+						int32(statuspb.TestStatus_PASS), 4,
 					},
 				},
 				{
 					Name: "one pass three fails",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 1,
-						int32(statepb.Row_PASS), 3,
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 3,
 					},
 				},
 			},
@@ -1625,14 +1626,14 @@ func TestGridMetrics(t *testing.T) {
 				{
 					Name: "four passes",
 					Results: []int32{
-						int32(statepb.Row_PASS), 4,
+						int32(statuspb.TestStatus_PASS), 4,
 					},
 				},
 				{
 					Name: "one pass three fails",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 1,
-						int32(statepb.Row_PASS), 3,
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 3,
 					},
 				},
 			},
@@ -1725,7 +1726,7 @@ func TestLatestGreen(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "so pass",
-					Results: []int32{int32(statepb.Row_PASS), 4},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 4},
 				},
 			},
 			cols: []*statepb.Column{
@@ -1741,7 +1742,7 @@ func TestLatestGreen(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "so pass",
-					Results: []int32{int32(statepb.Row_PASS), 4},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 4},
 				},
 			},
 			first: true,
@@ -1758,7 +1759,7 @@ func TestLatestGreen(t *testing.T) {
 			rows: []*statepb.Row{
 				{
 					Name:    "so pass",
-					Results: []int32{int32(statepb.Row_PASS), 4},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 4},
 				},
 			},
 			cols: []*statepb.Column{
@@ -1778,19 +1779,19 @@ func TestLatestGreen(t *testing.T) {
 				{
 					Name: "pass w/ errors",
 					Results: []int32{
-						int32(statepb.Row_PASS_WITH_ERRORS), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_PASS_WITH_ERRORS), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 				{
 					Name:    "pass pass",
-					Results: []int32{int32(statepb.Row_PASS), 2},
+					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 				{
 					Name: "pass and skip",
 					Results: []int32{
-						int32(statepb.Row_PASS_WITH_SKIPS), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_PASS_WITH_SKIPS), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 			},
@@ -1811,14 +1812,14 @@ func TestLatestGreen(t *testing.T) {
 				{
 					Name: "running",
 					Results: []int32{
-						int32(statepb.Row_RUNNING), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_RUNNING), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 				{
 					Name: "pass",
 					Results: []int32{
-						int32(statepb.Row_PASS), 2,
+						int32(statuspb.TestStatus_PASS), 2,
 					},
 				},
 			},
@@ -1839,14 +1840,14 @@ func TestLatestGreen(t *testing.T) {
 				{
 					Name: "flaking",
 					Results: []int32{
-						int32(statepb.Row_FLAKY), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_FLAKY), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 				{
 					Name: "passing",
 					Results: []int32{
-						int32(statepb.Row_PASS), 2,
+						int32(statuspb.TestStatus_PASS), 2,
 					},
 				},
 			},
@@ -1867,14 +1868,14 @@ func TestLatestGreen(t *testing.T) {
 				{
 					Name: "failing",
 					Results: []int32{
-						int32(statepb.Row_FAIL), 1,
-						int32(statepb.Row_PASS), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 1,
 					},
 				},
 				{
 					Name: "passing",
 					Results: []int32{
-						int32(statepb.Row_PASS), 2,
+						int32(statuspb.TestStatus_PASS), 2,
 					},
 				},
 			},
@@ -1932,10 +1933,10 @@ func TestGetHealthinessForInterval(t *testing.T) {
 					{
 						Name: "test_1",
 						Results: []int32{
-							statepb.Row_Result_value["PASS"], 1,
-							statepb.Row_Result_value["FAIL"], 1,
-							statepb.Row_Result_value["FAIL"], 1,
-							statepb.Row_Result_value["FAIL"], 2,
+							statuspb.TestStatus_value["PASS"], 1,
+							statuspb.TestStatus_value["FAIL"], 1,
+							statuspb.TestStatus_value["FAIL"], 1,
+							statuspb.TestStatus_value["FAIL"], 2,
 						},
 						Messages: []string{
 							"",
@@ -2052,40 +2053,40 @@ func TestShouldRunHealthiness(t *testing.T) {
 func TestCoalesceResult(t *testing.T) {
 	cases := []struct {
 		name     string
-		result   statepb.Row_Result
+		result   statuspb.TestStatus
 		running  bool
-		expected statepb.Row_Result
+		expected statuspb.TestStatus
 	}{
 		{
 			name:     "no result by default",
-			expected: statepb.Row_NO_RESULT,
+			expected: statuspb.TestStatus_NO_RESULT,
 		},
 		{
 			name:     "running is no result when ignored",
-			result:   statepb.Row_RUNNING,
-			expected: statepb.Row_NO_RESULT,
+			result:   statuspb.TestStatus_RUNNING,
+			expected: statuspb.TestStatus_NO_RESULT,
 			running:  result.IgnoreRunning,
 		},
 		{
 			name:     "running is no result when ignored",
-			result:   statepb.Row_RUNNING,
-			expected: statepb.Row_FAIL,
+			result:   statuspb.TestStatus_RUNNING,
+			expected: statuspb.TestStatus_FAIL,
 			running:  result.FailRunning,
 		},
 		{
 			name:     "fail is fail",
-			result:   statepb.Row_FAIL,
-			expected: statepb.Row_FAIL,
+			result:   statuspb.TestStatus_FAIL,
+			expected: statuspb.TestStatus_FAIL,
 		},
 		{
 			name:     "flaky is flaky",
-			result:   statepb.Row_FLAKY,
-			expected: statepb.Row_FLAKY,
+			result:   statuspb.TestStatus_FLAKY,
+			expected: statuspb.TestStatus_FLAKY,
 		},
 		{
 			name:     "simplify pass",
-			result:   statepb.Row_PASS_WITH_ERRORS,
-			expected: statepb.Row_PASS,
+			result:   statuspb.TestStatus_PASS_WITH_ERRORS,
+			expected: statuspb.TestStatus_PASS,
 		},
 	}
 
@@ -2103,43 +2104,43 @@ func TestResultIter(t *testing.T) {
 		name     string
 		cancel   int
 		in       []int32
-		expected []statepb.Row_Result
+		expected []statuspb.TestStatus
 	}{
 		{
 			name: "basically works",
 			in: []int32{
-				int32(statepb.Row_PASS), 3,
-				int32(statepb.Row_FAIL), 2,
+				int32(statuspb.TestStatus_PASS), 3,
+				int32(statuspb.TestStatus_FAIL), 2,
 			},
-			expected: []statepb.Row_Result{
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_FAIL,
-				statepb.Row_FAIL,
+			expected: []statuspb.TestStatus{
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_FAIL,
+				statuspb.TestStatus_FAIL,
 			},
 		},
 		{
 			name: "ignore last unbalanced input",
 			in: []int32{
-				int32(statepb.Row_PASS), 3,
-				int32(statepb.Row_FAIL),
+				int32(statuspb.TestStatus_PASS), 3,
+				int32(statuspb.TestStatus_FAIL),
 			},
-			expected: []statepb.Row_Result{
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
+			expected: []statuspb.TestStatus{
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
 			},
 		},
 		{
 			name: "cancel aborts early",
 			in: []int32{
-				int32(statepb.Row_PASS), 50,
+				int32(statuspb.TestStatus_PASS), 50,
 			},
 			cancel: 2,
-			expected: []statepb.Row_Result{
-				statepb.Row_PASS,
-				statepb.Row_PASS,
+			expected: []statuspb.TestStatus{
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
 			},
 		},
 	}
@@ -2149,7 +2150,7 @@ func TestResultIter(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			out := resultIter(ctx, tc.in)
-			var actual []statepb.Row_Result
+			var actual []statuspb.TestStatus
 			var idx int
 			for val := range out {
 				idx++

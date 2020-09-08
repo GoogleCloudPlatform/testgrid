@@ -23,6 +23,7 @@ import (
 	"time"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
 func blank(n int) []string {
@@ -118,7 +119,7 @@ func TestInflateGrid(t *testing.T) {
 					{
 						Name: "name",
 						Results: []int32{
-							int32(statepb.Row_FAIL), 2,
+							int32(statuspb.TestStatus_FAIL), 2,
 						},
 						CellIds:  []string{"this", "that"},
 						Messages: []string{"important", "notice"},
@@ -139,7 +140,7 @@ func TestInflateGrid(t *testing.T) {
 					{
 						Name: "second",
 						Results: []int32{
-							int32(statepb.Row_PASS), 2,
+							int32(statuspb.TestStatus_PASS), 2,
 						},
 						CellIds:  blank(2),
 						Messages: blank(2),
@@ -158,7 +159,7 @@ func TestInflateGrid(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"name": {
-							result:  statepb.Row_FAIL,
+							result:  statuspb.TestStatus_FAIL,
 							cellID:  "this",
 							message: "important",
 							icon:    "I1",
@@ -167,7 +168,7 @@ func TestInflateGrid(t *testing.T) {
 							},
 						},
 						"second": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 						},
 					},
 				},
@@ -179,7 +180,7 @@ func TestInflateGrid(t *testing.T) {
 					},
 					cells: map[string]cell{
 						"name": {
-							result:  statepb.Row_FAIL,
+							result:  statuspb.TestStatus_FAIL,
 							cellID:  "that",
 							message: "notice",
 							icon:    "I2",
@@ -189,7 +190,7 @@ func TestInflateGrid(t *testing.T) {
 							},
 						},
 						"second": {
-							result: statepb.Row_PASS,
+							result: statuspb.TestStatus_PASS,
 						},
 					},
 				},
@@ -223,10 +224,10 @@ func TestInflateGrid(t *testing.T) {
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(statepb.Row_RUNNING), 1,
-							int32(statepb.Row_PASS), 1,
-							int32(statepb.Row_FAIL), 1,
-							int32(statepb.Row_FLAKY), 1,
+							int32(statuspb.TestStatus_RUNNING), 1,
+							int32(statuspb.TestStatus_PASS), 1,
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_FLAKY), 1,
 						},
 					},
 					{
@@ -235,7 +236,7 @@ func TestInflateGrid(t *testing.T) {
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(statepb.Row_PASS_WITH_SKIPS), 4,
+							int32(statuspb.TestStatus_PASS_WITH_SKIPS), 4,
 						},
 					},
 				},
@@ -248,8 +249,8 @@ func TestInflateGrid(t *testing.T) {
 						Started: millis(hours[20]) + 999,
 					},
 					cells: map[string]cell{
-						"hello": {result: statepb.Row_FAIL},
-						"world": {result: statepb.Row_PASS_WITH_SKIPS},
+						"hello": {result: statuspb.TestStatus_FAIL},
+						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 				{
@@ -258,8 +259,8 @@ func TestInflateGrid(t *testing.T) {
 						Started: millis(hours[10]),
 					},
 					cells: map[string]cell{
-						"hello": {result: statepb.Row_FLAKY},
-						"world": {result: statepb.Row_PASS_WITH_SKIPS},
+						"hello": {result: statuspb.TestStatus_FLAKY},
+						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 			},
@@ -292,10 +293,10 @@ func TestInflateGrid(t *testing.T) {
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(statepb.Row_RUNNING), 1,
-							int32(statepb.Row_PASS), 1,
-							int32(statepb.Row_FAIL), 1,
-							int32(statepb.Row_FLAKY), 1,
+							int32(statuspb.TestStatus_RUNNING), 1,
+							int32(statuspb.TestStatus_PASS), 1,
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_FLAKY), 1,
 						},
 					},
 					{
@@ -304,7 +305,7 @@ func TestInflateGrid(t *testing.T) {
 						Messages: blank(4),
 						Icons:    blank(4),
 						Results: []int32{
-							int32(statepb.Row_PASS_WITH_SKIPS), 4,
+							int32(statuspb.TestStatus_PASS_WITH_SKIPS), 4,
 						},
 					},
 				},
@@ -318,8 +319,8 @@ func TestInflateGrid(t *testing.T) {
 						Started: millis(hours[20]),
 					},
 					cells: map[string]cell{
-						"hello": {result: statepb.Row_RUNNING},
-						"world": {result: statepb.Row_PASS_WITH_SKIPS},
+						"hello": {result: statuspb.TestStatus_RUNNING},
+						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 				{
@@ -328,8 +329,8 @@ func TestInflateGrid(t *testing.T) {
 						Started: millis(hours[10]),
 					},
 					cells: map[string]cell{
-						"hello": {result: statepb.Row_PASS},
-						"world": {result: statepb.Row_PASS_WITH_SKIPS},
+						"hello": {result: statuspb.TestStatus_PASS},
+						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 			},
@@ -363,16 +364,16 @@ func TestInflateRow(t *testing.T) {
 				Icons:    blank(2),
 				Messages: blank(2),
 				Results: []int32{
-					int32(statepb.Row_PASS), 2,
+					int32(statuspb.TestStatus_PASS), 2,
 				},
 			},
 			expected: []cell{
 				{
-					result: statepb.Row_PASS,
+					result: statuspb.TestStatus_PASS,
 					cellID: "cell-a",
 				},
 				{
-					result: statepb.Row_PASS,
+					result: statuspb.TestStatus_PASS,
 					cellID: "cell-b",
 				},
 			},
@@ -388,30 +389,30 @@ func TestInflateRow(t *testing.T) {
 					"fail", "flake-first", "flake-second",
 				},
 				Results: []int32{
-					int32(statepb.Row_NO_RESULT), 2,
-					int32(statepb.Row_FAIL), 1,
-					int32(statepb.Row_NO_RESULT), 2,
-					int32(statepb.Row_FLAKY), 2,
-					int32(statepb.Row_NO_RESULT), 1,
+					int32(statuspb.TestStatus_NO_RESULT), 2,
+					int32(statuspb.TestStatus_FAIL), 1,
+					int32(statuspb.TestStatus_NO_RESULT), 2,
+					int32(statuspb.TestStatus_FLAKY), 2,
+					int32(statuspb.TestStatus_NO_RESULT), 1,
 				},
 			},
 			expected: []cell{
 				{},
 				{},
 				{
-					result:  statepb.Row_FAIL,
+					result:  statuspb.TestStatus_FAIL,
 					icon:    "F1",
 					message: "fail",
 				},
 				{},
 				{},
 				{
-					result:  statepb.Row_FLAKY,
+					result:  statuspb.TestStatus_FLAKY,
 					icon:    "~1",
 					message: "flake-first",
 				},
 				{
-					result:  statepb.Row_FLAKY,
+					result:  statuspb.TestStatus_FLAKY,
 					icon:    "~2",
 					message: "flake-second",
 				},
@@ -425,7 +426,7 @@ func TestInflateRow(t *testing.T) {
 				Icons:    blank(1),
 				Messages: blank(1),
 				Results: []int32{
-					int32(statepb.Row_PASS), 1,
+					int32(statuspb.TestStatus_PASS), 1,
 				},
 				Metric: []string{"found-it"},
 				Metrics: []*statepb.Metric{
@@ -437,7 +438,7 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: statepb.Row_PASS,
+					result: statuspb.TestStatus_PASS,
 					metrics: map[string]float64{
 						"found-it": 7,
 					},
@@ -451,7 +452,7 @@ func TestInflateRow(t *testing.T) {
 				Icons:    blank(1),
 				Messages: blank(1),
 				Results: []int32{
-					int32(statepb.Row_PASS), 1,
+					int32(statuspb.TestStatus_PASS), 1,
 				},
 				Metric: []string{"ignore-this"},
 				Metrics: []*statepb.Metric{
@@ -464,7 +465,7 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: statepb.Row_PASS,
+					result: statuspb.TestStatus_PASS,
 					metrics: map[string]float64{
 						"oh yeah": 7,
 					},
@@ -542,7 +543,7 @@ func TestInflateResults(t *testing.T) {
 	cases := []struct {
 		name     string
 		results  []int32
-		expected []statepb.Row_Result
+		expected []statuspb.TestStatus
 	}{
 		{
 			name: "basically works",
@@ -550,38 +551,38 @@ func TestInflateResults(t *testing.T) {
 		{
 			name: "first documented example with multiple values works",
 			results: []int32{
-				int32(statepb.Row_NO_RESULT), 3,
-				int32(statepb.Row_PASS), 4,
+				int32(statuspb.TestStatus_NO_RESULT), 3,
+				int32(statuspb.TestStatus_PASS), 4,
 			},
-			expected: []statepb.Row_Result{
-				statepb.Row_NO_RESULT,
-				statepb.Row_NO_RESULT,
-				statepb.Row_NO_RESULT,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
+			expected: []statuspb.TestStatus{
+				statuspb.TestStatus_NO_RESULT,
+				statuspb.TestStatus_NO_RESULT,
+				statuspb.TestStatus_NO_RESULT,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
 			},
 		},
 		{
 			name: "first item is the type",
 			results: []int32{
-				int32(statepb.Row_RUNNING), 1, // RUNNING == 4
+				int32(statuspb.TestStatus_RUNNING), 1, // RUNNING == 4
 			},
-			expected: []statepb.Row_Result{
-				statepb.Row_RUNNING,
+			expected: []statuspb.TestStatus{
+				statuspb.TestStatus_RUNNING,
 			},
 		},
 		{
 			name: "second item is the number of repetitions",
 			results: []int32{
-				int32(statepb.Row_PASS), 4, // Running == 1
+				int32(statuspb.TestStatus_PASS), 4, // Running == 1
 			},
-			expected: []statepb.Row_Result{
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
-				statepb.Row_PASS,
+			expected: []statuspb.TestStatus{
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
+				statuspb.TestStatus_PASS,
 			},
 		},
 	}
@@ -589,7 +590,7 @@ func TestInflateResults(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ch := inflateResults(context.Background(), tc.results)
-			var actual []statepb.Row_Result
+			var actual []statuspb.TestStatus
 			for r := range ch {
 				actual = append(actual, r)
 			}

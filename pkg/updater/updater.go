@@ -40,6 +40,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -168,7 +169,7 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	}
 	var stillRunning int
 	for i, c := range cols {
-		if c.cells["Overall"].result == statepb.Row_RUNNING {
+		if c.cells["Overall"].result == statuspb.TestStatus_RUNNING {
 			stillRunning = i + 1
 		}
 	}
@@ -350,7 +351,7 @@ func appendMetric(metric *statepb.Metric, idx int32, value float64) {
 	metric.Values = append(metric.Values, value)
 }
 
-var emptyCell = cell{result: statepb.Row_NO_RESULT}
+var emptyCell = cell{result: statuspb.TestStatus_NO_RESULT}
 
 // appendCell adds the rowResult column to the row.
 //
@@ -367,7 +368,7 @@ func appendCell(row *statepb.Row, cell cell, count int) {
 
 	for i := 0; i < count; i++ {
 		row.CellIds = append(row.CellIds, cell.cellID)
-		if cell.result == statepb.Row_NO_RESULT {
+		if cell.result == statuspb.TestStatus_NO_RESULT {
 			continue
 		}
 		for metricName, measurement := range cell.metrics {
@@ -489,13 +490,13 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		// TODO(fejta): ignore old running
 		rawRes := <-ch
 		res := result.Coalesce(rawRes, result.IgnoreRunning)
-		if res == statepb.Row_NO_RESULT {
-			if rawRes == statepb.Row_RUNNING {
+		if res == statuspb.TestStatus_NO_RESULT {
+			if rawRes == statuspb.TestStatus_RUNNING {
 				compressedIdx++
 			}
 			continue
 		}
-		if res == statepb.Row_PASS {
+		if res == statuspb.TestStatus_PASS {
 			passes++
 			if failures >= failuresToOpen {
 				latestPass = col // most recent pass before outage
@@ -506,7 +507,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 			}
 			failures = 0
 		}
-		if res == statepb.Row_FAIL {
+		if res == statuspb.TestStatus_FAIL {
 			passes = 0
 			failures++
 			totalFailures++
@@ -515,7 +516,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 			}
 			lastFail = col
 		}
-		if res == statepb.Row_FLAKY {
+		if res == statuspb.TestStatus_FLAKY {
 			passes = 0
 			if failures >= failuresToOpen {
 				break // cannot definitively say which commit is at fault

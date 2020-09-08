@@ -23,6 +23,7 @@ import (
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/analyzers"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 	"github.com/golang/protobuf/proto"
@@ -242,10 +243,10 @@ func TestParseGrid(t *testing.T) {
 					{
 						Name: "test_1",
 						Results: []int32{
-							statepb.Row_Result_value["PASS"], 1,
-							statepb.Row_Result_value["FAIL"], 1,
-							statepb.Row_Result_value["FLAKY"], 1,
-							statepb.Row_Result_value["CATEGORIZED_FAIL"], 1,
+							statuspb.TestStatus_value["PASS"], 1,
+							statuspb.TestStatus_value["FAIL"], 1,
+							statuspb.TestStatus_value["FLAKY"], 1,
+							statuspb.TestStatus_value["CATEGORIZED_FAIL"], 1,
 						},
 						Messages: []string{
 							"",
@@ -290,10 +291,10 @@ func TestParseGrid(t *testing.T) {
 					{
 						Name: "test_1",
 						Results: []int32{
-							statepb.Row_Result_value["PASS"], 1,
-							statepb.Row_Result_value["FAIL"], 1,
-							statepb.Row_Result_value["FLAKY"], 1,
-							statepb.Row_Result_value["CATEGORIZED_FAIL"], 1,
+							statuspb.TestStatus_value["PASS"], 1,
+							statuspb.TestStatus_value["FAIL"], 1,
+							statuspb.TestStatus_value["FLAKY"], 1,
+							statuspb.TestStatus_value["CATEGORIZED_FAIL"], 1,
 						},
 						Messages: []string{
 							"",
@@ -305,10 +306,10 @@ func TestParseGrid(t *testing.T) {
 					{
 						Name: "test_2",
 						Results: []int32{
-							statepb.Row_Result_value["PASS"], 1,
-							statepb.Row_Result_value["FAIL"], 1,
-							statepb.Row_Result_value["FAIL"], 1,
-							statepb.Row_Result_value["CATEGORIZED_FAIL"], 1,
+							statuspb.TestStatus_value["PASS"], 1,
+							statuspb.TestStatus_value["FAIL"], 1,
+							statuspb.TestStatus_value["FAIL"], 1,
+							statuspb.TestStatus_value["CATEGORIZED_FAIL"], 1,
 						},
 						Messages: []string{
 							"",
@@ -367,7 +368,7 @@ func TestParseGrid(t *testing.T) {
 					{
 						Name: "test_1",
 						Results: []int32{
-							statepb.Row_Result_value["NO_RESULT"], 4,
+							statuspb.TestStatus_value["NO_RESULT"], 4,
 						},
 						Messages: []string{
 							"this_message_should_not_show_up_in_results_0",
@@ -399,9 +400,9 @@ func TestParseGrid(t *testing.T) {
 					{
 						Name: "test_1",
 						Results: []int32{
-							statepb.Row_Result_value["PASS"], 1,
-							statepb.Row_Result_value["NO_RESULT"], 2,
-							statepb.Row_Result_value["FAIL"], 2,
+							statuspb.TestStatus_value["PASS"], 1,
+							statuspb.TestStatus_value["NO_RESULT"], 2,
+							statuspb.TestStatus_value["FAIL"], 2,
 						},
 						Messages: []string{
 							"this_message_should_not_show_up_in_results",
@@ -446,9 +447,9 @@ func TestParseGrid(t *testing.T) {
 					{
 						Name: "test_1",
 						Results: []int32{
-							statepb.Row_Result_value["PASS"], 1,
-							statepb.Row_Result_value["NO_RESULT"], 2,
-							statepb.Row_Result_value["FAIL"], 2,
+							statuspb.TestStatus_value["PASS"], 1,
+							statuspb.TestStatus_value["NO_RESULT"], 2,
+							statuspb.TestStatus_value["FAIL"], 2,
 						},
 						Messages: []string{
 							"this_message_should_not_show_up_in_results",
@@ -549,9 +550,9 @@ func TestIsValidTestName(t *testing.T) {
 }
 
 func TestFailingColumns(t *testing.T) {
-	p := statepb.Row_Result_value["PASS"]
-	f := statepb.Row_Result_value["FAIL"]
-	fl := statepb.Row_Result_value["FLAKY"]
+	p := statuspb.TestStatus_value["PASS"]
+	f := statuspb.TestStatus_value["FAIL"]
+	fl := statuspb.TestStatus_value["FLAKY"]
 	cases := []struct {
 		name       string
 		rows       []*statepb.Row
