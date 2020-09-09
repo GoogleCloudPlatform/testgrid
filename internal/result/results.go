@@ -33,21 +33,21 @@ const (
 var (
 	statusSeverity = map[statuspb.TestStatus]int{
 		statuspb.TestStatus_NO_RESULT:         0,
-		statuspb.TestStatus_PASS:              1,
-		statuspb.TestStatus_BUILD_PASSED:      2,
-		statuspb.TestStatus_PASS_WITH_ERRORS:  3,
-		statuspb.TestStatus_PASS_WITH_SKIPS:   4,
+		statuspb.TestStatus_BUILD_PASSED:      1,
+		statuspb.TestStatus_PASS:              2,
+		statuspb.TestStatus_PASS_WITH_SKIPS:   3,
+		statuspb.TestStatus_PASS_WITH_ERRORS:  4,
 		statuspb.TestStatus_RUNNING:           5,
 		statuspb.TestStatus_CATEGORIZED_ABORT: 6,
 		statuspb.TestStatus_UNKNOWN:           7,
 		statuspb.TestStatus_CANCEL:            8,
 		statuspb.TestStatus_BLOCKED:           9,
-		statuspb.TestStatus_TOOL_FAIL:         10,
-		statuspb.TestStatus_TIMED_OUT:         11,
-		statuspb.TestStatus_CATEGORIZED_FAIL:  12,
-		statuspb.TestStatus_BUILD_FAIL:        13,
-		statuspb.TestStatus_FAIL:              14,
-		statuspb.TestStatus_FLAKY:             15,
+		statuspb.TestStatus_FLAKY:             10,
+		statuspb.TestStatus_TOOL_FAIL:         11,
+		statuspb.TestStatus_TIMED_OUT:         12,
+		statuspb.TestStatus_CATEGORIZED_FAIL:  13,
+		statuspb.TestStatus_BUILD_FAIL:        14,
+		statuspb.TestStatus_FAIL:              15,
 	}
 )
 
@@ -59,13 +59,13 @@ func resultGte(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
-// IsPassingResult returns true if the Row_Result is any of the passing results,
+// IsPassingResult returns true if the test status is any passing status,
 // including PASS_WITH_SKIPS, BUILD_PASSED, and more.
 func IsPassingResult(rowResult statuspb.TestStatus) bool {
-	return resultGte(rowResult, statuspb.TestStatus_PASS) && resultLte(rowResult, statuspb.TestStatus_PASS_WITH_SKIPS)
+	return resultGte(rowResult, statuspb.TestStatus_PASS) && resultLte(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
 }
 
-// IsFailingResult returns true if the Row_Result is any of the failing results,
+// IsFailingResult returns true if the test status is any failing status,
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
 func IsFailingResult(rowResult statuspb.TestStatus) bool {
 	return resultGte(rowResult, statuspb.TestStatus_TOOL_FAIL) && resultLte(rowResult, statuspb.TestStatus_FAIL)
