@@ -22,7 +22,7 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20200821-v0.0.20-17-g7748a00
+        image: gcr.io/k8s-testgrid/updater:v20200911-v0.0.21-2-gffa64bc
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm
