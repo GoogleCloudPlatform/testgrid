@@ -579,7 +579,7 @@ func TestSetElapsed(t *testing.T) {
 			name:    "nil map works",
 			seconds: 10,
 			expected: map[string]float64{
-				elapsedKey: 10,
+				elapsedKey: 10 / 60.0,
 			},
 		},
 		{
@@ -590,17 +590,17 @@ func TestSetElapsed(t *testing.T) {
 			seconds: 5,
 			expected: map[string]float64{
 				"hello":    7,
-				elapsedKey: 5,
+				elapsedKey: 5 / 60.0,
 			},
 		},
 		{
 			name: "override existing value",
 			metrics: map[string]float64{
-				elapsedKey: 3,
+				elapsedKey: 3 / 60.0,
 			},
 			seconds: 10,
 			expected: map[string]float64{
-				elapsedKey: 10,
+				elapsedKey: 10 / 60.0,
 			},
 		},
 	}

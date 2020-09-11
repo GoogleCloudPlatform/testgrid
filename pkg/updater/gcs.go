@@ -177,14 +177,14 @@ func overallCell(result gcsResult) cell {
 	return c
 }
 
-const elapsedKey = "seconds-elapsed"
+const elapsedKey = "test-duration-minutes"
 
 // setElapsed inserts the seconds-elapsed metric.
 func setElapsed(metrics map[string]float64, seconds float64) map[string]float64 {
 	if metrics == nil {
 		metrics = map[string]float64{}
 	}
-	metrics[elapsedKey] = seconds
+	metrics[elapsedKey] = seconds / 60
 	return metrics
 }
 

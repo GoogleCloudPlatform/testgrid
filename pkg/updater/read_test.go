@@ -164,7 +164,7 @@ func TestReadColumns(t *testing.T) {
 							icon:    "F",
 							message: "Build failed outside of test results",
 							metrics: map[string]float64{
-								"seconds-elapsed": 11,
+								"test-duration-minutes": 11 / 60.0,
 							},
 						},
 					},
@@ -178,7 +178,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 10,
+								"test-duration-minutes": 10 / 60.0,
 							},
 						},
 					},
@@ -248,7 +248,7 @@ func TestReadColumns(t *testing.T) {
 							icon:    "F",
 							message: "Build failed outside of test results",
 							metrics: map[string]float64{
-								"seconds-elapsed": 11,
+								"test-duration-minutes": 11 / 60.0,
 							},
 						},
 					},
@@ -266,7 +266,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 10,
+								"test-duration-minutes": 10 / 60.0,
 							},
 						},
 					},
@@ -324,7 +324,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 10,
+								"test-duration-minutes": 10 / 60.0,
 							},
 						},
 						"name good - context context-a - thread 33": {
@@ -401,7 +401,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 12,
+								"test-duration-minutes": 12 / 60.0,
 							},
 						},
 					},
@@ -415,7 +415,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 11,
+								"test-duration-minutes": 11 / 60.0,
 							},
 						},
 					},
@@ -488,7 +488,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 13,
+								"test-duration-minutes": 13 / 60.0,
 							},
 						},
 					},
@@ -502,7 +502,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 12,
+								"test-duration-minutes": 12 / 60.0,
 							},
 						},
 					},
@@ -576,7 +576,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 13,
+								"test-duration-minutes": 13 / 60.0,
 							},
 						},
 					},
@@ -590,7 +590,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 12,
+								"test-duration-minutes": 12 / 60.0,
 							},
 						},
 					},
@@ -604,7 +604,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 11,
+								"test-duration-minutes": 11 / 60.0,
 							},
 						},
 					},
@@ -618,7 +618,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 10,
+								"test-duration-minutes": 10 / 60.0,
 							},
 						},
 					},
@@ -692,7 +692,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 13,
+								"test-duration-minutes": 13 / 60.0,
 							},
 						},
 					},
@@ -706,7 +706,7 @@ func TestReadColumns(t *testing.T) {
 						"Overall": {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
-								"seconds-elapsed": 12,
+								"test-duration-minutes": 12 / 60.0,
 							},
 						},
 					},
