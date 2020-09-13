@@ -52,6 +52,15 @@ def go_repositories():
     )
 
     go_repository(
+        name = "com_github_fvbommel_sortorder",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/fvbommel/sortorder",
+        sum = "h1:dSnXLt4mJYH25uDDGa3biZNQsozaUWDSWeKJ0qqFfzE=",
+        version = "v1.0.1",
+    )
+
+    go_repository(
         name = "com_github_golang_glog",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -205,15 +214,6 @@ def go_repositories():
     )
 
     go_repository(
-        name = "com_github_xlab_handysort",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/xlab/handysort",
-        sum = "h1:j2hhcujLRHAg872RWAV5yaUrEjHEObwDv3aImCaNLek=",
-        version = "v0.0.0-20150421192137-fb3537ed64a1",
-    )
-
-    go_repository(
         name = "com_google_cloud_go",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -256,14 +256,6 @@ def go_repositories():
         importpath = "go.opencensus.io",
         sum = "h1:LYy1Hy3MJdrCdMwwzxA/dRok4ejH+RwNGbuoD9fCjto=",
         version = "v0.22.4",
-    )
-    go_repository(
-        name = "ml_vbom_util",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "vbom.ml/util",
-        sum = "h1:O69FD9pJA4WUZlEwYatBEEkRWKQ5cKodWpdKTrCS/iQ=",
-        version = "v0.0.0-20180919145318-efcd4e0f9787",
     )
     go_repository(
         name = "org_golang_google_api",

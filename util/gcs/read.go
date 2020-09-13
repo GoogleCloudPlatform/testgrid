@@ -29,8 +29,8 @@ import (
 	"sync"
 
 	"cloud.google.com/go/storage"
+	"github.com/fvbommel/sortorder"
 	"google.golang.org/api/iterator"
-	"vbom.ml/util/sortorder"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
