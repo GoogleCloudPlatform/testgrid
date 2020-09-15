@@ -68,6 +68,9 @@ func TestUpdateDashboard(t *testing.T) {
 					{
 						Name:          "stale-tab",
 						TestGroupName: "foo-group",
+						AlertOptions: &configpb.DashboardTabAlertOptions{
+							AlertStaleResultsHours: 1,
+						},
 					},
 				},
 			},
@@ -98,18 +101,30 @@ func TestUpdateDashboard(t *testing.T) {
 					{
 						Name:          "working",
 						TestGroupName: "working-group",
+						AlertOptions: &configpb.DashboardTabAlertOptions{
+							AlertStaleResultsHours: 1,
+						},
 					},
 					{
 						Name:          "missing-tab",
 						TestGroupName: "group-not-present",
+						AlertOptions: &configpb.DashboardTabAlertOptions{
+							AlertStaleResultsHours: 1,
+						},
 					},
 					{
 						Name:          "error-tab",
 						TestGroupName: "has-errors",
+						AlertOptions: &configpb.DashboardTabAlertOptions{
+							AlertStaleResultsHours: 1,
+						},
 					},
 					{
 						Name:          "still-working",
 						TestGroupName: "working-group",
+						AlertOptions: &configpb.DashboardTabAlertOptions{
+							AlertStaleResultsHours: 1,
+						},
 					},
 				},
 			},
@@ -270,6 +285,9 @@ func TestUpdateTab(t *testing.T) {
 			tab: &configpb.DashboardTab{
 				Name:          "foo-tab",
 				TestGroupName: "foo-group",
+				AlertOptions: &configpb.DashboardTabAlertOptions{
+					AlertStaleResultsHours: 1,
+				},
 			},
 			group: &configpb.TestGroup{},
 			mod:   now,
@@ -1013,6 +1031,20 @@ func TestStaleAlert(t *testing.T) {
 			mod:   time.Now(),
 			ran:   time.Now().Add(-5 * time.Hour),
 			dur:   time.Hour,
+			alert: true,
+		},
+		{
+			name:  "no runs alerts",
+			mod:   time.Now(),
+			dur:   time.Hour,
+			alert: true,
+		},
+		{
+			name: "no runs w/ stale hours not configured does not alert",
+			mod:  time.Now(),
+		},
+		{
+			name:  "no state w/ stale hours not configured alerts",
 			alert: true,
 		},
 	}

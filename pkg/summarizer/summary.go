@@ -425,11 +425,11 @@ func staleAlert(mod, ran time.Time, stale time.Duration) string {
 	if mod.IsZero() {
 		return "no stored results"
 	}
-	if ran.IsZero() {
-		return noRuns
-	}
 	if stale == 0 {
 		return ""
+	}
+	if ran.IsZero() {
+		return noRuns
 	}
 	now := time.Now()
 	if dur := now.Sub(mod); dur > stale {
