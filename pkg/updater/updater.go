@@ -31,10 +31,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fvbommel/sortorder"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
-	"vbom.ml/util/sortorder"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"

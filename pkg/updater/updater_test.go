@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/fvbommel/sortorder"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
-	"vbom.ml/util/sortorder"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
