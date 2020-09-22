@@ -116,8 +116,8 @@ func TestGatherFlagOptions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			expected := options{
 				buildTimeout:     3 * time.Minute,
-				buildConcurrency: 4 * runtime.NumCPU(),
-				groupConcurrency: 4 * runtime.NumCPU(),
+				buildConcurrency: runtime.NumCPU(),
+				groupConcurrency: runtime.NumCPU(),
 				groupTimeout:     10 * time.Minute,
 				gridPrefix:       "grid",
 			}
