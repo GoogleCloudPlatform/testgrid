@@ -57,10 +57,10 @@ func (o *options) validate() error {
 		return fmt.Errorf("--config=%s: cannot write grid state to gs://k8s-testgrid", o.config)
 	}
 	if o.groupConcurrency == 0 {
-		o.groupConcurrency = 4 * runtime.NumCPU()
+		o.groupConcurrency = runtime.NumCPU()
 	}
 	if o.buildConcurrency == 0 {
-		o.buildConcurrency = 4 * runtime.NumCPU()
+		o.buildConcurrency = runtime.NumCPU()
 	}
 
 	return nil
