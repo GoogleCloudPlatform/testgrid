@@ -122,6 +122,12 @@ message HealthinessInfo {
   repeated float previous_flakiness = 5;
 }
 
+// Information about alerts that have been sent
+message AlertingData {
+  // Seconds since epoch at which an email was last sent
+  google.protobuf.Timestamp last_email_time = 1;
+}
+
 // Summary of a dashboard tab.
 message DashboardTabSummary {
   // The name of the dashboard.
@@ -171,6 +177,10 @@ message DashboardTabSummary {
 
   // All the issue IDs linked to this tab.
   repeated string linked_issues = 13;
+
+  // Metrics about alerts sent with respect to this summary
+  // Maintained by alerter; does not need to be populated by summarizer
+  AlertingData alerting_data = 14;
 }
 
 // Summary state of a dashboard.
