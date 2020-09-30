@@ -120,9 +120,8 @@ message TestGroup {
   // DEPRECATED: use DashboardTabAlertOptions > alert_stale_result_hours
   int32 alert_stale_results_hours = 11 [deprecated = true];
 
-  // The number of consecutive test result failures to see before alerting of
-  // a consistent failure. If zero, no alerts are raised.
-  int32 num_failures_to_alert = 12;
+  // DEPRECATED: use DashboardTabAlertOptions > num_failures_to_alert
+  int32 num_failures_to_alert = 12 [deprecated = true];
 
   // Whether to automatically file bugs, and what component to file them to.
   // Requires further implementation of additional components.
