@@ -543,6 +543,9 @@ message DashboardTab {
   // Configuration options for dashboard tab alerts.
   DashboardTabAlertOptions alert_options = 15;
 
+  // Configuration options for dashboard tab flakiness alerts.
+  DashboardTabFlakinessAlertOptions flakiness_alert_options = 24;
+
   // A URL for the "About this Dashboard" menu option
   string about_dashboard_url = 16;
 
@@ -612,6 +615,27 @@ message DashboardTabAlertOptions {
 
   // A custom message
   string alert_mail_failure_message = 9;
+}
+
+// Configuration options for dashboard tab flakiness alerts.
+message DashboardTabFlakinessAlertOptions {
+  // The minimum amount of flakiness needed to trigger a flakiness alert.
+  // 0=Disable alerts
+  // This is a percentage; expected values go from 0 to 100 (100 = 100% flaky)
+  float minimum_flakiness_to_alert = 1;
+
+  // The comma-separated addresses to send mail.
+  string alert_mail_to_addresses = 2;
+
+  // Custom subject for alert mails.
+  string subject = 3;
+
+  // Minimum time between sending mails.
+  int32 wait_minutes_between_emails = 4;
+
+  // A custom message
+  // TODO(RonWeber): This should be a template
+  string alert_mail_failure_message = 5;
 }
 
 // Specifies a dashboard group.
