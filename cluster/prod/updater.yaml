@@ -24,9 +24,11 @@ spec:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20200911-v0.0.21-2-gffa64bc
         args:
+        - --build-timeout=10m
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --wait=30m
+        - --group-timeout=60m
+        - --wait=5m
 ---
 apiVersion: v1
 kind: ServiceAccount
