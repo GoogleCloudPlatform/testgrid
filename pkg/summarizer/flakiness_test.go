@@ -18,7 +18,6 @@ package summarizer
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -27,6 +26,8 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/analyzers"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestCalculateTrend(t *testing.T) {
@@ -151,7 +152,7 @@ func TestGetTrend(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if actual := getTrend(tc.currentFlakiness, tc.previousFlakiness); actual != tc.expected {
-				t.Errorf("getTrend returned actual: %d !+ expected: %d for inputs (%f, %f)", actual, tc.expected, tc.currentFlakiness, tc.previousFlakiness)
+				t.Errorf("getTrend returned actual: %d != expected: %d for inputs (%f, %f)", actual, tc.expected, tc.currentFlakiness, tc.previousFlakiness)
 			}
 		})
 	}
@@ -482,14 +483,18 @@ func TestParseGrid(t *testing.T) {
 		},
 	}
 
+	metricsSort := func(x *common.GridMetrics, y *common.GridMetrics) bool {
+		return x.Name < y.Name
+	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualMetrics, actualFS := parseGrid(tc.grid, tc.startTime, tc.endTime)
-			if !reflect.DeepEqual(actualMetrics, tc.expectedMetrics) {
-				t.Errorf("Metrics disagree:\nactual %+v \n!= \nexpected %+v", actualMetrics[0], tc.expectedMetrics[0])
+			if diff := cmp.Diff(tc.expectedMetrics, actualMetrics, cmpopts.SortSlices(metricsSort)); diff != "" {
+				t.Errorf("Metrics disagree (-want +got):\n%s", diff)
 			}
-			if !reflect.DeepEqual(actualFS, tc.expectedFilteredStatus) {
-				t.Errorf("Status disagree:\nactual %+v \n!= \nexpected %+v", actualFS, tc.expectedFilteredStatus)
+			if diff := cmp.Diff(tc.expectedFilteredStatus, actualFS); diff != "" {
+				t.Errorf("Status disagree (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -515,9 +520,8 @@ func TestIsInfraFailure(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if !(isInfraFailure(tc.message) == tc.expected) {
-				t.Errorf("isInfraFailure(%v) != Expected %v", tc.message, tc.expected)
-
+			if actual := isInfraFailure(tc.message); actual != tc.expected {
+				t.Errorf("isInfraFailure(%v) gave %t but want %t", tc.message, actual, tc.expected)
 			}
 		})
 	}
@@ -631,8 +635,9 @@ func TestFailingColumns(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := failingColumns(context.Background(), tc.numColumns, tc.rows); !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("failingColumns(ctx, %v %v)=%v; expected %v", tc.numColumns, tc.rows, actual, tc.expected)
+			actual := failingColumns(context.Background(), tc.numColumns, tc.rows)
+			if diff := cmp.Diff(tc.expected, actual); diff != "" {
+				t.Errorf("failingColumns(ctx, %v %v) gave unexpected diff (-want +got): %s", tc.numColumns, tc.rows, diff)
 			}
 		})
 	}
