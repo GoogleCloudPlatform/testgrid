@@ -72,6 +72,9 @@ message AlertInfo {
   // The test ID for the latest test failure. (Does not indicate the failure is
   // 'over', just the latest test failure we found.)
   string latest_fail_build_id = 11;
+
+  // Maps (property name):(property value) for arbitrary alert properties.
+  map<string, string> properties = 12;
 }
 
 // Info on default test metadata for a dashboard tab.
