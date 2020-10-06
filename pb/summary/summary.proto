@@ -52,7 +52,7 @@ message FailingTestSummary {
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.
-// Next ID: 11
+// Next ID: 12
 message TestInfo {
   // The display name of the test, typically what is shown for each row in TestGrid
   string display_name = 1;
@@ -98,6 +98,9 @@ message TestInfo {
   // exactly the same. The interval is set by each tab's config, with
   // a default of 7 days.
   Trend change_from_last_interval = 9;
+
+  // A map of infra failure name to the count of that failure for the interval.
+  map<string, int32> infra_failures = 11;
 }
 
 // Summary of the flakiness and overall healthiness of a dashboard tab

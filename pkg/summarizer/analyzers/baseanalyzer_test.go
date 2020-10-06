@@ -24,6 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func getTypicalGridMetricsArray() []*common.GridMetrics {
@@ -85,8 +87,9 @@ func TestGetFlakinessBase(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			analyzer := BaseAnalyzer{}
-			if actual := analyzer.GetFlakiness(tc.metrics, tc.minRuns, tc.startDate, tc.endDate, tc.tab); !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("\nactual %+v \n!= \nexpected %+v", actual, tc.expected)
+			actual := analyzer.GetFlakiness(tc.metrics, tc.minRuns, tc.startDate, tc.endDate, tc.tab)
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("\nGetFlakiness produced unexpected diff (-want +got): %s", diff)
 			}
 		})
 	}
