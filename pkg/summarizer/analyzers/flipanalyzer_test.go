@@ -17,11 +17,12 @@ limitations under the License.
 package analyzers
 
 import (
-	"reflect"
 	"testing"
 
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer/common"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestGetFlakinessFlip(t *testing.T) {
@@ -80,8 +81,9 @@ func TestGetFlakinessFlip(t *testing.T) {
 			analyzer := FlipAnalyzer{
 				RelevantStatus: tc.relevantFilteredStatus,
 			}
-			if actual := analyzer.GetFlakiness(tc.metrics, tc.minRuns, tc.startDate, tc.endDate, tc.tab); !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("\nactual %+v \n!= \nexpected %+v", actual, tc.expected)
+			actual := analyzer.GetFlakiness(tc.metrics, tc.minRuns, tc.startDate, tc.endDate, tc.tab)
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("\nGetFlakiness produced unexpected diff (-want +got): %s", diff)
 			}
 		})
 	}

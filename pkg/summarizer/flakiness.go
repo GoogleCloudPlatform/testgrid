@@ -151,7 +151,7 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 				message := gridRows[key].Messages[rowToMessageIndex]
 				if isInfraFailure(message) {
 					gridMetricsMap[key].FailedInfraCount++
-					gridMetricsMap[key].InfraFailures[message] = gridMetricsMap[key].InfraFailures[message] + 1
+					gridMetricsMap[key].InfraFailures[message]++
 				} else {
 					gridMetricsMap[key].Failed++
 					if !failingColumns[i] {
