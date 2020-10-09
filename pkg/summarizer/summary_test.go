@@ -1092,6 +1092,9 @@ func TestFailingTestSummaries(t *testing.T) {
 						BuildLinkText:     "hyrule",
 						BuildUrlText:      "of sandwich",
 						FailureMessage:    "pop tart",
+						Properties: map[string]string{
+							"ham": "eggs",
+						},
 					},
 				},
 				{},
@@ -1109,6 +1112,10 @@ func TestFailingTestSummaries(t *testing.T) {
 						BuildLinkText:     "blt",
 						BuildUrlText:      "but",
 						FailureMessage:    "fm",
+						Properties: map[string]string{
+							"foo":   "bar",
+							"hello": "lots",
+						},
 					},
 				},
 				{},
@@ -1127,6 +1134,9 @@ func TestFailingTestSummaries(t *testing.T) {
 					FailureMessage:    "pop tart",
 					FailTestLink:      " foo-target",
 					LinkedBugs:        []string{"1234", "5678"},
+					Properties: map[string]string{
+						"ham": "eggs",
+					},
 				},
 				{
 					DisplayName:       "bar-name",
@@ -1141,6 +1151,10 @@ func TestFailingTestSummaries(t *testing.T) {
 					FailureMessage:    "fm",
 					FailTestLink:      "819283y823-1232813 bar-target",
 					LinkedBugs:        []string{"1234"},
+					Properties: map[string]string{
+						"foo":   "bar",
+						"hello": "lots",
+					},
 				},
 			},
 		},

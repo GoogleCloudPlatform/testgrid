@@ -49,6 +49,9 @@ message FailingTestSummary {
   // The test ID for the latest test failure. (Does not indicate the failure is
   // 'over', just the latest test failure we found.)
   string latest_fail_build_id = 14;
+
+  // Maps (property name):(property value) for arbitrary alert properties.
+  map<string, string> properties = 15;
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.
