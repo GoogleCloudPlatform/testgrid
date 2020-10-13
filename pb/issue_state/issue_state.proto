@@ -10,7 +10,8 @@ message TargetAndMethods {
 message IssueInfo {
   string issue_id = 1;
   string title = 2;  // Issue title or description.
-  bool is_autobug = 3; // True if auto-created by TestGrid.
+  bool is_autobug = 3; // True if auto-created by TestGrid for a failing test.
+  bool is_flakiness_bug = 8; // True if auto-created by TestGrid for a flaky test.
   double last_modified = 4; // In seconds since epoch.
   repeated string row_ids = 5;  // Associated row IDs (mentioned in the issue).
 
