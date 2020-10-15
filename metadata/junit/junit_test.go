@@ -23,6 +23,81 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestMessage(t *testing.T) {
+	pstr := func(s string) *string {
+		return &s
+	}
+
+	cases := []struct {
+		name     string
+		jr       Result
+		max      int
+		expected string
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "failure takes top priority",
+			jr: Result{
+				Failure: pstr("failure-0"),
+				Skipped: pstr("skipped-1"),
+				Error:   pstr("error-2"),
+				Output:  pstr("output-3"),
+			},
+			expected: "failure-0",
+		},
+		{
+			name: "skipped prioritized over error, output",
+			jr: Result{
+				Skipped: pstr("skipped-1"),
+				Error:   pstr("error-2"),
+				Output:  pstr("output-3"),
+			},
+			expected: "skipped-1",
+		},
+		{
+			name: "error has higher priority than output",
+			jr: Result{
+				Error:  pstr("error-2"),
+				Output: pstr("output-3"),
+			},
+			expected: "error-2",
+		},
+		{
+			name: "return output when set",
+			jr: Result{
+				Output: pstr("output-3"),
+			},
+			expected: "output-3",
+		},
+		{
+			name: "truncate long messages upon request",
+			jr: Result{
+				Output: pstr("four by four"),
+			},
+			max:      8,
+			expected: "four...four",
+		},
+		{
+			name: "handle invalid UTF-8 strings",
+			jr: Result{
+				Output: pstr("a\xc5z"),
+			},
+			max:      8,
+			expected: "invalid utf8: a?z",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual, expected := tc.jr.Message(tc.max), tc.expected; actual != expected {
+				t.Errorf("jr.Message(%d) got %q, want %q", tc.max, actual, expected)
+			}
+		})
+	}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		name     string
