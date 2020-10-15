@@ -23,6 +23,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strings"
+	"unicode/utf8"
 )
 
 // Suites holds a <testsuites/> list of Suite results
@@ -105,12 +107,14 @@ func (jr Result) Message(max int) string {
 	case jr.Output != nil && *jr.Output != "":
 		msg = *jr.Output
 	}
-	l := len(msg)
-	if max == 0 || l <= max {
+	if l := len(msg); max > 0 && l > max {
+		h := max / 2
+		msg = msg[:h] + "..." + msg[l-h:]
+	}
+	if utf8.ValidString(msg) {
 		return msg
 	}
-	h := max / 2
-	return msg[:h] + "..." + msg[l-h-1:]
+	return fmt.Sprintf("invalid utf8: %s", strings.ToValidUTF8(msg, "?"))
 }
 
 func unmarshalXML(buf []byte, i interface{}) error {
