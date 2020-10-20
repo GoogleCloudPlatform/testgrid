@@ -129,7 +129,7 @@ func main() {
 
 	updateOnce := func() {
 		start := time.Now()
-		if err := updater.Update(client, ctx, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.buildConcurrency, opt.confirm, opt.groupTimeout, opt.buildTimeout, opt.group); err != nil {
+		if err := updater.Update(ctx, client, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.buildConcurrency, opt.confirm, opt.groupTimeout, opt.buildTimeout, opt.group); err != nil {
 			logrus.WithError(err).Error("Could not update")
 		}
 		logrus.Infof("Update completed in %s", time.Since(start))
