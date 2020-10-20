@@ -44,7 +44,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-func Update(client gcs.Client, parent context.Context, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
+func Update(parent context.Context, client gcs.Client, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
@@ -61,13 +61,18 @@ func Update(client gcs.Client, parent context.Context, configPath gcs.Path, grid
 		wg.Add(1)
 		go func() {
 			for tg := range groups {
+				log := log.WithField("group", tg.Name)
+				if !tg.UseKubernetesClient {
+					log.Debug("Skipping non kubernetes client group")
+					continue
+				}
 				location := path.Join(gridPrefix, tg.Name)
 				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
 					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
 				}
 				if err != nil {
-					log.WithField("group", tg.Name).WithError(err).Error("Error updating group")
+					log.WithError(err).Error("Error updating group")
 				}
 				// run the garbage collector after each group to minimize
 				// extraneous memory usage.

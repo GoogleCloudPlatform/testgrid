@@ -65,10 +65,18 @@ func TestUpdate(t *testing.T) {
 			config: configpb.Configuration{
 				TestGroups: []*configpb.TestGroup{
 					{
-						Name:             "hello",
-						GcsPrefix:        "kubernetes-jenkins/path/to/job",
-						DaysOfResults:    7,
-						NumColumnsRecent: 6,
+						Name:                "hello",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
+					{
+						Name:                "skip-non-k8s",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: false,
+						NumColumnsRecent:    6,
 					},
 				},
 				Dashboards: []*configpb.Dashboard{
@@ -78,6 +86,10 @@ func TestUpdate(t *testing.T) {
 							{
 								Name:          "hello-tab",
 								TestGroupName: "hello",
+							},
+							{
+								Name:          "skip-tab",
+								TestGroupName: "skip-non-k8s",
 							},
 						},
 					},
@@ -150,8 +162,8 @@ func TestUpdate(t *testing.T) {
 			}
 
 			err := Update(
-				client,
 				ctx,
+				client,
 				configPath,
 				tc.gridPrefix,
 				tc.groupConcurrency,
