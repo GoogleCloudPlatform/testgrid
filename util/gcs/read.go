@@ -58,7 +58,7 @@ type Build struct {
 }
 
 func (build Build) String() string {
-	return "gs://" + build.Path.String()
+	return build.Path.String()
 }
 
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
@@ -120,10 +120,22 @@ func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) (
 			originalPrefix: objAttrs.Prefix,
 		})
 	}
+
 	sort.SliceStable(all, func(i, j int) bool {
 		// ! because we want the latest (aka largest) items first.
 		return !sortorder.NaturalLess(all[i].originalPrefix, all[j].originalPrefix)
 	})
+
+	if offset != "" {
+		// GCS will return 200 2000 30 for a prefix of 100
+		// testgrid expects this as 2000 200 (dropping 30)
+		for i, b := range all {
+			if sortorder.NaturalLess(b.originalPrefix, offset) {
+				return all[:i], nil
+			}
+		}
+	}
+
 	return all, nil
 }
 

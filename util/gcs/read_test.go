@@ -42,10 +42,10 @@ func subdir(prefix string) storage.ObjectAttrs {
 	return storage.ObjectAttrs{Prefix: prefix}
 }
 
-func link(name, other string) storage.ObjectAttrs {
+func link(path Path, name, other string) storage.ObjectAttrs {
 	return storage.ObjectAttrs{
 		Metadata: map[string]string{"x-goog-meta-link": other},
-		Name:     name,
+		Name:     resolveOrDie(path, name).Object(),
 	}
 }
 
@@ -86,18 +86,18 @@ func TestListBuilds(t *testing.T) {
 			name: "presubmit symlinks work correctly",
 			iterator: fakeIterator{
 				objects: []storage.ObjectAttrs{
-					link("first", "gs://another-bucket/path/inside"),
-					link("second", "gs://second-bucket/somewhere"),
+					link(path, "first", "gs://another-bucket/path/inside"),
+					link(path, "second", "gs://second-bucket/somewhere"),
 				},
 			},
 			expected: []Build{
 				{
 					Path:           newPathOrDie("gs://second-bucket/somewhere/"),
-					originalPrefix: "second",
+					originalPrefix: resolveOrDie(path, "second").Object(),
 				},
 				{
 					Path:           newPathOrDie("gs://another-bucket/path/inside/"),
-					originalPrefix: "first",
+					originalPrefix: resolveOrDie(path, "first").Object(),
 				},
 			},
 		},
@@ -150,23 +150,70 @@ func TestListBuilds(t *testing.T) {
 			},
 		},
 		{
-			name: "listing latest linked builds works correctly",
+			name: "listing latest builds handles numbers correctly",
 			iterator: fakeIterator{
 				objects: []storage.ObjectAttrs{
-					subdir(resolveOrDie(path, "hello").Object()),
-					subdir(resolveOrDie(path, "more").Object()),
-					subdir(resolveOrDie(path, "world").Object()),
+					subdir(resolveOrDie(path, "hello100").Object()),
+					subdir(resolveOrDie(path, "hello101").Object()),
+					subdir(resolveOrDie(path, "hello2000").Object()),
+					subdir(resolveOrDie(path, "hello30").Object()),
+					subdir(resolveOrDie(path, "hello31").Object()),
+					subdir(resolveOrDie(path, "hello300").Object()),
 				},
 			},
-			offset: pResolveOrDie(path, "more"),
+			offset: pResolveOrDie(path, "hello100"),
 			expected: []Build{
 				{
-					Path:           resolveOrDie(path, "world"),
-					originalPrefix: resolveOrDie(path, "world").Object(),
+					Path:           resolveOrDie(path, "hello2000"),
+					originalPrefix: resolveOrDie(path, "hello2000").Object(),
 				},
 				{
-					Path:           resolveOrDie(path, "more"),
-					originalPrefix: resolveOrDie(path, "more").Object(),
+					Path:           resolveOrDie(path, "hello300"),
+					originalPrefix: resolveOrDie(path, "hello300").Object(),
+				},
+				{
+					Path:           resolveOrDie(path, "hello101"),
+					originalPrefix: resolveOrDie(path, "hello101").Object(),
+				},
+				{
+					Path:           resolveOrDie(path, "hello100"),
+					originalPrefix: resolveOrDie(path, "hello100").Object(),
+				},
+			},
+		},
+		{
+			name: "listing latest presubmit symlinks handles numbers",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					link(path, "100", "gs://another-bucket/path/inside/100"),
+					link(path, "101", "gs://second-bucket/somewhere/101"),
+					link(path, "202", "gs://third-bucket/else/202"),
+					link(path, "2004", "gs://third-bucket/else/2004"),
+					link(path, "30", "gs://third-bucket/else/30"),
+					link(path, "303", "gs://third-bucket/else/303"),
+				},
+			},
+			offset: pResolveOrDie(path, "100"),
+			expected: []Build{
+				{
+					Path:           newPathOrDie("gs://third-bucket/else/2004/"),
+					originalPrefix: pResolveOrDie(path, "2004").Object(),
+				},
+				{
+					Path:           newPathOrDie("gs://third-bucket/else/303/"),
+					originalPrefix: pResolveOrDie(path, "303").Object(),
+				},
+				{
+					Path:           newPathOrDie("gs://third-bucket/else/202/"),
+					originalPrefix: pResolveOrDie(path, "202").Object(),
+				},
+				{
+					Path:           newPathOrDie("gs://second-bucket/somewhere/101/"),
+					originalPrefix: pResolveOrDie(path, "101").Object(),
+				},
+				{
+					Path:           newPathOrDie("gs://another-bucket/path/inside/100/"),
+					originalPrefix: pResolveOrDie(path, "100").Object(),
 				},
 			},
 		},
@@ -174,20 +221,20 @@ func TestListBuilds(t *testing.T) {
 			name: "listing latest presubmit symlinks work correctly",
 			iterator: fakeIterator{
 				objects: []storage.ObjectAttrs{
-					link("first", "gs://another-bucket/path/inside"),
-					link("second", "gs://second-bucket/somewhere"),
-					link("third", "gs://third-bucket/else"),
+					link(path, "first", "gs://another-bucket/path/inside"),
+					link(path, "second", "gs://second-bucket/somewhere"),
+					link(path, "third", "gs://third-bucket/else"),
 				},
 			},
 			offset: pResolveOrDie(path, "second"),
 			expected: []Build{
 				{
 					Path:           newPathOrDie("gs://third-bucket/else/"),
-					originalPrefix: "third",
+					originalPrefix: pResolveOrDie(path, "third").Object(),
 				},
 				{
 					Path:           newPathOrDie("gs://second-bucket/somewhere/"),
-					originalPrefix: "second",
+					originalPrefix: pResolveOrDie(path, "second").Object(),
 				},
 			},
 		},
