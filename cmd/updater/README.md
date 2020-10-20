@@ -1,7 +1,7 @@
 
 # Testgrid Updater
 
-This component is responsible for compiling collated GCS results into a state proto.
+This component is responsible for compiling collated GCS results into a [state proto].
 
 The testgrid frontend reads these protos, converts them to JSON which the
 javascript UI reads and renders on the screen.
@@ -61,3 +61,5 @@ Each update cycle the updater:
 If the `--wait` flag is unset, the job returns at this time.
 
 Otherwise it repeats after sleeping for that duration.
+
+[state proto]: /pb/state/state.proto
