@@ -51,26 +51,26 @@ var (
 	}
 )
 
-// Lte returns if rowResult is greater than or equal to compareTo.
-func Lte(rowResult, compareTo statuspb.TestStatus) bool {
+// LTE returns if rowResult is less than or equal to compareTo.
+func LTE(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] <= statusSeverity[compareTo]
 }
 
-// Gte returns if rowResult is greater than or equal to compareTo.
-func Gte(rowResult, compareTo statuspb.TestStatus) bool {
+// GTE returns if rowResult is greater than or equal to compareTo.
+func GTE(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
 // IsPassingResult returns true if the test status is any passing status,
 // including PASS_WITH_SKIPS, BUILD_PASSED, and more.
 func IsPassingResult(rowResult statuspb.TestStatus) bool {
-	return Gte(rowResult, statuspb.TestStatus_PASS) && Lte(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
+	return GTE(rowResult, statuspb.TestStatus_PASS) && LTE(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
 }
 
 // IsFailingResult returns true if the test status is any failing status,
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
 func IsFailingResult(rowResult statuspb.TestStatus) bool {
-	return Gte(rowResult, statuspb.TestStatus_TOOL_FAIL) && Lte(rowResult, statuspb.TestStatus_FAIL)
+	return GTE(rowResult, statuspb.TestStatus_TOOL_FAIL) && LTE(rowResult, statuspb.TestStatus_FAIL)
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
