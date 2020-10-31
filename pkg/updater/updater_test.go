@@ -29,6 +29,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
@@ -39,6 +40,52 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
+
+func TestGCS(t *testing.T) {
+	cases := []struct {
+		name  string
+		group configpb.TestGroup
+		fail  bool
+	}{
+		{
+			name: "ignore non-kubernetes clients",
+		},
+		{
+			name: "fail kubernetes clients",
+			group: configpb.TestGroup{
+				UseKubernetesClient: true,
+			},
+			fail: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Goal here is to ignore for non-k8s client otherwise if we get past this check
+			// send updater() arguments that should fail if it tries to do anything,
+			// either because the context is canceled or things like client are unset)
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			updater := GCS(0, 0, 0, false)
+			defer func() {
+				if r := recover(); r != nil {
+					if !tc.fail {
+						t.Errorf("updater() got an unexpected panic: %#v", r)
+					}
+				}
+			}()
+			err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
+			switch {
+			case err != nil:
+				if !tc.fail {
+					t.Errorf("updater() got unexpected error: %v", err)
+				}
+			case tc.fail:
+				t.Error("updater() failed to return an error")
+			}
+		})
+	}
+}
 
 func TestUpdate(t *testing.T) {
 	defaultTimeout := 5 * time.Minute
@@ -161,17 +208,16 @@ func TestUpdate(t *testing.T) {
 				client.fakeLister[buildsPath] = fi
 			}
 
+			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm)
+
 			err := Update(
 				ctx,
 				client,
 				configPath,
 				tc.gridPrefix,
 				tc.groupConcurrency,
-				tc.buildConcurrency,
-				!tc.skipConfirm,
-				*tc.groupTimeout,
-				*tc.buildTimeout,
 				tc.group,
+				groupUpdater,
 			)
 			switch {
 			case err != nil:
@@ -389,7 +435,7 @@ func TestTruncateRunning(t *testing.T) {
 	}
 }
 
-func TestUpdateGroup(t *testing.T) {
+func TestUpdateGCSGroup(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
@@ -614,14 +660,14 @@ func TestUpdateGroup(t *testing.T) {
 			}
 			client.fakeLister[buildsPath] = fi
 
-			err := updateGroup(
+			err := updateGCSGroup(
 				ctx,
+				logrus.WithField("test", tc.name),
 				client,
 				tc.group,
 				uploadPath,
 				tc.concurrency,
 				!tc.skipWrite,
-				*tc.groupTimeout,
 				*tc.buildTimeout,
 			)
 			switch {

@@ -44,7 +44,27 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-func Update(parent context.Context, client gcs.Client, configPath gcs.Path, gridPrefix string, groupConcurrency int, buildConcurrency int, confirm bool, groupTimeout time.Duration, buildTimeout time.Duration, group string) error {
+// GroupUpdater will compile the grid state proto for the specified group and upload it.
+//
+// This typically involves downloading the existing state, dropping old columns,
+// compiling any new columns and inserting them into the front and then uploading
+// the proto to GCS.
+type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path) error
+
+// GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
+func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) GroupUpdater {
+	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path) error {
+		if !tg.UseKubernetesClient {
+			log.Debug("Skipping non-kubernetes client group")
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(parent, groupTimeout)
+		defer cancel()
+		return updateGCSGroup(ctx, log, client, tg, gridPath, concurrency, write, buildTimeout)
+	}
+}
+
+func Update(parent context.Context, client gcs.Client, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
@@ -62,14 +82,10 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 		go func() {
 			for tg := range groups {
 				log := log.WithField("group", tg.Name)
-				if !tg.UseKubernetesClient {
-					log.Debug("Skipping non kubernetes client group")
-					continue
-				}
 				location := path.Join(gridPrefix, tg.Name)
 				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
-					err = updateGroup(ctx, client, tg, *tgp, buildConcurrency, confirm, groupTimeout, buildTimeout)
+					err = updateGroup(ctx, log, client, tg, *tgp)
 				}
 				if err != nil {
 					log.WithError(err).Error("Error updating group")
@@ -184,11 +200,7 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	return cols[stillRunning:]
 }
 
-func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, groupTimeout, buildTimeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(parent, groupTimeout)
-	defer cancel()
-	log := logrus.WithField("group", tg.Name)
-
+func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
 	tgPath, err := groupPath(tg)
 	if err != nil {
 		return fmt.Errorf("group path: %w", err)
@@ -233,7 +245,7 @@ func updateGroup(parent context.Context, client gcs.Client, tg configpb.TestGrou
 
 	builds, err := gcs.ListBuilds(ctx, client, *tgPath, since)
 	if err != nil {
-		return fmt.Errorf("list builds: %w", err)
+		return fmt.Errorf("list builds in %s: %w", *tgPath, err)
 	}
 	log.WithField("total", len(builds)).Debug("Listed builds")
 
