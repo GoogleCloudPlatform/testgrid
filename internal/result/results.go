@@ -51,26 +51,26 @@ var (
 	}
 )
 
-// LTE returns if rowResult is less than or equal to compareTo.
-func LTE(rowResult, compareTo statuspb.TestStatus) bool {
+// lte returns if rowResult is less than or equal to compareTo.
+func lte(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] <= statusSeverity[compareTo]
 }
 
-// GTE returns if rowResult is greater than or equal to compareTo.
-func GTE(rowResult, compareTo statuspb.TestStatus) bool {
+// gte returns if rowResult is greater than or equal to compareTo.
+func gte(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
 // IsPassingResult returns true if the test status is any passing status,
 // including PASS_WITH_SKIPS, BUILD_PASSED, and more.
 func IsPassingResult(rowResult statuspb.TestStatus) bool {
-	return GTE(rowResult, statuspb.TestStatus_PASS) && LTE(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
+	return gte(rowResult, statuspb.TestStatus_BUILD_PASSED) && lte(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
 }
 
 // IsFailingResult returns true if the test status is any failing status,
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
 func IsFailingResult(rowResult statuspb.TestStatus) bool {
-	return GTE(rowResult, statuspb.TestStatus_TOOL_FAIL) && LTE(rowResult, statuspb.TestStatus_FAIL)
+	return gte(rowResult, statuspb.TestStatus_TOOL_FAIL) && lte(rowResult, statuspb.TestStatus_FAIL)
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
@@ -79,11 +79,11 @@ func Coalesce(result statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatu
 	if result == statuspb.TestStatus_NO_RESULT || result == statuspb.TestStatus_RUNNING && ignoreRunning {
 		return statuspb.TestStatus_NO_RESULT
 	}
-	if IsFailingResult(result) || result == statuspb.TestStatus_RUNNING {
-		return statuspb.TestStatus_FAIL
-	}
 	if result == statuspb.TestStatus_FLAKY {
 		return result
+	}
+	if !IsPassingResult(result) || result == statuspb.TestStatus_RUNNING {
+		return statuspb.TestStatus_FAIL
 	}
 	return statuspb.TestStatus_PASS
 }
@@ -94,19 +94,24 @@ func Iter(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
 	go func() {
 		defer close(out)
 		for i := 0; i+1 < len(results); i += 2 {
+			select { // Non-blocking check to see if we're done
+			case <-ctx.Done():
+				return
+			default:
+			}
 			result := statuspb.TestStatus(results[i])
 			count := results[i+1]
 			for count > 0 {
+				select { // Non-blocking check to see if we're done
+				case <-ctx.Done():
+					return
+				default:
+				}
 				select {
 				case <-ctx.Done():
 					return
 				case out <- result:
 					count--
-				}
-				select {
-				case <-ctx.Done(): // In case we lost the race
-					return
-				default:
 				}
 			}
 		}
