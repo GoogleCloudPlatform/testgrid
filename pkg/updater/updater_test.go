@@ -225,6 +225,10 @@ func TestTestGroupPath(t *testing.T) {
 			groupName: "beta/random-group",
 			expected:  pNewPathOrDie("gs://bucket/beta/random-group"),
 		},
+		{
+			name:      "resolve reference fails",
+			groupName: "http://bucket/config",
+		},
 	}
 
 	for _, tc := range cases {

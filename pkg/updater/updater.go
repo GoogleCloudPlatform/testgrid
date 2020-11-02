@@ -109,9 +109,12 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 func testGroupPath(g gcs.Path, name string) (*gcs.Path, error) {
 	u, err := url.Parse(name)
 	if err != nil {
-		return nil, fmt.Errorf("invalid url %s: %v", name, err)
+		return nil, fmt.Errorf("invalid url %s: %w", name, err)
 	}
 	np, err := g.ResolveReference(u)
+	if err != nil {
+		return nil, fmt.Errorf("resolve reference: %w", err)
+	}
 	if err == nil && np.Bucket() != g.Bucket() {
 		return nil, fmt.Errorf("testGroup %s should not change bucket", name)
 	}
