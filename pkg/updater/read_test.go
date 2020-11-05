@@ -752,7 +752,7 @@ func TestReadColumns(t *testing.T) {
 				tc.dur = 5 * time.Minute
 			}
 
-			actual, err := readColumns(ctx, client, tc.group, builds, tc.stop, tc.max, tc.dur, tc.concurrency)
+			actual, err := readColumns(ctx, client, &tc.group, builds, tc.stop, tc.max, tc.dur, tc.concurrency)
 			switch {
 			case err != nil:
 				if !tc.err {

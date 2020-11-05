@@ -49,11 +49,11 @@ import (
 // This typically involves downloading the existing state, dropping old columns,
 // compiling any new columns and inserting them into the front and then uploading
 // the proto to GCS.
-type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path) error
+type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
 func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) GroupUpdater {
-	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path) error {
+	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error {
 		if !tg.UseKubernetesClient {
 			log.Debug("Skipping non-kubernetes client group")
 			return nil
@@ -85,7 +85,7 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 				location := path.Join(gridPrefix, tg.Name)
 				tgp, err := testGroupPath(configPath, location)
 				if err == nil {
-					err = updateGroup(ctx, log, client, tg, *tgp)
+					err = updateGroup(ctx, log, client, &tg, *tgp)
 				}
 				if err != nil {
 					log.WithError(err).Error("Error updating group")
@@ -200,8 +200,8 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	return cols[stillRunning:]
 }
 
-func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
-	tgPath, err := groupPath(tg)
+func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
+	tgPath, err := groupPath(*tg)
 	if err != nil {
 		return fmt.Errorf("group path: %w", err)
 	}
@@ -310,7 +310,7 @@ func days(d float64) time.Duration {
 // constructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(group configpb.TestGroup, cols []inflatedColumn) statepb.Grid {
+func constructGrid(group *configpb.TestGroup, cols []inflatedColumn) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -336,12 +336,12 @@ func constructGrid(group configpb.TestGroup, cols []inflatedColumn) statepb.Grid
 			return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
 		})
 	}
-	return grid
+	return &grid
 }
 
 // marhshalGrid serializes a state proto into zlib-compressed bytes.
-func marshalGrid(grid statepb.Grid) ([]byte, error) {
-	buf, err := proto.Marshal(&grid)
+func marshalGrid(grid *statepb.Grid) ([]byte, error) {
+	buf, err := proto.Marshal(grid)
 	if err != nil {
 		return nil, fmt.Errorf("marshal: %w", err)
 	}

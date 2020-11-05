@@ -74,7 +74,7 @@ func TestGCS(t *testing.T) {
 					}
 				}
 			}()
-			err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
+			err := updater(ctx, logrus.WithField("case", tc.name), nil, &tc.group, gcs.Path{})
 			switch {
 			case err != nil:
 				if !tc.fail {
@@ -144,7 +144,7 @@ func TestUpdate(t *testing.T) {
 			},
 			expected: fakeUploader{
 				*resolveOrDie(&configPath, "hello"): {
-					buf:          mustGrid(statepb.Grid{}),
+					buf:          mustGrid(&statepb.Grid{}),
 					cacheControl: "no-cache",
 					worldRead:    gcs.DefaultAcl,
 				},
@@ -342,7 +342,7 @@ func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject 
 	}
 }
 
-func mustGrid(grid statepb.Grid) []byte {
+func mustGrid(grid *statepb.Grid) []byte {
 	buf, err := marshalGrid(grid)
 	if err != nil {
 		panic(err)
@@ -493,7 +493,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 				},
 			},
 			expected: &fakeUpload{
-				buf: mustGrid(statepb.Grid{
+				buf: mustGrid(&statepb.Grid{
 					Columns: []*statepb.Column{
 						{
 							Build:   "99",
@@ -664,7 +664,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 				ctx,
 				logrus.WithField("test", tc.name),
 				client,
-				tc.group,
+				&tc.group,
 				uploadPath,
 				tc.concurrency,
 				!tc.skipWrite,
@@ -1443,7 +1443,7 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := constructGrid(tc.group, tc.cols)
+			actual := constructGrid(&tc.group, tc.cols)
 			failuresOpen := int(tc.group.NumFailuresToAlert)
 			passesClose := int(tc.group.NumPassesToDisableAlert)
 			if failuresOpen > 0 && passesClose == 0 {
@@ -1479,8 +1479,8 @@ func TestMarshalGrid(t *testing.T) {
 		},
 	}
 
-	b1, e1 := marshalGrid(g1)
-	b2, e2 := marshalGrid(g2)
+	b1, e1 := marshalGrid(&g1)
+	b2, e2 := marshalGrid(&g2)
 	uncompressed, e1a := proto.Marshal(&g1)
 
 	switch {

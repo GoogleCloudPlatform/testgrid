@@ -127,9 +127,9 @@ func main() {
 		"build": opt.buildConcurrency,
 	}).Info("Configured concurrency")
 
+	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm)
 	updateOnce := func() {
 		start := time.Now()
-		groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm)
 		if err := updater.Update(ctx, client, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater); err != nil {
 			logrus.WithError(err).Error("Could not update")
 		}
