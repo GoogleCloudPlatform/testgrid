@@ -23,7 +23,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/testgrid/pb/config"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestYaml2Proto_IsExternal_And_UseKuberClient_False(t *testing.T) {
@@ -42,7 +43,7 @@ dashboards:
 		t.Fatalf("Convert Error: %v\n Results: %v", err, defaults)
 	}
 
-	var cfg config.Configuration
+	var cfg configpb.Configuration
 
 	if err := Update(&cfg, []byte(yaml), &defaults); err != nil {
 		t.Errorf("Convert Error: %v\n", err)
@@ -169,6 +170,7 @@ test_groups:
 			expectedDashTab:   20,
 		},
 		{
+			// TODO: Do we want to prevent this case?
 			name: "Doesn't inherit imbedded defaults",
 			yaml: `default_test_group:
   num_columns_recent: 5
@@ -187,7 +189,7 @@ test_groups:
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var cfg config.Configuration
+			var cfg configpb.Configuration
 			defaults, err := LoadDefaults([]byte(defaultYaml))
 			if err != nil {
 				t.Fatalf("Unexpected error with default yaml: %v", err)
@@ -222,7 +224,7 @@ test_groups:
 func Test_MarshalYAML(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    *config.Configuration
+		input    *configpb.Configuration
 		expected []byte
 	}{
 		{
@@ -231,15 +233,15 @@ func Test_MarshalYAML(t *testing.T) {
 		},
 		{
 			name:  "Empty input; error",
-			input: &config.Configuration{},
+			input: &configpb.Configuration{},
 		},
 		{
 			name: "Dashboard Tab & Group",
-			input: &config.Configuration{
-				Dashboards: []*config.Dashboard{
+			input: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash_1",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab_1",
 								TestGroupName: "testgroup_1",
@@ -247,7 +249,7 @@ func Test_MarshalYAML(t *testing.T) {
 						},
 					},
 				},
-				TestGroups: []*config.TestGroup{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "testgroup_1",
 					},
@@ -267,19 +269,19 @@ test_groups:
 		},
 		{
 			name: "reject empty column headers",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group",
-						ColumnHeader: []*config.TestGroup_ColumnHeader{
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 							{},
 						},
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
@@ -291,11 +293,11 @@ test_groups:
 		},
 		{
 			name: "reject multiple column header values",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group",
-						ColumnHeader: []*config.TestGroup_ColumnHeader{
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 							{
 								ConfigurationValue: "yay",
 								Label:              "lab",
@@ -303,10 +305,10 @@ test_groups:
 						},
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
@@ -318,11 +320,11 @@ test_groups:
 		},
 		{
 			name: "column headers configuration_value work",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group",
-						ColumnHeader: []*config.TestGroup_ColumnHeader{
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 							{
 								ConfigurationValue: "yay",
 							},
@@ -335,10 +337,10 @@ test_groups:
 						},
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
@@ -365,13 +367,13 @@ test_groups:
 		},
 		{
 			name: "name elements work correctly",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group",
-						TestNameConfig: &config.TestNameConfig{
+						TestNameConfig: &configpb.TestNameConfig{
 							NameFormat: "labels:%s target_config:%s build_target:%s tags:%s test_property:%s",
-							NameElements: []*config.TestNameConfig_NameElement{
+							NameElements: []*configpb.TestNameConfig_NameElement{
 								{
 									Labels: "labels",
 								},
@@ -391,10 +393,10 @@ test_groups:
 						},
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
@@ -425,13 +427,13 @@ test_groups:
 		},
 		{
 			name: "reject unbalanced name format",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group",
-						TestNameConfig: &config.TestNameConfig{
+						TestNameConfig: &configpb.TestNameConfig{
 							NameFormat: "one:%s two:%s",
-							NameElements: []*config.TestNameConfig_NameElement{
+							NameElements: []*configpb.TestNameConfig_NameElement{
 								{
 									Labels: "labels",
 								},
@@ -445,10 +447,10 @@ test_groups:
 						},
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
@@ -460,8 +462,8 @@ test_groups:
 		},
 		{
 			name: "basic group values work",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name:                    "test_group",
 						AlertStaleResultsHours:  5,
@@ -475,10 +477,10 @@ test_groups:
 						UseKubernetesClient:     true,
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
@@ -510,30 +512,30 @@ test_groups:
 		},
 		{
 			name: "basic dashboard values work",
-			input: &config.Configuration{
-				TestGroups: []*config.TestGroup{
+			input: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
 					{
 						Name: "test_group",
 					},
 				},
-				Dashboards: []*config.Dashboard{
+				Dashboards: []*configpb.Dashboard{
 					{
 						Name: "dash",
-						DashboardTab: []*config.DashboardTab{
+						DashboardTab: []*configpb.DashboardTab{
 							{
 								Name:          "tab",
 								TestGroupName: "test_group",
-								AttachBugTemplate: &config.LinkTemplate{
+								AttachBugTemplate: &configpb.LinkTemplate{
 									Url:     "yes",
-									Options: []*config.LinkOptionsTemplate{},
+									Options: []*configpb.LinkOptionsTemplate{},
 								},
 								CodeSearchPath: "find",
-								CodeSearchUrlTemplate: &config.LinkTemplate{
+								CodeSearchUrlTemplate: &configpb.LinkTemplate{
 									Url: "woo",
 								},
-								FileBugTemplate: &config.LinkTemplate{
+								FileBugTemplate: &configpb.LinkTemplate{
 									Url: "bar",
-									Options: []*config.LinkOptionsTemplate{
+									Options: []*configpb.LinkOptionsTemplate{
 										{
 											Key:   "title",
 											Value: "yay <test-name>",
@@ -545,14 +547,14 @@ test_groups:
 									},
 								},
 								NumColumnsRecent: 10,
-								OpenTestTemplate: &config.LinkTemplate{
+								OpenTestTemplate: &configpb.LinkTemplate{
 									Url: "foo",
 								},
-								OpenBugTemplate: &config.LinkTemplate{
+								OpenBugTemplate: &configpb.LinkTemplate{
 									Url: "ugh",
 								},
 								ResultsText: "wee",
-								ResultsUrlTemplate: &config.LinkTemplate{
+								ResultsUrlTemplate: &configpb.LinkTemplate{
 									Url: "soup",
 								},
 							},
@@ -618,7 +620,7 @@ func Test_ReadConfig(t *testing.T) {
 		name          string
 		files         map[string]string
 		useDir        bool
-		expected      config.Configuration
+		expected      configpb.Configuration
 		expectFailure bool
 	}{
 		{
@@ -626,8 +628,8 @@ func Test_ReadConfig(t *testing.T) {
 			files: map[string]string{
 				"1*.yaml": "dashboards:\n- name: Foo\n",
 			},
-			expected: config.Configuration{
-				Dashboards: []*config.Dashboard{
+			expected: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
 					{Name: "Foo"},
 				},
 			},
@@ -639,8 +641,8 @@ func Test_ReadConfig(t *testing.T) {
 				"2*.yaml": "dashboards:\n- name: Bar\n",
 			},
 			useDir: true,
-			expected: config.Configuration{
-				Dashboards: []*config.Dashboard{
+			expected: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
 					{Name: "Foo"},
 					{Name: "Bar"},
 				},
@@ -659,8 +661,8 @@ func Test_ReadConfig(t *testing.T) {
 				"1*.yml": "dashboards:\n- name: Foo\n",
 				"2*.txt": "dashboards:\n- name: Bar\n",
 			},
-			expected: config.Configuration{
-				Dashboards: []*config.Dashboard{
+			expected: configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
 					{Name: "Foo"},
 				},
 			},
@@ -690,7 +692,7 @@ func Test_ReadConfig(t *testing.T) {
 				}
 			}
 
-			var result config.Configuration
+			var result configpb.Configuration
 			var readErr error
 			if test.useDir {
 				result, readErr = ReadConfig([]string{directory}, "")
@@ -706,6 +708,115 @@ func Test_ReadConfig(t *testing.T) {
 			}
 			if !test.expectFailure && !reflect.DeepEqual(result, test.expected) {
 				t.Errorf("Mismatched results: got %v, expected %v", result, test.expected)
+			}
+		})
+	}
+}
+
+// Overall default but no others (already covered by another test case I think?)
+// No defaults at all (possibly covered?)
+
+// Overall default (/), + default in directory (/test)
+// Overall default (/), + default in directory (/test), + default in subdir (/test/sub)
+// Duplicate file names? (prob. not possible?)
+// No overall default, + default in directory (/test)
+// Overall default in diff directory from provided paths (e.g. /somewhere vs. /here)
+
+func Test_getDefaults(t *testing.T) {
+	tests := []struct {
+		name  string
+		paths []string
+		want  []string
+	}{
+		{
+			name: "empty paths",
+		},
+		{
+			name:  "simple case",
+			paths: []string{"foo/config.yaml", "foo/default.yaml"},
+			want:  []string{"foo/default.yaml"},
+		},
+		{
+			name:  "no defaults",
+			paths: []string{"foo/config.yaml"},
+		},
+		{
+			name:  "multiple defaults",
+			paths: []string{"foo/default.yaml", "bar/default.yaml"},
+			want:  []string{"foo/default.yaml", "bar/default.yaml"},
+		},
+		{
+			name:  "subdirs",
+			paths: []string{"foo/bar/default.yaml"},
+			want:  []string{"foo/bar/default.yaml"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := getDefaults(test.paths)
+			if diff := cmp.Diff(test.want, got); diff != "" {
+				t.Fatalf("returned with incorrect value, %v", diff)
+			}
+		})
+	}
+}
+
+func Test_PathDefault(t *testing.T) {
+	overallDefaults := DefaultConfiguration{
+		DefaultTestGroup: &configpb.TestGroup{
+			NumColumnsRecent: 5,
+		},
+	}
+	localDefaults := DefaultConfiguration{
+		DefaultTestGroup: &configpb.TestGroup{
+			NumColumnsRecent: 10,
+		},
+	}
+
+	tests := []struct {
+		name         string
+		path         string
+		defaultFiles map[string]DefaultConfiguration
+		defaults     DefaultConfiguration
+		want         DefaultConfiguration
+	}{
+		{
+			name: "empty works",
+		},
+		{
+			name: "basically works",
+			path: "foo/config.yaml",
+			defaultFiles: map[string]DefaultConfiguration{
+				"foo": localDefaults,
+			},
+			defaults: overallDefaults,
+			want:     localDefaults,
+		},
+		{
+			name: "path not in map uses overall defaults",
+			path: "config.yaml",
+			defaultFiles: map[string]DefaultConfiguration{
+				"foo": localDefaults,
+			},
+			defaults: overallDefaults,
+			want:     overallDefaults,
+		},
+		{
+			name: "path in subdirectory of path in map uses overall defaults",
+			path: "foo/bar/config.yaml",
+			defaultFiles: map[string]DefaultConfiguration{
+				"foo": localDefaults,
+			},
+			defaults: overallDefaults,
+			want:     overallDefaults,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := pathDefault(test.path, test.defaultFiles, test.defaults); test.want != got {
+				t.Fatalf("pathDefault(%s) incorrect; got %v, want %v", test.path, got, test.want)
 			}
 		})
 	}

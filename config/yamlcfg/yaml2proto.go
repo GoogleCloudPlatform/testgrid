@@ -23,20 +23,71 @@ import (
 	"os"
 	"path/filepath"
 
-	cfgutil "github.com/GoogleCloudPlatform/testgrid/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/config"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"sigs.k8s.io/yaml"
 )
+
+const (
+	defaultFilename = "default.yaml"
+)
+
+// getDefaults take all paths found through seeking, returns list of dirs with defaults
+func getDefaults(allPaths []string) (defaults []string) {
+	for _, path := range allPaths {
+		if filepath.Base(path) == defaultFilename {
+			defaults = append(defaults, path)
+		}
+	}
+	return defaults
+}
+
+// seekDefaults finds all default files and returns a map of directory to its default contents.
+func seekDefaults(paths []string) (map[string]DefaultConfiguration, error) {
+	var defaultFiles map[string]DefaultConfiguration
+	var allPaths []string
+	err := SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
+		allPaths = append(allPaths, path)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to walk paths, %v", err)
+	}
+	defaults := getDefaults(allPaths)
+	for _, path := range defaults {
+		b, err := ioutil.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read default at %s: %v", path, err)
+		}
+		curDefault, err := LoadDefaults(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize default at %s: %v", path, err)
+		}
+		defaultFiles[filepath.Dir(path)] = curDefault
+	}
+	return defaultFiles, nil
+}
+
+// pathDefault returns the closest DefaultConfiguration for a path (default in path's dir, or overall default).
+func pathDefault(path string, defaultFiles map[string]DefaultConfiguration, defaults DefaultConfiguration) DefaultConfiguration {
+	if localDefaults, ok := defaultFiles[filepath.Dir(path)]; ok {
+		return localDefaults
+	}
+	return defaults
+}
 
 // Takes multiple source paths of the following form:
 //   If path is a local file, then the file will be parsed as YAML
 //   If path is a directory, then all files and directories within it will be parsed.
+//     If this directory has a default(s).yaml file, apply it to all configured entities,
+// 		 after applying defaults from defaultPath.
 // Optionally, defaultPath points to default setting YAML
 // Returns a configuration proto containing the data from all of those sources
-func ReadConfig(paths []string, defaultpath string) (config.Configuration, error) {
+func ReadConfig(paths []string, defaultpath string) (configpb.Configuration, error) {
 
-	var result config.Configuration
+	var result configpb.Configuration
 
+	// Get the overall default file, if specified.
 	var defaults DefaultConfiguration
 	if defaultpath != "" {
 		b, err := ioutil.ReadFile(defaultpath)
@@ -49,33 +100,44 @@ func ReadConfig(paths []string, defaultpath string) (config.Configuration, error
 		}
 	}
 
-	err := SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
+	// Find all default files, map their directory to their contents.
+	defaultFiles, err := seekDefaults(paths)
+	if err != nil {
+		return result, err
+	}
+
+	// Gather configuration from each YAML file, applying the config's default.yaml if
+	// one exists in its directory, or the overall default otherwise.
+	err = SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
 		// Read YAML file and Update config
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read %s: %v", path, err)
 		}
-		if err = Update(&result, b, &defaults); err != nil {
+		localDefaults := pathDefault(path, defaultFiles, defaults)
+		if err = Update(&result, b, &localDefaults); err != nil {
 			return fmt.Errorf("failed to merge %s into config: %v", path, err)
 		}
-
 		return nil
 	})
+	if err != nil {
+		return result, fmt.Errorf("SeekYAMLFiles(%v), gathering config: %v", paths, err)
+	}
 
 	return result, err
 }
 
 // Update reads the config in yamlData and updates the config in c.
 // If reconcile is non-nil, it will pad out new entries with those default settings
-func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfiguration) error {
+func Update(cfg *configpb.Configuration, yamlData []byte, reconcile *DefaultConfiguration) error {
 
-	newConfig := &config.Configuration{}
+	newConfig := &configpb.Configuration{}
 	if err := yaml.Unmarshal(yamlData, newConfig); err != nil {
 		return err
 	}
 
 	if cfg == nil {
-		cfg = &config.Configuration{}
+		cfg = &configpb.Configuration{}
 	}
 
 	for _, testgroup := range newConfig.TestGroups {
@@ -103,11 +165,11 @@ func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfig
 
 // MarshalYAML returns a YAML file representing the parsed configuration.
 // Returns an error if config is invalid or encoding failed.
-func MarshalYAML(c *config.Configuration) ([]byte, error) {
+func MarshalYAML(c *configpb.Configuration) ([]byte, error) {
 	if c == nil {
-		return nil, errors.New("got an empty config.Configuration")
+		return nil, errors.New("got an empty configpb.Configuration")
 	}
-	if err := cfgutil.Validate(c); err != nil {
+	if err := config.Validate(c); err != nil {
 		return nil, err
 	}
 	bytes, err := yaml.Marshal(c)
@@ -119,9 +181,9 @@ func MarshalYAML(c *config.Configuration) ([]byte, error) {
 
 type DefaultConfiguration struct {
 	// A default testgroup with default initialization data
-	DefaultTestGroup *config.TestGroup `json:"default_test_group,omitempty"`
+	DefaultTestGroup *configpb.TestGroup `json:"default_test_group,omitempty"`
 	// A default dashboard tab with default initialization data
-	DefaultDashboardTab *config.DashboardTab `json:"default_dashboard_tab,omitempty"`
+	DefaultDashboardTab *configpb.DashboardTab `json:"default_dashboard_tab,omitempty"`
 }
 
 // MissingFieldError is an error that includes the missing field.
@@ -134,12 +196,12 @@ func (e MissingFieldError) Error() string {
 }
 
 // ReconcileTestGroup sets unfilled currentTestGroup fields to the corresponding defaultTestGroup value, if present
-func ReconcileTestGroup(currentTestGroup *config.TestGroup, defaultTestGroup *config.TestGroup) {
+func ReconcileTestGroup(currentTestGroup *configpb.TestGroup, defaultTestGroup *configpb.TestGroup) {
 	if currentTestGroup.DaysOfResults == 0 {
 		currentTestGroup.DaysOfResults = defaultTestGroup.DaysOfResults
 	}
 
-	if currentTestGroup.TestsNamePolicy == config.TestGroup_TESTS_NAME_UNSPECIFIED {
+	if currentTestGroup.TestsNamePolicy == configpb.TestGroup_TESTS_NAME_UNSPECIFIED {
 		currentTestGroup.TestsNamePolicy = defaultTestGroup.TestsNamePolicy
 	}
 
@@ -178,7 +240,7 @@ func ReconcileTestGroup(currentTestGroup *config.TestGroup, defaultTestGroup *co
 }
 
 // ReconcileDashboardTab sets unfilled currentTab fields to the corresponding defaultTab value, if present
-func ReconcileDashboardTab(currentTab *config.DashboardTab, defaultTab *config.DashboardTab) {
+func ReconcileDashboardTab(currentTab *configpb.DashboardTab, defaultTab *configpb.DashboardTab) {
 	if currentTab.BugComponent == 0 {
 		currentTab.BugComponent = defaultTab.BugComponent
 	}
@@ -245,7 +307,6 @@ func LoadDefaults(yamlData []byte) (DefaultConfiguration, error) {
 
 // walks through paths and directories, calling the passed function on each YAML file
 // future modifications to what Configurator sees as a "config file" can be made here
-//TODO(chases2) Rewrite so that it walks recursively, not lexically.
 func SeekYAMLFiles(paths []string, callFunc func(path string, info os.FileInfo) error) error {
 	for _, path := range paths {
 		_, err := os.Stat(path)
@@ -260,7 +321,7 @@ func SeekYAMLFiles(paths []string, callFunc func(path string, info os.FileInfo) 
 				return nil
 			}
 
-			// Only YAML files will be
+			// Only YAML files will be parsed
 			if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
 				return nil
 			}
