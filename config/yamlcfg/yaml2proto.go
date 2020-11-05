@@ -28,15 +28,71 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// getDefaults take all paths found through seeking, returns list of dirs with defaults
+func getDefaults(allPaths []string) (defaults []string, err error) {
+	dirs_found := make(map[string]bool)
+	for _, path := range allPaths {
+		if filepath.Base(path) == "default.yaml" || filepath.Base(path) == "default.yml" {
+			if _, ok := dirs_found[filepath.Dir(path)]; ok {
+				return nil, fmt.Errorf("two default files found in dir %q", filepath.Dir(path))
+			}
+			defaults = append(defaults, path)
+			dirs_found[filepath.Dir(path)] = true
+		}
+	}
+	return defaults, nil
+}
+
+// seekDefaults finds all default files and returns a map of directory to its default contents.
+// TODO: Implement filesystem fake in order to unit test this better.
+func seekDefaults(paths []string) (map[string]DefaultConfiguration, error) {
+	defaultFiles := make(map[string]DefaultConfiguration)
+	var allPaths []string
+	err := SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
+		allPaths = append(allPaths, path)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to walk paths, %v", err)
+	}
+	defaults, err := getDefaults(allPaths)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get defaults, %v", err)
+	}
+	for _, path := range defaults {
+		b, err := ioutil.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read default at %s: %v", path, err)
+		}
+		curDefault, err := LoadDefaults(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize default at %s: %v", path, err)
+		}
+		defaultFiles[filepath.Dir(path)] = curDefault
+	}
+	return defaultFiles, nil
+}
+
+// pathDefault returns the closest DefaultConfiguration for a path (default in path's dir, or overall default).
+func pathDefault(path string, defaultFiles map[string]DefaultConfiguration, defaults DefaultConfiguration) DefaultConfiguration {
+	if localDefaults, ok := defaultFiles[filepath.Dir(path)]; ok {
+		return localDefaults
+	}
+	return defaults
+}
+
 // Takes multiple source paths of the following form:
 //   If path is a local file, then the file will be parsed as YAML
 //   If path is a directory, then all files and directories within it will be parsed.
+//     If this directory has a default(s).yaml file, apply it to all configured entities,
+// 		 after applying defaults from defaultPath.
 // Optionally, defaultPath points to default setting YAML
 // Returns a configuration proto containing the data from all of those sources
 func ReadConfig(paths []string, defaultpath string) (config.Configuration, error) {
 
 	var result config.Configuration
 
+	// Get the overall default file, if specified.
 	var defaults DefaultConfiguration
 	if defaultpath != "" {
 		b, err := ioutil.ReadFile(defaultpath)
@@ -49,18 +105,29 @@ func ReadConfig(paths []string, defaultpath string) (config.Configuration, error
 		}
 	}
 
-	err := SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
+	// Find all default files, map their directory to their contents.
+	defaultFiles, err := seekDefaults(paths)
+	if err != nil {
+		return result, err
+	}
+
+	// Gather configuration from each YAML file, applying the config's default.yaml if
+	// one exists in its directory, or the overall default otherwise.
+	err = SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
 		// Read YAML file and Update config
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read %s: %v", path, err)
 		}
-		if err = Update(&result, b, &defaults); err != nil {
+		localDefaults := pathDefault(path, defaultFiles, defaults)
+		if err = Update(&result, b, &localDefaults); err != nil {
 			return fmt.Errorf("failed to merge %s into config: %v", path, err)
 		}
-
 		return nil
 	})
+	if err != nil {
+		return result, fmt.Errorf("SeekYAMLFiles(%v), gathering config: %v", paths, err)
+	}
 
 	return result, err
 }
@@ -245,7 +312,6 @@ func LoadDefaults(yamlData []byte) (DefaultConfiguration, error) {
 
 // walks through paths and directories, calling the passed function on each YAML file
 // future modifications to what Configurator sees as a "config file" can be made here
-//TODO(chases2) Rewrite so that it walks recursively, not lexically.
 func SeekYAMLFiles(paths []string, callFunc func(path string, info os.FileInfo) error) error {
 	for _, path := range paths {
 		_, err := os.Stat(path)
@@ -260,7 +326,7 @@ func SeekYAMLFiles(paths []string, callFunc func(path string, info os.FileInfo) 
 				return nil
 			}
 
-			// Only YAML files will be
+			// Only YAML files will be parsed
 			if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
 				return nil
 			}
