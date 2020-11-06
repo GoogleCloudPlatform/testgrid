@@ -75,6 +75,9 @@ message AlertInfo {
 
   // Maps (property name):(property value) for arbitrary alert properties.
   map<string, string> properties = 12;
+
+  // A list of IDs for issue hotlists related to this failure.
+  repeated string hotlist_ids = 13;
 }
 
 // Info on default test metadata for a dashboard tab.

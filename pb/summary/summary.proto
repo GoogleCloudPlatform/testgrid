@@ -52,6 +52,9 @@ message FailingTestSummary {
 
   // Maps (property name):(property value) for arbitrary alert properties.
   map<string, string> properties = 15;
+
+  // A list of IDs for issue hotlists related to this failure.
+  repeated string hotlist_ids = 16;
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.
