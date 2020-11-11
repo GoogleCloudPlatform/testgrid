@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestYaml2Proto_IsExternal_And_UseKuberClient_False(t *testing.T) {
@@ -169,6 +170,7 @@ test_groups:
 			expectedDashTab:   20,
 		},
 		{
+			// TODO: Prevent this case.
 			name: "Doesn't inherit imbedded defaults",
 			yaml: `default_test_group:
   num_columns_recent: 5
@@ -706,6 +708,122 @@ func Test_ReadConfig(t *testing.T) {
 			}
 			if !test.expectFailure && !reflect.DeepEqual(result, test.expected) {
 				t.Errorf("Mismatched results: got %v, expected %v", result, test.expected)
+			}
+		})
+	}
+}
+
+func Test_getDefaults(t *testing.T) {
+	tests := []struct {
+		name  string
+		paths []string
+		want  []string
+		err   bool
+	}{
+		{
+			name: "empty paths",
+		},
+		{
+			name:  "simple case",
+			paths: []string{"foo/config.yaml", "foo/default.yaml"},
+			want:  []string{"foo/default.yaml"},
+			err:   false,
+		},
+		{
+			name:  "no defaults",
+			paths: []string{"foo/config.yaml"},
+			err:   false,
+		},
+		{
+			name:  "two defaults",
+			paths: []string{"foo/config.yaml", "foo/default.yml", "foo/default.yaml"},
+			err:   true,
+		},
+		{
+			name:  "multiple defaults",
+			paths: []string{"foo/default.yaml", "bar/default.yaml"},
+			want:  []string{"foo/default.yaml", "bar/default.yaml"},
+			err:   false,
+		},
+		{
+			name:  "subdirs",
+			paths: []string{"foo/bar/default.yaml"},
+			want:  []string{"foo/bar/default.yaml"},
+			err:   false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := getDefaults(test.paths)
+			if test.err && err == nil {
+				t.Fatalf("expected error, but no error was received")
+			}
+			if err != nil && !test.err {
+				t.Fatalf("expected no error, but received error %v", err)
+			}
+			if diff := cmp.Diff(test.want, got); diff != "" {
+				t.Fatalf("returned with incorrect value, %v", diff)
+			}
+		})
+	}
+}
+
+func Test_PathDefault(t *testing.T) {
+	overallDefaults := DefaultConfiguration{
+		DefaultTestGroup: &config.TestGroup{
+			NumColumnsRecent: 5,
+		},
+	}
+	localDefaults := DefaultConfiguration{
+		DefaultTestGroup: &config.TestGroup{
+			NumColumnsRecent: 10,
+		},
+	}
+
+	tests := []struct {
+		name         string
+		path         string
+		defaultFiles map[string]DefaultConfiguration
+		defaults     DefaultConfiguration
+		want         DefaultConfiguration
+	}{
+		{
+			name: "empty works",
+		},
+		{
+			name: "basically works",
+			path: "foo/config.yaml",
+			defaultFiles: map[string]DefaultConfiguration{
+				"foo": localDefaults,
+			},
+			defaults: overallDefaults,
+			want:     localDefaults,
+		},
+		{
+			name: "path not in map uses overall defaults",
+			path: "config.yaml",
+			defaultFiles: map[string]DefaultConfiguration{
+				"foo": localDefaults,
+			},
+			defaults: overallDefaults,
+			want:     overallDefaults,
+		},
+		{
+			name: "path in subdirectory of local default uses overall defaults",
+			path: "foo/bar/config.yaml",
+			defaultFiles: map[string]DefaultConfiguration{
+				"foo": localDefaults,
+			},
+			defaults: overallDefaults,
+			want:     overallDefaults,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := pathDefault(test.path, test.defaultFiles, test.defaults); test.want != got {
+				t.Fatalf("pathDefault(%s) incorrect; got %v, want %v", test.path, got, test.want)
 			}
 		})
 	}
