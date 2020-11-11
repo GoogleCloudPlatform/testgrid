@@ -88,7 +88,7 @@ func pathDefault(path string, defaultFiles map[string]DefaultConfiguration, defa
 // 		 after applying defaults from defaultPath.
 // Optionally, defaultPath points to default setting YAML
 // Returns a configuration proto containing the data from all of those sources
-func ReadConfig(paths []string, defaultpath string) (config.Configuration, error) {
+func ReadConfig(paths []string, defaultpath string, strict bool) (config.Configuration, error) {
 
 	var result config.Configuration
 
@@ -114,13 +114,16 @@ func ReadConfig(paths []string, defaultpath string) (config.Configuration, error
 	// Gather configuration from each YAML file, applying the config's default.yaml if
 	// one exists in its directory, or the overall default otherwise.
 	err = SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
+		if filepath.Base(path) == "default.yaml" || filepath.Base(path) == "default.yml" {
+			return nil
+		}
 		// Read YAML file and Update config
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read %s: %v", path, err)
 		}
 		localDefaults := pathDefault(path, defaultFiles, defaults)
-		if err = Update(&result, b, &localDefaults); err != nil {
+		if err = Update(&result, b, &localDefaults, strict); err != nil {
 			return fmt.Errorf("failed to merge %s into config: %v", path, err)
 		}
 		return nil
@@ -134,11 +137,17 @@ func ReadConfig(paths []string, defaultpath string) (config.Configuration, error
 
 // Update reads the config in yamlData and updates the config in c.
 // If reconcile is non-nil, it will pad out new entries with those default settings
-func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfiguration) error {
+func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfiguration, strict bool) error {
 
 	newConfig := &config.Configuration{}
-	if err := yaml.Unmarshal(yamlData, newConfig); err != nil {
-		return err
+	if strict {
+		if err := yaml.UnmarshalStrict(yamlData, newConfig); err != nil {
+			return err
+		}
+	} else {
+		if err := yaml.Unmarshal(yamlData, newConfig); err != nil {
+			return err
+		}
 	}
 
 	if cfg == nil {
