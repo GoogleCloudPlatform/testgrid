@@ -1095,6 +1095,7 @@ func TestFailingTestSummaries(t *testing.T) {
 						Properties: map[string]string{
 							"ham": "eggs",
 						},
+						HotlistIds: []string{},
 					},
 				},
 				{},
@@ -1116,6 +1117,7 @@ func TestFailingTestSummaries(t *testing.T) {
 							"foo":   "bar",
 							"hello": "lots",
 						},
+						HotlistIds: []string{"111", "222"},
 					},
 				},
 				{},
@@ -1137,6 +1139,7 @@ func TestFailingTestSummaries(t *testing.T) {
 					Properties: map[string]string{
 						"ham": "eggs",
 					},
+					HotlistIds: []string{},
 				},
 				{
 					DisplayName:       "bar-name",
@@ -1155,6 +1158,7 @@ func TestFailingTestSummaries(t *testing.T) {
 						"foo":   "bar",
 						"hello": "lots",
 					},
+					HotlistIds: []string{"111", "222"},
 				},
 			},
 		},
