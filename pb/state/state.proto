@@ -157,6 +157,9 @@ message Row {
 
   // An alert for the failure if there's a recent failure for this test case.
   AlertInfo alert_info = 11;
+
+  // Values of a user-defined property found in test results for this row.
+  repeated string user_property = 12;
 }
 
 // A single table of test results backing a dashboard tab.
