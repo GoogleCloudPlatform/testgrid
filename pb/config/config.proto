@@ -660,7 +660,7 @@ message Configuration {
 }
 
 // A grouping of configuration options for the flakiness analysis tool.
-// Later configuration options could include the ability to choose different kinds of 
+// Later configuration options could include the ability to choose different kinds of
 // flakiness and choosing if and who to email a copy of the flakiness report.
 message HealthAnalysisOptions {
   // Defaults to false; flakiness analysis is opt-in
@@ -670,6 +670,22 @@ message HealthAnalysisOptions {
   // i.e. flakiness will be analyzed for the previous N days starting from Now,
   // and it will be compared to the calculated N days before that for trend analysis.
   int32 days_of_analysis = 2;
+
+  // When to send healthiness emails out, uses cron string format.
+  string email_schedule = 3;
+
+  // A comma-separated list of healthiness email recipients.
+  string email_recipients = 4;
+
+  // A compilable regex string for grouping tests by name.
+  // Works the same as the group-by-regex-mask option of base_options:
+  // go/testgrid/users/dashboard_guide#grouping-tests
+  // An empty string means no grouping.
+  // e.g. test name: "//path/to/test - env", regex: ` - \w+`
+  // The regex will match " - env" in the above test name and give a group of:
+  // //path/to/test  <- Group Name
+  //     - env       <- Group Member
+  string grouping_regex = 5;
 }
 
 // The DefaultConfiguration Proto is deprecated, and will be deleted after Nov 1, 2019
