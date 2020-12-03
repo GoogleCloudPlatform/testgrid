@@ -61,6 +61,16 @@ func (build Build) String() string {
 	return build.Path.String()
 }
 
+func readLink(objAttrs *storage.ObjectAttrs) string {
+	if link, ok := objAttrs.Metadata["x-goog-meta-link"]; ok {
+		return link
+	}
+	if link, ok := objAttrs.Metadata["link"]; ok {
+		return link
+	}
+	return ""
+}
+
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
 func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) ([]Build, error) {
 	ctx, cancel := context.WithCancel(parent)
@@ -84,7 +94,7 @@ func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) (
 		// This is used for PR type jobs which we store in a PR specific prefix.
 		// The directory prefix contains a link header to the result
 		// under the PR specific prefix.
-		if link := objAttrs.Metadata["x-goog-meta-link"]; len(link) > 0 {
+		if link := readLink(objAttrs); link != "" {
 			// links created by bootstrap.py have a space
 			link = strings.TrimSpace(link)
 			u, err := url.Parse(link)
