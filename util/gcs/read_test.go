@@ -264,6 +264,57 @@ func TestListBuilds(t *testing.T) {
 	}
 }
 
+func TestReadLink(t *testing.T) {
+	cases := []struct {
+		name     string
+		meta     map[string]string
+		expected string
+	}{
+		{
+			name: "basically works",
+			meta: map[string]string{},
+		},
+		{
+			name: "find link",
+			meta: map[string]string{
+				"link": "foo",
+			},
+			expected: "foo",
+		},
+		{
+			name: "find x-goog-meta-link",
+			meta: map[string]string{
+				"x-goog-meta-link": "foo",
+			},
+			expected: "foo",
+		},
+		{
+			name: "ignore random",
+			meta: map[string]string{
+				"x-random-link": "foo",
+			},
+		},
+		{
+			name: "prefer x-goog-meta-link",
+			meta: map[string]string{
+				"x-goog-meta-link": "yes",
+				"link":             "no",
+			},
+			expected: "yes",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var oa storage.ObjectAttrs
+			oa.Metadata = tc.meta
+			if actual := readLink(&oa); actual != tc.expected {
+				t.Errorf("readLink(%v) got %q want %q", oa, actual, tc.expected)
+			}
+		})
+	}
+}
+
 func TestParseSuitesMeta(t *testing.T) {
 	cases := []struct {
 		name      string
