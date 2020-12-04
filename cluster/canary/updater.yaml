@@ -28,7 +28,7 @@ spec:
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
         - --group-timeout=60m
-        - --wait=5m
+        - --wait=3h
 ---
 apiVersion: v1
 kind: ServiceAccount
