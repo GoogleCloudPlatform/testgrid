@@ -61,6 +61,9 @@ func (o *options) validate() error {
 	}
 	if o.buildConcurrency == 0 {
 		o.buildConcurrency = runtime.NumCPU()
+		if o.buildConcurrency > 4 {
+			o.buildConcurrency = 4
+		}
 	}
 
 	return nil
