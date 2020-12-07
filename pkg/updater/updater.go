@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -64,6 +65,53 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) 
 	}
 }
 
+func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) error {
+	log.Info("Sorting groups")
+	updated := make(map[string]time.Time, len(groups))
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	for _, tg := range groups {
+		tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
+		if err != nil {
+			return fmt.Errorf("%s bad group path: %w", tg.Name, err)
+		}
+		wg.Add(1)
+		log := log.WithField("group", tg.Name)
+		name := tg.Name
+		go func() {
+			defer wg.Done()
+			attrs, err := client.Stat(ctx, *tgp)
+			if err != nil {
+				if err != storage.ErrObjectNotExist {
+					log.WithError(err).Warning("Cannot determine group update time")
+				} else {
+					log.Debug("No existing grid state")
+				}
+				return
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			updated[name] = attrs.Updated
+			log.WithField("updated", attrs.Updated).Debug("Found updated time")
+		}()
+	}
+	wg.Wait()
+
+	sort.SliceStable(groups, func(i, j int) bool {
+		return !updated[groups[i].Name].After(updated[groups[j].Name])
+	})
+	n := len(groups) - 1
+	if n > 0 {
+		log.WithFields(logrus.Fields{
+			"oldest-name": groups[n].Name,
+			"oldest":      updated[groups[n].Name],
+			"newest-name": groups[0].Name,
+			"newest":      updated[groups[0].Name],
+		}).Info("Sorted")
+	}
+	return nil
+}
+
 func Update(parent context.Context, client gcs.Client, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -82,8 +130,7 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 		go func() {
 			for tg := range groups {
 				log := log.WithField("group", tg.Name)
-				location := path.Join(gridPrefix, tg.Name)
-				tgp, err := testGroupPath(configPath, location)
+				tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
 				if err == nil {
 					err = updateGroup(ctx, log, client, &tg, *tgp)
 				}
@@ -105,6 +152,11 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 		}
 		groups <- *tg
 	} else { // All groups
+		log.Info("Sorting groups")
+		if err := sortGroups(ctx, log, client, configPath, gridPrefix, cfg.TestGroups); err != nil {
+			log.WithError(err).Warning("Failed to sort groups")
+		}
+		log.Info("Sorted")
 		idxChan := make(chan int)
 		defer close(idxChan)
 		go logUpdate(idxChan, len(cfg.TestGroups), "Update in progress")
@@ -122,7 +174,8 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 }
 
 // testGroupPath() returns the path to a test_group proto given this proto
-func testGroupPath(g gcs.Path, name string) (*gcs.Path, error) {
+func testGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) {
+	name := path.Join(gridPrefix, groupName)
 	u, err := url.Parse(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url %s: %w", name, err)

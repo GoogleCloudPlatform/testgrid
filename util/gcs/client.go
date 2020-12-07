@@ -50,9 +50,14 @@ type Opener interface {
 	Open(ctx context.Context, path Path) (io.ReadCloser, error)
 }
 
+type Stater interface {
+	Stat(ctx context.Context, prefix Path) (*storage.ObjectAttrs, error)
+}
+
 type Client interface {
 	Uploader
 	Downloader
+	Stater
 }
 
 // NewClient returns a GCSUploadClient for the storage.Client.
@@ -83,4 +88,8 @@ func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter, star
 
 func (rgc realGCSClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) error {
 	return Upload(ctx, rgc.client, path, buf, worldReadable, cacheControl)
+}
+
+func (rgc realGCSClient) Stat(ctx context.Context, path Path) (*storage.ObjectAttrs, error) {
+	return rgc.client.Bucket(path.Bucket()).Object(path.Object()).Attrs(ctx)
 }
