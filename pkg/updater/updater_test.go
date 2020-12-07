@@ -18,6 +18,7 @@ package updater
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -245,9 +246,10 @@ func TestTestGroupPath(t *testing.T) {
 		return &p
 	}
 	cases := []struct {
-		name      string
-		groupName string
-		expected  *gcs.Path
+		name       string
+		groupName  string
+		gridPrefix string
+		expected   *gcs.Path
 	}{
 		{
 			name:     "basically works",
@@ -279,7 +281,7 @@ func TestTestGroupPath(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := testGroupPath(path, tc.groupName)
+			actual, err := testGroupPath(path, tc.gridPrefix, tc.groupName)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
@@ -299,6 +301,29 @@ func TestTestGroupPath(t *testing.T) {
 type fakeUploadClient struct {
 	fakeClient
 	fakeUploader
+	fakeStater
+}
+
+type fakeStat struct {
+	err   error
+	attrs storage.ObjectAttrs
+}
+
+type fakeStater map[gcs.Path]fakeStat
+
+func (fs fakeStater) Stat(ctx context.Context, path gcs.Path) (*storage.ObjectAttrs, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("injected interrupt: %w", err)
+	}
+
+	ret, ok := fs[path]
+	if !ok {
+		return nil, storage.ErrObjectNotExist
+	}
+	if ret.err != nil {
+		return nil, fmt.Errorf("injected upload error: %w", ret.err)
+	}
+	return &ret.attrs, nil
 }
 
 type fakeUploader map[gcs.Path]fakeUpload
@@ -348,6 +373,107 @@ func mustGrid(grid *statepb.Grid) []byte {
 		panic(err)
 	}
 	return buf
+}
+
+func TestSortGroups(t *testing.T) {
+	now := time.Now()
+	times := []time.Time{
+		now.Add(1 * time.Hour),
+		now.Add(2 * time.Hour),
+		now.Add(3 * time.Hour),
+		now.Add(4 * time.Hour),
+	}
+
+	cases := []struct {
+		name     string
+		groups   []*configpb.TestGroup
+		updated  map[string]*time.Time
+		expected []*configpb.TestGroup
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "sorts multiple groups by least recently updated",
+			groups: []*configpb.TestGroup{
+				{Name: "middle"},
+				{Name: "new"},
+				{Name: "old"},
+			},
+			updated: map[string]*time.Time{
+				"old":    &times[0],
+				"middle": &times[1],
+				"new":    &times[2],
+			},
+			expected: []*configpb.TestGroup{
+				{Name: "old"},
+				{Name: "middle"},
+				{Name: "new"},
+			},
+		},
+		{
+			name: "groups with no existing state come first",
+			groups: []*configpb.TestGroup{
+				{Name: "new"},
+				{Name: "never"},
+				{Name: "old"},
+			},
+			updated: map[string]*time.Time{
+				"old": &times[0],
+				"new": &times[2],
+			},
+			expected: []*configpb.TestGroup{
+				{Name: "never"},
+				{Name: "old"},
+				{Name: "new"},
+			},
+		},
+		{
+			name: "groups with an error state also go first",
+			groups: []*configpb.TestGroup{
+				{Name: "new"},
+				{Name: "boom"},
+				{Name: "old"},
+			},
+			updated: map[string]*time.Time{
+				"boom": nil,
+				"old":  &times[0],
+				"new":  &times[2],
+			},
+			expected: []*configpb.TestGroup{
+				{Name: "boom"},
+				{Name: "old"},
+				{Name: "new"},
+			},
+		},
+	}
+
+	const gridPrefix = "grid"
+	configPath, err := gcs.NewPath("gs://k8s-testgrid-canary/config")
+	if err != nil {
+		t.Fatal("bad path: %v", err)
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			client := fakeStater{}
+			for name, updated := range tc.updated {
+				var stat fakeStat
+				if updated == nil {
+					stat.err = errors.New("error")
+				} else {
+					stat.attrs.Updated = *updated
+				}
+				path, err := testGroupPath(*configPath, gridPrefix, name)
+				if err != nil {
+					t.Fatal("bad group path: %v", err)
+				}
+				client[*path] = stat
+			}
+			defer cancel()
+			sortGroups(ctx, logrus.WithField("case", tc.name), client, *configPath, gridPrefix, tc.groups)
+		})
+	}
 }
 
 func TestTruncateRunning(t *testing.T) {
