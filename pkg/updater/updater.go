@@ -103,10 +103,10 @@ func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, 
 	n := len(groups) - 1
 	if n > 0 {
 		log.WithFields(logrus.Fields{
-			"oldest-name": groups[n].Name,
-			"oldest":      updated[groups[n].Name],
-			"newest-name": groups[0].Name,
-			"newest":      updated[groups[0].Name],
+			"newest-name": groups[n].Name,
+			"newest":      updated[groups[n].Name],
+			"oldest-name": groups[0].Name,
+			"oldest":      updated[groups[0].Name],
 		}).Info("Sorted")
 	}
 	return nil
