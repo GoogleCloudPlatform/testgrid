@@ -451,7 +451,7 @@ func TestSortGroups(t *testing.T) {
 	const gridPrefix = "grid"
 	configPath, err := gcs.NewPath("gs://k8s-testgrid-canary/config")
 	if err != nil {
-		t.Fatal("bad path: %v", err)
+		t.Fatalf("bad path: %v", err)
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -466,7 +466,7 @@ func TestSortGroups(t *testing.T) {
 				}
 				path, err := testGroupPath(*configPath, gridPrefix, name)
 				if err != nil {
-					t.Fatal("bad group path: %v", err)
+					t.Fatalf("bad group path: %v", err)
 				}
 				client[*path] = stat
 			}

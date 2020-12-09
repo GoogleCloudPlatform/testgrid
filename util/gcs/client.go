@@ -50,10 +50,12 @@ type Opener interface {
 	Open(ctx context.Context, path Path) (io.ReadCloser, error)
 }
 
+// A Stater can stat an object and get its attributes.
 type Stater interface {
 	Stat(ctx context.Context, prefix Path) (*storage.ObjectAttrs, error)
 }
 
+// A Client can upload, download and stat.
 type Client interface {
 	Uploader
 	Downloader
