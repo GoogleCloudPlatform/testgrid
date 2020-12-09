@@ -124,6 +124,8 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 
 	groups := make(chan configpb.TestGroup)
 	var wg sync.WaitGroup
+	defer wg.Wait()
+	defer close(groups)
 
 	for i := 0; i < groupConcurrency; i++ {
 		wg.Add(1)
@@ -168,8 +170,6 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 			groups <- *tg
 		}
 	}
-	close(groups)
-	wg.Wait()
 	return nil
 }
 
