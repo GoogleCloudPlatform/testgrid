@@ -64,6 +64,9 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 		return nil, errors.New("zero readers")
 	}
 
+	// stopWG cannot be part of wg since concurrently calling wg.Add() and wg.Wait() races.
+	var stopWG sync.WaitGroup
+	defer stopWG.Wait()
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	var maxLock sync.Mutex
@@ -147,16 +150,18 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 				col := convertResult(nameCfg, id, heads, *result)
 				if int64(col.column.Started) < stop {
 					// Multiple go-routines may all read an old result.
-					// So we need to use a mutex to read the
-					wg.Add(1)
+					// So we need to use a mutex to read the current max column
+					// and then truncate it to idx if idx is smaller.
+					stopWG.Add(1)
 					go func() {
-						defer wg.Done()
+						defer stopWG.Done()
 						maxLock.Lock()
 						defer maxLock.Unlock()
 						if maxIdx == len(builds) {
 							// still vending new indices to download, stop this.
 							select {
 							case <-ctx.Done():
+								// Another thread stopped
 							case old <- idx:
 								log.WithFields(logrus.Fields{
 									"idx":     idx,
@@ -188,10 +193,10 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 		}
 	}
 
-	// wait for the consistent maxIdx value
-	cancel()  // no need to notify about an old index
-	wg.Wait() // wait for all the old indexes to sync
-
+	// Wait for maxIdx to be the correct value.
+	cancel()
+	wg.Wait() // Ensure all stopWG.Add() calls are done
+	stopWG.Wait()
 	return cols[0:maxIdx], nil
 }
 
