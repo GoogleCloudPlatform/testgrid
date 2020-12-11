@@ -112,6 +112,9 @@ func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, 
 	return nil
 }
 
+// GroupThrottle allows control over starting to read a new group.
+var GroupThrottle <-chan int
+
 func Update(parent context.Context, client gcs.Client, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -130,6 +133,13 @@ func Update(parent context.Context, client gcs.Client, configPath gcs.Path, grid
 	for i := 0; i < groupConcurrency; i++ {
 		wg.Add(1)
 		go func() {
+			if GroupThrottle != nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-GroupThrottle:
+				}
+			}
 			for tg := range groups {
 				log := log.WithField("group", tg.Name)
 				tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
@@ -205,7 +215,10 @@ func logUpdate(ch <-chan int, total int, msg string) {
 			}
 		case now := <-timer.C:
 			elapsed := now.Sub(start)
-			rate := elapsed / time.Duration(current)
+			var rate time.Duration
+			if current > 0 {
+				rate = elapsed / time.Duration(current)
+			}
 			eta := time.Duration(total-current) * rate
 
 			logrus.WithFields(logrus.Fields{
