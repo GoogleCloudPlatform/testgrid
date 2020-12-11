@@ -266,6 +266,34 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	return cols[stillRunning:]
 }
 
+const maxUpdateArea = 10000
+
+func truncateBuilds(builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
+	// determine the average number of rows per column
+	var rows int
+	for _, c := range cols {
+		rows += len(c.cells)
+	}
+
+	nc := len(cols)
+	if nc == 0 {
+		nc = 1
+	}
+	rows /= nc
+	if rows == 0 {
+		rows++ // At least 1 row
+	}
+
+	maxCols := maxUpdateArea / rows
+	if maxCols == 0 {
+		maxCols = 1 // At least one column
+	}
+	if n := len(builds); n > maxCols {
+		return builds[n-maxCols : n]
+	}
+	return builds
+}
+
 func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
 	tgPath, err := groupPath(*tg)
 	if err != nil {
@@ -314,6 +342,8 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		return fmt.Errorf("list builds in %s: %w", *tgPath, err)
 	}
 	log.WithField("total", len(builds)).Debug("Listed builds")
+
+	builds = truncateBuilds(builds, oldCols)
 
 	newCols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
 	if err != nil {

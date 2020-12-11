@@ -561,6 +561,80 @@ func TestTruncateRunning(t *testing.T) {
 	}
 }
 
+func TestTruncateBuilds(t *testing.T) {
+	cases := []struct {
+		name   string
+		builds int
+		rows   []int
+		start  int
+		end    int
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name:   "usually include everything",
+			builds: 5,
+			rows:   []int{100},
+			start:  0,
+			end:    5,
+		},
+		{
+			name:   "many rows truncates columns",
+			builds: 10,
+			rows:   []int{maxUpdateArea / 4, maxUpdateArea / 4, maxUpdateArea / 4, maxUpdateArea / 4},
+			start:  6,
+			end:    10,
+		},
+		{
+			name:   "many new columns truncates",
+			builds: maxUpdateArea,
+			rows:   []int{10},
+			start:  maxUpdateArea - maxUpdateArea/10,
+			end:    maxUpdateArea,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var builds []gcs.Build
+			var cols []inflatedColumn
+			var expected []gcs.Build
+
+			for i := 0; i < tc.builds; i++ {
+				p, err := gcs.NewPath(fmt.Sprintf("gs://fake/job/%d", i))
+				if err != nil {
+					t.Fatalf("bad path: %v", err)
+				}
+				b := gcs.Build{Path: *p}
+				builds = append(builds, b)
+				if i >= tc.start && i < tc.end {
+					expected = append(expected, b)
+				}
+			}
+
+			for _, r := range tc.rows {
+				col := inflatedColumn{
+					cells: map[string]cell{},
+				}
+				for i := 0; i < r; i++ {
+					id := fmt.Sprintf("cell %d", i)
+					c := cell{cellID: id}
+					col.cells[id] = c
+				}
+				cols = append(cols, col)
+			}
+
+			actual := truncateBuilds(builds, cols)
+			diff := cmp.Diff(actual, expected, cmp.AllowUnexported(gcs.Build{}, gcs.Path{}, cell{}, inflatedColumn{}), protocmp.Transform())
+			if diff == "" {
+				return
+			}
+			t.Errorf("truncateRunning() got unexpected diff (-have, +want):\n%s", diff)
+		})
+	}
+}
+
 func TestUpdateGCSGroup(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
