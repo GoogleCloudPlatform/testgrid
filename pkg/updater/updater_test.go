@@ -589,8 +589,8 @@ func TestTruncateBuilds(t *testing.T) {
 		{
 			name:   "many new columns truncates",
 			builds: maxUpdateArea,
-			rows:   []int{10},
-			start:  maxUpdateArea - maxUpdateArea/10,
+			rows:   []int{1000},
+			start:  maxUpdateArea - (maxUpdateArea / 1000),
 			end:    maxUpdateArea,
 		},
 	}
@@ -625,12 +625,16 @@ func TestTruncateBuilds(t *testing.T) {
 				cols = append(cols, col)
 			}
 
-			actual := truncateBuilds(builds, cols)
+			actual := truncateBuilds(logrus.WithField("name", tc.name), builds, cols)
 			diff := cmp.Diff(actual, expected, cmp.AllowUnexported(gcs.Build{}, gcs.Path{}, cell{}, inflatedColumn{}), protocmp.Transform())
 			if diff == "" {
 				return
 			}
-			t.Errorf("truncateRunning() got unexpected diff (-have, +want):\n%s", diff)
+			if have, want := len(actual), len(expected); have != want {
+				t.Errorf("truncateRunning() got %d columns, want %d", have, want)
+			} else {
+				t.Errorf("truncateRunning() got unexpected diff (-have, +want):\n%s", diff)
+			}
 		})
 	}
 }
