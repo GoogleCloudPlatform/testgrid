@@ -17,6 +17,7 @@ limitations under the License.
 package junit
 
 import (
+	"bytes"
 	"encoding/xml"
 	"testing"
 
@@ -171,16 +172,26 @@ func TestParse(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, err := Parse(tc.buf)
+			str := string(tc.buf)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
-					t.Errorf("Parse(%v) got unexpected error: %v", tc.buf, err)
+					t.Errorf("Parse(%q) got unexpected error: %v", str, err)
 				}
 			case tc.expected == nil:
-				t.Errorf("Parse(%v) got %v, wanted an error", tc.buf, actual)
+				t.Errorf("Parse(%q) got %v, wanted an error", str, actual)
 			default:
-				if diff := cmp.Diff(actual, *tc.expected); diff != "" {
-					t.Errorf("Parse(%v) got unexpected diff:\n%s", tc.buf, diff)
+				if diff := cmp.Diff(actual, tc.expected); diff != "" {
+					t.Errorf("Parse(%q) got unexpected diff:\n%s", str, diff)
+				}
+			}
+			if len(tc.buf) > 0 && err == nil {
+				streamActual, err := ParseStream(bytes.NewReader(tc.buf))
+				if err != nil {
+					t.Errorf("ParseStream() got unexpected error: %v", err)
+				}
+				if diff := cmp.Diff(actual, streamActual); diff != "" {
+					t.Errorf("ParseStream() got unexpected diff:\n%s", diff)
 				}
 			}
 		})

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"regexp"
 	"sort"
@@ -273,15 +272,11 @@ func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, erro
 		return nil, fmt.Errorf("open: %w", err)
 	}
 	defer r.Close()
-	buf, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("read: %w", err)
-	}
-	suitesMeta, err := junit.Parse(buf)
+	suitesMeta, err := junit.ParseStream(r)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
-	return &suitesMeta, nil
+	return suitesMeta, nil
 }
 
 // Suites takes a channel of artifact names, parses those representing junit suites, writing the result to the suites channel.
