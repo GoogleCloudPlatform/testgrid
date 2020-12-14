@@ -334,8 +334,7 @@ func readSuites(parent context.Context, client gcs.Downloader, build gcs.Build) 
 			if !more {
 				return suites, nil
 			}
-			const max = 1000
-			suite.Suites.Truncate(max)
+			suite.Suites.Truncate(1000)
 			suites = append(suites, suite)
 		}
 	}

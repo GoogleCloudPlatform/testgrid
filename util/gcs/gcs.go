@@ -127,8 +127,14 @@ const (
 
 // Upload writes bytes to the specified Path
 func Upload(ctx context.Context, client *storage.Client, path Path, buf []byte, worldReadable bool, cacheControl string) error {
+	return realGCSClient{client: client}.Upload(ctx, path, buf, worldReadable, cacheControl)
+}
+
+// Upload writes bytes to the specified ObjectHandle
+func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte, worldReadable bool, cacheControl string) error {
 	crc := calcCRC(buf)
-	w := client.Bucket(path.Bucket()).Object(path.Object()).NewWriter(ctx)
+	w := handle.NewWriter(ctx)
+	defer w.Close()
 	if worldReadable {
 		w.ACL = []storage.ACLRule{{Entity: storage.AllUsers, Role: storage.RoleReader}}
 	}
@@ -141,15 +147,15 @@ func Upload(ctx context.Context, client *storage.Client, path Path, buf []byte, 
 	// https://godoc.org/cloud.google.com/go/storage#Writer.Write
 	w.ObjectAttrs.CRC32C = crc
 	w.ProgressFunc = func(bytes int64) {
-		log.Printf("Uploading %s: %d/%d...", path, bytes, len(buf))
+		log.Printf("Uploading gs://%s/%s: %d/%d...", handle.BucketName(), handle.ObjectName(), bytes, len(buf))
 	}
 	if n, err := w.Write(buf); err != nil {
-		return fmt.Errorf("writing %s failed: %v", path, err)
+		return fmt.Errorf("write: %w", err)
 	} else if n != len(buf) {
-		return fmt.Errorf("partial write of %s: %d < %d", path, n, len(buf))
+		return fmt.Errorf("partial write: %d < %d", n, len(buf))
 	}
 	if err := w.Close(); err != nil {
-		return fmt.Errorf("closing %s failed: %v", path, err)
+		return fmt.Errorf("close: %w", err)
 	}
 	return nil
 }

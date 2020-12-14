@@ -149,6 +149,11 @@ func TestUpdate(t *testing.T) {
 					cacheControl: "no-cache",
 					worldRead:    gcs.DefaultAcl,
 				},
+				*resolveOrDie(&configPath, "skip-non-k8s"): {
+					buf:          mustGrid(&statepb.Grid{}),
+					cacheControl: "no-cache",
+					worldRead:    gcs.DefaultAcl,
+				},
 			},
 		},
 		// TODO(fejta): more cases
@@ -304,6 +309,10 @@ type fakeUploadClient struct {
 	fakeStater
 }
 
+func (fuc fakeUploadClient) If(read, write *storage.Conditions) gcs.ConditionalClient {
+	return fuc
+}
+
 type fakeStat struct {
 	err   error
 	attrs storage.ObjectAttrs
@@ -327,6 +336,22 @@ func (fs fakeStater) Stat(ctx context.Context, path gcs.Path) (*storage.ObjectAt
 }
 
 type fakeUploader map[gcs.Path]fakeUpload
+
+func (fu fakeUploader) Copy(ctx context.Context, from, to gcs.Path) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("injected interrupt: %w", err)
+	}
+	u, present := fu[from]
+	if !present {
+		return storage.ErrObjectNotExist
+	}
+	if err := u.err; err != nil {
+		return fmt.Errorf("injected from error: %w", err)
+	}
+
+	fu[to] = u
+	return nil
+}
 
 func (fuc fakeUploader) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cacheControl string) error {
 	if err := ctx.Err(); err != nil {
