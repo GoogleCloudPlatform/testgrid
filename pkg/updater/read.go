@@ -57,9 +57,6 @@ func downloadGrid(ctx context.Context, opener gcs.Opener, path gcs.Path) (*state
 	return &g, err
 }
 
-// BuildThrottle allows control over starting to read a new column.
-var BuildThrottle <-chan int
-
 // readColumns will list, download and process builds into inflatedColumns.
 func readColumns(parent context.Context, client gcs.Downloader, group *configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
 	// Spawn build readers
@@ -97,15 +94,6 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 		defer wg.Done()
 		defer close(indices)
 		for i := range builds {
-			if BuildThrottle != nil {
-				select {
-				case <-ctx.Done():
-					return
-				case <-old:
-					return
-				case <-BuildThrottle:
-				}
-			}
 			select {
 			case <-ctx.Done():
 				return

@@ -46,9 +46,6 @@ type options struct {
 	buildTimeout     time.Duration
 	gridPrefix       string
 	jsonLogs         bool
-
-	groupMemory uint64
-	buildMemory uint64
 }
 
 // validate ensures sane options
@@ -64,15 +61,13 @@ func (o *options) validate() error {
 	}
 	if o.buildConcurrency == 0 {
 		o.buildConcurrency = runtime.NumCPU()
+		if o.buildConcurrency > 4 {
+			o.buildConcurrency = 4
+		}
 	}
 
 	return nil
 }
-
-const (
-	defaultBuildMemory = 1e9 // 1G
-	defaultGroupMemory = 4e9 // 4G
-)
 
 // gatherOptions reads options from flags
 func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
@@ -90,8 +85,6 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
-	fs.Uint64Var(&o.buildMemory, "build-memory", defaultBuildMemory, "Minimum free memory to read a new build")
-	fs.Uint64Var(&o.groupMemory, "group-memory", defaultGroupMemory, "Minimum free memory to read a new group")
 	fs.Parse(args)
 	return o
 }
@@ -136,8 +129,6 @@ func main() {
 		"group": opt.groupConcurrency,
 		"build": opt.buildConcurrency,
 	}).Info("Configured concurrency")
-
-	updater.GroupThrottle, updater.BuildThrottle = updater.MemThrottle(ctx, opt.groupMemory, opt.buildMemory)
 
 	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm)
 	updateOnce := func() {
