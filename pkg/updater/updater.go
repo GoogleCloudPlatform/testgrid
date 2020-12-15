@@ -266,9 +266,10 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	return cols[stillRunning:]
 }
 
-const maxUpdateArea = 10000
+const maxUpdateArea = 20000
+const initialCols = 5
 
-func truncateBuilds(builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
+func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
 	// determine the average number of rows per column
 	var rows int
 	for _, c := range cols {
@@ -281,15 +282,20 @@ func truncateBuilds(builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
 	}
 	rows /= nc
 	if rows == 0 {
-		rows++ // At least 1 row
+		rows = maxUpdateArea / initialCols
 	}
 
-	maxCols := maxUpdateArea / rows
-	if maxCols == 0 {
-		maxCols = 1 // At least one column
+	nCols := maxUpdateArea / rows
+	if nCols == 0 {
+		nCols = 1 // At least one column
 	}
-	if n := len(builds); n > maxCols {
-		return builds[n-maxCols : n]
+	if n := len(builds); n > nCols {
+		log.WithFields(logrus.Fields{
+			"from":    n,
+			"to":      nCols,
+			"delayed": n - nCols,
+		}).Info("Trucated update")
+		return builds[n-nCols : n]
 	}
 	return builds
 }
@@ -343,7 +349,7 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 	}
 	log.WithField("total", len(builds)).Debug("Listed builds")
 
-	builds = truncateBuilds(builds, oldCols)
+	builds = truncateBuilds(log, builds, oldCols)
 
 	newCols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
 	if err != nil {
