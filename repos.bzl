@@ -653,27 +653,3 @@ def go_repositories():
         sum = "h1:pMen7vLs8nvgEYhywH3KDWJIJTeEr2ULsVWHWYHQyBs=",
         version = "v3.0.0",
     )
-    go_repository(
-        name = "com_github_go_ole_go_ole",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/go-ole/go-ole",
-        sum = "h1:nNBDSCOigTSiarFpYE9J/KtEA1IOW4CNeqT9TQDqCxI=",
-        version = "v1.2.4",
-    )
-    go_repository(
-        name = "com_github_shirou_gopsutil",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/shirou/gopsutil",
-        sum = "h1:LJr4ZQK4mPpIV5gOa4jCOKOGb4ty4DZO54I4FGqIpto=",
-        version = "v3.20.11+incompatible",
-    )
-    go_repository(
-        name = "com_github_stackexchange_wmi",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/StackExchange/wmi",
-        sum = "h1:G0m3OIz70MZUWq3EgK3CesDbo8upS2Vm9/P3FtgI+Jk=",
-        version = "v0.0.0-20190523213315-cbe66965904d",
-    )
