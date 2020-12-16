@@ -177,7 +177,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 						switch ee := err.(type) {
 						case *googleapi.Error:
 							if ee.Code == http.StatusPreconditionFailed {
-								log.Info("Lost the lock race")
+								log.Debug("Lost the lock race")
 								continue
 							}
 						}
