@@ -2431,3 +2431,63 @@ func TestStamp(t *testing.T) {
 		})
 	}
 }
+
+func TestBumpMaxUpdateArea(t *testing.T) {
+	updateAreaLock.RLock()
+	orig := maxUpdateArea
+	updateAreaLock.RUnlock()
+	defer func(orig int) {
+		updateAreaLock.Lock()
+		maxUpdateArea = orig
+		updateAreaLock.Unlock()
+	}(orig)
+
+	cases := []struct {
+		name    string
+		start   int
+		floor   int
+		ceiling int
+	}{
+		{
+			name:    "bump grows update area",
+			start:   1,
+			floor:   2,
+			ceiling: maxMaxUpdateArea,
+		},
+		{
+			name:    "original update area smaller than final",
+			start:   orig,
+			floor:   orig + 1,
+			ceiling: maxMaxUpdateArea - 1,
+		},
+		{
+			name:  "grow to limit",
+			start: maxMaxUpdateArea - 1,
+			floor: maxMaxUpdateArea,
+		},
+		{
+			name:    "do not grow past limt",
+			start:   maxMaxUpdateArea + 1,
+			floor:   maxMaxUpdateArea + 1,
+			ceiling: maxMaxUpdateArea + 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			updateAreaLock.Lock()
+			maxUpdateArea = tc.start
+			updateAreaLock.Unlock()
+			growMaxUpdateArea()
+			updateAreaLock.RLock()
+			actual := maxUpdateArea
+			updateAreaLock.RUnlock()
+			if tc.floor != 0 && actual < tc.floor {
+				t.Errorf("maxUpdateArea=%d growMaxUpdateArea() got %d < %d", tc.start, actual, tc.floor)
+			}
+			if tc.ceiling != 0 && actual > tc.ceiling {
+				t.Errorf("maxUpdateArea=%d growMaxUpdateArea() got %d > %d", tc.start, actual, tc.ceiling)
+			}
+		})
+	}
+}

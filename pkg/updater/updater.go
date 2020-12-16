@@ -145,6 +145,7 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 }
 
 func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater) error {
+	defer growMaxUpdateArea()
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
@@ -305,8 +306,30 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	return cols[stillRunning:]
 }
 
-const maxUpdateArea = 20000
+var (
+	maxUpdateArea  int = 20000
+	updateAreaLock sync.RWMutex
+)
+
+const maxMaxUpdateArea = 1000000
 const initialCols = 5
+
+// growMaxUpdateArea allows testgrid to increase the update area size over time.
+//
+// This allows the potential for larger, faster updates when the system is stable
+// While also falling back to a slower, more stable mode after a crash (potentially
+// caused by too large an update)
+func growMaxUpdateArea() {
+	updateAreaLock.RLock()
+	cur := maxUpdateArea
+	updateAreaLock.RUnlock()
+	if cur >= maxMaxUpdateArea {
+		return
+	}
+	updateAreaLock.Lock()
+	maxUpdateArea *= 2
+	updateAreaLock.Unlock()
+}
 
 func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
 	// determine the average number of rows per column
@@ -320,11 +343,14 @@ func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedC
 		nc = 1
 	}
 	rows /= nc
+	updateAreaLock.RLock()
+	updateArea := maxUpdateArea
+	updateAreaLock.RUnlock()
 	if rows == 0 {
-		rows = maxUpdateArea / initialCols
+		rows = updateArea / initialCols
 	}
 
-	nCols := maxUpdateArea / rows
+	nCols := updateArea / rows
 	if nCols == 0 {
 		nCols = 1 // At least one column
 	}
