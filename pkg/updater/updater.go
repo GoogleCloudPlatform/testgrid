@@ -411,8 +411,8 @@ func constructGrid(group *configpb.TestGroup, cols []inflatedColumn) *statepb.Gr
 
 	for _, col := range cols {
 		appendColumn(&grid, rows, col)
-		alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 	}
+	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
 	})
