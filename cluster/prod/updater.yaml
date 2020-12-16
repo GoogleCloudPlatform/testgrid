@@ -8,7 +8,7 @@ metadata:
     component: updater
     app: testgrid
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: testgrid
@@ -22,13 +22,12 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20201211-v0.0.33-12-gca2f05b
+        image: gcr.io/k8s-testgrid/updater:v20201216-v0.0.33-28-g01968e7
         args:
-        - --build-concurrency=4
-        - --build-timeout=10m
+        - --build-timeout=1m
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --group-timeout=60m
+        - --group-timeout=5m
         - --wait=5m
 ---
 apiVersion: v1
