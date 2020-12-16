@@ -42,6 +42,7 @@ func (s *suiteOrSuites) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 	default:
 		return fmt.Errorf("bad element name: %q", start.Name)
 	}
+	s.suites.Truncate(10000)
 	return nil
 }
 
