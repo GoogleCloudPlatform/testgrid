@@ -135,11 +135,11 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 				b := builds[idx]
 
 				// use ctx so we finish reading, even if buildCtx is done
-				inner, cancel := context.WithTimeout(ctx, buildTimeout)
-				defer cancel()
+				inner, innerCancel := context.WithTimeout(ctx, buildTimeout)
+				defer innerCancel()
 				result, err := readResult(inner, client, b)
 				if err != nil {
-					cancel()
+					innerCancel()
 					select {
 					case <-ctx.Done():
 					case ec <- fmt.Errorf("read %s: %w", b, err):
@@ -147,7 +147,15 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 					return
 				}
 				id := path.Base(b.Path.Object())
-				col := convertResult(nameCfg, id, heads, *result)
+				col, err := convertResult(ctx, log, nameCfg, id, heads, *result)
+				if err != nil {
+					innerCancel()
+					select {
+					case <-ctx.Done():
+					case ec <- fmt.Errorf("convert %s: %w", b, err):
+					}
+					return
+				}
 				if int64(col.column.Started) < stop {
 					// Multiple go-routines may all read an old result.
 					// So we need to use a mutex to read the current max column
@@ -177,7 +185,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 						}
 					}()
 				}
-				cols[idx] = col
+				cols[idx] = *col
 			}
 		}()
 	}

@@ -17,8 +17,12 @@ limitations under the License.
 package updater
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
@@ -37,7 +41,7 @@ type gcsResult struct {
 }
 
 // convertResult returns an inflatedColumn representation of the GCS result.
-func convertResult(nameCfg nameConfig, id string, headers []string, result gcsResult) inflatedColumn {
+func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, result gcsResult) (*inflatedColumn, error) {
 	overall := overallCell(result)
 	out := inflatedColumn{
 		column: &statepb.Column{
@@ -115,8 +119,21 @@ func convertResult(nameCfg nameConfig, id string, headers []string, result gcsRe
 			//   foo [2]
 			//   etc
 			if _, present := out.cells[name]; present {
+				var attempt string
 				for idx := 1; true; idx++ {
-					attempt := fmt.Sprintf("%s [%d]", name, idx)
+					select {
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					default:
+					}
+					if idx%100 == 0 {
+						log.WithFields(logrus.Fields{
+							"name":  name,
+							"count": idx,
+						}).Warning("Many duplicate names")
+					}
+
+					attempt = name + " [" + strconv.Itoa(idx) + "]"
 					if _, present := out.cells[attempt]; present {
 						continue
 					}
@@ -147,7 +164,7 @@ func convertResult(nameCfg nameConfig, id string, headers []string, result gcsRe
 		}
 	}
 
-	return out
+	return &out, nil
 }
 
 // overallCell generates the overall cell for this GCS result.
