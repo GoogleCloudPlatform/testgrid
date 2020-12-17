@@ -125,12 +125,12 @@ const (
 	PublicRead = true
 )
 
-// Upload writes bytes to the specified Path
+// Upload writes bytes to the specified Path by converting the client and path into an ObjectHandle.
 func Upload(ctx context.Context, client *storage.Client, path Path, buf []byte, worldReadable bool, cacheControl string) error {
 	return realGCSClient{client: client}.Upload(ctx, path, buf, worldReadable, cacheControl)
 }
 
-// Upload writes bytes to the specified ObjectHandle
+// UploadHandle writes bytes to the specified ObjectHandle
 func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte, worldReadable bool, cacheControl string) error {
 	crc := calcCRC(buf)
 	w := handle.NewWriter(ctx)

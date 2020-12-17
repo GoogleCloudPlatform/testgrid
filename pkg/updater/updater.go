@@ -144,6 +144,7 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	return client.If(&cond, &cond).Upload(ctx, path, buf, gcs.DefaultAcl, "no-cache")
 }
 
+// Update performs a single update pass of all all test groups specified by the config.
 func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater) error {
 	defer growMaxUpdateArea()
 	ctx, cancel := context.WithCancel(parent)
