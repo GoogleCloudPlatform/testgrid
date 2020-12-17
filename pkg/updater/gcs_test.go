@@ -17,9 +17,14 @@ limitations under the License.
 package updater
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
@@ -39,15 +44,16 @@ func TestConvertResult(t *testing.T) {
 	now := time.Now().Unix()
 	cases := []struct {
 		name     string
+		ctx      context.Context
 		nameCfg  nameConfig
 		id       string
 		headers  []string
 		result   gcsResult
-		expected inflatedColumn
+		expected *inflatedColumn
 	}{
 		{
 			name: "basically works",
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{},
 				cells: map[string]cell{
 					"Overall": {
@@ -78,7 +84,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{
 					Build:   "hello",
 					Started: 300 * 1000,
@@ -118,7 +124,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{
 					Build:   "hello",
 					Started: float64(now * 1000),
@@ -172,7 +178,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -252,7 +258,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -350,7 +356,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -427,7 +433,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: inflatedColumn{
+			expected: &inflatedColumn{
 				column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -451,21 +457,93 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "cancelled context returns error",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+			nameCfg: nameConfig{
+				format: "%s - %s",
+				parts:  []string{"Tests name", "extra"},
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "same",
+											Time: 1,
+										},
+										{
+											Name: "same",
+											Time: 2,
+										},
+									},
+								},
+							},
+						},
+						Metadata: map[string]string{
+							"extra": "same",
+						},
+					},
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "same",
+											Time: 3,
+										},
+									},
+								},
+							},
+						},
+						Metadata: map[string]string{
+							"extra": "same",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := convertResult(tc.nameCfg, tc.id, tc.headers, tc.result)
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf(
-					"convertResult(%v, %v,%v, %v) got %v, want %v",
-					tc.nameCfg,
-					tc.id,
-					tc.headers,
-					tc.result,
-					actual,
-					tc.expected,
-				)
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+			log := logrus.WithField("test name", tc.name)
+			actual, err := convertResult(ctx, log, tc.nameCfg, tc.id, tc.headers, tc.result)
+			switch {
+			case err != nil:
+				if tc.expected != nil {
+					t.Errorf("convertResult() got unexpected error: %v", err)
+				}
+			case tc.expected == nil:
+				t.Error("convertResult() failed to return an error")
+			default:
+				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+					t.Errorf("convertResult() got unexpected diff (-have, +want):\n", diff)
+				}
 			}
 		})
 	}
