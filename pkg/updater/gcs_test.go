@@ -18,6 +18,7 @@ package updater
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -520,6 +521,89 @@ func TestConvertResult(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		{
+			name: "excessively duplicated rows overflows",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{"Tests name"},
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: func() []junit.Result {
+										var out []junit.Result
+										under := junit.Result{Name: "under"}
+										max := junit.Result{Name: "max"}
+										over := junit.Result{Name: "over"}
+										for i := 0; i < maxDuplicates; i++ {
+											under.Time = float64(i)
+											max.Time = float64(i)
+											over.Time = float64(i)
+											out = append(out, under, max, over)
+										}
+										max.Time = maxDuplicates
+										over.Time = maxDuplicates
+										out = append(out, max, over)
+										over.Time++
+										out = append(out, over)
+										return out
+									}(),
+								},
+							},
+						},
+						Metadata: map[string]string{
+							"extra": "same",
+						},
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: func() map[string]cell {
+					out := map[string]cell{
+						"Overall": {
+							result:  statuspb.TestStatus_PASS,
+							metrics: setElapsed(nil, 1),
+						},
+					}
+					under := cell{result: statuspb.TestStatus_PASS}
+					max := cell{result: statuspb.TestStatus_PASS}
+					over := cell{result: statuspb.TestStatus_PASS}
+					out["under"] = under
+					out["max"] = max
+					out["over"] = over
+					for i := 1; i < maxDuplicates; i++ {
+						t := float64(i)
+						under.metrics = setElapsed(nil, t)
+						out[fmt.Sprintf("under [%d]", i)] = under
+						max.metrics = setElapsed(nil, t)
+						out[fmt.Sprintf("max [%d]", i)] = max
+						over.metrics = setElapsed(nil, t)
+						out[fmt.Sprintf("over [%d]", i)] = over
+					}
+					max.metrics = setElapsed(nil, maxDuplicates)
+					out[`max [overflow]`] = overflowCell
+					out[`over [overflow]`] = overflowCell
+					return out
+				}(),
 			},
 		},
 	}

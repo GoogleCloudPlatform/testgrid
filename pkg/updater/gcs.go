@@ -40,6 +40,14 @@ type gcsResult struct {
 	suites   []gcs.SuitesMeta
 }
 
+const maxDuplicates = 20
+
+var overflowCell = cell{
+	result:  statuspb.TestStatus_FAIL,
+	icon:    "...",
+	message: "Too many duplicately named rows",
+}
+
 // convertResult returns an inflatedColumn representation of the GCS result.
 func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, result gcsResult) (*inflatedColumn, error) {
 	overall := overallCell(result)
@@ -72,7 +80,7 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 			if r.Skipped != nil && *r.Skipped == "" {
 				continue
 			}
-			var c cell
+			c := &cell{}
 			// TODO(fejta): process properties?
 			if elapsed := r.Time; elapsed > 0 {
 				c.metrics = setElapsed(c.metrics, elapsed)
@@ -126,11 +134,14 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 						return nil, ctx.Err()
 					default:
 					}
-					if idx%100 == 0 {
-						log.WithFields(logrus.Fields{
-							"name":  name,
-							"count": idx,
-						}).Warning("Many duplicate names")
+					if idx == maxDuplicates {
+						name = name + " [overflow]"
+						if _, present := out.cells[name]; present {
+							c = nil
+							break
+						}
+						c = &overflowCell
+						break
 					}
 
 					attempt = name + " [" + strconv.Itoa(idx) + "]"
@@ -141,7 +152,10 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 					break
 				}
 			}
-			out.cells[name] = c
+			if c == nil {
+				continue
+			}
+			out.cells[name] = *c
 		}
 	}
 
