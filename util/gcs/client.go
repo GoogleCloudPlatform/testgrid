@@ -55,7 +55,7 @@ type Stater interface {
 	Stat(ctx context.Context, prefix Path) (*storage.ObjectAttrs, error)
 }
 
-// A copier can cloud copy an object to a new location if it
+// A Copier can cloud copy an object to a new location.
 type Copier interface {
 	// Copy an object to the specified path
 	Copy(ctx context.Context, from, to Path) error

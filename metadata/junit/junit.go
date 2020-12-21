@@ -52,6 +52,7 @@ type Suites struct {
 	Suites  []Suite  `xml:"testsuite"`
 }
 
+// Truncate ensures that strings do not exceed the specified length.
 func (s *Suites) Truncate(max int) {
 	for i := range s.Suites {
 		s.Suites[i].Truncate(max)
@@ -130,17 +131,17 @@ func (r *Result) SetProperty(name, value string) {
 // Message extracts the message for the junit test case.
 //
 // Will use the first non-empty <failure/>, <skipped/>, <system-err/>, <system-out/> value.
-func (jr Result) Message(max int) string {
+func (r Result) Message(max int) string {
 	var msg string
 	switch {
-	case jr.Failure != nil && *jr.Failure != "":
-		msg = *jr.Failure
-	case jr.Skipped != nil && *jr.Skipped != "":
-		msg = *jr.Skipped
-	case jr.Error != nil && *jr.Error != "":
-		msg = *jr.Error
-	case jr.Output != nil && *jr.Output != "":
-		msg = *jr.Output
+	case r.Failure != nil && *r.Failure != "":
+		msg = *r.Failure
+	case r.Skipped != nil && *r.Skipped != "":
+		msg = *r.Skipped
+	case r.Error != nil && *r.Error != "":
+		msg = *r.Error
+	case r.Output != nil && *r.Output != "":
+		msg = *r.Output
 	}
 	msg = truncate(msg, max)
 	if utf8.ValidString(msg) {
@@ -170,8 +171,8 @@ func truncatePointer(str *string, max int) {
 }
 
 // Truncate ensures that strings do not exceed the specified length.
-func (jr Result) Truncate(max int) {
-	for _, s := range []*string{jr.Failure, jr.Skipped, jr.Error, jr.Output} {
+func (r Result) Truncate(max int) {
+	for _, s := range []*string{r.Failure, r.Skipped, r.Error, r.Output} {
 		truncatePointer(s, max)
 	}
 }

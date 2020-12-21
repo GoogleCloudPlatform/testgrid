@@ -626,7 +626,7 @@ func TestConvertResult(t *testing.T) {
 				t.Error("convertResult() failed to return an error")
 			default:
 				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
-					t.Errorf("convertResult() got unexpected diff (-have, +want):\n", diff)
+					t.Errorf("convertResult() got unexpected diff (-have, +want):\n%s", diff)
 				}
 			}
 		})
