@@ -424,7 +424,7 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 
 	cols := mergeColumns(newCols, oldCols)
 
-	grid := constructGrid(tg, cols)
+	grid := constructGrid(log, tg, cols)
 	buf, err := marshalGrid(grid)
 	if err != nil {
 		return fmt.Errorf("marshal grid: %w", err)
@@ -478,7 +478,7 @@ func days(d float64) time.Duration {
 // constructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(group *configpb.TestGroup, cols []inflatedColumn) *statepb.Grid {
+func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []inflatedColumn) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -491,6 +491,9 @@ func constructGrid(group *configpb.TestGroup, cols []inflatedColumn) *statepb.Gr
 	for _, col := range cols {
 		appendColumn(&grid, rows, col)
 	}
+
+	dropEmptyRows(log, &grid, rows)
+
 	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
@@ -505,6 +508,36 @@ func constructGrid(group *configpb.TestGroup, cols []inflatedColumn) *statepb.Gr
 		})
 	}
 	return &grid
+}
+
+func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*statepb.Row) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	filled := make([]*statepb.Row, 0, len(rows))
+	var dropped int
+	for _, r := range grid.Rows {
+		var found bool
+		for res := range result.Iter(ctx, r.Results) {
+			if res == statuspb.TestStatus_NO_RESULT {
+				continue
+			}
+			found = true
+			break
+		}
+		if !found {
+			dropped++
+			delete(rows, r.Name)
+			continue
+		}
+		filled = append(filled, r)
+	}
+
+	if dropped == 0 {
+		return
+	}
+
+	grid.Rows = filled
+	log.WithField("dropped", dropped).Info("Dropped old rows")
 }
 
 // marhshalGrid serializes a state proto into zlib-compressed bytes.

@@ -1672,7 +1672,7 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := constructGrid(&tc.group, tc.cols)
+			actual := constructGrid(logrus.WithField("name", tc.name), &tc.group, tc.cols)
 			failuresOpen := int(tc.group.NumFailuresToAlert)
 			passesClose := int(tc.group.NumPassesToDisableAlert)
 			if failuresOpen > 0 && passesClose == 0 {
@@ -2487,6 +2487,95 @@ func TestBumpMaxUpdateArea(t *testing.T) {
 			}
 			if tc.ceiling != 0 && actual > tc.ceiling {
 				t.Errorf("maxUpdateArea=%d growMaxUpdateArea() got %d > %d", tc.start, actual, tc.ceiling)
+			}
+		})
+	}
+}
+
+func TestDropEmptyRows(t *testing.T) {
+	cases := []struct {
+		name     string
+		results  map[string][]int32
+		expected map[string][]int32
+	}{
+		{
+			name:     "basically works",
+			expected: map[string][]int32{},
+		},
+		{
+			name: "keep everything",
+			results: map[string][]int32{
+				"pass":    {int32(statuspb.TestStatus_PASS), 1},
+				"fail":    {int32(statuspb.TestStatus_FAIL), 2},
+				"running": {int32(statuspb.TestStatus_RUNNING), 3},
+			},
+			expected: map[string][]int32{
+				"pass":    {int32(statuspb.TestStatus_PASS), 1},
+				"fail":    {int32(statuspb.TestStatus_FAIL), 2},
+				"running": {int32(statuspb.TestStatus_RUNNING), 3},
+			},
+		},
+		{
+			name: "keep mixture",
+			results: map[string][]int32{
+				"was empty": {
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_NO_RESULT), 1,
+				},
+				"now empty": {
+					int32(statuspb.TestStatus_NO_RESULT), 2,
+					int32(statuspb.TestStatus_FAIL), 2,
+				},
+			},
+			expected: map[string][]int32{
+				"was empty": {
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_NO_RESULT), 1,
+				},
+				"now empty": {
+					int32(statuspb.TestStatus_NO_RESULT), 2,
+					int32(statuspb.TestStatus_FAIL), 2,
+				},
+			},
+		},
+		{
+			name: "drop everything",
+			results: map[string][]int32{
+				"drop": {int32(statuspb.TestStatus_NO_RESULT), 1},
+				"gone": {int32(statuspb.TestStatus_NO_RESULT), 10},
+				"poof": {int32(statuspb.TestStatus_NO_RESULT), 100},
+			},
+			expected: map[string][]int32{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var grid statepb.Grid
+			rows := make(map[string]*statepb.Row, len(tc.results))
+			for name, res := range tc.results {
+				r := &statepb.Row{Name: name}
+				r.Results = res
+				grid.Rows = append(grid.Rows, r)
+				rows[name] = r
+			}
+			dropEmptyRows(logrus.WithField("name", tc.name), &grid, rows)
+			actualRowMap := make(map[string]*statepb.Row, len(grid.Rows))
+			for _, r := range grid.Rows {
+				actualRowMap[r.Name] = r
+			}
+
+			if diff := cmp.Diff(rows, actualRowMap, protocmp.Transform()); diff != "" {
+				t.Fatalf("dropEmptyRows() unmatched row maps (-grid, +map):\n%s", diff)
+			}
+
+			actual := make(map[string][]int32, len(rows))
+			for name, row := range rows {
+				actual[name] = row.Results
+			}
+
+			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("dropEmptyRows() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
