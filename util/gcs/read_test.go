@@ -1101,7 +1101,7 @@ func TestSuites(t *testing.T) {
 			name: "read suites error returns errors",
 			path: newPathOrDie("gs://where/whatever"),
 			artifacts: map[string]string{
-				"/something/junit.xml": `this is invalid json`,
+				"/something/junit.xml": `<this is invalid json`,
 			},
 			err: true,
 		},

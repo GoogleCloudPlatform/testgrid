@@ -205,7 +205,7 @@ func ParseStream(reader io.Reader) (*Suites, error) {
 	// Try to parse it as a <testsuites/> object
 	var s suiteOrSuites
 	err := unmarshalXML(reader, &s)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return nil, err
 	}
 	return &s.suites, nil
