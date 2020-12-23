@@ -111,7 +111,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name: "not xml fails",
-			buf:  []byte("hello"),
+			buf:  []byte("<hello"),
 		},
 		{
 			name: "parse testsuite correctly",
@@ -185,7 +185,7 @@ func TestParse(t *testing.T) {
 					t.Errorf("Parse(%q) got unexpected diff:\n%s", str, diff)
 				}
 			}
-			if len(tc.buf) > 0 && err == nil {
+			if err == nil {
 				streamActual, err := ParseStream(bytes.NewReader(tc.buf))
 				if err != nil {
 					t.Errorf("ParseStream() got unexpected error: %v", err)
