@@ -22,6 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
+
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
@@ -335,13 +338,68 @@ func TestInflateGrid(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "keep newest old column when none newer",
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Build:   "drop-latest1",
+						Started: millis(hours[23]),
+					},
+					{
+						Build:   "keep-old1",
+						Started: millis(hours[10]) - 1,
+					},
+					{
+						Build:   "drop-old2",
+						Started: millis(hours[0]),
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:     "hello",
+						CellIds:  blank(4),
+						Messages: blank(4),
+						Icons:    blank(4),
+						Results: []int32{
+							int32(statuspb.TestStatus_RUNNING), 1,
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_FLAKY), 1,
+						},
+					},
+					{
+						Name:     "world",
+						CellIds:  blank(4),
+						Messages: blank(4),
+						Icons:    blank(4),
+						Results: []int32{
+							int32(statuspb.TestStatus_PASS_WITH_SKIPS), 3,
+						},
+					},
+				},
+			},
+			latest:   hours[20],
+			earliest: hours[10],
+			expected: []inflatedColumn{
+				{
+					column: &statepb.Column{
+						Build:   "keep-old1",
+						Started: millis(hours[10]) - 1,
+					},
+					cells: map[string]cell{
+						"hello": {result: statuspb.TestStatus_FAIL},
+						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := inflateGrid(&tc.grid, tc.earliest, tc.latest)
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("inflateGrid(%v) got %v, want %v", tc.grid, actual, tc.expected)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+				t.Errorf("inflateGrid(%v) got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 
