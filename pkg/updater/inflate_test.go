@@ -399,7 +399,7 @@ func TestInflateGrid(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := inflateGrid(&tc.grid, tc.earliest, tc.latest)
 			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
-				t.Errorf("inflateGrid(%v) got unexpected diff (-have, +want):\n%s", diff)
+				t.Errorf("inflateGrid() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 
