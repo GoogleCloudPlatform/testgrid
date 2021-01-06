@@ -146,8 +146,12 @@ func main() {
 	timer := time.NewTimer(opt.wait)
 	defer timer.Stop()
 	for range timer.C {
+		until := time.Now().Add(opt.wait).Round(time.Second)
 		timer.Reset(opt.wait)
 		updateOnce()
-		logrus.WithField("wait", opt.wait).Info("Sleeping...")
+		logrus.WithFields(logrus.Fields{
+			"wait":  opt.wait,
+			"until": until,
+		}).Info("Sleeping...")
 	}
 }
