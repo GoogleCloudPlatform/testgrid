@@ -8,6 +8,7 @@ skipPullRequest: false
 gitHubOrg: "GoogleCloudPlatform"
 gitHubRepo: "testgrid"
 remoteName: "testgrid"
+headBranchName: "autobump-canary"
 upstreamURLBase: "https://raw.githubusercontent.com/GoogleCloudPlatform/testgrid/master"
 includedConfigPaths:
   - "cluster/canary"
