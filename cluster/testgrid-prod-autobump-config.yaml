@@ -1,0 +1,21 @@
+---
+gitHubLogin: "k8s-ci-robot"
+gitHubToken: "/etc/github-token/oauth"
+gitName: "Kubernetes Prow Robot"
+gitEmail: "k8s.ci.robot@gmail.com"
+onCallAddress: "https://storage.googleapis.com/kubernetes-jenkins/oncall.json"
+skipPullRequest: false
+gitHubOrg: "GoogleCloudPlatform"
+gitHubRepo: "testgrid"
+remoteName: "testgrid"
+upstreamURLBase: "https://raw.githubusercontent.com/GoogleCloudPlatform/testgrid/master"
+includedConfigPaths:
+  - "cluster/prod"
+targetVersion: "upstream"
+prefixes:
+  - name: "Testgrid Prod"
+    prefix: "gcr.io/k8s-testgrid/"
+    refConfigFile: "cluster/canary/summarizer.yaml"
+    repo: "https://github.com/GoogleCloudPlatform/testgrid"
+    summarise: true
+    consistentImages: true
