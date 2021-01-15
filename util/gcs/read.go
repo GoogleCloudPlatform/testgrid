@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -52,7 +53,7 @@ type Finished struct {
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
 	Path              Path
-	originalPrefix    string
+	baseName          string
 	suitesConcurrency int // override the max number of concurrent suite downloads
 }
 
@@ -70,15 +71,32 @@ func readLink(objAttrs *storage.ObjectAttrs) string {
 	return ""
 }
 
+// Sort the builds by monotonically increasing original prefix base name.
+//
+// In other words,
+//   gs://c/10
+//   gs://a/5
+//   gs://b/1
+// becomes:
+//   gs://b/1
+//   gs://a/5
+//   gs://c/10
+
+func Sort(builds []Build) {
+	sort.SliceStable(builds, func(i, j int) bool {
+		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName)
+	})
+}
+
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
-func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) ([]Build, error) {
+func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path) ([]Build, error) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	var offset string
 	if after != nil {
 		offset = after.Object()
 	}
-	it := lister.Objects(ctx, path, "/", offset)
+	it := lister.Objects(ctx, gcsPath, "/", offset)
 	var all []Build
 	for {
 		objAttrs, err := it.Next()
@@ -108,8 +126,8 @@ func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) (
 				return nil, fmt.Errorf("bad %s link path %s: %w", objAttrs.Name, u, err)
 			}
 			all = append(all, Build{
-				Path:           linkPath,
-				originalPrefix: objAttrs.Name,
+				Path:     linkPath,
+				baseName: path.Base(objAttrs.Name),
 			})
 			continue
 		}
@@ -118,28 +136,26 @@ func ListBuilds(parent context.Context, lister Lister, path Path, after *Path) (
 			continue // not a symlink to a directory
 		}
 
-		loc := "gs://" + path.Bucket() + "/" + objAttrs.Prefix
-		path, err := NewPath(loc)
+		loc := "gs://" + gcsPath.Bucket() + "/" + objAttrs.Prefix
+		gcsPath, err := NewPath(loc)
 		if err != nil {
 			return nil, fmt.Errorf("bad path %q: %w", loc, err)
 		}
 
 		all = append(all, Build{
-			Path:           *path,
-			originalPrefix: objAttrs.Prefix,
+			Path:     *gcsPath,
+			baseName: path.Base(objAttrs.Prefix),
 		})
 	}
 
-	sort.SliceStable(all, func(i, j int) bool {
-		// ! because we want the latest (aka largest) items first.
-		return !sortorder.NaturalLess(all[i].originalPrefix, all[j].originalPrefix)
-	})
+	Sort(all)
 
 	if offset != "" {
 		// GCS will return 200 2000 30 for a prefix of 100
 		// testgrid expects this as 2000 200 (dropping 30)
+		offsetBaseName := path.Base(offset)
 		for i, b := range all {
-			if sortorder.NaturalLess(b.originalPrefix, offset) {
+			if sortorder.NaturalLess(b.baseName, offsetBaseName) {
 				return all[:i], nil
 			}
 		}

@@ -29,6 +29,7 @@ import (
 	"path"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -274,20 +275,41 @@ func logUpdate(ch <-chan int, total int, msg string) {
 	}
 }
 
-func groupPath(tg configpb.TestGroup) (*gcs.Path, error) {
-	u, err := url.Parse("gs://" + tg.GcsPrefix)
-	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	if u.Path != "" && u.Path[len(u.Path)-1] != '/' {
-		u.Path += "/"
-	}
+// AllowMultiplePaths enables combining multiple jobs together using a comma.
+//
+// This feature is undocumented and poorly tested, so restrict to specific groups.
+// TODO(fejta): redesign this feature (using symlinks?), ensure it works correctly.
+var AllowMultiplePaths = map[string]bool{}
 
-	var p gcs.Path
-	if err := p.SetURL(u); err != nil {
-		return nil, err
+func groupPaths(tg configpb.TestGroup) ([]gcs.Path, error) {
+	var out []gcs.Path
+	prefixes := strings.Split(tg.GcsPrefix, ",")
+	if len(prefixes) > 1 && !AllowMultiplePaths[tg.Name] {
+		return nil, fmt.Errorf("Maximum of one GCS path allowed")
 	}
-	return &p, nil
+	for idx, prefix := range prefixes {
+		prefix := strings.TrimSpace(prefix)
+		if prefix == "" {
+			continue
+		}
+		u, err := url.Parse("gs://" + prefix)
+		if err != nil {
+			return nil, fmt.Errorf("parse: %w", err)
+		}
+		if u.Path != "" && u.Path[len(u.Path)-1] != '/' {
+			u.Path += "/"
+		}
+
+		var p gcs.Path
+		if err := p.SetURL(u); err != nil {
+			if idx > 0 {
+				return nil, fmt.Errorf("%d: %q: %w", err)
+			}
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, nil
 }
 
 // truncateRunning filters out all columns until the oldest still running column.
@@ -367,8 +389,36 @@ func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedC
 	return builds
 }
 
+func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...gcs.Path) ([]gcs.Build, error) {
+	var out []gcs.Build
+
+	for idx, tgPath := range paths {
+		var offset *gcs.Path
+		var err error
+		if since != "" {
+			if offset, err = tgPath.ResolveReference(&url.URL{Path: since}); err != nil {
+				return nil, fmt.Errorf("resolve since: %w", err)
+			}
+		}
+		builds, err := gcs.ListBuilds(ctx, client, tgPath, offset)
+		if err != nil {
+			if len(paths) > 0 {
+				err = fmt.Errorf("%d: %s: %w", idx, tgPath, err)
+			}
+			return nil, err
+		}
+		out = append(out, builds...)
+	}
+
+	if len(paths) > 0 {
+		gcs.Sort(out)
+	}
+
+	return out, nil
+}
+
 func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
-	tgPath, err := groupPath(*tg)
+	tgPaths, err := groupPaths(*tg)
 	if err != nil {
 		return fmt.Errorf("group path: %w", err)
 	}
@@ -393,12 +443,9 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-4*time.Hour)))
 	}
 
-	var since *gcs.Path
+	var since string
 	if len(oldCols) > 0 {
-		since, err = tgPath.ResolveReference(&url.URL{Path: oldCols[0].column.Build})
-		if err != nil {
-			log.WithError(err).Warning("Failed to resolve offset")
-		}
+		since = oldCols[0].column.Build
 		newStop := time.Unix(int64(oldCols[0].column.Started/1000), 0)
 		if newStop.After(stop) {
 			log.WithFields(logrus.Fields{
@@ -410,9 +457,12 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		}
 	}
 
-	builds, err := gcs.ListBuilds(ctx, client, *tgPath, since)
+	builds, err := listBuilds(ctx, client, since, tgPaths...)
 	if err != nil {
-		return fmt.Errorf("list builds in %s: %w", *tgPath, err)
+		if len(tgPaths) == 0 {
+			err = fmt.Errorf("%s: %w", err)
+		}
+		return fmt.Errorf("list builds: %w", err)
 	}
 	log.WithField("total", len(builds)).Debug("Listed builds")
 

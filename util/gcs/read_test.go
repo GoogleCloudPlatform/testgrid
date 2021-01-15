@@ -73,12 +73,12 @@ func TestListBuilds(t *testing.T) {
 			},
 			expected: []Build{
 				{
-					Path:           resolveOrDie(path, "world"),
-					originalPrefix: "path/to/build/world",
+					Path:     resolveOrDie(path, "world"),
+					baseName: "world",
 				},
 				{
-					Path:           newPathOrDie("gs://bucket/path/to/build/hello"),
-					originalPrefix: resolveOrDie(path, "hello").Object(),
+					Path:     newPathOrDie("gs://bucket/path/to/build/hello"),
+					baseName: "hello",
 				},
 			},
 		},
@@ -92,12 +92,12 @@ func TestListBuilds(t *testing.T) {
 			},
 			expected: []Build{
 				{
-					Path:           newPathOrDie("gs://second-bucket/somewhere/"),
-					originalPrefix: resolveOrDie(path, "second").Object(),
+					Path:     newPathOrDie("gs://second-bucket/somewhere/"),
+					baseName: "second",
 				},
 				{
-					Path:           newPathOrDie("gs://another-bucket/path/inside/"),
-					originalPrefix: resolveOrDie(path, "first").Object(),
+					Path:     newPathOrDie("gs://another-bucket/path/inside/"),
+					baseName: "first",
 				},
 			},
 		},
@@ -140,12 +140,12 @@ func TestListBuilds(t *testing.T) {
 			offset: pResolveOrDie(path, "more"),
 			expected: []Build{
 				{
-					Path:           resolveOrDie(path, "world"),
-					originalPrefix: resolveOrDie(path, "world").Object(),
+					Path:     resolveOrDie(path, "world"),
+					baseName: "world",
 				},
 				{
-					Path:           resolveOrDie(path, "more"),
-					originalPrefix: resolveOrDie(path, "more").Object(),
+					Path:     resolveOrDie(path, "more"),
+					baseName: "more",
 				},
 			},
 		},
@@ -164,20 +164,20 @@ func TestListBuilds(t *testing.T) {
 			offset: pResolveOrDie(path, "hello100"),
 			expected: []Build{
 				{
-					Path:           resolveOrDie(path, "hello2000"),
-					originalPrefix: resolveOrDie(path, "hello2000").Object(),
+					Path:     resolveOrDie(path, "hello2000"),
+					baseName: "hello2000",
 				},
 				{
-					Path:           resolveOrDie(path, "hello300"),
-					originalPrefix: resolveOrDie(path, "hello300").Object(),
+					Path:     resolveOrDie(path, "hello300"),
+					baseName: "hello300",
 				},
 				{
-					Path:           resolveOrDie(path, "hello101"),
-					originalPrefix: resolveOrDie(path, "hello101").Object(),
+					Path:     resolveOrDie(path, "hello101"),
+					baseName: "hello101",
 				},
 				{
-					Path:           resolveOrDie(path, "hello100"),
-					originalPrefix: resolveOrDie(path, "hello100").Object(),
+					Path:     resolveOrDie(path, "hello100"),
+					baseName: "hello100",
 				},
 			},
 		},
@@ -196,24 +196,24 @@ func TestListBuilds(t *testing.T) {
 			offset: pResolveOrDie(path, "100"),
 			expected: []Build{
 				{
-					Path:           newPathOrDie("gs://third-bucket/else/2004/"),
-					originalPrefix: pResolveOrDie(path, "2004").Object(),
+					Path:     newPathOrDie("gs://third-bucket/else/2004/"),
+					baseName: "2004",
 				},
 				{
-					Path:           newPathOrDie("gs://third-bucket/else/303/"),
-					originalPrefix: pResolveOrDie(path, "303").Object(),
+					Path:     newPathOrDie("gs://third-bucket/else/303/"),
+					baseName: "303",
 				},
 				{
-					Path:           newPathOrDie("gs://third-bucket/else/202/"),
-					originalPrefix: pResolveOrDie(path, "202").Object(),
+					Path:     newPathOrDie("gs://third-bucket/else/202/"),
+					baseName: "202",
 				},
 				{
-					Path:           newPathOrDie("gs://second-bucket/somewhere/101/"),
-					originalPrefix: pResolveOrDie(path, "101").Object(),
+					Path:     newPathOrDie("gs://second-bucket/somewhere/101/"),
+					baseName: "101",
 				},
 				{
-					Path:           newPathOrDie("gs://another-bucket/path/inside/100/"),
-					originalPrefix: pResolveOrDie(path, "100").Object(),
+					Path:     newPathOrDie("gs://another-bucket/path/inside/100/"),
+					baseName: "100",
 				},
 			},
 		},
@@ -229,12 +229,12 @@ func TestListBuilds(t *testing.T) {
 			offset: pResolveOrDie(path, "second"),
 			expected: []Build{
 				{
-					Path:           newPathOrDie("gs://third-bucket/else/"),
-					originalPrefix: pResolveOrDie(path, "third").Object(),
+					Path:     newPathOrDie("gs://third-bucket/else/"),
+					baseName: "third",
 				},
 				{
-					Path:           newPathOrDie("gs://second-bucket/somewhere/"),
-					originalPrefix: pResolveOrDie(path, "second").Object(),
+					Path:     newPathOrDie("gs://second-bucket/somewhere/"),
+					baseName: "second",
 				},
 			},
 		},
