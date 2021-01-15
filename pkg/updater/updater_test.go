@@ -501,6 +501,75 @@ func TestSortGroups(t *testing.T) {
 	}
 }
 
+func TestGroupPaths(t *testing.T) {
+	cases := []struct {
+		name     string
+		prefix   string
+		allowed  bool
+		expected []gcs.Path
+		err      bool
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name:   "single group allowed",
+			prefix: "foo/bar",
+			expected: []gcs.Path{
+				newPathOrDie("gs://foo/bar/"),
+			},
+		},
+		{
+			name:   "reject multiple prefixes by default",
+			prefix: "gs://foo/bar,gs://another/one",
+			err:    true,
+		},
+		{
+			name:    "conditionally allow multiple prefixes",
+			prefix:  "foo/bar,another/one",
+			allowed: true,
+			expected: []gcs.Path{
+				newPathOrDie("gs://foo/bar/"),
+				newPathOrDie("gs://another/one/"),
+			},
+		},
+		{
+			name:   "reject bad path",
+			prefix: "foo:6667/haha",
+			err:    true,
+		},
+	}
+
+	old := AllowMultiplePaths
+	defer func() { AllowMultiplePaths = old }()
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var group configpb.TestGroup
+			group.Name = tc.name
+			group.GcsPrefix = tc.prefix
+			if tc.allowed {
+				AllowMultiplePaths = map[string]bool{
+					group.Name: true,
+				}
+			}
+			actual, err := groupPaths(group)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("groupPaths() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Error("groupPaths() failed to return an error")
+			default:
+				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcs.Path{})); diff != "" {
+					t.Errorf("groupPaths() got unexpected diff (-have, +want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestTruncateRunning(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -659,6 +728,239 @@ func TestTruncateBuilds(t *testing.T) {
 				t.Errorf("truncateRunning() got %d columns, want %d", have, want)
 			} else {
 				t.Errorf("truncateRunning() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestListBuilds(t *testing.T) {
+	cases := []struct {
+		name     string
+		since    string
+		client   fakeLister
+		paths    []gcs.Path
+		expected []gcs.Build
+		err      bool
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "list stuff correctly",
+			client: fakeLister{
+				newPathOrDie("gs://prefix/job/"): fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{
+							Prefix: "job/1/",
+						},
+						{
+							Prefix: "job/10/",
+						},
+						{
+							Prefix: "job/2/",
+						},
+					},
+					idx:    0,
+					err:    0,
+					ctx:    nil,
+					offset: "",
+				},
+			},
+			paths: []gcs.Path{
+				newPathOrDie("gs://prefix/job/"),
+			},
+			expected: []gcs.Build{
+				{
+					Path: newPathOrDie("gs://prefix/job/10/"),
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/2/"),
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/1/"),
+				},
+			},
+		},
+		{
+			name:  "list offsets correctly",
+			since: "3",
+			client: fakeLister{
+				newPathOrDie("gs://prefix/job/"): fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{
+							Prefix: "job/1/",
+						},
+						{
+							Prefix: "job/10/",
+						},
+						{
+							Prefix: "job/2/",
+						},
+						{
+							Prefix: "job/3/",
+						},
+					},
+					idx:    0,
+					err:    0,
+					ctx:    nil,
+					offset: "",
+				},
+			},
+			paths: []gcs.Path{
+				newPathOrDie("gs://prefix/job/"),
+			},
+			expected: []gcs.Build{
+				{
+					Path: newPathOrDie("gs://prefix/job/10/"),
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/3/"),
+				},
+			},
+		},
+		{
+			name: "collate stuff correctly",
+			client: fakeLister{
+				newPathOrDie("gs://prefix/job/"): fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{
+							Prefix: "job/1/",
+						},
+						{
+							Prefix: "job/10/",
+						},
+						{
+							Prefix: "job/3/",
+						},
+					},
+				},
+				newPathOrDie("gs://other-prefix/presubmit-job/"): fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{
+							Name: "job/2",
+							Metadata: map[string]string{
+								"link": "gs://foo/bar333", // intentionally larger than job 20 and 4
+							},
+						},
+						{
+							Name: "job/20",
+							Metadata: map[string]string{
+								"link": "gs://foo/bar222",
+							},
+						},
+						{
+
+							Name: "job/4",
+							Metadata: map[string]string{
+								"link": "gs://foo/bar111",
+							},
+						},
+					},
+				},
+			},
+			paths: []gcs.Path{
+				newPathOrDie("gs://prefix/job/"),
+				newPathOrDie("gs://other-prefix/presubmit-job/"),
+			},
+			expected: []gcs.Build{
+				{
+					Path: newPathOrDie("gs://foo/bar222/"),
+					// baseName: 20
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/10/"),
+				},
+				{
+					Path: newPathOrDie("gs://foo/bar111/"),
+					// baseName: 4
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/3/"),
+				},
+				{
+					Path: newPathOrDie("gs://foo/bar333/"),
+					// baseName: 2
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/1/"),
+				},
+			},
+		},
+		{
+			name:  "collated offsets work correctly",
+			since: "5", // drop 4 3 2 1, keep 20, 10
+			client: fakeLister{
+				newPathOrDie("gs://prefix/job/"): fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{
+							Prefix: "job/1/",
+						},
+						{
+							Prefix: "job/10/",
+						},
+						{
+							Prefix: "job/3/",
+						},
+					},
+				},
+				newPathOrDie("gs://other-prefix/presubmit-job/"): fakeIterator{
+					objects: []storage.ObjectAttrs{
+						{
+							Name: "job/2",
+							Metadata: map[string]string{
+								"link": "gs://foo/bar333", // intentionally larger than job 20 and 4
+							},
+						},
+						{
+							Name: "job/20",
+							Metadata: map[string]string{
+								"link": "gs://foo/bar222",
+							},
+						},
+						{
+
+							Name: "job/4",
+							Metadata: map[string]string{
+								"link": "gs://foo/bar111",
+							},
+						},
+					},
+				},
+			},
+			paths: []gcs.Path{
+				newPathOrDie("gs://prefix/job/"),
+				newPathOrDie("gs://other-prefix/presubmit-job/"),
+			},
+			expected: []gcs.Build{
+				{
+					Path: newPathOrDie("gs://foo/bar222/"),
+					// baseName: 20
+				},
+				{
+					Path: newPathOrDie("gs://prefix/job/10/"),
+				},
+			},
+		},
+	}
+
+	compareBuilds := cmp.Comparer(func(x, y gcs.Build) bool {
+		return x.String() == y.String()
+	})
+	ctx := context.Background()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := listBuilds(ctx, tc.client, tc.since, tc.paths...)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("listBuilds() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("listBuilds() failed to return an error")
+			default:
+				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcs.Path{}), compareBuilds); diff != "" {
+					t.Errorf("listBuilds() got unexpected diff (-have, +want):\n%s", diff)
+				}
 			}
 		})
 	}
