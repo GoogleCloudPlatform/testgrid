@@ -281,7 +281,7 @@ func logUpdate(ch <-chan int, total int, msg string) {
 // TODO(fejta): redesign this feature (using symlinks?), ensure it works correctly.
 var AllowMultiplePaths = map[string]bool{}
 
-func groupPaths(tg configpb.TestGroup) ([]gcs.Path, error) {
+func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 	var out []gcs.Path
 	prefixes := strings.Split(tg.GcsPrefix, ",")
 	if len(prefixes) > 1 && !AllowMultiplePaths[tg.Name] {
@@ -303,7 +303,7 @@ func groupPaths(tg configpb.TestGroup) ([]gcs.Path, error) {
 		var p gcs.Path
 		if err := p.SetURL(u); err != nil {
 			if idx > 0 {
-				return nil, fmt.Errorf("%d: %q: %w", err)
+				return nil, fmt.Errorf("%d: %s: %w", idx, prefix, err)
 			}
 			return nil, err
 		}
@@ -402,10 +402,7 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 		}
 		builds, err := gcs.ListBuilds(ctx, client, tgPath, offset)
 		if err != nil {
-			if len(paths) > 0 {
-				err = fmt.Errorf("%d: %s: %w", idx, tgPath, err)
-			}
-			return nil, err
+			return nil, fmt.Errorf("%d: %s: %w", idx, tgPath, err)
 		}
 		out = append(out, builds...)
 	}
@@ -418,7 +415,7 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 }
 
 func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
-	tgPaths, err := groupPaths(*tg)
+	tgPaths, err := groupPaths(tg)
 	if err != nil {
 		return fmt.Errorf("group path: %w", err)
 	}
@@ -459,9 +456,6 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 
 	builds, err := listBuilds(ctx, client, since, tgPaths...)
 	if err != nil {
-		if len(tgPaths) == 0 {
-			err = fmt.Errorf("%s: %w", err)
-		}
 		return fmt.Errorf("list builds: %w", err)
 	}
 	log.WithField("total", len(builds)).Debug("Listed builds")

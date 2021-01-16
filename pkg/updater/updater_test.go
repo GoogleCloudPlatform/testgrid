@@ -553,7 +553,7 @@ func TestGroupPaths(t *testing.T) {
 					group.Name: true,
 				}
 			}
-			actual, err := groupPaths(group)
+			actual, err := groupPaths(&group)
 			switch {
 			case err != nil:
 				if !tc.err {
