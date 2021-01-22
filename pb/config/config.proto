@@ -429,6 +429,10 @@ message AutoBugOptions {
   // Requires 'file_individual' to be true and `max_allowed_individual_bugs` to
   // not be empty.
   DefaultTestMetadata default_test_metadata = 9;
+
+  // [BETA] If True, query the test metadata API to get issue-routing metadata.
+  // Enables routing issues using structured test failures.
+  bool advanced_test_metadata = 11;
 }
 
 message HotlistIdFromSource {
