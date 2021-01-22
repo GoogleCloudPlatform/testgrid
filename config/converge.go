@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package config merges together multiple configurations.
 package config
 
 import (
@@ -33,7 +34,7 @@ var insert void
 // If there are duplicate entries, the string key may be added as a prefix to
 // maintain uniqueness for Dashboards, DashboardGroups, and TestGroups.
 // The config at key "" will not be modified.
-
+//
 // The output protobuf will pass config.Validate if all its inputs pass config.Validate
 func Converge(shards map[string]*configpb.Configuration) (*configpb.Configuration, error) {
 	if len(shards) == 0 {
@@ -126,7 +127,7 @@ func negotiateConversions(prefix string, original, new map[string]void) map[stri
 	return result
 }
 
-// Renames all references to TestGroup 'original' to 'new'.
+// RenameTestGroup renames all references to TestGroup 'original' to 'new'.
 // Does not verify if the new name is already taken.
 func RenameTestGroup(original, new string, cfg *configpb.Configuration) *configpb.Configuration {
 	// If a TestGroup is changed, it needs to be changed for tabs that reference it also
@@ -145,13 +146,13 @@ func RenameTestGroup(original, new string, cfg *configpb.Configuration) *configp
 	return cfg
 }
 
-// Renames all Dashboards and DashboardGroups named 'original' to 'new'.
+// RenameDashboardOrGroup renames all Dashboards and DashboardGroups named 'original' to 'new'.
 // Since Dashboards and Dashboard Groups can't share names with each other, a valid Configuration will rename at most one item.
 func RenameDashboardOrGroup(original, new string, cfg *configpb.Configuration) *configpb.Configuration {
 	return RenameDashboard(original, new, RenameDashboardGroup(original, new, cfg))
 }
 
-// Renames all references to Dashboard 'original' to 'new'.
+// RenameDashboard renames all references to Dashboard 'original' to 'new'.
 // Does not verify if the new name is already taken.
 func RenameDashboard(original, new string, cfg *configpb.Configuration) *configpb.Configuration {
 	// If a dashboard is renamed, it needs to be changed for DashboardGroups that reference it also
@@ -172,7 +173,7 @@ func RenameDashboard(original, new string, cfg *configpb.Configuration) *configp
 	return cfg
 }
 
-// Renames all references to DashboardGroup 'original' to 'new'.
+// RenameDashboardGroup renames all references to DashboardGroup 'original' to 'new'.
 // Does not verify if the new name is already taken.
 func RenameDashboardGroup(original, new string, cfg *configpb.Configuration) *configpb.Configuration {
 	for _, dashgroup := range cfg.DashboardGroups {
