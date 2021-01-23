@@ -139,4 +139,11 @@ Selecting a row highlights the cells belonging to that cluster. Multiple row
 selection (with multiple cluster highlighting) is supported. To de-select a row,
 click on the selected row again.
 
+## Creating a TestGrid Instance
+
+Information on setting up your own TestGrid instance can be found [here](./standalone.md).
+
+If you're looking to add your configuration to an existing instance
+(such as testgrid.k8s.io), see [config.md](./config.md) instead.
+
 [video]: https://www.youtube.com/watch?v=jm2l2SLq_yE
