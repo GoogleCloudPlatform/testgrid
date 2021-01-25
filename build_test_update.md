@@ -1,10 +1,9 @@
 # Updating TestGrid
 
-If you're looking to develop for TestGrid, welcome! Note that most of the inner workings of TestGrid
-are not open source yet. Follow [this issue](https://github.com/kubernetes/test-infra/issues/10409)
-for updates.
+If you're looking to develop for TestGrid, welcome!
 
-:information_source: The Front End UI is not currently open source, if you would like UI changes or features, please file a bug describing how you would like the UI to behave. :information_source:
+While the front-end UI is not currently open source, it can be used as a [service](./standalone.md).
+If you would like to propose a UI change or feature, please file a bug describing how you would like the UI to behave.
 
 ## YAML configuration and config.proto
 
