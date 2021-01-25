@@ -75,7 +75,6 @@ func main() {
 		logrus.Info("--confirm=false (DRY-RUN): will not write to gcs")
 	}
 
-	ctx := context.Background()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	client, err := gcs.ClientWithCreds(ctx, opt.creds)
