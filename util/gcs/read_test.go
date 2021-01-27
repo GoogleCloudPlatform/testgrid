@@ -49,6 +49,42 @@ func link(path Path, name, other string) storage.ObjectAttrs {
 	}
 }
 
+func TestBuildJob(t *testing.T) {
+	cases := []struct {
+		path  string
+		build string
+		job   string
+	}{
+		{
+			path:  "gs://bucket/path/job/hello",
+			build: "hello",
+			job:   "job",
+		},
+		{
+			path:  "gs://bucket/path/job/hello/",
+			build: "hello",
+			job:   "job",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			p, err := NewPath(tc.path)
+			if err != nil {
+				t.Fatal("NewPath(%q) got unexpected error: %v", tc.path, err)
+			}
+			b := Build{Path: *p}
+			job, build := b.Job(), b.Build()
+			if job != tc.job {
+				t.Errorf("Job got %q want %q", job, tc.job)
+			}
+			if build != tc.build {
+				t.Errorf("Build got %q want %q", build, tc.build)
+			}
+		})
+	}
+}
+
 func TestListBuilds(t *testing.T) {
 	path := newPathOrDie("gs://bucket/path/to/build/")
 	cases := []struct {

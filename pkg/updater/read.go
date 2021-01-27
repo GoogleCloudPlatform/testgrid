@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,7 +113,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 	// Concurrently receive indices and read builds
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
-		nameCfg := makeNameConfig(group.TestNameConfig)
+		nameCfg := makeNameConfig(group)
 		go func() {
 			defer wg.Done()
 			for {
@@ -208,6 +209,50 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 	return cols[0:maxIdx], nil
 }
 
+type nameConfig struct {
+	format string
+	parts  []string
+}
+
+const (
+	testsName = "Tests name"
+	jobName   = "Job name"
+)
+
+func makeNameConfig(group *configpb.TestGroup) nameConfig {
+	nameCfg := convertNameConfig(group.TestNameConfig)
+	if strings.Contains(group.GcsPrefix, ",") {
+		ensureJobName(&nameCfg)
+	}
+	return nameCfg
+}
+func convertNameConfig(tnc *configpb.TestNameConfig) nameConfig {
+	if tnc == nil {
+		return nameConfig{
+			format: "%s",
+			parts:  []string{testsName},
+		}
+	}
+	nc := nameConfig{
+		format: tnc.NameFormat,
+		parts:  make([]string, len(tnc.NameElements)),
+	}
+	for i, e := range tnc.NameElements {
+		nc.parts[i] = e.TargetConfig
+	}
+	return nc
+}
+
+func ensureJobName(nc *nameConfig) {
+	for _, p := range nc.parts {
+		if p == jobName {
+			return
+		}
+	}
+	nc.format = "%s." + nc.format
+	nc.parts = append([]string{jobName}, nc.parts...)
+}
+
 // readResult will download all GCS artifacts in parallel.
 //
 // Specifically download the following files:
@@ -217,7 +262,10 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) (*gcsResult, error) {
 	ctx, cancel := context.WithCancel(parent) // Allows aborting after first error
 	defer cancel()
-	var result gcsResult
+	result := gcsResult{
+		job:   build.Job(),
+		build: build.Build(),
+	}
 	ec := make(chan error) // Receives errors from anyone
 
 	var work int

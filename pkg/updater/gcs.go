@@ -38,6 +38,8 @@ type gcsResult struct {
 	started  gcs.Started
 	finished gcs.Finished
 	suites   []gcs.SuitesMeta
+	job      string
+	build    string
 }
 
 const maxDuplicates = 20
@@ -106,8 +108,12 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 
 			parsed := make([]interface{}, len(nameCfg.parts))
 			for i, p := range nameCfg.parts {
-				if p == "Tests name" {
+				if p == testsName {
 					parsed[i] = r.Name
+					continue
+				}
+				if p == jobName {
+					parsed[i] = result.job
 					continue
 				}
 				v, present := suite.Metadata[p]

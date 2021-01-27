@@ -668,28 +668,6 @@ func appendCell(row *statepb.Row, cell cell, count int) {
 	}
 }
 
-type nameConfig struct {
-	format string
-	parts  []string
-}
-
-func makeNameConfig(tnc *configpb.TestNameConfig) nameConfig {
-	if tnc == nil {
-		return nameConfig{
-			format: "%s",
-			parts:  []string{"Tests name"},
-		}
-	}
-	nc := nameConfig{
-		format: tnc.NameFormat,
-		parts:  make([]string, len(tnc.NameElements)),
-	}
-	for i, e := range tnc.NameElements {
-		nc.parts[i] = e.TargetConfig
-	}
-	return nc
-}
-
 // appendColumn adds the build column to the grid.
 //
 // This handles details like:
