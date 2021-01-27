@@ -18,7 +18,6 @@ package updater
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -106,24 +105,7 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 				c.result = statuspb.TestStatus_PASS
 			}
 
-			parsed := make([]interface{}, len(nameCfg.parts))
-			for i, p := range nameCfg.parts {
-				if p == testsName {
-					parsed[i] = r.Name
-					continue
-				}
-				if p == jobName {
-					parsed[i] = result.job
-					continue
-				}
-				v, present := suite.Metadata[p]
-				if present {
-					parsed[i] = v
-					continue
-				}
-				parsed[i] = meta[p]
-			}
-			name := fmt.Sprintf(nameCfg.format, parsed...)
+			name := nameCfg.render(result.job, r.Name, suite.Metadata, meta)
 
 			// Ensure each name is unique
 			// If we have multiple results with the same name foo

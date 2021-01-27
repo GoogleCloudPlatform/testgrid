@@ -769,6 +769,83 @@ func TestReadColumns(t *testing.T) {
 	}
 }
 
+func TestRender(t *testing.T) {
+	cases := []struct {
+		name      string
+		format    string
+		parts     []string
+		job       string
+		test      string
+		metadatas []map[string]string
+		expected  string
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name:     "test name works",
+			format:   "%s",
+			parts:    []string{"Tests name"}, // keep the literal
+			test:     "hello",
+			expected: "hello",
+		},
+		{
+			name:     "missing fields work",
+			format:   "%s -(%s)- %s",
+			parts:    []string{testsName, "something", jobName},
+			job:      "this",
+			test:     "hi",
+			expected: "hi -()- this",
+		},
+		{
+			name:   "first and second metadata work",
+			format: "first %s, second %s",
+			parts:  []string{"first", "second"},
+			metadatas: []map[string]string{
+				{
+					"first": "hi",
+				},
+				{
+					"second": "there",
+					"first":  "ignore this",
+				},
+			},
+			expected: "first hi, second there",
+		},
+		{
+			name:   "prefer first metadata value over second",
+			format: "test: %s, job: %s, meta: %s",
+			parts:  []string{testsName, jobName, "meta"},
+			test:   "fancy",
+			job:    "work",
+			metadatas: []map[string]string{
+				{
+					"meta":    "yes",
+					testsName: "ignore",
+				},
+				{
+					"meta":  "no",
+					jobName: "wrong",
+				},
+			},
+			expected: "test: fancy, job: work, meta: yes",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			nc := nameConfig{
+				format: tc.format,
+				parts:  tc.parts,
+			}
+			actual := nc.render(tc.job, tc.test, tc.metadatas...)
+			if actual != tc.expected {
+				t.Errorf("render() got %q want %q", actual, tc.expected)
+			}
+		})
+	}
+}
+
 func TestMakeNameConfig(t *testing.T) {
 	cases := []struct {
 		name     string
