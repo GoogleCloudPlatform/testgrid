@@ -209,15 +209,41 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 	return cols[0:maxIdx], nil
 }
 
+const (
+	testsName = "Tests name"
+	jobName   = "Job name"
+)
+
 type nameConfig struct {
 	format string
 	parts  []string
 }
 
-const (
-	testsName = "Tests name"
-	jobName   = "Job name"
-)
+// render the metadata into the expect test name format.
+//
+// Argument order determines precedence.
+func (nc nameConfig) render(job, test string, metadatas ...map[string]string) string {
+	parsed := make([]interface{}, len(nc.parts))
+	for i, p := range nc.parts {
+		var s string
+		switch p {
+		case jobName:
+			s = job
+		case testsName:
+			s = test
+		default:
+			for _, metadata := range metadatas {
+				v, present := metadata[p]
+				if present {
+					s = v
+					break
+				}
+			}
+		}
+		parsed[i] = s
+	}
+	return fmt.Sprintf(nc.format, parsed...)
+}
 
 func makeNameConfig(group *configpb.TestGroup) nameConfig {
 	nameCfg := convertNameConfig(group.TestNameConfig)
@@ -226,6 +252,7 @@ func makeNameConfig(group *configpb.TestGroup) nameConfig {
 	}
 	return nameCfg
 }
+
 func convertNameConfig(tnc *configpb.TestNameConfig) nameConfig {
 	if tnc == nil {
 		return nameConfig{
