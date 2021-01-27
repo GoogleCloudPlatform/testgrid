@@ -22,7 +22,7 @@ interface displays this data.
 ## Configuration
 
 TestGrid depends on a [configuration] file to
-determine what it should display. 
+determine what it should display.
 
 You can get a configuration file in multiple ways:
 - Serialize it from a YAML configuration file you write yourself
@@ -45,7 +45,7 @@ The [Summarizer](./cmd/summarizer) generates and maintains a summary for each da
 ## Frontend Usage
 
 A TestGrid instance, like the one at [testgrid.k8s.io], displays a particular
-configuration and state by default. 
+configuration and state by default.
 
 The TestGrid configuration located at `gs://your-bucket/config` can be rendered at
 `testgrid.k8s.io/r/your-bucket/`.
@@ -57,3 +57,4 @@ permission to read from these files.
 
 [testgrid.k8s.io]: (http://testgrid.k8s.io)
 [configuration]: (./config.md)
+
