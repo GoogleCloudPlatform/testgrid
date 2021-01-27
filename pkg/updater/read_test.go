@@ -769,6 +769,107 @@ func TestReadColumns(t *testing.T) {
 	}
 }
 
+func TestMakeNameConfig(t *testing.T) {
+	cases := []struct {
+		name     string
+		group    *configpb.TestGroup
+		expected nameConfig
+	}{
+		{
+			name:  "basically works",
+			group: &configpb.TestGroup{},
+			expected: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+		},
+		{
+			name: "explicit config works",
+			group: &configpb.TestGroup{
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "%s %s",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							TargetConfig: "hello",
+						},
+						{
+							TargetConfig: "world",
+						},
+					},
+				},
+			},
+			expected: nameConfig{
+				format: "%s %s",
+				parts:  []string{"hello", "world"},
+			},
+		},
+		{
+			name: "auto-inject job name into default config",
+			group: &configpb.TestGroup{
+				GcsPrefix: "this,that",
+			},
+			expected: nameConfig{
+				format: "%s.%s",
+				parts:  []string{jobName, testsName},
+			},
+		},
+		{
+			name: "auto-inject job name into explicit config",
+			group: &configpb.TestGroup{
+				GcsPrefix: "this,that",
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "%s %s",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							TargetConfig: "hello",
+						},
+						{
+							TargetConfig: "world",
+						},
+					},
+				},
+			},
+			expected: nameConfig{
+				format: "%s.%s %s",
+				parts:  []string{jobName, "hello", "world"},
+			},
+		},
+		{
+			name: "allow explicit job name config",
+			group: &configpb.TestGroup{
+				GcsPrefix: "this,that",
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "%s %s (%s)",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							TargetConfig: "hello",
+						},
+						{
+							TargetConfig: "world",
+						},
+						{
+							TargetConfig: jobName,
+						},
+					},
+				},
+			},
+			expected: nameConfig{
+				format: "%s %s (%s)",
+				parts:  []string{"hello", "world", jobName},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := makeNameConfig(tc.group)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(nameConfig{})); diff != "" {
+				t.Errorf("makeNameConfig() got unexpected diff (-got +want):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestReadResult(t *testing.T) {
 	path := newPathOrDie("gs://bucket/path/to/some/build/")
 	yes := true
@@ -787,6 +888,8 @@ func TestReadResult(t *testing.T) {
 				finished: gcs.Finished{
 					Running: true,
 				},
+				job:   "some",
+				build: "build",
 			},
 		},
 		{
@@ -952,6 +1055,10 @@ func TestReadResult(t *testing.T) {
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
 			}
+			if tc.expected != nil {
+				tc.expected.job = "some"
+				tc.expected.build = "build"
+			}
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
 			client := fakeClient{
@@ -983,8 +1090,10 @@ func TestReadResult(t *testing.T) {
 				}
 			case tc.expected == nil:
 				t.Error("readResult(): failed to receive expected error")
-			case !reflect.DeepEqual(actual, tc.expected):
-				t.Errorf("readResult():\ngot %+v,\nwant %+v", actual, tc.expected)
+			default:
+				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcsResult{})); diff != "" {
+					t.Errorf("readResult() got unexpected diff (-have, +want):\n%s", diff)
+				}
 			}
 		})
 	}

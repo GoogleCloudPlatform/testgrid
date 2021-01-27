@@ -146,10 +146,62 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
+			name: "inclue job name upon request",
+			nameCfg: nameConfig{
+				format: "%s.%s",
+				parts:  []string{jobName, testsName},
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Name: "this",
+									Results: []junit.Result{
+										{
+											Name: "that",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				job: "job-name",
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					"Overall": {
+						result:  statuspb.TestStatus_FAIL,
+						icon:    "F",
+						message: "Build failed outside of test results",
+						metrics: setElapsed(nil, 1),
+					},
+					"job-name.this.that": {
+						result: statuspb.TestStatus_PASS,
+					},
+				},
+			},
+		},
+		{
 			name: "failing job with only passing results has a failing overall message",
 			nameCfg: nameConfig{
 				format: "%s",
-				parts:  []string{"Tests name"},
+				parts:  []string{testsName},
 			},
 			result: gcsResult{
 				started: gcs.Started{
@@ -200,7 +252,7 @@ func TestConvertResult(t *testing.T) {
 			name: "result fields parsed properly",
 			nameCfg: nameConfig{
 				format: "%s",
-				parts:  []string{"Tests name"},
+				parts:  []string{testsName},
 			},
 			result: gcsResult{
 				started: gcs.Started{
@@ -306,7 +358,7 @@ func TestConvertResult(t *testing.T) {
 			name: "names formatted correctly",
 			nameCfg: nameConfig{
 				format: "%s - %s [%s]",
-				parts:  []string{"Tests name", "extra", "part"},
+				parts:  []string{testsName, "extra", "part"},
 			},
 			result: gcsResult{
 				started: gcs.Started{
@@ -379,7 +431,7 @@ func TestConvertResult(t *testing.T) {
 			name: "duplicate row names disambiguated",
 			nameCfg: nameConfig{
 				format: "%s - %s",
-				parts:  []string{"Tests name", "extra"},
+				parts:  []string{testsName, "extra"},
 			},
 			result: gcsResult{
 				started: gcs.Started{
@@ -467,7 +519,7 @@ func TestConvertResult(t *testing.T) {
 			}(),
 			nameCfg: nameConfig{
 				format: "%s - %s",
-				parts:  []string{"Tests name", "extra"},
+				parts:  []string{testsName, "extra"},
 			},
 			result: gcsResult{
 				started: gcs.Started{
@@ -527,7 +579,7 @@ func TestConvertResult(t *testing.T) {
 			name: "excessively duplicated rows overflows",
 			nameCfg: nameConfig{
 				format: "%s",
-				parts:  []string{"Tests name"},
+				parts:  []string{testsName},
 			},
 			result: gcsResult{
 				started: gcs.Started{

@@ -57,6 +57,24 @@ type Build struct {
 	suitesConcurrency int // override the max number of concurrent suite downloads
 }
 
+func (build Build) object() string {
+	o := build.Path.Object()
+	if strings.HasSuffix(o, "/") {
+		return o[0 : len(o)-1]
+	}
+	return o
+}
+
+// Build is the unique invocation id of the job.
+func (build Build) Build() string {
+	return path.Base(build.object())
+}
+
+// Job is the name of the job for this build
+func (build Build) Job() string {
+	return path.Base(path.Dir(build.object()))
+}
+
 func (build Build) String() string {
 	return build.Path.String()
 }
