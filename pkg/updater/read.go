@@ -148,7 +148,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 					return
 				}
 				id := path.Base(b.Path.Object())
-				col, err := convertResult(ctx, log, nameCfg, id, heads, *result)
+				col, err := convertResult(ctx, log, nameCfg, id, heads, group.ShortTextMetric, *result)
 				if err != nil {
 					innerCancel()
 					select {

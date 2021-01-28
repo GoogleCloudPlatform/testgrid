@@ -44,13 +44,14 @@ func TestConvertResult(t *testing.T) {
 	yes := true
 	now := time.Now().Unix()
 	cases := []struct {
-		name     string
-		ctx      context.Context
-		nameCfg  nameConfig
-		id       string
-		headers  []string
-		result   gcsResult
-		expected *inflatedColumn
+		name      string
+		ctx       context.Context
+		nameCfg   nameConfig
+		id        string
+		headers   []string
+		metricKey string
+		result    gcsResult
+		expected  *inflatedColumn
 	}{
 		{
 			name: "basically works",
@@ -350,6 +351,174 @@ func TestConvertResult(t *testing.T) {
 					"stdout message": {
 						message: "bellybutton",
 						result:  statuspb.TestStatus_PASS,
+					},
+				},
+			},
+		},
+		{
+			name: "icon set by metric key",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			metricKey: "food",
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "no properties",
+										},
+										{
+											Name: "missing property",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"random", "thing"},
+												},
+											},
+										},
+										{
+											Name: "not a number",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "tasty"},
+												},
+											},
+										},
+										{
+											Name: "short number",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "123"},
+												},
+											},
+										},
+										{
+											Name: "large number",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "123456789"},
+												},
+											},
+										},
+										{
+											Name: "many digits",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "1.567890"},
+												},
+											},
+										},
+										{
+											Name: "multiple values",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "1"},
+													{"food", "2"},
+													{"food", "3"},
+													{"food", "4"},
+												},
+											},
+										},
+										{
+											Name: "preceds failure message",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "1"},
+												},
+											},
+											Failure: pstr("boom"),
+										},
+										{
+											Name: "preceds skip message",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"food", "1"},
+												},
+											},
+											Skipped: pstr("tl;dr"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					"Overall": {
+						result:  statuspb.TestStatus_FAIL,
+						metrics: setElapsed(nil, 1),
+					},
+					"no properties": {
+						result: statuspb.TestStatus_PASS,
+					},
+					"missing property": {
+						result: statuspb.TestStatus_PASS,
+					},
+					"not a number": {
+						result: statuspb.TestStatus_PASS,
+					},
+					"short number": {
+						result: statuspb.TestStatus_PASS,
+						icon:   "123",
+						metrics: map[string]float64{
+							"food": 123,
+						},
+					},
+					"large number": {
+						result: statuspb.TestStatus_PASS,
+						icon:   "1.235e+08",
+						metrics: map[string]float64{
+							"food": 123456789,
+						},
+					},
+					"many digits": {
+						result: statuspb.TestStatus_PASS,
+						icon:   "1.568",
+						metrics: map[string]float64{
+							"food": 1.567890,
+						},
+					},
+					"multiple values": {
+						result: statuspb.TestStatus_PASS,
+						icon:   "2.5",
+						metrics: map[string]float64{
+							"food": 2.5,
+						},
+					},
+					"preceds failure message": {
+						result:  statuspb.TestStatus_FAIL,
+						message: "boom",
+						icon:    "1",
+						metrics: map[string]float64{
+							"food": 1,
+						},
+					},
+					"preceds skip message": {
+						result:  statuspb.TestStatus_PASS_WITH_SKIPS,
+						message: "tl;dr",
+						icon:    "1",
+						metrics: map[string]float64{
+							"food": 1,
+						},
 					},
 				},
 			},
@@ -668,7 +837,7 @@ func TestConvertResult(t *testing.T) {
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
 			log := logrus.WithField("test name", tc.name)
-			actual, err := convertResult(ctx, log, tc.nameCfg, tc.id, tc.headers, tc.result)
+			actual, err := convertResult(ctx, log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
