@@ -25,7 +25,7 @@ spec:
       serviceAccountName: summarizer
       containers:
       - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20210127-v0.0.41-10-ge04e4f0 
+        image: gcr.io/k8s-testgrid/summarizer:v20210127-v0.0.43-4-g0180bbe 
         args:
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
@@ -57,7 +57,7 @@ spec:
       serviceAccountName: summarizer
       containers:
       - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20210127-v0.0.41-10-ge04e4f0
+        image: gcr.io/k8s-testgrid/summarizer:v20210127-v0.0.43-4-g0180bbe
         args:
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
