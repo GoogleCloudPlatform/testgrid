@@ -18,6 +18,7 @@ package updater
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -217,7 +218,20 @@ func overallCell(result gcsResult) cell {
 	}
 	switch {
 	case finished > 0: // completed result
-		if result.finished.Passed != nil && *result.finished.Passed {
+		var passed bool
+		res := result.finished.Result
+		switch {
+		case result.finished.Passed == nil:
+			if res != "" {
+				passed = res == "SUCCESS"
+				c.icon = "E"
+				c.message = fmt.Sprintf(`finished.json missing "passed": %t`, passed)
+			}
+		case result.finished.Passed != nil:
+			passed = *result.finished.Passed
+		}
+
+		if passed {
 			c.result = statuspb.TestStatus_PASS
 		} else {
 			c.result = statuspb.TestStatus_FAIL

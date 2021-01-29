@@ -901,6 +901,50 @@ func TestOverallCell(t *testing.T) {
 			},
 		},
 		{
+			name: "failed via deprecated result",
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: 100,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(250),
+						Result:    "BOOM",
+					},
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_FAIL,
+				icon:    "E",
+				message: `finished.json missing "passed": false`,
+				metrics: setElapsed(nil, 150),
+			},
+		},
+		{
+			name: "passed via deprecated result",
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: 100,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(250),
+						Result:    "SUCCESS",
+					},
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_PASS,
+				icon:    "E",
+				message: `finished.json missing "passed": true`,
+				metrics: setElapsed(nil, 150),
+			},
+		},
+		{
 			name: "failed result fails",
 			result: gcsResult{
 				started: gcs.Started{
@@ -944,8 +988,8 @@ func TestOverallCell(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := overallCell(tc.result)
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("overallCell(%v) got %v, want %v", tc.result, actual, tc.expected)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcsResult{}, cell{})); diff != "" {
+				t.Errorf("overallCell(%v) got unexpected diff:\n%s", tc.result, diff)
 			}
 		})
 	}
