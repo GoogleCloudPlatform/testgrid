@@ -49,8 +49,36 @@ var overflowCell = cell{
 	message: "Too many duplicately named rows",
 }
 
+func propertyMetrics(r *junit.Result) map[string][]float64 {
+	out := map[string][]float64{}
+	if r.Properties == nil {
+		return out
+	}
+	for _, p := range r.Properties.PropertyList {
+		f, err := strconv.ParseFloat(p.Value, 64)
+		if err != nil {
+			continue
+		}
+		out[p.Name] = append(out[p.Name], f)
+	}
+	return out
+}
+
+func propertyMeans(r *junit.Result) map[string]float64 {
+	metrics := propertyMetrics(r)
+	out := make(map[string]float64, len(metrics))
+	for name, values := range metrics {
+		var sum float64
+		for _, v := range values {
+			sum += v
+		}
+		out[name] = sum / float64(len(values))
+	}
+	return out
+}
+
 // convertResult returns an inflatedColumn representation of the GCS result.
-func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, result gcsResult) (*inflatedColumn, error) {
+func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult) (*inflatedColumn, error) {
 	overall := overallCell(result)
 	out := inflatedColumn{
 		column: &statepb.Column{
@@ -87,6 +115,13 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 				c.metrics = setElapsed(c.metrics, elapsed)
 			}
 
+			for metric, mean := range propertyMeans(&r) {
+				if c.metrics == nil {
+					c.metrics = map[string]float64{}
+				}
+				c.metrics[metric] = mean
+			}
+
 			const max = 140
 			if msg := r.Message(max); msg != "" {
 				c.message = msg
@@ -103,6 +138,10 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 				c.icon = "S"
 			default:
 				c.result = statuspb.TestStatus_PASS
+			}
+
+			if f, ok := c.metrics[metricKey]; ok {
+				c.icon = strconv.FormatFloat(f, 'g', 4, 64)
 			}
 
 			name := nameCfg.render(result.job, r.Name, suite.Metadata, meta)
