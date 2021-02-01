@@ -526,8 +526,8 @@ func TestConvertResult(t *testing.T) {
 		{
 			name: "names formatted correctly",
 			nameCfg: nameConfig{
-				format: "%s - %s [%s]",
-				parts:  []string{testsName, "extra", "part"},
+				format: "%s - %s [%s] (%s)",
+				parts:  []string{testsName, "extra", "part", "property"},
 			},
 			result: gcsResult{
 				started: gcs.Started{
@@ -549,6 +549,12 @@ func TestConvertResult(t *testing.T) {
 									Results: []junit.Result{
 										{
 											Name: "elapsed",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"property", "good-property"},
+													{"ignore", "me"},
+												},
+											},
 										},
 									},
 								},
@@ -566,6 +572,12 @@ func TestConvertResult(t *testing.T) {
 									Results: []junit.Result{
 										{
 											Name: "other",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													// "property" missing
+													{"ignore", "me"},
+												},
+											},
 										},
 									},
 								},
@@ -587,10 +599,10 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
-					"elapsed - first [second]": {
+					"elapsed - first [second] (good-property)": {
 						result: statuspb.TestStatus_PASS,
 					},
-					"other - hey []": {
+					"other - hey [] ()": {
 						result: statuspb.TestStatus_PASS,
 					},
 				},

@@ -50,30 +50,45 @@ var overflowCell = cell{
 	message: "Too many duplicately named rows",
 }
 
-func propertyMetrics(r *junit.Result) map[string][]float64 {
-	out := map[string][]float64{}
+func propertyMap(r *junit.Result) map[string][]string {
+	out := map[string][]string{}
 	if r.Properties == nil {
 		return out
 	}
 	for _, p := range r.Properties.PropertyList {
-		f, err := strconv.ParseFloat(p.Value, 64)
-		if err != nil {
-			continue
-		}
-		out[p.Name] = append(out[p.Name], f)
+		out[p.Name] = append(out[p.Name], p.Value)
 	}
 	return out
 }
 
-func propertyMeans(r *junit.Result) map[string]float64 {
-	metrics := propertyMetrics(r)
-	out := make(map[string]float64, len(metrics))
-	for name, values := range metrics {
+func means(properties map[string][]string) map[string]float64 {
+	out := make(map[string]float64, len(properties))
+	for name, values := range properties {
 		var sum float64
-		for _, v := range values {
+		var n int
+		for _, str := range values {
+			v, err := strconv.ParseFloat(str, 64)
+			if err != nil {
+				continue
+			}
 			sum += v
+			n++
 		}
-		out[name] = sum / float64(len(values))
+		if n == 0 {
+			continue
+		}
+		out[name] = sum / float64(n)
+	}
+	return out
+}
+
+func first(properties map[string][]string) map[string]string {
+	out := make(map[string]string, len(properties))
+	for k, v := range properties {
+		if len(v) == 0 {
+			continue
+		}
+		out[k] = v[0]
 	}
 	return out
 }
@@ -111,12 +126,12 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 				continue
 			}
 			c := &cell{}
-			// TODO(fejta): process properties?
 			if elapsed := r.Time; elapsed > 0 {
 				c.metrics = setElapsed(c.metrics, elapsed)
 			}
 
-			for metric, mean := range propertyMeans(&r) {
+			props := propertyMap(&r)
+			for metric, mean := range means(props) {
 				if c.metrics == nil {
 					c.metrics = map[string]float64{}
 				}
@@ -145,7 +160,7 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 				c.icon = strconv.FormatFloat(f, 'g', 4, 64)
 			}
 
-			name := nameCfg.render(result.job, r.Name, suite.Metadata, meta)
+			name := nameCfg.render(result.job, r.Name, first(props), suite.Metadata, meta)
 
 			// Ensure each name is unique
 			// If we have multiple results with the same name foo
