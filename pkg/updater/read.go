@@ -253,6 +253,15 @@ func makeNameConfig(group *configpb.TestGroup) nameConfig {
 	return nameCfg
 }
 
+func firstFilled(strs ...string) string {
+	for _, s := range strs {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 func convertNameConfig(tnc *configpb.TestNameConfig) nameConfig {
 	if tnc == nil {
 		return nameConfig{
@@ -265,7 +274,9 @@ func convertNameConfig(tnc *configpb.TestNameConfig) nameConfig {
 		parts:  make([]string, len(tnc.NameElements)),
 	}
 	for i, e := range tnc.NameElements {
-		nc.parts[i] = e.TargetConfig
+		// TODO(fejta): build_target = true
+		// TODO(fejta): tags = 'SOMETHING'
+		nc.parts[i] = firstFilled(e.TargetConfig, e.TestProperty)
 	}
 	return nc
 }

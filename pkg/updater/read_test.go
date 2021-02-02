@@ -881,6 +881,44 @@ func TestMakeNameConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "test properties work",
+			group: &configpb.TestGroup{
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "%s %s",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							TargetConfig: "hello",
+						},
+						{
+							TestProperty: "world",
+						},
+					},
+				},
+			},
+			expected: nameConfig{
+				format: "%s %s",
+				parts:  []string{"hello", "world"},
+			},
+		},
+		{
+			name: "target config precedes test property",
+			group: &configpb.TestGroup{
+				TestNameConfig: &configpb.TestNameConfig{
+					NameFormat: "%s works",
+					NameElements: []*configpb.TestNameConfig_NameElement{
+						{
+							TargetConfig: "good-target",
+							TestProperty: "nope-property",
+						},
+					},
+				},
+			},
+			expected: nameConfig{
+				format: "%s works",
+				parts:  []string{"good-target"},
+			},
+		},
+		{
 			name: "auto-inject job name into default config",
 			group: &configpb.TestGroup{
 				GcsPrefix: "this,that",
