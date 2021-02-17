@@ -458,13 +458,14 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 			FailureMessage:    alert.FailureMessage,
 			PassBuildId:       alert.PassBuildId,
 			// TODO(fejta): better build info
-			BuildLink:     alert.BuildLink,
-			BuildLinkText: alert.BuildLinkText,
-			BuildUrlText:  alert.BuildUrlText,
-			LinkedBugs:    row.BugId,
-			FailTestLink:  buildFailLink(alert.FailTestId, row.Id),
-			Properties:    alert.Properties,
-			HotlistIds:    alert.HotlistIds,
+			BuildLink:          alert.BuildLink,
+			BuildLinkText:      alert.BuildLinkText,
+			BuildUrlText:       alert.BuildUrlText,
+			LinkedBugs:         row.BugId,
+			FailTestLink:       buildFailLink(alert.FailTestId, row.Id),
+			LatestFailTestLink: buildFailLink(alert.LatestFailTestId, row.Id),
+			Properties:         alert.Properties,
+			HotlistIds:         alert.HotlistIds,
 		}
 		if alert.PassTime != nil {
 			sum.PassTimestamp = float64(alert.PassTime.Seconds)

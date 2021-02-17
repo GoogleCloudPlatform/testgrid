@@ -46,6 +46,9 @@ message FailingTestSummary {
   // A link to the first build in which the test failed.
   string fail_test_link = 13;
 
+  // A link to the latest build in which the test failed.
+  string latest_fail_test_link = 17;
+
   // The test ID for the latest test failure. (Does not indicate the failure is
   // 'over', just the latest test failure we found.)
   string latest_fail_build_id = 14;

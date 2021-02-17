@@ -69,9 +69,12 @@ message AlertInfo {
   // Text to display for link to search for build changes.
   string build_url_text = 10;
 
-  // The test ID for the latest test failure. (Does not indicate the failure is
+  // The build ID for the latest test failure. (Does not indicate the failure is
   // 'over', just the latest test failure we found.)
   string latest_fail_build_id = 11;
+
+  // The test ID for the latest test failure.
+  string latest_fail_test_id = 14;
 
   // Maps (property name):(property value) for arbitrary alert properties.
   map<string, string> properties = 12;
