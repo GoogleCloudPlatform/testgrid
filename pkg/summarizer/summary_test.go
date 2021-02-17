@@ -1108,6 +1108,7 @@ func TestFailingTestSummaries(t *testing.T) {
 						LatestFailBuildId: "lfbi",
 						PassBuildId:       "pbi",
 						FailTestId:        "819283y823-1232813",
+						LatestFailTestId:  "920394z934-2343924",
 						FailCount:         1,
 						BuildLink:         "bl",
 						BuildLinkText:     "blt",
@@ -1124,36 +1125,38 @@ func TestFailingTestSummaries(t *testing.T) {
 			},
 			expected: []*summarypb.FailingTestSummary{
 				{
-					DisplayName:       "foo-name",
-					TestName:          "foo-target",
-					FailBuildId:       "bad",
-					LatestFailBuildId: "still-bad",
-					PassBuildId:       "good",
-					FailCount:         6,
-					BuildLink:         "to the past",
-					BuildLinkText:     "hyrule",
-					BuildUrlText:      "of sandwich",
-					FailureMessage:    "pop tart",
-					FailTestLink:      " foo-target",
-					LinkedBugs:        []string{"1234", "5678"},
+					DisplayName:        "foo-name",
+					TestName:           "foo-target",
+					FailBuildId:        "bad",
+					LatestFailBuildId:  "still-bad",
+					PassBuildId:        "good",
+					FailCount:          6,
+					BuildLink:          "to the past",
+					BuildLinkText:      "hyrule",
+					BuildUrlText:       "of sandwich",
+					FailureMessage:     "pop tart",
+					FailTestLink:       " foo-target",
+					LatestFailTestLink: " foo-target",
+					LinkedBugs:         []string{"1234", "5678"},
 					Properties: map[string]string{
 						"ham": "eggs",
 					},
 					HotlistIds: []string{},
 				},
 				{
-					DisplayName:       "bar-name",
-					TestName:          "bar-target",
-					FailBuildId:       "fbi",
-					LatestFailBuildId: "lfbi",
-					PassBuildId:       "pbi",
-					FailCount:         1,
-					BuildLink:         "bl",
-					BuildLinkText:     "blt",
-					BuildUrlText:      "but",
-					FailureMessage:    "fm",
-					FailTestLink:      "819283y823-1232813 bar-target",
-					LinkedBugs:        []string{"1234"},
+					DisplayName:        "bar-name",
+					TestName:           "bar-target",
+					FailBuildId:        "fbi",
+					LatestFailBuildId:  "lfbi",
+					PassBuildId:        "pbi",
+					FailCount:          1,
+					BuildLink:          "bl",
+					BuildLinkText:      "blt",
+					BuildUrlText:       "but",
+					FailureMessage:     "fm",
+					FailTestLink:       "819283y823-1232813 bar-target",
+					LatestFailTestLink: "920394z934-2343924 bar-target",
+					LinkedBugs:         []string{"1234"},
 					Properties: map[string]string{
 						"foo":   "bar",
 						"hello": "lots",
@@ -1166,8 +1169,9 @@ func TestFailingTestSummaries(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := failingTestSummaries(tc.rows); !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("%v != expected %v", actual, tc.expected)
+			actual := failingTestSummaries(tc.rows)
+			if diff := cmp.Diff(tc.expected, actual); diff != "" {
+				t.Errorf("failingTestSummaries() (-want, +got): %s", diff)
 			}
 		})
 	}
