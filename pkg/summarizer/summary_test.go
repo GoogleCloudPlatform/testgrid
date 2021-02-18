@@ -1698,6 +1698,68 @@ func TestGridMetrics(t *testing.T) {
 			brokenThreshold: .6,
 			expectedBroken:  false,
 		},
+		{
+			name:   "many non-passing/non-failing statuses is not broken",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "four aborts (foo)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+				{
+					Name: "four aborts (bar)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+				{
+					Name: "four aborts (baz)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+			},
+			passingCols:     0,
+			filledCols:      4,
+			passingCells:    0,
+			filledCells:     12,
+			brokenThreshold: .6,
+			expectedBroken:  false,
+		},
+		{
+			name:   "many non-passing/non-failing statuses + failing statuses, not broken",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "four aborts (foo)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+				{
+					Name: "four aborts (bar)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+				{
+					Name: "four fails",
+					Results: []int32{
+						int32(statuspb.TestStatus_FAIL), 4,
+					},
+				},
+			},
+			passingCols:     0,
+			filledCols:      4,
+			passingCells:    0,
+			filledCells:     12,
+			brokenThreshold: .6,
+			expectedBroken:  false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -2122,10 +2184,10 @@ func TestCoalesceResult(t *testing.T) {
 			running:  result.IgnoreRunning,
 		},
 		{
-			name:     "running is no result when ignored",
+			name:     "running is neutral when shown",
 			result:   statuspb.TestStatus_RUNNING,
-			expected: statuspb.TestStatus_FAIL,
-			running:  result.FailRunning,
+			expected: statuspb.TestStatus_UNKNOWN,
+			running:  result.ShowRunning,
 		},
 		{
 			name:     "fail is fail",
@@ -2141,6 +2203,11 @@ func TestCoalesceResult(t *testing.T) {
 			name:     "simplify pass",
 			result:   statuspb.TestStatus_PASS_WITH_ERRORS,
 			expected: statuspb.TestStatus_PASS,
+		},
+		{
+			name:     "categorized abort is neutral",
+			result:   statuspb.TestStatus_CATEGORIZED_ABORT,
+			expected: statuspb.TestStatus_UNKNOWN,
 		},
 	}
 
