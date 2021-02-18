@@ -56,5 +56,5 @@ permission to read from these files.
 
 
 [testgrid.k8s.io]: (http://testgrid.k8s.io)
-[configuration]: (./config.md)
+[configuration]: (config.md)
 
