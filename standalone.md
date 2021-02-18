@@ -21,7 +21,7 @@ interface displays this data.
 
 ## Configuration
 
-TestGrid depends on a [configuration] file to
+TestGrid depends on a [configuration](./pb/config) file to
 determine what it should display.
 
 You can get a configuration file in multiple ways:
