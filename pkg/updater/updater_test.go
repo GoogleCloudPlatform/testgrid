@@ -2201,7 +2201,7 @@ func TestAppendCell(t *testing.T) {
 			},
 		},
 		{
-			name: "append no result (results, cellIDs, no messages or icons)",
+			name: "append no result (results, no cellIDs, messages or icons)",
 			row: statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
@@ -2219,7 +2219,7 @@ func TestAppendCell(t *testing.T) {
 					int32(statuspb.TestStatus_FLAKY), 3,
 					int32(statuspb.TestStatus_NO_RESULT), 2,
 				},
-				CellIds:  []string{"", "", "", "", ""},
+				CellIds:  []string{"", "", ""},
 				Messages: []string{"", "", ""},
 				Icons:    []string{"", "", ""},
 			},
@@ -2285,7 +2285,6 @@ func TestAppendCell(t *testing.T) {
 			count: 7,
 			expected: statepb.Row{
 				Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 7},
-				CellIds: []string{"", "", "", "", "", "", ""},
 			},
 		},
 	}

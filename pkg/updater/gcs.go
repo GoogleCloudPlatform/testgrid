@@ -96,6 +96,11 @@ func first(properties map[string][]string) map[string]string {
 // convertResult returns an inflatedColumn representation of the GCS result.
 func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult) (*inflatedColumn, error) {
 	overall := overallCell(result)
+	var cellID string
+	if nameCfg.multiJob {
+		cellID = result.job + "/" + id
+		overall.cellID = cellID
+	}
 	out := inflatedColumn{
 		column: &statepb.Column{
 			Build:   id,
@@ -125,7 +130,7 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 			if r.Skipped != nil && *r.Skipped == "" {
 				continue
 			}
-			c := &cell{}
+			c := &cell{cellID: cellID}
 			if elapsed := r.Time; elapsed > 0 {
 				c.metrics = setElapsed(c.metrics, elapsed)
 			}
@@ -219,6 +224,11 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 			overall.message = "Build failed outside of test results"
 			out.cells["Overall"] = overall
 		}
+	}
+
+	if nameCfg.multiJob {
+		name := nameCfg.render(result.job, "Overall", meta)
+		out.cells[name] = out.cells["Overall"]
 	}
 
 	return &out, nil

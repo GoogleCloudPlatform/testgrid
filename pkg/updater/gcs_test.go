@@ -147,6 +147,70 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
+			name: "add job overall when multiJob",
+			id:   "build",
+			nameCfg: nameConfig{
+				format:   "%s.%s",
+				parts:    []string{jobName, testsName},
+				multiJob: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Name: "this",
+									Results: []junit.Result{
+										{
+											Name: "that",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				job: "job-name",
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+					Build:   "build",
+				},
+				cells: map[string]cell{
+					"Overall": {
+						result:  statuspb.TestStatus_FAIL,
+						icon:    "F",
+						message: "Build failed outside of test results",
+						metrics: setElapsed(nil, 1),
+						cellID:  "job-name/build",
+					},
+					"job-name.Overall": {
+						result:  statuspb.TestStatus_FAIL,
+						icon:    "F",
+						message: "Build failed outside of test results",
+						metrics: setElapsed(nil, 1),
+						cellID:  "job-name/build",
+					},
+					"job-name.this.that": {
+						result: statuspb.TestStatus_PASS,
+						cellID: "job-name/build",
+					},
+				},
+			},
+		},
+		{
 			name: "inclue job name upon request",
 			nameCfg: nameConfig{
 				format: "%s.%s",
