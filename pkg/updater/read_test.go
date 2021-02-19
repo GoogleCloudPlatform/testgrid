@@ -924,8 +924,9 @@ func TestMakeNameConfig(t *testing.T) {
 				GcsPrefix: "this,that",
 			},
 			expected: nameConfig{
-				format: "%s.%s",
-				parts:  []string{jobName, testsName},
+				format:   "%s.%s",
+				parts:    []string{jobName, testsName},
+				multiJob: true,
 			},
 		},
 		{
@@ -945,8 +946,9 @@ func TestMakeNameConfig(t *testing.T) {
 				},
 			},
 			expected: nameConfig{
-				format: "%s.%s %s",
-				parts:  []string{jobName, "hello", "world"},
+				format:   "%s.%s %s",
+				parts:    []string{jobName, "hello", "world"},
+				multiJob: true,
 			},
 		},
 		{
@@ -969,8 +971,9 @@ func TestMakeNameConfig(t *testing.T) {
 				},
 			},
 			expected: nameConfig{
-				format: "%s %s (%s)",
-				parts:  []string{"hello", "world", jobName},
+				format:   "%s %s (%s)",
+				parts:    []string{"hello", "world", jobName},
+				multiJob: true,
 			},
 		},
 	}

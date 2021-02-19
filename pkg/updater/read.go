@@ -215,8 +215,9 @@ const (
 )
 
 type nameConfig struct {
-	format string
-	parts  []string
+	format   string
+	parts    []string
+	multiJob bool
 }
 
 // render the metadata into the expect test name format.
@@ -248,6 +249,7 @@ func (nc nameConfig) render(job, test string, metadatas ...map[string]string) st
 func makeNameConfig(group *configpb.TestGroup) nameConfig {
 	nameCfg := convertNameConfig(group.TestNameConfig)
 	if strings.Contains(group.GcsPrefix, ",") {
+		nameCfg.multiJob = true
 		ensureJobName(&nameCfg)
 	}
 	return nameCfg

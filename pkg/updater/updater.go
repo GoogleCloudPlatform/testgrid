@@ -437,7 +437,7 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
 	if old != nil {
-		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-4*time.Hour)))
+		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-12*time.Hour)))
 	}
 
 	var since string
@@ -633,10 +633,10 @@ func appendCell(row *statepb.Row, cell cell, count int) {
 	}
 
 	for i := 0; i < count; i++ {
-		row.CellIds = append(row.CellIds, cell.cellID)
 		if cell.result == statuspb.TestStatus_NO_RESULT {
 			continue
 		}
+		row.CellIds = append(row.CellIds, cell.cellID)
 		for metricName, measurement := range cell.metrics {
 			var metric *statepb.Metric
 			var ok bool
@@ -689,8 +689,9 @@ func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated inf
 		row, ok := rows[name]
 		if !ok {
 			row = &statepb.Row{
-				Name: name,
-				Id:   name,
+				Name:    name,
+				Id:      name,
+				CellIds: []string{}, // TODO(fejta): try and leave this nil
 			}
 			rows[name] = row
 			grid.Rows = append(grid.Rows, row)
