@@ -167,11 +167,11 @@ func TestCoalesce(t *testing.T) {
 		},
 		{
 			status:   statuspb.TestStatus_RUNNING,
-			expected: statuspb.TestStatus_FAIL,
+			expected: statuspb.TestStatus_UNKNOWN,
 		},
 		{
 			status:   statuspb.TestStatus_CANCEL,
-			expected: statuspb.TestStatus_FAIL,
+			expected: statuspb.TestStatus_UNKNOWN,
 		},
 		{
 			status:        statuspb.TestStatus_TOOL_FAIL,

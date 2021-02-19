@@ -26,8 +26,8 @@ import (
 const (
 	// IgnoreRunning maps RUNNING to NO_RESULT
 	IgnoreRunning = true
-	// FailRunning maps RUNNING to FAIL
-	FailRunning = false
+	// ShowRunning maps RUNNING to UNKNOWN
+	ShowRunning = false
 )
 
 var (
@@ -73,7 +73,7 @@ func IsFailingResult(rowResult statuspb.TestStatus) bool {
 	return gte(rowResult, statuspb.TestStatus_TOOL_FAIL) && lte(rowResult, statuspb.TestStatus_FAIL)
 }
 
-// Coalesce reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
+// Coalesce reduces the result to PASS, NO_RESULT, FAIL, FLAKY or UNKNOWN.
 func Coalesce(result statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatus {
 	// TODO(fejta): other result types, not used by k8s testgrid
 	if result == statuspb.TestStatus_NO_RESULT || result == statuspb.TestStatus_RUNNING && ignoreRunning {
@@ -82,10 +82,13 @@ func Coalesce(result statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatu
 	if result == statuspb.TestStatus_FLAKY {
 		return result
 	}
-	if !IsPassingResult(result) || result == statuspb.TestStatus_RUNNING {
+	if IsFailingResult(result) {
 		return statuspb.TestStatus_FAIL
 	}
-	return statuspb.TestStatus_PASS
+	if IsPassingResult(result) {
+		return statuspb.TestStatus_PASS
+	}
+	return statuspb.TestStatus_UNKNOWN
 }
 
 // Iter returns a channel that outputs the result for each column, decoding the run-length-encoding.

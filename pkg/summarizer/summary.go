@@ -558,23 +558,24 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 		}
 		var passes int
 		var failures int
+		var other int
 		for _, ch := range results {
 			// TODO(fejta): fail old running cols
-			switch coalesceResult(<-ch, result.IgnoreRunning) {
-			//TODO(michelle192837): Create utility to standardize pass/fail boundaries
-			case statuspb.TestStatus_PASS, statuspb.TestStatus_PASS_WITH_ERRORS, statuspb.TestStatus_PASS_WITH_SKIPS:
+			status := coalesceResult(<-ch, result.IgnoreRunning)
+			if result.IsPassingResult(status) {
 				passes++
 				passingCells++
 				filledCells++
-			case statuspb.TestStatus_NO_RESULT:
-				// noop
-			default:
+			} else if result.IsFailingResult(status) {
 				failures++
+				filledCells++
+			} else if status != statuspb.TestStatus_NO_RESULT {
+				other++
 				filledCells++
 			}
 		}
 
-		if failures > 0 || passes > 0 {
+		if passes+failures+other > 0 {
 			completedCols++
 		}
 		if failures == 0 && passes > 0 {
@@ -582,7 +583,7 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 		}
 
 		if passes+failures > 0 && brokenThreshold > 0 {
-			if float32(failures)/float32(passes+failures) > brokenThreshold {
+			if float32(failures)/float32(passes+failures+other) > brokenThreshold {
 				brokenState = true
 			}
 		}
@@ -618,11 +619,11 @@ func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
 		var failures bool
 		var passes bool
 		for _, resultCh := range results {
-			result := coalesceResult(<-resultCh, result.FailRunning)
+			result := coalesceResult(<-resultCh, result.ShowRunning)
 			if result == statuspb.TestStatus_PASS {
 				passes = true
 			}
-			if result == statuspb.TestStatus_FLAKY || result == statuspb.TestStatus_FAIL {
+			if result == statuspb.TestStatus_FLAKY || result == statuspb.TestStatus_FAIL || result == statuspb.TestStatus_UNKNOWN {
 				failures = true
 				break
 			}

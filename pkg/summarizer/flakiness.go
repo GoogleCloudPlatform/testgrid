@@ -131,7 +131,7 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 			if i >= len(grid.Columns) {
 				break
 			}
-			rowResult := result.Coalesce(nextRowResult, result.FailRunning)
+			rowResult := result.Coalesce(nextRowResult, result.ShowRunning)
 
 			// We still need to increment rowToMessageIndex even if we want to skip counting
 			// this column.
