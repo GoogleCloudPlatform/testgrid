@@ -19,7 +19,6 @@ package gcs
 import (
 	"context"
 	"io"
-	"strings"
 
 	"cloud.google.com/go/storage"
 )
@@ -76,60 +75,60 @@ type ConditionalClient interface {
 	If(read, write *storage.Conditions) ConditionalClient
 }
 
-// NewClient returns a GCSUploadClient for the storage.Client.
+type gcsClient struct {
+	gcs   *realGCSClient
+	local *localClient
+}
+
+// NewClient returns a flexible (local or GCS) storage client.
 func NewClient(client *storage.Client) ConditionalClient {
-	return realGCSClient{client, nil, nil}
-}
-
-type realGCSClient struct {
-	client    *storage.Client
-	readCond  *storage.Conditions
-	writeCond *storage.Conditions
-}
-
-func (rgc realGCSClient) If(read, write *storage.Conditions) ConditionalClient {
-	return realGCSClient{
-		client:    rgc.client,
-		readCond:  read,
-		writeCond: write,
+	return gcsClient{
+		gcs:   &realGCSClient{client, nil, nil},
+		local: &localClient{nil, nil},
 	}
 }
 
-func (rgc realGCSClient) handle(path Path, cond *storage.Conditions) *storage.ObjectHandle {
-	oh := rgc.client.Bucket(path.Bucket()).Object(path.Object())
-	if cond == nil {
-		return oh
+// If returns a flexible (local or GCS) conditional client.
+func (gc gcsClient) If(read, write *storage.Conditions) ConditionalClient {
+	return gcsClient{
+		gcs:   &realGCSClient{gc.gcs.client, read, write},
+		local: &localClient{nil, nil},
 	}
-	return oh.If(*cond)
 }
 
-func (rgc realGCSClient) Copy(ctx context.Context, from, to Path) error {
-	fromH := rgc.handle(from, rgc.readCond)
-	_, err := rgc.handle(to, rgc.writeCond).CopierFrom(fromH).Run(ctx)
-	return err
-}
-
-func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
-	r, err := rgc.handle(path, rgc.readCond).NewReader(ctx)
-	return r, err
-}
-
-func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {
-	p := path.Object()
-	if !strings.HasSuffix(p, "/") {
-		p += "/"
+func (gc gcsClient) clientFromPath(path Path) ConditionalClient {
+	if path.URL().Scheme == "gs" {
+		return gc.gcs
 	}
-	return rgc.client.Bucket(path.Bucket()).Objects(ctx, &storage.Query{
-		Delimiter:   delimiter,
-		Prefix:      p,
-		StartOffset: startOffset,
-	})
+	return gc.local
 }
 
-func (rgc realGCSClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) error {
-	return UploadHandle(ctx, rgc.handle(path, rgc.writeCond), buf, worldReadable, cacheControl)
+// Copy copies the contents of 'from' into 'to'.
+func (gc gcsClient) Copy(ctx context.Context, from, to Path) error {
+	client := gc.clientFromPath(from)
+	return client.Copy(ctx, from, to)
 }
 
-func (rgc realGCSClient) Stat(ctx context.Context, path Path) (*storage.ObjectAttrs, error) {
-	return rgc.handle(path, rgc.readCond).Attrs(ctx)
+// Open returns a handle for a given path.
+func (gc gcsClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+	client := gc.clientFromPath(path)
+	return client.Open(ctx, path)
+}
+
+// Objects returns an iterator of objects under a given path.
+func (gc gcsClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {
+	client := gc.clientFromPath(path)
+	return client.Objects(ctx, path, delimiter, startOffset)
+}
+
+// Upload writes content to the given path.
+func (gc gcsClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) error {
+	client := gc.clientFromPath(path)
+	return client.Upload(ctx, path, buf, worldReadable, cacheControl)
+}
+
+// Stat returns object attributes for a given path.
+func (gc gcsClient) Stat(ctx context.Context, path Path) (*storage.ObjectAttrs, error) {
+	client := gc.clientFromPath(path)
+	return client.Stat(ctx, path)
 }
