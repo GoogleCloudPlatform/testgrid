@@ -28,24 +28,23 @@ import (
 )
 
 func TestYaml2Proto_IsExternal_And_UseKuberClient_False(t *testing.T) {
-	yaml :=
-		`default_test_group:
+	fakeDefault := `default_test_group:
   name: default
 default_dashboard_tab:
-  name: default
-test_groups:
+  name: default`
+	yaml := `test_groups:
 - name: testgroup_1
 dashboards:
 - name: dash_1`
 
-	defaults, err := LoadDefaults([]byte(yaml))
+	defaults, err := LoadDefaults([]byte(fakeDefault))
 	if err != nil {
 		t.Fatalf("Convert Error: %v\n Results: %v", err, defaults)
 	}
 
 	var cfg config.Configuration
 
-	if err := Update(&cfg, []byte(yaml), &defaults); err != nil {
+	if err := Update(&cfg, []byte(yaml), &defaults, false); err != nil {
 		t.Errorf("Convert Error: %v\n", err)
 	}
 
@@ -133,6 +132,7 @@ default_dashboard_tab:
 		yaml              string
 		expectedTestGroup int32
 		expectedDashTab   int32
+		strict            bool
 	}{
 		{
 			name: "Default Settings",
@@ -144,6 +144,7 @@ test_groups:
 - name: testgroup_1`,
 			expectedTestGroup: 10,
 			expectedDashTab:   20,
+			strict:            false,
 		},
 		{
 			name: "DashboardTab Inheritance",
@@ -156,6 +157,7 @@ test_groups:
 - name: testgroup_1`,
 			expectedTestGroup: 10,
 			expectedDashTab:   3,
+			strict:            false,
 		},
 		{
 			name: "TestGroup Inheritance",
@@ -168,22 +170,7 @@ test_groups:
   num_columns_recent: 4`,
 			expectedTestGroup: 4,
 			expectedDashTab:   20,
-		},
-		{
-			// TODO: Prevent this case.
-			name: "Doesn't inherit imbedded defaults",
-			yaml: `default_test_group:
-  num_columns_recent: 5
-default_dashboard_tab:
-  num_columns_recent: 6
-dashboards:
-- name: dash_1
-  dashboard_tab:
-  - name: tab_1
-test_groups:
-- name: testgroup_1`,
-			expectedTestGroup: 10,
-			expectedDashTab:   20,
+			strict:            false,
 		},
 	}
 
@@ -195,7 +182,7 @@ test_groups:
 				t.Fatalf("Unexpected error with default yaml: %v", err)
 			}
 
-			if err := Update(&cfg, []byte(test.yaml), &defaults); err != nil {
+			if err := Update(&cfg, []byte(test.yaml), &defaults, test.strict); err != nil {
 				t.Fatalf("Unexpected error with Update: %v", err)
 			}
 
@@ -217,6 +204,48 @@ test_groups:
 					cfg.Dashboards[0].DashboardTab[0].NumColumnsRecent, test.expectedDashTab)
 			}
 
+		})
+	}
+}
+
+func Test_UpdateErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		yaml   string
+		strict bool
+	}{
+		{
+			name: "Imbedded defaults fails",
+			yaml: `default_test_group:
+  num_columns_recent: 5
+default_dashboard_tab:
+  num_columns_recent: 6
+dashboards:
+- name: dash_1
+  dashboard_tab:
+  - name: tab_1
+test_groups:
+- name: testgroup_1`,
+			strict: true,
+		},
+		{
+			name: "Invalid field inside dashboard fails",
+			yaml: `dashboards:
+- name: dash_1
+  dashboard_tab:
+  - name: tab_1
+  - garbage: garbage
+test_groups:
+- name: testgroup_1`,
+			strict: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var cfg config.Configuration
+			if err := Update(&cfg, []byte(test.yaml), nil, test.strict); err == nil {
+				t.Fatalf("expected an error")
+			}
 		})
 	}
 }
@@ -695,9 +724,9 @@ func Test_ReadConfig(t *testing.T) {
 			var result config.Configuration
 			var readErr error
 			if test.useDir {
-				result, readErr = ReadConfig([]string{directory}, "")
+				result, readErr = ReadConfig([]string{directory}, "", false)
 			} else {
-				result, readErr = ReadConfig(inputs, "")
+				result, readErr = ReadConfig(inputs, "", false)
 			}
 
 			if test.expectFailure && readErr == nil {
