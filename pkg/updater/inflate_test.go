@@ -418,11 +418,14 @@ func TestInflateRow(t *testing.T) {
 		{
 			name: "preserve cell ids",
 			row: statepb.Row{
-				CellIds:  []string{"cell-a", "cell-b"},
-				Icons:    blank(2),
-				Messages: blank(2),
+				CellIds:  []string{"cell-a", "cell-b", "cell-d"},
+				Icons:    blank(3),
+				Messages: blank(3),
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 2,
+					int32(statuspb.TestStatus_NO_RESULT), 1,
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_NO_RESULT), 1,
 				},
 			},
 			expected: []cell{
@@ -433,6 +436,16 @@ func TestInflateRow(t *testing.T) {
 				{
 					result: statuspb.TestStatus_PASS,
 					cellID: "cell-b",
+				},
+				{
+					result: statuspb.TestStatus_NO_RESULT,
+				},
+				{
+					result: statuspb.TestStatus_PASS,
+					cellID: "cell-d",
+				},
+				{
+					result: statuspb.TestStatus_NO_RESULT,
 				},
 			},
 		},
@@ -539,8 +552,8 @@ func TestInflateRow(t *testing.T) {
 				actual = append(actual, r)
 			}
 
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("inflateRow(%v) got %v, want %v", tc.row, actual, tc.expected)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{}), protocmp.Transform()); diff != "" {
+				t.Errorf("inflateRow() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
