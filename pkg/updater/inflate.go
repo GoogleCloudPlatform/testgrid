@@ -91,7 +91,6 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
 		defer close(out)
 		defer cancel()
 		var filledIdx int
-		var cellIdx int
 		metrics := map[string]<-chan *float64{}
 		for i, m := range row.Metrics {
 			if m.Name == "" && len(row.Metrics) > i {
@@ -101,11 +100,7 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
 		}
 		var val *float64
 		for result := range inflateResults(ctx, row.Results) {
-			c := cell{
-				cellID: row.CellIds[cellIdx],
-				result: result,
-			}
-			cellIdx++
+			c := cell{result: result}
 			for name, ch := range metrics {
 				select {
 				case <-ctx.Done():
@@ -123,6 +118,7 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
 			if result != statuspb.TestStatus_NO_RESULT {
 				c.icon = row.Icons[filledIdx]
 				c.message = row.Messages[filledIdx]
+				c.cellID = row.CellIds[filledIdx]
 				filledIdx++
 			}
 			select {
