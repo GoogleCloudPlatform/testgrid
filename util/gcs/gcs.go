@@ -61,6 +61,11 @@ func (g Path) String() string {
 	return g.url.String()
 }
 
+// URL returns the url
+func (g Path) URL() url.URL {
+	return g.url
+}
+
 // Set updates value from a gs://bucket/obj string, validating errors.
 func (g *Path) Set(v string) error {
 	u, err := url.Parse(v)
@@ -75,8 +80,8 @@ func (g *Path) SetURL(u *url.URL) error {
 	switch {
 	case u == nil:
 		return errors.New("nil url")
-	case u.Scheme != "gs":
-		return fmt.Errorf("must use a gs:// url: %s", u)
+	case u.Scheme != "gs" && u.Scheme != "" && u.Scheme != "file":
+		return fmt.Errorf("must use a gs://, file://, or local filesystem url: %s", u)
 	case strings.Contains(u.Host, ":"):
 		return fmt.Errorf("gs://bucket may not contain a port: %s", u)
 	case u.Opaque != "":

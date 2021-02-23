@@ -5,7 +5,9 @@ go_library(
     srcs = [
         "client.go",
         "gcs.go",
+        "local_gcs.go",
         "read.go",
+        "real_gcs.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/testgrid/util/gcs",
     visibility = ["//visibility:public"],

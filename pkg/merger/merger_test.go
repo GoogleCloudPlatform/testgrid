@@ -21,9 +21,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"io"
 	"io/ioutil"
-	"reflect"
 	"testing"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -57,7 +57,7 @@ func Test_ParseAndCheck(t *testing.T) {
 			input: []byte(`target: "gs://path/to/write/config"
 sources:
 - name: "red"
-  location: "gs://example/red-team/config"  
+  location: "gs://example/red-team/config"
   contact: "red-admin@example.com"
 - name: "blue"
   location: "gs://example/blue-team/config"
@@ -107,11 +107,69 @@ sources:
 			},
 		},
 		{
-			name: "Target is invalid path",
-			input: []byte(`target: "./config"
+			name: "Target is local filesystem path",
+			input: []byte(`target: "/tmp/config"
 sources:
 - name: "red"
-  location: "gs://example/red-team/config"  
+  location: "gs://example/red-team/config"
+  contact: "red-admin@example.com"
+- name: "blue"
+  location: "gs://example/blue-team/config"
+  contact: "blue.team.contact@example.com"`),
+			expectedList: MergeList{
+				Target: "/tmp/config",
+				Path:   newPathOrDie("/tmp/config"),
+				Sources: []Source{
+					{
+						Name:     "red",
+						Location: "gs://example/red-team/config",
+						Path:     newPathOrDie("gs://example/red-team/config"),
+						Contact:  "red-admin@example.com",
+					},
+					{
+						Name:     "blue",
+						Location: "gs://example/blue-team/config",
+						Path:     newPathOrDie("gs://example/blue-team/config"),
+						Contact:  "blue.team.contact@example.com",
+					},
+				},
+			},
+		},
+		{
+			name: "Target is file:// path",
+			input: []byte(`target: "file://tmp/config"
+sources:
+- name: "red"
+  location: "gs://example/red-team/config"
+  contact: "red-admin@example.com"
+- name: "blue"
+  location: "gs://example/blue-team/config"
+  contact: "blue.team.contact@example.com"`),
+			expectedList: MergeList{
+				Target: "file://tmp/config",
+				Path:   newPathOrDie("file://tmp/config"),
+				Sources: []Source{
+					{
+						Name:     "red",
+						Location: "gs://example/red-team/config",
+						Path:     newPathOrDie("gs://example/red-team/config"),
+						Contact:  "red-admin@example.com",
+					},
+					{
+						Name:     "blue",
+						Location: "gs://example/blue-team/config",
+						Path:     newPathOrDie("gs://example/blue-team/config"),
+						Contact:  "blue.team.contact@example.com",
+					},
+				},
+			},
+		},
+		{
+			name: "Target is invalid path",
+			input: []byte(`target: "foo://config"
+sources:
+- name: "red"
+  location: "gs://example/red-team/config"
   contact: "red-admin@example.com"
 - name: "blue"
   location: "gs://example/blue-team/config"
@@ -119,11 +177,40 @@ sources:
 			expectError: true,
 		},
 		{
+			name: "Source contains a local filesystem path",
+			input: []byte(`target: "gs://path/to/write/config"
+sources:
+- name: "red"
+  location: "/tmp/config"
+  contact: "red-admin@example.com"
+- name: "blue"
+  location: "file://example/blue-team/config"
+  contact: "blue.team.contact@example.com"`),
+			expectedList: MergeList{
+				Target: "gs://path/to/write/config",
+				Path:   newPathOrDie("gs://path/to/write/config"),
+				Sources: []Source{
+					{
+						Name:     "red",
+						Location: "/tmp/config",
+						Path:     newPathOrDie("/tmp/config"),
+						Contact:  "red-admin@example.com",
+					},
+					{
+						Name:     "blue",
+						Location: "file://example/blue-team/config",
+						Path:     newPathOrDie("file://example/blue-team/config"),
+						Contact:  "blue.team.contact@example.com",
+					},
+				},
+			},
+		},
+		{
 			name: "Source contains an invalid path, returns error",
 			input: []byte(`target: "gs://path/to/write/config"
 sources:
 - name: "red"
-  location: "./config"  
+  location: "foo://config"
   contact: "red-admin@example.com"
 - name: "blue"
   location: "gs://example/blue-team/config"
@@ -154,8 +241,8 @@ sources:
 			if err != nil {
 				t.Errorf("Unexpected error %v", err)
 			}
-			if !reflect.DeepEqual(resultList, test.expectedList) {
-				t.Errorf("Expected %v, but got %v", test.expectedList, resultList)
+			if diff := cmp.Diff(test.expectedList, resultList, cmp.AllowUnexported(gcs.Path{})); diff != "" {
+				t.Errorf("ParseAndCheck(%q) differed (-got, +want): %s", test.input, diff)
 			}
 		})
 	}

@@ -41,8 +41,20 @@ func Test_SetURL(t *testing.T) {
 			object: "second",
 		},
 		{
-			name: "reject files",
-			url:  "/path/to/my/bucket",
+			name:   "allow files",
+			url:    "/path/to/my/bucket/foo",
+			bucket: "",
+			object: "path/to/my/bucket/foo",
+		},
+		{
+			name:   "allow file urls",
+			url:    "file://path/to/my/bucket/foo",
+			bucket: "path",
+			object: "to/my/bucket/foo",
+		},
+		{
+			name: "reject unknown scheme",
+			url:  "foo://some/path",
 			err:  true,
 		},
 		{
