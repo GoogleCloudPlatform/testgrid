@@ -2543,11 +2543,11 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_FAIL), 3,
 					int32(statuspb.TestStatus_PASS), 3,
 				},
-				Messages: []string{"hello", "no", "no again", "very wrong"},
-				CellIds:  []string{"yes", "no", "no again", "very wrong"},
+				Messages: []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				CellIds:  []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "hello", "yes", columns[2], columns[3]),
+			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3]),
 		},
 		{
 			name: "too few passes do not close",
@@ -2556,12 +2556,12 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_PASS), 2,
 					int32(statuspb.TestStatus_FAIL), 4,
 				},
-				Messages: []string{"nope", "no", "yay", "very wrong"},
-				CellIds:  []string{"wrong", "no", "yep", "very wrong"},
+				Messages: []string{"nope", "no", "yay", "very wrong", "hi", "hello"},
+				CellIds:  []string{"wrong", "no", "yep", "very wrong", "hi", "hello"},
 			},
 			failOpen:  1,
 			passClose: 3,
-			expected:  alertInfo(4, "yay", "yep", columns[5], nil),
+			expected:  alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil),
 		},
 		{
 			name: "flakes do not close",
@@ -2570,11 +2570,11 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_FLAKY), 2,
 					int32(statuspb.TestStatus_FAIL), 4,
 				},
-				Messages: []string{"nope", "no", "yay", "very wrong"},
-				CellIds:  []string{"wrong", "no", "yep", "very wrong"},
+				Messages: []string{"nope", "no", "yay", "very wrong", "hi", "hello"},
+				CellIds:  []string{"wrong", "no", "yep", "very wrong", "hi", "hello"},
 			},
 			failOpen: 1,
-			expected: alertInfo(4, "yay", "yep", columns[5], nil),
+			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil),
 		},
 		{
 			name: "count failures after flaky passes",
@@ -2586,12 +2586,12 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_PASS), 1,
 					int32(statuspb.TestStatus_FAIL), 2,
 				},
-				Messages: []string{"nope", "no", "buu", "wrong", "this one"},
-				CellIds:  []string{"wrong", "no", "buzz", "wrong2", "good job"},
+				Messages: []string{"nope", "no", "buu", "wrong", "this one", "hi"},
+				CellIds:  []string{"wrong", "no", "buzz", "wrong2", "good job", "hi"},
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "this one", "good job", columns[5], nil),
+			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[4], nil),
 		},
 		{
 			name: "close alert",
@@ -2611,12 +2611,12 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_NO_RESULT), 1,
 					int32(statuspb.TestStatus_FAIL), 4,
 				},
-				Messages: []string{"yay", "no", "buu", "wrong", "nono"},
-				CellIds:  []string{"yay-cell", "no", "buzz", "wrong2", "nada"},
+				Messages: []string{"yay" /*no result */, "no", "buu", "wrong", "nono"},
+				CellIds:  []string{"yay-cell" /*no result */, "no", "buzz", "wrong2", "nada"},
 			},
 			failOpen:  5,
 			passClose: 2,
-			expected:  alertInfo(5, "yay", "yay-cell", columns[5], nil),
+			expected:  alertInfo(5, "yay", "nada", "yay-cell", columns[5], columns[0], nil),
 		},
 		{
 			name: "track passes through empty results",
@@ -2642,13 +2642,14 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
 			},
 			failOpen: 1,
-			expected: alertInfo(5, "fail1-expected", "yep", columns[5], nil),
+			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil),
 		},
 	}
 
 	for _, tc := range cases {
-		if actual := alertRow(columns, &tc.row, tc.failOpen, tc.passClose); !reflect.DeepEqual(actual, tc.expected) {
-			t.Errorf("%s alert %s != expected %s", tc.name, actual, tc.expected)
+		actual := alertRow(columns, &tc.row, tc.failOpen, tc.passClose)
+		if diff := cmp.Diff(tc.expected, actual); diff != "" {
+			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
 	}
 }
