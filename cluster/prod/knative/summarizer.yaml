@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-summarizer
+  namespace: knative-testgrid
+  labels:
+    component: summarizer
+    app: testgrid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer
+  template:
+    metadata:
+      labels:
+        component: summarizer
+        app: testgrid
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20210201-v0.0.45-2-ga6373ea
+        args:
+        - --config=gs://knative-own-testgrid/config
+        - --confirm
+        - --wait=5m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beta-summarizer
+  namespace: knative-testgrid
+  labels:
+    component: summarizer-beta
+    app: testgrid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer-beta
+  template:
+    metadata:
+      labels:
+        component: summarizer-beta
+        app: testgrid
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20210201-v0.0.45-2-ga6373ea
+        args:
+        - --config=gs://knative-own-testgrid/config
+        - --confirm
+        - --grid-path=grid
+        - --summary-path=summary
+        - --wait=5m
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    # Uses same as updater
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+  name: summarizer
+  namespace: knative-testgrid
