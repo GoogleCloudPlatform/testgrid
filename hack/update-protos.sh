@@ -20,13 +20,15 @@ set -o pipefail
 
 if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then # Running inside bazel
   echo "Updating protos..." >&2
-elif ! command -v bazel &>/dev/null; then
-  echo "Install bazel at https://bazel.build" >&2
-  exit 1
 else
+  bazel=$(command -v bazelisk || command -v bazel || true)
+  if [[ -z "$bazel" ]]; then
+      echo "Install bazel at https://bazel.build" >&2
+      exit 1
+  fi
   (
     set -o xtrace
-    bazel run //hack:update-protos
+    "$bazel" run //hack:update-protos
   )
   exit 0
 fi
