@@ -55,11 +55,11 @@ type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client *storage.Client, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
+func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
 	if concurrency < 1 {
 		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
-	cfg, err := config.ReadGCS(ctx, gcs.NewClient(client), configPath)
+	cfg, err := config.ReadGCS(ctx, client, configPath)
 	if err != nil {
 		return fmt.Errorf("Failed to read config: %w", err)
 	}
@@ -156,21 +156,25 @@ func summaryPath(name string) string {
 	return "summary-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
 }
 
-func writeSummary(ctx context.Context, client *storage.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
+func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
 	buf, err := proto.Marshal(sum)
 	if err != nil {
 		return fmt.Errorf("marshal: %v", err)
 	}
-	return gcs.Upload(ctx, client, path, buf, gcs.DefaultAcl, "no-cache") // TODO(fejta): configurable cache value
+	return client.Upload(ctx, path, buf, gcs.DefaultAcl, "no-cache") // TODO(fejta): configurable cache value
 }
 
 // pathReader returns a reader for the specified path and last modified, generation metadata.
-func pathReader(ctx context.Context, client *storage.Client, path gcs.Path) (io.ReadCloser, time.Time, int64, error) {
-	r, err := client.Bucket(path.Bucket()).Object(path.Object()).NewReader(ctx)
+func pathReader(ctx context.Context, client gcs.Client, path gcs.Path) (io.ReadCloser, time.Time, int64, error) {
+	r, err := client.Open(ctx, path)
 	if err != nil {
-		return nil, time.Time{}, 0, fmt.Errorf("read %s: %w", path, err)
+		return nil, time.Time{}, 0, fmt.Errorf("client.Open(): %w", err)
 	}
-	return r, r.Attrs.LastModified, r.Attrs.Generation, nil
+	stat, err := client.Stat(ctx, path)
+	if err != nil {
+		return nil, time.Time{}, 0, fmt.Errorf("client.Stat(): %w", err)
+	}
+	return r, stat.Updated, stat.Generation, nil
 }
 
 // updateDashboard will summarize all the tabs (through errors), returning an error if any fail to summarize.
