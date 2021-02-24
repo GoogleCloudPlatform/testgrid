@@ -562,11 +562,11 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 		for _, ch := range results {
 			// TODO(fejta): fail old running cols
 			status := coalesceResult(<-ch, result.IgnoreRunning)
-			if result.IsPassingResult(status) {
+			if result.Passing(status) {
 				passes++
 				passingCells++
 				filledCells++
-			} else if result.IsFailingResult(status) {
+			} else if result.Failing(status) {
 				failures++
 				filledCells++
 			} else if status != statuspb.TestStatus_NO_RESULT {

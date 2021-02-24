@@ -25,7 +25,7 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
-func TestIsPassingResult(t *testing.T) {
+func TestPassing(t *testing.T) {
 	cases := []struct {
 		status   statuspb.TestStatus
 		expected bool
@@ -65,14 +65,14 @@ func TestIsPassingResult(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.status.String(), func(t *testing.T) {
-			if actual := IsPassingResult(tc.status); actual != tc.expected {
-				t.Errorf("IsPassingResult(%v) got %t, want %t", tc.status, actual, tc.expected)
+			if actual := Passing(tc.status); actual != tc.expected {
+				t.Errorf("Passing(%v) got %t, want %t", tc.status, actual, tc.expected)
 			}
 		})
 	}
 }
 
-func TestIsFailingResult(t *testing.T) {
+func TestFailing(t *testing.T) {
 	cases := []struct {
 		status   statuspb.TestStatus
 		expected bool
@@ -125,8 +125,8 @@ func TestIsFailingResult(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.status.String(), func(t *testing.T) {
-			if actual := IsFailingResult(tc.status); actual != tc.expected {
-				t.Errorf("IsFailingResult(%v) got %t, want %t", tc.status, actual, tc.expected)
+			if actual := Failing(tc.status); actual != tc.expected {
+				t.Errorf("Failing(%v) got %t, want %t", tc.status, actual, tc.expected)
 			}
 		})
 	}

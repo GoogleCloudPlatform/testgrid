@@ -322,7 +322,7 @@ func truncateRunning(cols []inflatedColumn) []inflatedColumn {
 	}
 	var stillRunning int
 	for i, c := range cols {
-		if c.cells["Overall"].result == statuspb.TestStatus_RUNNING {
+		if c.cells[overallRow].result == statuspb.TestStatus_RUNNING {
 			stillRunning = i + 1
 		}
 	}
