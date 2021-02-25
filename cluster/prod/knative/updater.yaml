@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: testgrid-updater
-  namespace: knative-testgrid
+  namespace: knative
   labels:
     component: updater
     app: testgrid
@@ -36,4 +36,4 @@ metadata:
   annotations:
     iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
   name: updater
-  namespace: knative-testgrid
+  namespace: knative

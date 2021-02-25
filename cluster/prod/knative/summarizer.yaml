@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: testgrid-summarizer
-  namespace: knative-testgrid
+  namespace: knative
   labels:
     component: summarizer
     app: testgrid
@@ -32,7 +32,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: beta-summarizer
-  namespace: knative-testgrid
+  namespace: knative
   labels:
     component: summarizer-beta
     app: testgrid
@@ -66,4 +66,4 @@ metadata:
     # Uses same as updater
     iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
   name: summarizer
-  namespace: knative-testgrid
+  namespace: knative

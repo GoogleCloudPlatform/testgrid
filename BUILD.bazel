@@ -17,8 +17,7 @@ filegroup(
     srcs = [
         ":package-srcs",
         "//cluster/canary:all-srcs",
-        "//cluster/prod/k8s:all-srcs",
-        "//cluster/prod/knative:all-srcs",
+        "//cluster/prod:all-srcs",
         "//cmd/config_merger:all-srcs",
         "//cmd/summarizer:all-srcs",
         "//cmd/updater:all-srcs",
