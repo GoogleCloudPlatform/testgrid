@@ -17,13 +17,13 @@ limitations under the License.
 package updater
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -93,36 +93,131 @@ func first(properties map[string][]string) map[string]string {
 	return out
 }
 
+const overallRow = "Overall"
+
+func mergeCells(cells ...cell) cell {
+	var out cell
+	if len(cells) == 0 {
+		panic("empty cells")
+	}
+	out = cells[0]
+
+	if len(cells) == 1 {
+		return out
+	}
+
+	var pass int
+	var passMsg string
+	var fail int
+	var failMsg string
+
+	// determine the status and potential messages
+	// gather all metrics
+	means := map[string][]float64{}
+
+	current := out.result
+
+	for _, c := range cells {
+		if result.GTE(c.result, current) {
+			current = c.result
+		}
+		switch {
+		case result.Passing(c.result):
+			pass++
+			if passMsg == "" && c.message != "" {
+				passMsg = c.message
+			}
+		case result.Failing(c.result):
+			fail++
+			if failMsg == "" && c.message != "" {
+				failMsg = c.message
+			}
+		}
+
+		for metric, mean := range c.metrics {
+			means[metric] = append(means[metric], mean)
+		}
+	}
+	if pass > 0 && fail > 0 {
+		out.result = statuspb.TestStatus_FLAKY
+	} else {
+		out.result = current
+	}
+
+	// determine the icon
+	total := len(cells)
+	out.icon = strconv.Itoa(pass) + "/" + strconv.Itoa(total)
+
+	// compile the message
+	var msg string
+	if failMsg != "" {
+		msg = failMsg
+	} else if passMsg != "" {
+		msg = passMsg
+	}
+
+	if msg != "" {
+		msg = ": " + msg
+	}
+	out.message = out.icon + " runs passed" + msg
+
+	// merge metrics
+	if len(means) > 0 {
+		out.metrics = make(map[string]float64, len(means))
+		for metric, means := range means {
+			var sum float64
+			for _, m := range means {
+				sum += m
+			}
+			out.metrics[metric] = sum / float64(len(means))
+		}
+	}
+	return out
+}
+
+func splitCells(originalName string, cells ...cell) map[string]cell {
+	n := len(cells)
+	if n == 0 {
+		return nil
+	}
+	if n > maxDuplicates {
+		n = maxDuplicates
+	}
+	out := make(map[string]cell, n)
+	for idx, c := range cells {
+		// Ensure each name is unique
+		// If we have multiple results with the same name foo
+		// then append " [n]" to the name so we wind up with:
+		//   foo
+		//   foo [1]
+		//   foo [2]
+		//   etc
+		name := originalName
+		switch idx {
+		case 0:
+			// nothing
+		case maxDuplicates:
+			name = name + " [overflow]"
+			out[name] = overflowCell
+			return out
+		default:
+			name = name + " [" + strconv.Itoa(idx) + "]"
+		}
+		out[name] = c
+	}
+	return out
+}
+
 // convertResult returns an inflatedColumn representation of the GCS result.
-func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult) (*inflatedColumn, error) {
-	overall := overallCell(result)
+func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, merge bool) (*inflatedColumn, error) {
+	cells := map[string][]cell{}
 	var cellID string
 	if nameCfg.multiJob {
 		cellID = result.job + "/" + id
-		overall.cellID = cellID
-	}
-	out := inflatedColumn{
-		column: &statepb.Column{
-			Build:   id,
-			Started: float64(result.started.Timestamp * 1000),
-		},
-		cells: map[string]cell{
-			"Overall": overall,
-		},
 	}
 
 	meta := result.finished.Metadata.Strings()
 	version := metadata.Version(result.started.Started, result.finished.Finished)
-
-	for _, h := range headers {
-		val, ok := meta[h]
-		if !ok && h == "Commit" && version != metadata.Missing {
-			val = version
-		} else if !ok && overall.result != statuspb.TestStatus_RUNNING {
-			val = "missing"
-		}
-		out.column.Extra = append(out.column.Extra, val)
-	}
 
 	// Append each result into the column
 	for _, suite := range result.suites {
@@ -130,7 +225,7 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 			if r.Skipped != nil && *r.Skipped == "" {
 				continue
 			}
-			c := &cell{cellID: cellID}
+			c := cell{cellID: cellID}
 			if elapsed := r.Time; elapsed > 0 {
 				c.metrics = setElapsed(c.metrics, elapsed)
 			}
@@ -166,69 +261,68 @@ func convertResult(ctx context.Context, log logrus.FieldLogger, nameCfg nameConf
 			}
 
 			name := nameCfg.render(result.job, r.Name, first(props), suite.Metadata, meta)
-
-			// Ensure each name is unique
-			// If we have multiple results with the same name foo
-			// then append " [n]" to the name so we wind up with:
-			//   foo
-			//   foo [1]
-			//   foo [2]
-			//   etc
-			if _, present := out.cells[name]; present {
-				var attempt string
-				for idx := 1; true; idx++ {
-					select {
-					case <-ctx.Done():
-						return nil, ctx.Err()
-					default:
-					}
-					if idx == maxDuplicates {
-						name = name + " [overflow]"
-						if _, present := out.cells[name]; present {
-							c = nil
-							break
-						}
-						c = &overflowCell
-						break
-					}
-
-					attempt = name + " [" + strconv.Itoa(idx) + "]"
-					if _, present := out.cells[attempt]; present {
-						continue
-					}
-					name = attempt
-					break
-				}
-			}
-			if c == nil {
-				continue
-			}
-			out.cells[name] = *c
+			cells[name] = append(cells[name], c)
 		}
 	}
 
+	overall := overallCell(result)
 	if overall.result == statuspb.TestStatus_FAIL && overall.message == "" { // Ensure failing build has a failing cell and/or overall message
 		var found bool
-		for n, c := range out.cells {
-			if n == "Overall" {
-				continue
+		for _, namedCells := range cells {
+			for _, c := range namedCells {
+				if c.result == statuspb.TestStatus_FAIL {
+					found = true // Failing test, huzzah!
+					break
+				}
 			}
-			if c.result == statuspb.TestStatus_FAIL {
-				found = true // Failing test, huzzah!
+			if found {
 				break
 			}
 		}
 		if !found { // Nope, add the F icon and an explanatory message
-			overall := out.cells["Overall"]
 			overall.icon = "F"
 			overall.message = "Build failed outside of test results"
-			out.cells["Overall"] = overall
 		}
 	}
 
+	overallRows := []string{overallRow}
 	if nameCfg.multiJob {
-		name := nameCfg.render(result.job, "Overall", meta)
-		out.cells[name] = out.cells["Overall"]
+		name := nameCfg.render(result.job, overallRow, meta)
+		overallRows = append(overallRows, name)
+		overall.cellID = cellID
+	}
+
+	for _, name := range overallRows {
+		cells[name] = append([]cell{overall}, cells[name]...)
+	}
+
+	out := inflatedColumn{
+		column: &statepb.Column{
+			Build:   id,
+			Started: float64(result.started.Timestamp * 1000),
+		},
+		cells: map[string]cell{},
+	}
+
+	for name, cells := range cells {
+		switch {
+		case merge:
+			out.cells[name] = mergeCells(cells...)
+		default:
+			for n, c := range splitCells(name, cells...) {
+				out.cells[n] = c
+			}
+		}
+	}
+
+	for _, h := range headers {
+		val, ok := meta[h]
+		if !ok && h == "Commit" && version != metadata.Missing {
+			val = version
+		} else if !ok && overall.result != statuspb.TestStatus_RUNNING {
+			val = "missing"
+		}
+		out.column.Extra = append(out.column.Extra, val)
 	}
 
 	return &out, nil

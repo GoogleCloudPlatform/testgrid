@@ -17,7 +17,6 @@ limitations under the License.
 package updater
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -34,6 +33,211 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
+func TestMergeCells(t *testing.T) {
+	cases := []struct {
+		name     string
+		cells    []cell
+		expected cell
+	}{
+		{
+			name: "basically works",
+			cells: []cell{
+				{
+					result:  statuspb.TestStatus_TOOL_FAIL,
+					cellID:  "random",
+					icon:    "religious",
+					message: "empty",
+					metrics: map[string]float64{
+						"answer":   42,
+						"question": 1,
+					},
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_TOOL_FAIL,
+				cellID:  "random",
+				icon:    "religious",
+				message: "empty",
+				metrics: map[string]float64{
+					"answer":   42,
+					"question": 1,
+				},
+			},
+		},
+		{
+			name: "passes work and take first filled message",
+			cells: []cell{
+				{
+					result: statuspb.TestStatus_PASS,
+					icon:   "drop",
+				},
+				{
+					result:  statuspb.TestStatus_BUILD_PASSED,
+					message: "woah",
+				},
+				{
+					result:  statuspb.TestStatus_PASS,
+					message: "there",
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_PASS,
+				message: "3/3 runs passed: woah",
+				icon:    "3/3",
+			},
+		},
+		{
+			name: "merge metrics",
+			cells: []cell{
+				{
+					result: statuspb.TestStatus_PASS,
+					metrics: map[string]float64{
+						"common": 1,
+						"first":  1,
+					},
+				},
+				{
+					result: statuspb.TestStatus_PASS,
+					metrics: map[string]float64{
+						"common": 2,
+						"second": 2,
+					},
+				},
+				{
+					result: statuspb.TestStatus_PASS,
+					metrics: map[string]float64{
+						"common": 108, // total 111
+						"third":  3,
+					},
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_PASS,
+				message: "3/3 runs passed",
+				icon:    "3/3",
+				metrics: map[string]float64{
+					"common": 37,
+					"first":  1,
+					"second": 2,
+					"third":  3,
+				},
+			},
+		},
+		{
+			name: "failures take highest failure, first failure message",
+			cells: []cell{
+				{
+					result:  statuspb.TestStatus_TIMED_OUT,
+					message: "agonizingly slow",
+					icon:    "drop",
+				},
+				{
+					result: statuspb.TestStatus_BUILD_FAIL,
+					icon:   "drop",
+				},
+				{
+					result: statuspb.TestStatus_CATEGORIZED_FAIL,
+					icon:   "drop",
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_BUILD_FAIL,
+				icon:    "0/3",
+				message: "0/3 runs passed: agonizingly slow",
+			},
+		},
+		{
+			name: "mix of passes and failures flake",
+			cells: []cell{
+				{
+					result:  statuspb.TestStatus_PASS,
+					message: "yay",
+				},
+				{
+					result:  statuspb.TestStatus_FAIL,
+					message: "boom",
+				},
+			},
+			expected: cell{
+				result:  statuspb.TestStatus_FLAKY,
+				icon:    "1/2",
+				message: "1/2 runs passed: boom",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := mergeCells(tc.cells...)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
+				t.Errorf("mergeCells() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSplitCells(t *testing.T) {
+	const cellName = "foo"
+	cases := []struct {
+		name     string
+		cells    []cell
+		expected map[string]cell
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name:  "single item returns that item",
+			cells: []cell{{message: "hi"}},
+			expected: map[string]cell{
+				"foo": {message: "hi"},
+			},
+		},
+		{
+			name: "multiple items have [1] starting from second",
+			cells: []cell{
+				{message: "first"},
+				{message: "second"},
+				{message: "third"},
+			},
+			expected: map[string]cell{
+				"foo":     {message: "first"},
+				"foo [1]": {message: "second"},
+				"foo [2]": {message: "third"},
+			},
+		},
+		{
+			name: "many items eventually truncate",
+			cells: func() []cell {
+				var out []cell
+				for i := 0; i < maxDuplicates*2; i++ {
+					out = append(out, cell{icon: fmt.Sprintf("row %d", i)})
+				}
+				return out
+			}(),
+			expected: func() map[string]cell {
+				out := map[string]cell{}
+				out[cellName] = cell{icon: "row 0"}
+				for i := 1; i < maxDuplicates; i++ {
+					name := fmt.Sprintf("%s [%d]", cellName, i)
+					out[name] = cell{icon: fmt.Sprintf("row %d", i)}
+				}
+				out[cellName+" [overflow]"] = overflowCell
+				return out
+			}(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := splitCells(cellName, tc.cells...)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
+				t.Errorf("splitCells() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestConvertResult(t *testing.T) {
 	pint := func(v int64) *int64 {
 		return &v
@@ -45,12 +249,12 @@ func TestConvertResult(t *testing.T) {
 	now := time.Now().Unix()
 	cases := []struct {
 		name      string
-		ctx       context.Context
 		nameCfg   nameConfig
 		id        string
 		headers   []string
 		metricKey string
 		result    gcsResult
+		merge     bool
 		expected  *inflatedColumn
 	}{
 		{
@@ -58,7 +262,7 @@ func TestConvertResult(t *testing.T) {
 			expected: &inflatedColumn{
 				column: &statepb.Column{},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
@@ -98,7 +302,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
@@ -138,7 +342,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_RUNNING,
 						icon:    "R",
 						message: "Build still running...",
@@ -189,7 +393,7 @@ func TestConvertResult(t *testing.T) {
 					Build:   "build",
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
 						message: "Build failed outside of test results",
@@ -250,7 +454,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
 						message: "Build failed outside of test results",
@@ -301,7 +505,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
 						message: "Build failed outside of test results",
@@ -381,7 +585,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
@@ -527,7 +731,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
@@ -659,7 +863,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
@@ -736,7 +940,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				cells: map[string]cell{
-					"Overall": {
+					overallRow: {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
@@ -751,71 +955,6 @@ func TestConvertResult(t *testing.T) {
 					"same - same [2]": {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 3),
-					},
-				},
-			},
-		},
-		{
-			name: "cancelled context returns error",
-			ctx: func() context.Context {
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel()
-				return ctx
-			}(),
-			nameCfg: nameConfig{
-				format: "%s - %s",
-				parts:  []string{testsName, "extra"},
-			},
-			result: gcsResult{
-				started: gcs.Started{
-					Started: metadata.Started{
-						Timestamp: now,
-					},
-				},
-				finished: gcs.Finished{
-					Finished: metadata.Finished{
-						Timestamp: pint(now + 1),
-						Passed:    &yes,
-					},
-				},
-				suites: []gcs.SuitesMeta{
-					{
-						Suites: junit.Suites{
-							Suites: []junit.Suite{
-								{
-									Results: []junit.Result{
-										{
-											Name: "same",
-											Time: 1,
-										},
-										{
-											Name: "same",
-											Time: 2,
-										},
-									},
-								},
-							},
-						},
-						Metadata: map[string]string{
-							"extra": "same",
-						},
-					},
-					{
-						Suites: junit.Suites{
-							Suites: []junit.Suite{
-								{
-									Results: []junit.Result{
-										{
-											Name: "same",
-											Time: 3,
-										},
-									},
-								},
-							},
-						},
-						Metadata: map[string]string{
-							"extra": "same",
-						},
 					},
 				},
 			},
@@ -876,7 +1015,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				cells: func() map[string]cell {
 					out := map[string]cell{
-						"Overall": {
+						overallRow: {
 							result:  statuspb.TestStatus_PASS,
 							metrics: setElapsed(nil, 1),
 						},
@@ -907,13 +1046,8 @@ func TestConvertResult(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.ctx == nil {
-				tc.ctx = context.Background()
-			}
-			ctx, cancel := context.WithCancel(tc.ctx)
-			defer cancel()
 			log := logrus.WithField("test name", tc.name)
-			actual, err := convertResult(ctx, log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result)
+			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, tc.merge)
 			switch {
 			case err != nil:
 				if tc.expected != nil {

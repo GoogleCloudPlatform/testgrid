@@ -51,26 +51,26 @@ var (
 	}
 )
 
-// lte returns if rowResult is less than or equal to compareTo.
-func lte(rowResult, compareTo statuspb.TestStatus) bool {
+// LTE returns if rowResult is less than or equal to compareTo.
+func LTE(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] <= statusSeverity[compareTo]
 }
 
-// gte returns if rowResult is greater than or equal to compareTo.
-func gte(rowResult, compareTo statuspb.TestStatus) bool {
+// GTE returns if rowResult is greater than or equal to compareTo.
+func GTE(rowResult, compareTo statuspb.TestStatus) bool {
 	return statusSeverity[rowResult] >= statusSeverity[compareTo]
 }
 
-// IsPassingResult returns true if the test status is any passing status,
+// Passing returns true if the test status is any passing status,
 // including PASS_WITH_SKIPS, BUILD_PASSED, and more.
-func IsPassingResult(rowResult statuspb.TestStatus) bool {
-	return gte(rowResult, statuspb.TestStatus_BUILD_PASSED) && lte(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
+func Passing(rowResult statuspb.TestStatus) bool {
+	return GTE(rowResult, statuspb.TestStatus_BUILD_PASSED) && LTE(rowResult, statuspb.TestStatus_PASS_WITH_ERRORS)
 }
 
-// IsFailingResult returns true if the test status is any failing status,
+// Failing returns true if the test status is any failing status,
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
-func IsFailingResult(rowResult statuspb.TestStatus) bool {
-	return gte(rowResult, statuspb.TestStatus_TOOL_FAIL) && lte(rowResult, statuspb.TestStatus_FAIL)
+func Failing(rowResult statuspb.TestStatus) bool {
+	return GTE(rowResult, statuspb.TestStatus_TOOL_FAIL) && LTE(rowResult, statuspb.TestStatus_FAIL)
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL, FLAKY or UNKNOWN.
@@ -82,10 +82,10 @@ func Coalesce(result statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatu
 	if result == statuspb.TestStatus_FLAKY {
 		return result
 	}
-	if IsFailingResult(result) {
+	if Failing(result) {
 		return statuspb.TestStatus_FAIL
 	}
-	if IsPassingResult(result) {
+	if Passing(result) {
 		return statuspb.TestStatus_PASS
 	}
 	return statuspb.TestStatus_UNKNOWN

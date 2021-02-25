@@ -159,7 +159,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+11) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result:  statuspb.TestStatus_FAIL,
 							icon:    "F",
 							message: "Build failed outside of test results",
@@ -175,7 +175,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+10) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
@@ -243,7 +243,7 @@ func TestReadColumns(t *testing.T) {
 						},
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result:  statuspb.TestStatus_FAIL,
 							icon:    "F",
 							message: "Build failed outside of test results",
@@ -263,7 +263,7 @@ func TestReadColumns(t *testing.T) {
 						},
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
@@ -321,7 +321,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+10) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
@@ -398,7 +398,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
@@ -412,7 +412,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+11) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
@@ -485,7 +485,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
@@ -499,7 +499,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
@@ -573,7 +573,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
@@ -587,7 +587,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
@@ -601,7 +601,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+11) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
@@ -615,7 +615,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+10) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
@@ -689,7 +689,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
@@ -703,7 +703,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+12) * 1000,
 					},
 					cells: map[string]cell{
-						"Overall": {
+						overallRow: {
 							result: statuspb.TestStatus_PASS,
 							metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,

@@ -592,11 +592,11 @@ func TestTruncateRunning(t *testing.T) {
 			cols: []inflatedColumn{
 				{
 					column: &statepb.Column{Build: "passed"},
-					cells:  map[string]cell{"Overall": {result: statuspb.TestStatus_PASS}},
+					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_PASS}},
 				},
 				{
 					column: &statepb.Column{Build: "failed"},
-					cells:  map[string]cell{"Overall": {result: statuspb.TestStatus_FAIL}},
+					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_FAIL}},
 				},
 			},
 		},
@@ -607,12 +607,12 @@ func TestTruncateRunning(t *testing.T) {
 				{column: &statepb.Column{Build: "this2"}},
 				{
 					column: &statepb.Column{Build: "running1"},
-					cells:  map[string]cell{"Overall": {result: statuspb.TestStatus_RUNNING}},
+					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
 				},
 				{column: &statepb.Column{Build: "this3"}},
 				{
 					column: &statepb.Column{Build: "running2"},
-					cells:  map[string]cell{"Overall": {result: statuspb.TestStatus_RUNNING}},
+					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
 				},
 				{column: &statepb.Column{Build: "this4"}},
 				{column: &statepb.Column{Build: "this5"}},
@@ -628,11 +628,11 @@ func TestTruncateRunning(t *testing.T) {
 			cols: []inflatedColumn{
 				{
 					column: &statepb.Column{Build: "running1"},
-					cells:  map[string]cell{"Overall": {result: statuspb.TestStatus_RUNNING}},
+					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
 				},
 				{
 					column: &statepb.Column{Build: "running2"},
-					cells:  map[string]cell{"Overall": {result: statuspb.TestStatus_RUNNING}},
+					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
 				},
 			},
 			expected: func(cols []inflatedColumn) []inflatedColumn {
@@ -1048,8 +1048,8 @@ func TestUpdateGCSGroup(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: "Overall",
-								Id:   "Overall",
+								Name: overallRow,
+								Id:   overallRow,
 							},
 							cell{
 								result:  statuspb.TestStatus_RUNNING,

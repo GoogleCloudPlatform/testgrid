@@ -166,6 +166,11 @@ message TestGroup {
   // flaky status.
   bool enable_flaky_status = 23;
 
+  // disable_merged_status will restores deprecated behavior of
+  // splitting multiple foo rows into foo [2], etc rather a single
+  // potentially flaky row.
+  bool disable_merged_status = 57;
+
   // deprecated - always set to true
   bool use_kubernetes_client = 24;
 
@@ -340,6 +345,8 @@ message TestGroup {
   // Specify a property that will be read into state in the user_property field.
   // These can be substituted into LinkTemplates.
   string user_property = 56;
+
+  // disable_merged_status 57
 }
 
 message JUnitConfig {}
