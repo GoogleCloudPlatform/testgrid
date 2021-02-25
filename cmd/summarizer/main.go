@@ -77,10 +77,12 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client, err := gcs.ClientWithCreds(ctx, opt.creds)
+	storageClient, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
 		logrus.Fatalf("Failed to read storage client: %v", err)
 	}
+
+	client := gcs.NewClient(storageClient)
 
 	updateOnce := func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
