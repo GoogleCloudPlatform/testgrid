@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-updater
+  namespace: knative
+  labels:
+    component: updater
+    app: testgrid
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: testgrid
+      component: updater
+  template:
+    metadata:
+      labels:
+        component: updater
+        app: testgrid
+    spec:
+      serviceAccountName: updater
+      containers:
+      - name: updater
+        image: gcr.io/k8s-testgrid/updater:v20210201-v0.0.45-2-ga6373ea
+        args:
+        - --build-timeout=1m
+        - --config=gs://knative-own-testgrid/config
+        - --confirm
+        - --group-timeout=5m
+        - --wait=5m
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: testgrid-updater@knative-tests.iam.gserviceaccount.com
+  name: updater
+  namespace: knative

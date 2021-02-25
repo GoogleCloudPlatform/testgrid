@@ -21,6 +21,9 @@ k8s_objects(
         ":namespace",  # Must be first
         ":summarizer",
         ":updater",
+        ":knative-namespace",  # Must be first
+        ":knative-summarizer",
+        ":knative-updater",
     ],
 )
 
@@ -47,6 +50,27 @@ k8s_object(
     cluster = CLUSTER,
     kind = "Namespace",
     template = "namespace.yaml",
+)
+
+k8s_object(
+    name = "knative-updater",
+    cluster = CLUSTER,
+    kind = MULTI_KIND,
+    template = "knative/updater.yaml",
+)
+
+k8s_object(
+    name = "knative-summarizer",
+    cluster = CLUSTER,
+    kind = MULTI_KIND,
+    template = "knative/summarizer.yaml",
+)
+
+k8s_object(
+    name = "knative-namespace",
+    cluster = CLUSTER,
+    kind = "Namespace",
+    template = "knative/namespace.yaml",
 )
 
 filegroup(
