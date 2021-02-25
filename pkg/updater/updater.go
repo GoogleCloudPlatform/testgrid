@@ -726,9 +726,11 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	var passes int
 	var compressedIdx int
 	ch := result.Iter(ctx, row.Results)
-	var lastFail *statepb.Column
+	var firstFail *statepb.Column
+	var latestFail *statepb.Column
 	var latestPass *statepb.Column
 	var failIdx int
+	var latestFailIdx int
 	// find the first number of consecutive passesToClose (no alert)
 	// or else failuresToOpen (alert).
 	for _, col := range cols {
@@ -757,9 +759,11 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 			failures++
 			totalFailures++
 			if failures == 1 { // note most recent failure for this outage
-				failIdx = compressedIdx
+				latestFailIdx = compressedIdx
+				latestFail = col
 			}
-			lastFail = col
+			failIdx = compressedIdx
+			firstFail = col
 		}
 		if res == statuspb.TestStatus_FLAKY {
 			passes = 0
@@ -773,21 +777,24 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	if failures < failuresToOpen {
 		return nil
 	}
-	msg := row.Messages[failIdx]
 	id := row.CellIds[failIdx]
-	return alertInfo(totalFailures, msg, id, lastFail, latestPass)
+	msg := row.Messages[latestFailIdx]
+	latestID := row.CellIds[latestFailIdx]
+	return alertInfo(totalFailures, msg, id, latestID, firstFail, latestFail, latestPass)
 }
 
 // alertInfo returns an alert proto with the configured fields
-func alertInfo(failures int32, msg, cellID string, fail, pass *statepb.Column) *statepb.AlertInfo {
+func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFail, pass *statepb.Column) *statepb.AlertInfo {
 	return &statepb.AlertInfo{
-		FailCount:      failures,
-		FailBuildId:    buildID(fail),
-		FailTime:       stamp(fail),
-		FailTestId:     cellID,
-		FailureMessage: msg,
-		PassTime:       stamp(pass),
-		PassBuildId:    buildID(pass),
+		FailCount:         failures,
+		FailBuildId:       buildID(fail),
+		LatestFailBuildId: buildID(latestFail),
+		FailTime:          stamp(fail),
+		FailTestId:        cellID,
+		LatestFailTestId:  latestCellID,
+		FailureMessage:    msg,
+		PassTime:          stamp(pass),
+		PassBuildId:       buildID(pass),
 	}
 }
 
