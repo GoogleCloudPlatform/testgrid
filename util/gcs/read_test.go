@@ -85,6 +85,50 @@ func TestBuildJob(t *testing.T) {
 	}
 }
 
+func TestOffsetHack(t *testing.T) {
+	cases := []struct {
+		name   string
+		input  string
+		output string
+		base   string
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name:   "normal prow builds work",
+			input:  "logs/ci-benchmark-scheduler/1364607429106470912",
+			output: "logs/ci-benchmark-scheduler/1364607429106470912",
+			base:   "1364607429106470912",
+		},
+		{
+			name:   "hack tot style",
+			input:  "logs/ci-benchmark-scheduler/10",
+			output: "logs/ci-benchmark-scheduler/0",
+			base:   "10",
+		},
+		{
+			name:   "non-numerical builds work",
+			input:  "logs/ci-benchmark-scheduler/fancy4u",
+			output: "logs/ci-benchmark-scheduler/fancy4u",
+			base:   "fancy4u",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := tc.input
+			base := hackOffset(&output)
+			if output != tc.output {
+				t.Errorf("hackOffset(%q) became %q, want %q", tc.input, output, tc.output)
+			}
+			if base != tc.base {
+				t.Errorf("hackOffset(%q) returned %q, want %q", tc.input, base, tc.base)
+			}
+		})
+	}
+}
+
 func TestListBuilds(t *testing.T) {
 	path := newPathOrDie("gs://bucket/path/to/build/")
 	cases := []struct {
@@ -182,6 +226,60 @@ func TestListBuilds(t *testing.T) {
 				{
 					Path:     resolveOrDie(path, "more"),
 					baseName: "more",
+				},
+			},
+		},
+		{
+			name: "drop results naturally before, include results naturally after",
+			iterator: fakeIterator{
+				objects: []storage.ObjectAttrs{
+					subdir(resolveOrDie(path, "100").Object()),
+					subdir(resolveOrDie(path, "1000").Object()),
+					subdir(resolveOrDie(path, "1100").Object()),
+					subdir(resolveOrDie(path, "1200").Object()),
+					subdir(resolveOrDie(path, "200").Object()),
+					subdir(resolveOrDie(path, "300").Object()),
+					subdir(resolveOrDie(path, "400").Object()),
+					subdir(resolveOrDie(path, "500").Object()),
+					subdir(resolveOrDie(path, "600").Object()),
+					subdir(resolveOrDie(path, "700").Object()),
+					subdir(resolveOrDie(path, "800").Object()),
+					subdir(resolveOrDie(path, "900").Object()),
+				},
+			},
+			offset: pResolveOrDie(path, "500"),
+			expected: []Build{
+				{
+					Path:     resolveOrDie(path, "1200"),
+					baseName: "1200",
+				},
+				{
+					Path:     resolveOrDie(path, "1100"),
+					baseName: "1100",
+				},
+				{
+					Path:     resolveOrDie(path, "1000"),
+					baseName: "1000",
+				},
+				{
+					Path:     resolveOrDie(path, "900"),
+					baseName: "900",
+				},
+				{
+					Path:     resolveOrDie(path, "800"),
+					baseName: "800",
+				},
+				{
+					Path:     resolveOrDie(path, "700"),
+					baseName: "700",
+				},
+				{
+					Path:     resolveOrDie(path, "600"),
+					baseName: "600",
+				},
+				{
+					Path:     resolveOrDie(path, "500"),
+					baseName: "500",
 				},
 			},
 		},

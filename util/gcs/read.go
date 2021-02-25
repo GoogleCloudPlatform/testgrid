@@ -25,6 +25,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -106,6 +107,21 @@ func Sort(builds []Build) {
 	})
 }
 
+// hackOffset handles tot's sequential names, which GCS handles poorly
+// AKA asking GCS to return results after 6 will never find 10
+// So we always have to list everything for these types of numbers.
+func hackOffset(offset *string) string {
+	if *offset == "" {
+		return ""
+	}
+	offsetBaseName := path.Base(*offset)
+	const first = 1000000000000000000
+	if n, err := strconv.Atoi(offsetBaseName); err == nil && n < first {
+		*offset = path.Join(path.Dir(*offset), "0")
+	}
+	return offsetBaseName
+}
+
 // ListBuilds returns the array of builds under path, sorted in monotonically decreasing order.
 func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path) ([]Build, error) {
 	ctx, cancel := context.WithCancel(parent)
@@ -114,6 +130,7 @@ func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path
 	if after != nil {
 		offset = after.Object()
 	}
+	offsetBaseName := hackOffset(&offset)
 	it := lister.Objects(ctx, gcsPath, "/", offset)
 	var all []Build
 	for {
@@ -168,17 +185,15 @@ func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path
 
 	Sort(all)
 
-	if offset != "" {
+	if offsetBaseName != "" {
 		// GCS will return 200 2000 30 for a prefix of 100
 		// testgrid expects this as 2000 200 (dropping 30)
-		offsetBaseName := path.Base(offset)
 		for i, b := range all {
 			if sortorder.NaturalLess(b.baseName, offsetBaseName) {
 				return all[:i], nil
 			}
 		}
 	}
-
 	return all, nil
 }
 
