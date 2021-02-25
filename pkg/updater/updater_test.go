@@ -224,6 +224,7 @@ func TestUpdate(t *testing.T) {
 				tc.groupConcurrency,
 				tc.group,
 				groupUpdater,
+				!tc.skipConfirm,
 			)
 			switch {
 			case err != nil:

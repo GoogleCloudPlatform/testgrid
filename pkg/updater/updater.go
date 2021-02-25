@@ -146,7 +146,7 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 }
 
 // Update performs a single update pass of all all test groups specified by the config.
-func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater) error {
+func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater, write bool) error {
 	defer growMaxUpdateArea()
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -175,7 +175,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 					log.WithError(err).Error("Bad path")
 					continue
 				}
-				if generations != nil {
+				if write && generations != nil {
 					if err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
 						switch ee := err.(type) {
 						case *googleapi.Error:
