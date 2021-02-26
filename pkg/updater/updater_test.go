@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/testing/protocmp"
+	core "k8s.io/api/core/v1"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
@@ -391,6 +392,26 @@ func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject 
 			Metadata:  meta,
 		}),
 	}
+}
+
+var (
+	podInfoSuccessPodInfo = gcs.PodInfo{
+		Pod: &core.Pod{
+			Status: core.PodStatus{
+				Phase: core.PodSucceeded,
+			},
+		},
+	}
+	podInfoSuccess     = jsonPodInfo(podInfoSuccessPodInfo)
+	podInfoPassCell    = cell{result: statuspb.TestStatus_PASS}
+	podInfoMissingCell = cell{
+		result:  statuspb.TestStatus_FAIL,
+		message: gcs.MissingPodInfo,
+	}
+)
+
+func jsonPodInfo(podInfo gcs.PodInfo) *fakeObject {
+	return &fakeObject{data: jsonData(podInfo)}
 }
 
 func mustGrid(grid *statepb.Grid) []byte {
@@ -999,6 +1020,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 				{
 					id:      "80",
 					started: jsonStarted(now + 80),
+					podInfo: podInfoSuccess,
 					finished: jsonFinished(now+81, true, metadata.Metadata{
 						metadata.JobVersion: "build80",
 					}),
@@ -1007,6 +1029,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 				{
 					id:      "50",
 					started: jsonStarted(now + 50),
+					podInfo: podInfoSuccess,
 					finished: jsonFinished(now+51, false, metadata.Metadata{
 						metadata.JobVersion: "build50",
 					}),
@@ -1016,6 +1039,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 				{
 					id:      "10",
 					started: jsonStarted(now + 10),
+					podInfo: podInfoSuccess,
 					finished: jsonFinished(now+11, true, metadata.Metadata{
 						metadata.JobVersion: "build10",
 					}),
@@ -1069,6 +1093,16 @@ func TestUpdateGCSGroup(t *testing.T) {
 								result:  statuspb.TestStatus_PASS,
 								metrics: setElapsed(nil, 1),
 							},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: podInfoRow,
+								Id:   podInfoRow,
+							},
+							podInfoMissingCell,
+							podInfoPassCell,
+							podInfoPassCell,
+							podInfoPassCell,
 						),
 						setupRow(
 							&statepb.Row{

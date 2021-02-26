@@ -310,6 +310,21 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 
 	var work int
 
+	// Download podinfo.json
+	work++
+	go func() {
+		pi, err := build.PodInfo(ctx, client)
+		if err != nil {
+			err = fmt.Errorf("podinfo: %w", err)
+		} else if pi != nil {
+			result.podInfo = *pi
+		}
+		select {
+		case <-ctx.Done():
+		case ec <- err:
+		}
+	}()
+
 	// Download started.json
 	work++
 	go func() {

@@ -267,6 +267,7 @@ func TestConvertResult(t *testing.T) {
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
 					},
+					podInfoRow: podInfoMissingCell,
 				},
 			},
 		},
@@ -289,6 +290,7 @@ func TestConvertResult(t *testing.T) {
 						},
 					},
 				},
+				podInfo: podInfoSuccessPodInfo,
 			},
 			expected: &inflatedColumn{
 				column: &statepb.Column{
@@ -307,6 +309,7 @@ func TestConvertResult(t *testing.T) {
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
 					},
+					podInfoRow: podInfoPassCell,
 				},
 			},
 		},
@@ -347,6 +350,7 @@ func TestConvertResult(t *testing.T) {
 						icon:    "R",
 						message: "Build still running...",
 					},
+					podInfoRow: podInfoMissingCell,
 				},
 			},
 		},
@@ -400,6 +404,16 @@ func TestConvertResult(t *testing.T) {
 						metrics: setElapsed(nil, 1),
 						cellID:  "job-name/build",
 					},
+					podInfoRow: func() cell {
+						c := podInfoMissingCell
+						c.cellID = "job-name/build"
+						return c
+					}(),
+					"job-name.Pod": func() cell {
+						c := podInfoMissingCell
+						c.cellID = "job-name/build"
+						return c
+					}(),
 					"job-name.Overall": {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
@@ -460,6 +474,7 @@ func TestConvertResult(t *testing.T) {
 						message: "Build failed outside of test results",
 						metrics: setElapsed(nil, 1),
 					},
+					podInfoRow: podInfoMissingCell,
 					"job-name.this.that": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -511,6 +526,7 @@ func TestConvertResult(t *testing.T) {
 						message: "Build failed outside of test results",
 						metrics: setElapsed(nil, 1),
 					},
+					podInfoRow: podInfoMissingCell,
 					"this.that": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -589,6 +605,7 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
+					podInfoRow: podInfoMissingCell,
 					"elapsed": {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 5),
@@ -735,6 +752,7 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
+					podInfoRow: podInfoMissingCell,
 					"no properties": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -867,6 +885,7 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
+					podInfoRow: podInfoMissingCell,
 					"elapsed - first [second] (good-property)": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -944,6 +963,7 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
+					podInfoRow: podInfoMissingCell,
 					"same - same": {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
@@ -1019,6 +1039,7 @@ func TestConvertResult(t *testing.T) {
 							result:  statuspb.TestStatus_PASS,
 							metrics: setElapsed(nil, 1),
 						},
+						podInfoRow: podInfoMissingCell,
 					}
 					under := cell{result: statuspb.TestStatus_PASS}
 					max := cell{result: statuspb.TestStatus_PASS}
