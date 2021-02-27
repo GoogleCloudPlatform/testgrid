@@ -37,12 +37,6 @@ color-target() { # Bold cyan
   echo -e "\x1B[1;33m${@}\x1B[0m"
 }
 
-# Authenticate with Google Cloud
-if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
-  echo "Detected GOOGLE_APPLICATION_CREDENTIALS, activating..." >&2
-  gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}"
-fi
-
 gcloud auth configure-docker
 
 # Build and push the current commit, failing on any uncommitted changes.
@@ -54,10 +48,12 @@ if [[ "${new_version}" == *-dirty ]]; then
   exit 1
 fi
 
+bazel=$(command -v bazelisk || command -v bazel)
+
 echo -e "Pushing $(color-version ${new_version})" >&2
 # Remove retries after https://github.com/bazelbuild/rules_docker/issues/673
 for i in {1..3}; do
-  if bazel run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //images:push; then
+  if "$bazel" run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //images:push; then
     exit 0
   elif [[ "$i" == 3 ]]; then
     echo "Failed"
