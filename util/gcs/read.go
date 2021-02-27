@@ -32,10 +32,101 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
 	"google.golang.org/api/iterator"
+	core "k8s.io/api/core/v1"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
+
+// PodInfo holds podinfo.json (data about the pod).
+type PodInfo struct {
+	Pod *core.Pod `json:"pod,omitempty"`
+	// ignore unused events
+}
+
+const (
+	MissingPodInfo = "podinfo.json not found, please install prow's GCS reporter"
+	NoPodUtils     = "not using decoration, please set decorate: true on prowjob"
+)
+
+func truncate(s string, max int) string {
+	if max <= 0 {
+		return s
+	}
+	l := len(s)
+	if l < max {
+		return s
+	}
+	h := max / 2
+	return s[:h] + "..." + s[l-h:]
+}
+
+func checkContainerStatus(status core.ContainerStatus) (bool, string) {
+	name := status.Name
+	if status.State.Waiting != nil {
+		return false, fmt.Sprintf("%s still waiting: %s", name, status.State.Waiting.Message)
+	}
+	if status.State.Running != nil {
+		return false, fmt.Sprintf("%s still running", name)
+	}
+	if status.State.Terminated != nil && status.State.Terminated.ExitCode != 0 {
+		return false, fmt.Sprintf("%s exited %d: %s", name, status.State.Terminated.ExitCode, truncate(status.State.Terminated.Message, 140))
+	}
+	return true, ""
+}
+
+// Summarize returns if the pod completed successfully and a diagnostic message.
+func (pi PodInfo) Summarize() (bool, string) {
+	if pi.Pod == nil {
+		return false, MissingPodInfo
+	}
+
+	if pi.Pod.Status.Phase == core.PodSucceeded {
+		return true, ""
+	}
+
+	conditions := make(map[core.PodConditionType]core.PodCondition, len(pi.Pod.Status.Conditions))
+
+	for _, cond := range pi.Pod.Status.Conditions {
+		conditions[cond.Type] = cond
+	}
+
+	if cond, ok := conditions[core.PodScheduled]; ok && cond.Status != core.ConditionTrue {
+		return false, fmt.Sprintf("pod did not schedule: %s", cond.Message)
+	}
+
+	if cond, ok := conditions[core.PodInitialized]; ok && cond.Status != core.ConditionTrue {
+		return false, fmt.Sprintf("pod could not initialize: %s", cond.Message)
+	}
+
+	for _, status := range pi.Pod.Status.InitContainerStatuses {
+		if pass, msg := checkContainerStatus(status); !pass {
+			return pass, fmt.Sprintf("init container %s", msg)
+		}
+	}
+
+	var foundSidecar bool
+	for _, status := range pi.Pod.Status.ContainerStatuses {
+		if status.Name == "sidecar" {
+			foundSidecar = true
+		}
+		pass, msg := checkContainerStatus(status)
+		if pass {
+			continue
+		}
+		if status.Name == "sidecar" {
+			return pass, msg
+		}
+		if status.State.Terminated == nil {
+			return pass, msg
+		}
+	}
+
+	if !foundSidecar {
+		return true, NoPodUtils
+	}
+	return true, ""
+}
 
 // Started holds started.json data.
 type Started struct {
@@ -250,6 +341,23 @@ func readJSON(ctx context.Context, opener Opener, p Path, i interface{}) error {
 		return fmt.Errorf("close: %w", err)
 	}
 	return nil
+}
+
+// PodInfo parses the build's pod state.
+func (build Build) PodInfo(ctx context.Context, opener Opener) (*PodInfo, error) {
+	path, err := build.Path.ResolveReference(&url.URL{Path: "podinfo.json"})
+	if err != nil {
+		return nil, fmt.Errorf("resolve: %w", err)
+	}
+	var podInfo PodInfo
+	err = readJSON(ctx, opener, *path, &podInfo)
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read: %w", err)
+	}
+	return &podInfo, nil
 }
 
 // Started parses the build's started metadata.

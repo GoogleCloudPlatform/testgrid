@@ -33,10 +33,185 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/iterator"
+	core "k8s.io/api/core/v1"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
+
+func podCondition(who core.PodConditionType, what core.ConditionStatus, why string) core.PodCondition {
+	return core.PodCondition{
+		Type:    who,
+		Status:  what,
+		Message: why,
+	}
+}
+
+func containerStatus(name string, ready, completed bool, exitCode int32) core.ContainerStatus {
+	status := core.ContainerStatus{
+		Name:  name,
+		Ready: ready,
+	}
+
+	if completed {
+		status.State.Terminated = &core.ContainerStateTerminated{ExitCode: exitCode}
+	}
+	return status
+}
+
+func containerWaiting(name string, msg string) core.ContainerStatus {
+	status := containerStatus(name, false, false, 0)
+	status.State.Waiting = &core.ContainerStateWaiting{Message: msg}
+	return status
+}
+
+func TestPodInfoSummarize(t *testing.T) {
+	cases := []struct {
+		name string
+		info PodInfo
+		pass bool
+		msg  string
+	}{
+		{
+			name: "basically works",
+			msg:  MissingPodInfo,
+		},
+		{
+			name: "passing pod works",
+			info: PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{Phase: core.PodSucceeded},
+				},
+			},
+			pass: true,
+		},
+		{
+			// https://storage.googleapis.com/kubernetes-jenkins/logs/ci-kubernetes-e2e-gce-ubuntu1-k8sstable1-serial/1364737725537718272/podinfo.json
+			// Initialized, not ready/containersready with only test container
+			// no initcontainers
+			name: "non-pod-utils failure works",
+			info: PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{
+						Phase: core.PodFailed,
+						Conditions: []core.PodCondition{
+							podCondition(core.PodScheduled, core.ConditionTrue, ""),
+							podCondition(core.PodInitialized, core.ConditionTrue, ""),
+							podCondition(core.PodReady, core.ConditionFalse, ""),
+						},
+						ContainerStatuses: []core.ContainerStatus{
+							containerStatus("test", false, true, 1),
+						},
+						InitContainerStatuses: []core.ContainerStatus{
+							{},
+						},
+					},
+				},
+			},
+			pass: true,
+			msg:  NoPodUtils,
+		},
+		{
+			// https://storage.googleapis.com/kubernetes-jenkins/pr-logs/pull/test-infra/21014/pull-test-infra-bazel/1364742867209162752/podinfo.json
+			// init'd, not ready/containersready with test sidecar
+			name: "normal failure works",
+			info: PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{
+						Phase: core.PodFailed,
+						Conditions: []core.PodCondition{
+							podCondition(core.PodScheduled, core.ConditionTrue, ""),
+							podCondition(core.PodInitialized, core.ConditionTrue, ""),
+							podCondition(core.PodReady, core.ConditionFalse, ""),
+						},
+						ContainerStatuses: []core.ContainerStatus{
+							containerStatus("sidecar", false, true, 0),
+							containerStatus("test", false, true, 1),
+						},
+						InitContainerStatuses: []core.ContainerStatus{
+							containerStatus("init-upload", false, true, 0),
+							containerStatus("place-entrypoint", false, true, 0),
+							containerStatus("clonerefs", false, true, 0),
+						},
+					},
+				},
+			},
+			pass: true,
+		},
+		{
+			// https://storage.googleapis.com/kubernetes-jenkins/logs/ci-benchmark-scheduler-master/1364668262104698880/podinfo.json
+			// aka pending status, podscheduled false with message.
+			name: "detect scheduling failure",
+			info: PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{
+						Phase: core.PodPending,
+						Conditions: []core.PodCondition{
+							podCondition(core.PodScheduled, core.ConditionFalse, "0/159 nodes available"),
+						},
+					},
+				},
+			},
+			msg: "pod did not schedule: 0/159 nodes available",
+		},
+		{
+			// TODO(fejta): find public example
+			// Initialized false, "message": "containers with incomplete status: [clonerefs initupload place-entrypoint]"
+			name: "detect initialization issue",
+			info: PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{
+						Phase: core.PodFailed,
+						Conditions: []core.PodCondition{
+							podCondition(core.PodScheduled, core.ConditionTrue, ""),
+							podCondition(core.PodInitialized, core.ConditionFalse, "beep boop bop"),
+						},
+					},
+				},
+			},
+			msg: "pod could not initialize: beep boop bop",
+		},
+		{
+			// https://storage.googleapis.com/kubernetes-jenkins/logs/tf-minigo-periodic/1364608678237310976/podinfo.json
+			// failed to pull image
+			name: "detect image pull failure",
+			info: PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{
+						Phase: core.PodFailed,
+						Conditions: []core.PodCondition{
+							podCondition(core.PodScheduled, core.ConditionTrue, ""),
+							podCondition(core.PodInitialized, core.ConditionTrue, ""),
+							podCondition(core.PodReady, core.ConditionFalse, ""),
+						},
+						ContainerStatuses: []core.ContainerStatus{
+							containerStatus("sidecar", false, true, 0),
+							containerWaiting("test", "failed to resolve image \"gcr.io/minigo-testing/minigo-prow-harness-v2:latest"),
+						},
+						InitContainerStatuses: []core.ContainerStatus{
+							containerStatus("init-upload", false, true, 0),
+							containerStatus("place-entrypoint", false, true, 0),
+							containerStatus("clonerefs", false, true, 0),
+						},
+					},
+				},
+			},
+			msg: "test still waiting: failed to resolve image \"gcr.io/minigo-testing/minigo-prow-harness-v2:latest",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pass, msg := tc.info.Summarize()
+			if pass != tc.pass {
+				t.Errorf("Summarize() got %t, want %t", pass, tc.pass)
+			}
+			if msg != tc.msg {
+				t.Errorf("Summarize() got %q, want %q", msg, tc.msg)
+			}
+		})
+	}
+}
 
 func subdir(prefix string) storage.ObjectAttrs {
 	return storage.ObjectAttrs{Prefix: prefix}

@@ -41,6 +41,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/iterator"
 	"google.golang.org/protobuf/testing/protocmp"
+	core "k8s.io/api/core/v1"
 )
 
 func TestDownloadGrid(t *testing.T) {
@@ -135,6 +136,7 @@ func TestReadColumns(t *testing.T) {
 							Passed:    &no,
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "10",
@@ -167,6 +169,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -181,6 +184,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -203,6 +207,7 @@ func TestReadColumns(t *testing.T) {
 							},
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "10",
@@ -251,6 +256,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -269,6 +275,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -281,6 +288,7 @@ func TestReadColumns(t *testing.T) {
 					started: &fakeObject{
 						data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
+					podInfo: podInfoSuccess,
 					finished: &fakeObject{
 						data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
@@ -327,6 +335,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 						"name good - context context-a - thread 33": {
 							result: statuspb.TestStatus_PASS,
 						},
@@ -374,6 +383,7 @@ func TestReadColumns(t *testing.T) {
 							Passed:    &yes,
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "10",
@@ -404,6 +414,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -418,6 +429,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 			},
@@ -437,6 +449,7 @@ func TestReadColumns(t *testing.T) {
 							Passed:    &yes,
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "12",
@@ -491,6 +504,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -505,6 +519,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 				// drop 11 and 10
@@ -525,6 +540,7 @@ func TestReadColumns(t *testing.T) {
 							Passed:    &yes,
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "12",
@@ -549,6 +565,7 @@ func TestReadColumns(t *testing.T) {
 							Passed:    &yes,
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "10",
@@ -579,6 +596,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -593,6 +611,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -607,6 +626,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -621,6 +641,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -653,6 +674,7 @@ func TestReadColumns(t *testing.T) {
 							Passed:    &yes,
 						}),
 					},
+					podInfo: podInfoSuccess,
 				},
 				{
 					id: "11",
@@ -695,6 +717,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -709,6 +732,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
+						podInfoRow: podInfoPassCell,
 					},
 				},
 				// drop 11 and 10
@@ -1021,11 +1045,17 @@ func TestReadResult(t *testing.T) {
 		{
 			name: "all info present",
 			data: map[string]fakeObject{
+				"podinfo.json":       {data: `{"pod":{"metadata":{"name":"woot"}}}`},
 				"started.json":       {data: `{"node": "fun"}`},
 				"finished.json":      {data: `{"passed": true}`},
 				"junit_super_88.xml": {data: `<testsuite><testcase name="foo"/></testsuite>`},
 			},
 			expected: &gcsResult{
+				podInfo: func() gcs.PodInfo {
+					out := gcs.PodInfo{Pod: &core.Pod{}}
+					out.Pod.Name = "woot"
+					return out
+				}(),
 				started: gcs.Started{
 					Started: metadata.Started{Node: "fun"},
 				},
@@ -1497,6 +1527,13 @@ func (fc *fakeClient) addBuilds(path gcs.Path, fakes ...fakeBuild) []gcs.Build {
 		builds = append(builds, gcs.Build{Path: *buildPath})
 		fi := fakeIterator{}
 
+		if build.podInfo != nil {
+			p := resolveOrDie(buildPath, "podinfo.json")
+			fi.objects = append(fi.objects, storage.ObjectAttrs{
+				Name: p.Object(),
+			})
+			fc.fakeOpener[*p] = *build.podInfo
+		}
 		if build.started != nil {
 			p := resolveOrDie(buildPath, "started.json")
 			fi.objects = append(fi.objects, storage.ObjectAttrs{
@@ -1535,6 +1572,7 @@ type fakeBuild struct {
 	id        string
 	started   *fakeObject
 	finished  *fakeObject
+	podInfo   *fakeObject
 	artifacts map[string]fakeObject
 	rawJunit  *fakeObject
 	passed    []string

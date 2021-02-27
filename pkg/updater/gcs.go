@@ -35,6 +35,7 @@ import (
 //
 // The suite results become rows and the job metadata is added to the column.
 type gcsResult struct {
+	podInfo  gcs.PodInfo
 	started  gcs.Started
 	finished gcs.Finished
 	suites   []gcs.SuitesMeta
@@ -93,7 +94,10 @@ func first(properties map[string][]string) map[string]string {
 	return out
 }
 
-const overallRow = "Overall"
+const (
+	overallRow = "Overall"
+	podInfoRow = "Pod"
+)
 
 func mergeCells(cells ...cell) cell {
 	var out cell
@@ -285,15 +289,18 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		}
 	}
 
-	overallRows := []string{overallRow}
-	if nameCfg.multiJob {
-		name := nameCfg.render(result.job, overallRow, meta)
-		overallRows = append(overallRows, name)
-		overall.cellID = cellID
+	injectedCells := map[string]cell{
+		overallRow: overall,
+		podInfoRow: podInfoCell(result),
 	}
 
-	for _, name := range overallRows {
-		cells[name] = append([]cell{overall}, cells[name]...)
+	for name, c := range injectedCells {
+		if nameCfg.multiJob {
+			c.cellID = cellID
+			jobName := multiJob.render(result.job, name, meta)
+			cells[jobName] = append([]cell{c}, cells[jobName]...)
+		}
+		cells[name] = append([]cell{c}, cells[name]...)
 	}
 
 	out := inflatedColumn{
@@ -326,6 +333,25 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	}
 
 	return &out, nil
+}
+
+var multiJob = nameConfig{
+	format: "%s.%s",
+	parts:  []string{jobName, testsName},
+}
+
+func podInfoCell(result gcsResult) cell {
+	pass, msg := result.podInfo.Summarize()
+	var status statuspb.TestStatus
+	if pass {
+		status = statuspb.TestStatus_PASS
+	} else {
+		status = statuspb.TestStatus_FAIL
+	}
+	return cell{
+		message: msg,
+		result:  status,
+	}
 }
 
 // overallCell generates the overall cell for this GCS result.
