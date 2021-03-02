@@ -291,13 +291,16 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 
 	injectedCells := map[string]cell{
 		overallRow: overall,
-		podInfoRow: podInfoCell(result),
+	}
+
+	if pic := podInfoCell(result.podInfo); pic.message != gcs.MissingPodInfo || overall.result != statuspb.TestStatus_RUNNING {
+		injectedCells[podInfoRow] = pic
 	}
 
 	for name, c := range injectedCells {
 		if nameCfg.multiJob {
 			c.cellID = cellID
-			jobName := multiJob.render(result.job, name, meta)
+			jobName := result.job + "." + name
 			cells[jobName] = append([]cell{c}, cells[jobName]...)
 		}
 		cells[name] = append([]cell{c}, cells[name]...)
@@ -335,21 +338,28 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	return &out, nil
 }
 
-var multiJob = nameConfig{
-	format: "%s.%s",
-	parts:  []string{jobName, testsName},
-}
-
-func podInfoCell(result gcsResult) cell {
-	pass, msg := result.podInfo.Summarize()
+func podInfoCell(podInfo gcs.PodInfo) cell {
+	pass, msg := podInfo.Summarize()
 	var status statuspb.TestStatus
+	var icon string
 	if pass {
 		status = statuspb.TestStatus_PASS
 	} else {
 		status = statuspb.TestStatus_FAIL
 	}
+
+	switch {
+	case msg == gcs.NoPodUtils:
+		icon = "E"
+	case msg == gcs.MissingPodInfo:
+		icon = "!"
+	case !pass:
+		icon = "F"
+	}
+
 	return cell{
 		message: msg,
+		icon:    icon,
 		result:  status,
 	}
 }

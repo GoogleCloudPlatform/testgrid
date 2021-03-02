@@ -406,6 +406,7 @@ var (
 	podInfoPassCell    = cell{result: statuspb.TestStatus_PASS}
 	podInfoMissingCell = cell{
 		result:  statuspb.TestStatus_FAIL,
+		icon:    "!",
 		message: gcs.MissingPodInfo,
 	}
 )
@@ -1099,7 +1100,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 								Name: podInfoRow,
 								Id:   podInfoRow,
 							},
-							podInfoMissingCell,
+							cell{result: statuspb.TestStatus_NO_RESULT},
 							podInfoPassCell,
 							podInfoPassCell,
 							podInfoPassCell,

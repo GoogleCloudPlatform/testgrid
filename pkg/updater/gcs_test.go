@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/testing/protocmp"
+	core "k8s.io/api/core/v1"
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
@@ -350,7 +351,6 @@ func TestConvertResult(t *testing.T) {
 						icon:    "R",
 						message: "Build still running...",
 					},
-					podInfoRow: podInfoMissingCell,
 				},
 			},
 		},
@@ -1085,6 +1085,63 @@ func TestConvertResult(t *testing.T) {
 	}
 }
 
+func TestPodInfoCell(t *testing.T) {
+	cases := []struct {
+		name     string
+		podInfo  gcs.PodInfo
+		expected cell
+	}{
+		{
+			name:     "basically works",
+			expected: podInfoMissingCell,
+		},
+		{
+			name:     "passing result works",
+			podInfo:  podInfoSuccessPodInfo,
+			expected: podInfoPassCell,
+		},
+		{
+			name:    "no pod utils works",
+			podInfo: gcs.PodInfo{Pod: &core.Pod{}},
+			expected: cell{
+				message: gcs.NoPodUtils,
+				icon:    "E",
+				result:  statuspb.TestStatus_PASS,
+			},
+		},
+		{
+			name: "failure works",
+			podInfo: gcs.PodInfo{
+				Pod: &core.Pod{
+					Status: core.PodStatus{
+						Conditions: []core.PodCondition{
+							{
+								Type:    core.PodScheduled,
+								Status:  core.ConditionFalse,
+								Message: "hi there",
+							},
+						},
+					},
+				},
+			},
+			expected: cell{
+				message: "pod did not schedule: hi there",
+				icon:    "F",
+				result:  statuspb.TestStatus_FAIL,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := podInfoCell(tc.podInfo)
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
+				t.Errorf("podInfoCell(%s) got unexpected diff (-have, +want):\n%s", tc.podInfo, diff)
+			}
+		})
+	}
+}
+
 func TestOverallCell(t *testing.T) {
 	pint := func(v int64) *int64 {
 		return &v
@@ -1219,7 +1276,7 @@ func TestOverallCell(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := overallCell(tc.result)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcsResult{}, cell{})); diff != "" {
+			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
 				t.Errorf("overallCell(%v) got unexpected diff:\n%s", tc.result, diff)
 			}
 		})
