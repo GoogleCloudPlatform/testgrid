@@ -622,7 +622,7 @@ var emptyCell = cell{result: statuspb.TestStatus_NO_RESULT}
 // appendCell adds the rowResult column to the row.
 //
 // Handles the details like missing fields and run-length-encoding the result.
-func appendCell(row *statepb.Row, cell cell, count int) {
+func appendCell(row *statepb.Row, cell cell, start, count int) {
 	latest := int32(cell.result)
 	n := len(row.Results)
 	switch {
@@ -633,10 +633,7 @@ func appendCell(row *statepb.Row, cell cell, count int) {
 	}
 
 	for i := 0; i < count; i++ {
-		if cell.result == statuspb.TestStatus_NO_RESULT {
-			continue
-		}
-		row.CellIds = append(row.CellIds, cell.cellID)
+		columnIdx := int32(start + i)
 		for metricName, measurement := range cell.metrics {
 			var metric *statepb.Metric
 			var ok bool
@@ -660,8 +657,12 @@ func appendCell(row *statepb.Row, cell cell, count int) {
 				row.Metrics = append(row.Metrics, metric)
 			}
 			// len()-1 because we already appended the cell id
-			appendMetric(metric, int32(len(row.CellIds)-1), measurement)
+			appendMetric(metric, columnIdx, measurement)
 		}
+		if cell.result == statuspb.TestStatus_NO_RESULT {
+			continue
+		}
+		row.CellIds = append(row.CellIds, cell.cellID)
 		// Javascript client expects no result cells to skip icons/messages
 		row.Messages = append(row.Messages, cell.message)
 		row.Icons = append(row.Icons, cell.icon)
@@ -677,6 +678,7 @@ func appendCell(row *statepb.Row, cell cell, count int) {
 // * Ensuring row names are unique and formatted with metadata
 func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated inflatedColumn) {
 	grid.Columns = append(grid.Columns, inflated.column)
+	colIdx := len(grid.Columns) - 1
 
 	missing := map[string]*statepb.Row{}
 	for name, row := range rows {
@@ -695,15 +697,15 @@ func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated inf
 			}
 			rows[name] = row
 			grid.Rows = append(grid.Rows, row)
-			if n := len(grid.Columns); n > 1 {
-				appendCell(row, emptyCell, n-1)
+			if colIdx > 0 {
+				appendCell(row, emptyCell, 0, colIdx)
 			}
 		}
-		appendCell(row, cell, 1)
+		appendCell(row, cell, colIdx, 1)
 	}
 
 	for _, row := range missing {
-		appendCell(row, emptyCell, 1)
+		appendCell(row, emptyCell, colIdx, 1)
 	}
 }
 

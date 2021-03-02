@@ -2128,6 +2128,7 @@ func TestAppendCell(t *testing.T) {
 		name  string
 		row   statepb.Row
 		cell  cell
+		start int
 		count int
 
 		expected statepb.Row
@@ -2286,10 +2287,12 @@ func TestAppendCell(t *testing.T) {
 			cell: cell{
 				result: statuspb.TestStatus_PASS,
 				metrics: map[string]float64{
-					"continued-series": 5.1,
-					"new-series":       5.2,
+					"continued-series":  5.1,
+					"new-series":        5.2,
+					"additional-metric": 5.3,
 				},
 			},
+			start: 5,
 			count: 1,
 			expected: statepb.Row{
 				Results:  []int32{int32(statuspb.TestStatus_PASS), 6},
@@ -2299,6 +2302,7 @@ func TestAppendCell(t *testing.T) {
 				Metric: []string{
 					"continued-series",
 					"new-series",
+					"additional-metric",
 				},
 				Metrics: []*statepb.Metric{
 					{
@@ -2310,6 +2314,11 @@ func TestAppendCell(t *testing.T) {
 						Name:    "new-series",
 						Indices: []int32{2, 2, 5, 1},
 						Values:  []float64{2, 3, 5.2},
+					},
+					{
+						Name:    "additional-metric",
+						Indices: []int32{5, 1},
+						Values:  []float64{5.3},
 					},
 				},
 			},
@@ -2326,7 +2335,7 @@ func TestAppendCell(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			appendCell(&tc.row, tc.cell, tc.count)
+			appendCell(&tc.row, tc.cell, tc.start, tc.count)
 			sort.SliceStable(tc.row.Metric, func(i, j int) bool {
 				return tc.row.Metric[i] < tc.row.Metric[j]
 			})
@@ -2347,8 +2356,8 @@ func TestAppendCell(t *testing.T) {
 }
 
 func setupRow(row *statepb.Row, cells ...cell) *statepb.Row {
-	for _, c := range cells {
-		appendCell(row, c, 1)
+	for idx, c := range cells {
+		appendCell(row, c, idx, 1)
 	}
 	return row
 }
