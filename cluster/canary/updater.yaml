@@ -22,7 +22,7 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20210302-v0.0.53-3-g2199ee2 
+        image: gcr.io/k8s-testgrid/updater:v20210303-v0.0.53-9-g59b1b9c 
         args:
         - --build-timeout=1m
         - --config=gs://k8s-testgrid-canary/config
