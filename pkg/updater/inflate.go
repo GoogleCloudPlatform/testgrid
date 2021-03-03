@@ -139,8 +139,6 @@ func inflateMetric(ctx context.Context, metric *statepb.Metric) <-chan *float64 
 		defer close(out)
 		var current int32
 		var valueIdx int
-		// TODO(fejta): ugh? this might be wrong
-		// I believe we may need to ignore NO_RESULT columns.
 		for i := 0; i < len(metric.Indices); i++ {
 			start := metric.Indices[i]
 			i++
