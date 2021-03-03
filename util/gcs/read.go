@@ -45,8 +45,10 @@ type PodInfo struct {
 }
 
 const (
+	// MissingPodInfo appears when builds complete without a podinfo.json report.
 	MissingPodInfo = "podinfo.json not found, please install prow's GCS reporter"
-	NoPodUtils     = "not using decoration, please set decorate: true on prowjob"
+	// NoPodUtils appears when builds run without decoration.
+	NoPodUtils = "not using decoration, please set decorate: true on prowjob"
 )
 
 func truncate(s string, max int) string {
@@ -191,7 +193,6 @@ func readLink(objAttrs *storage.ObjectAttrs) string {
 //   gs://b/1
 //   gs://a/5
 //   gs://c/10
-
 func Sort(builds []Build) {
 	sort.SliceStable(builds, func(i, j int) bool {
 		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName)

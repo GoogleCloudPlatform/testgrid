@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package gcs provides utilities for interacting with GCS.
+//
+// This includes basic CRUD operations. It is primarily focused on
+// reading prow build results uploaded to GCS.
 package gcs
 
 import (
@@ -47,6 +51,7 @@ type Path struct {
 	url url.URL
 }
 
+// NewPath returns a new Path if it parses.
 func NewPath(path string) (*Path, error) {
 	var p Path
 	err := p.Set(path)
@@ -124,8 +129,8 @@ func calcCRC(buf []byte) uint32 {
 }
 
 const (
-	// Default ACLs for this upload
-	DefaultAcl = false
+	// DefaultACL for this upload
+	DefaultACL = false
 	// PublicRead ACL for this upload.
 	PublicRead = true
 )

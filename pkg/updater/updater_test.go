@@ -148,12 +148,12 @@ func TestUpdate(t *testing.T) {
 				*resolveOrDie(&configPath, "hello"): {
 					buf:          mustGrid(&statepb.Grid{}),
 					cacheControl: "no-cache",
-					worldRead:    gcs.DefaultAcl,
+					worldRead:    gcs.DefaultACL,
 				},
 				*resolveOrDie(&configPath, "skip-non-k8s"): {
 					buf:          mustGrid(&statepb.Grid{}),
 					cacheControl: "no-cache",
-					worldRead:    gcs.DefaultAcl,
+					worldRead:    gcs.DefaultACL,
 				},
 			},
 		},
@@ -1142,7 +1142,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 					},
 				}),
 				cacheControl: "no-cache",
-				worldRead:    gcs.DefaultAcl,
+				worldRead:    gcs.DefaultACL,
 			},
 		},
 		{
@@ -2693,7 +2693,7 @@ func TestAlertRow(t *testing.T) {
 
 	for _, tc := range cases {
 		actual := alertRow(columns, &tc.row, tc.failOpen, tc.passClose)
-		if diff := cmp.Diff(tc.expected, actual); diff != "" {
+		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
 	}

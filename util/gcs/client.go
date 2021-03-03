@@ -39,7 +39,7 @@ type Lister interface {
 	Objects(ctx context.Context, prefix Path, delimiter, start string) Iterator
 }
 
-// An iterator returns the attributes of the listed objects or an iterator.Done error.
+// An Iterator returns the attributes of the listed objects or an iterator.Done error.
 type Iterator interface {
 	Next() (*storage.ObjectAttrs, error)
 }
