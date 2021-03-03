@@ -161,7 +161,7 @@ func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *su
 	if err != nil {
 		return fmt.Errorf("marshal: %v", err)
 	}
-	return client.Upload(ctx, path, buf, gcs.DefaultAcl, "no-cache") // TODO(fejta): configurable cache value
+	return client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache") // TODO(fejta): configurable cache value
 }
 
 // pathReader returns a reader for the specified path and last modified, generation metadata.

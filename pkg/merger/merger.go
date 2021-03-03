@@ -138,7 +138,7 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, ski
 		return fmt.Errorf("can't marshal merged proto: %w", err)
 	}
 
-	if err := client.Upload(ctx, *list.Path, buf, gcs.DefaultAcl, "no-cache"); err != nil {
+	if err := client.Upload(ctx, *list.Path, buf, gcs.DefaultACL, "no-cache"); err != nil {
 		return fmt.Errorf("can't upload merged proto to %s: %w", list.Path, err)
 	}
 

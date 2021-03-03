@@ -142,7 +142,7 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
-	return client.If(&cond, &cond).Upload(ctx, path, buf, gcs.DefaultAcl, "no-cache")
+	return client.If(&cond, &cond).Upload(ctx, path, buf, gcs.DefaultACL, "no-cache")
 }
 
 // Update performs a single update pass of all all test groups specified by the config.
@@ -480,7 +480,7 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 	} else {
 		log.Debug("Writing")
 		// TODO(fejta): configurable cache value
-		if err := client.Upload(ctx, gridPath, buf, gcs.DefaultAcl, "no-cache"); err != nil {
+		if err := client.Upload(ctx, gridPath, buf, gcs.DefaultACL, "no-cache"); err != nil {
 			return fmt.Errorf("upload: %w", err)
 		}
 	}
