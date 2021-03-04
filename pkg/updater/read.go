@@ -17,46 +17,19 @@ limitations under the License.
 package updater
 
 import (
-	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
-	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 )
-
-func downloadGrid(ctx context.Context, opener gcs.Opener, path gcs.Path) (*statepb.Grid, error) {
-	var g statepb.Grid
-	r, err := opener.Open(ctx, path)
-	if err != nil && err == storage.ErrObjectNotExist {
-		return &g, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("open: %w", err)
-	}
-	defer r.Close()
-	zr, err := zlib.NewReader(r)
-	if err != nil {
-		return nil, fmt.Errorf("open zlib: %w", err)
-	}
-	pbuf, err := ioutil.ReadAll(zr)
-	if err != nil {
-		return nil, fmt.Errorf("decompress: %w", err)
-	}
-	err = proto.Unmarshal(pbuf, &g)
-	return &g, err
-}
 
 // readColumns will list, download and process builds into inflatedColumns.
 func readColumns(parent context.Context, client gcs.Downloader, group *configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {

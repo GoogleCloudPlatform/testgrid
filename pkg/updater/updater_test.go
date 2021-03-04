@@ -1256,20 +1256,20 @@ func TestUpdateGCSGroup(t *testing.T) {
 				fakeDownloader := fakeOpener{
 					uploadPath: {data: string(actual[uploadPath].buf)},
 				}
-				actualGrid, err := downloadGrid(ctx, fakeDownloader, uploadPath)
+				actualGrid, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
-					t.Errorf("actual downloadGrid() got unexpected error: %v", err)
+					t.Errorf("actual gcs.DownloadGrid() got unexpected error: %v", err)
 				}
 				fakeDownloader[uploadPath] = fakeObject{data: string(tc.expected.buf)}
-				expectedGrid, err := downloadGrid(ctx, fakeDownloader, uploadPath)
+				expectedGrid, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
-					t.Errorf("expected downloadGrid() got unexpected error: %v", err)
+					t.Errorf("expected gcs.DownloadGrid() got unexpected error: %v", err)
 				}
 				diff = cmp.Diff(actualGrid, expectedGrid, protocmp.Transform())
 				if diff == "" {
 					return
 				}
-				t.Errorf("downloadGrid() got unexpected diff (-have, +want):\n%s", diff)
+				t.Errorf("gcs.DownloadGrid() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
