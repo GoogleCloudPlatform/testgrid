@@ -148,7 +148,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 					return
 				}
 				id := path.Base(b.Path.Object())
-				col, err := convertResult(log, nameCfg, id, heads, group.ShortTextMetric, *result, !group.DisableMergedStatus)
+				col, err := convertResult(log, nameCfg, id, heads, group.ShortTextMetric, *result, makeOptions(group))
 				if err != nil {
 					innerCancel()
 					select {
@@ -207,6 +207,18 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 	wg.Wait() // Ensure all stopWG.Add() calls are done
 	stopWG.Wait()
 	return cols[0:maxIdx], nil
+}
+
+type groupOptions struct {
+	merge          bool
+	analyzeProwJob bool
+}
+
+func makeOptions(group *configpb.TestGroup) groupOptions {
+	return groupOptions{
+		merge:          !group.DisableMergedStatus,
+		analyzeProwJob: !group.DisableProwjobAnalysis,
+	}
 }
 
 const (

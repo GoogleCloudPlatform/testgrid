@@ -255,11 +255,12 @@ func TestConvertResult(t *testing.T) {
 		headers   []string
 		metricKey string
 		result    gcsResult
-		merge     bool
+		opt       *groupOptions
 		expected  *inflatedColumn
 	}{
 		{
 			name: "basically works",
+			opt:  &groupOptions{}, // turn off podinfo
 			expected: &inflatedColumn{
 				column: &statepb.Column{},
 				cells: map[string]cell{
@@ -268,7 +269,6 @@ func TestConvertResult(t *testing.T) {
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
 					},
-					podInfoRow: podInfoMissingCell,
 				},
 			},
 		},
@@ -896,7 +896,88 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "duplicate row names disambiguated",
+			name: "duplicate row names can be merged",
+			nameCfg: nameConfig{
+				format: "%s - %s",
+				parts:  []string{testsName, "extra"},
+			},
+			opt: &groupOptions{
+				merge: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "same",
+											Time: 1,
+										},
+										{
+											Name: "same",
+											Time: 2,
+										},
+									},
+								},
+							},
+						},
+						Metadata: map[string]string{
+							"extra": "same",
+						},
+					},
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name:    "same",
+											Time:    3,
+											Failure: pstr("ugh"),
+										},
+									},
+								},
+							},
+						},
+						Metadata: map[string]string{
+							"extra": "same",
+						},
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					overallRow: {
+						result:  statuspb.TestStatus_PASS,
+						metrics: setElapsed(nil, 1),
+					},
+					"same - same": {
+						result:  statuspb.TestStatus_FLAKY,
+						icon:    "2/3",
+						message: "2/3 runs passed: ugh",
+						metrics: setElapsed(nil, 2), // mean
+					},
+				},
+			},
+		},
+		{
+			name: "duplicate row names can be disambiguated",
 			nameCfg: nameConfig{
 				format: "%s - %s",
 				parts:  []string{testsName, "extra"},
@@ -1068,7 +1149,12 @@ func TestConvertResult(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.WithField("test name", tc.name)
-			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, tc.merge)
+			if tc.opt == nil {
+				tc.opt = &groupOptions{
+					analyzeProwJob: true,
+				}
+			}
+			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, *tc.opt)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
