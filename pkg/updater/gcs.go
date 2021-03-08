@@ -213,7 +213,7 @@ func splitCells(originalName string, cells ...cell) map[string]cell {
 }
 
 // convertResult returns an inflatedColumn representation of the GCS result.
-func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, merge bool) (*inflatedColumn, error) {
+func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, opt groupOptions) (*inflatedColumn, error) {
 	cells := map[string][]cell{}
 	var cellID string
 	if nameCfg.multiJob {
@@ -293,8 +293,10 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		overallRow: overall,
 	}
 
-	if pic := podInfoCell(result.podInfo); pic.message != gcs.MissingPodInfo || overall.result != statuspb.TestStatus_RUNNING {
-		injectedCells[podInfoRow] = pic
+	if opt.analyzeProwJob {
+		if pic := podInfoCell(result.podInfo); pic.message != gcs.MissingPodInfo || overall.result != statuspb.TestStatus_RUNNING {
+			injectedCells[podInfoRow] = pic
+		}
 	}
 
 	for name, c := range injectedCells {
@@ -316,7 +318,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 
 	for name, cells := range cells {
 		switch {
-		case merge:
+		case opt.merge:
 			out.cells[name] = mergeCells(cells...)
 		default:
 			for n, c := range splitCells(name, cells...) {
