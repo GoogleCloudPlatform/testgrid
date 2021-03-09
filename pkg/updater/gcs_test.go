@@ -255,12 +255,11 @@ func TestConvertResult(t *testing.T) {
 		headers   []string
 		metricKey string
 		result    gcsResult
-		opt       *groupOptions
+		opt       groupOptions
 		expected  *inflatedColumn
 	}{
 		{
 			name: "basically works",
-			opt:  &groupOptions{}, // turn off podinfo
 			expected: &inflatedColumn{
 				column: &statepb.Column{},
 				cells: map[string]cell{
@@ -291,7 +290,6 @@ func TestConvertResult(t *testing.T) {
 						},
 					},
 				},
-				podInfo: podInfoSuccessPodInfo,
 			},
 			expected: &inflatedColumn{
 				column: &statepb.Column{
@@ -310,7 +308,6 @@ func TestConvertResult(t *testing.T) {
 						icon:    "T",
 						message: "Build did not complete within 24 hours",
 					},
-					podInfoRow: podInfoPassCell,
 				},
 			},
 		},
@@ -404,16 +401,6 @@ func TestConvertResult(t *testing.T) {
 						metrics: setElapsed(nil, 1),
 						cellID:  "job-name/build",
 					},
-					podInfoRow: func() cell {
-						c := podInfoMissingCell
-						c.cellID = "job-name/build"
-						return c
-					}(),
-					"job-name.Pod": func() cell {
-						c := podInfoMissingCell
-						c.cellID = "job-name/build"
-						return c
-					}(),
 					"job-name.Overall": {
 						result:  statuspb.TestStatus_FAIL,
 						icon:    "F",
@@ -474,7 +461,6 @@ func TestConvertResult(t *testing.T) {
 						message: "Build failed outside of test results",
 						metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
 					"job-name.this.that": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -526,7 +512,6 @@ func TestConvertResult(t *testing.T) {
 						message: "Build failed outside of test results",
 						metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
 					"this.that": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -605,7 +590,6 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
 					"elapsed": {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 5),
@@ -752,7 +736,6 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_FAIL,
 						metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
 					"no properties": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -885,7 +868,6 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
 					"elapsed - first [second] (good-property)": {
 						result: statuspb.TestStatus_PASS,
 					},
@@ -901,7 +883,7 @@ func TestConvertResult(t *testing.T) {
 				format: "%s - %s",
 				parts:  []string{testsName, "extra"},
 			},
-			opt: &groupOptions{
+			opt: groupOptions{
 				merge: true,
 			},
 			result: gcsResult{
@@ -1044,7 +1026,6 @@ func TestConvertResult(t *testing.T) {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
 					"same - same": {
 						result:  statuspb.TestStatus_PASS,
 						metrics: setElapsed(nil, 1),
@@ -1120,7 +1101,6 @@ func TestConvertResult(t *testing.T) {
 							result:  statuspb.TestStatus_PASS,
 							metrics: setElapsed(nil, 1),
 						},
-						podInfoRow: podInfoMissingCell,
 					}
 					under := cell{result: statuspb.TestStatus_PASS}
 					max := cell{result: statuspb.TestStatus_PASS}
@@ -1144,17 +1124,135 @@ func TestConvertResult(t *testing.T) {
 				}(),
 			},
 		},
+		{
+			name: "can add missing podInfo",
+			opt: groupOptions{
+				analyzeProwJob: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					overallRow: {
+						result:  statuspb.TestStatus_PASS,
+						metrics: setElapsed(nil, 1),
+					},
+					podInfoRow: podInfoMissingCell,
+				},
+			},
+		},
+		{
+			name: "can add interesting pod info",
+			opt: groupOptions{
+				analyzeProwJob: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				podInfo: gcs.PodInfo{
+					Pod: &core.Pod{
+						Status: core.PodStatus{Phase: core.PodSucceeded},
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					overallRow: {
+						result:  statuspb.TestStatus_PASS,
+						metrics: setElapsed(nil, 1),
+					},
+					podInfoRow: podInfoPassCell,
+				},
+			},
+		},
+		{
+			name: "do not add missing podinfo when still running",
+			opt: groupOptions{
+				analyzeProwJob: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					overallRow: {
+						result:  statuspb.TestStatus_RUNNING,
+						icon:    "R",
+						message: "Build still running...",
+					},
+				},
+			},
+		},
+		{
+			name: "add intersting podinfo even still running",
+			opt: groupOptions{
+				analyzeProwJob: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				podInfo: gcs.PodInfo{
+					Pod: &core.Pod{
+						Status: core.PodStatus{Phase: core.PodSucceeded},
+					},
+				},
+			},
+			expected: &inflatedColumn{
+				column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				cells: map[string]cell{
+					overallRow: {
+						result:  statuspb.TestStatus_RUNNING,
+						icon:    "R",
+						message: "Build still running...",
+					},
+					podInfoRow: podInfoPassCell,
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.WithField("test name", tc.name)
-			if tc.opt == nil {
-				tc.opt = &groupOptions{
-					analyzeProwJob: true,
-				}
-			}
-			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, *tc.opt)
+			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, tc.opt)
 			switch {
 			case err != nil:
 				if tc.expected != nil {
