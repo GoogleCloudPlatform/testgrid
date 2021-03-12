@@ -19,7 +19,7 @@ package gcs
 import (
 	"cloud.google.com/go/storage"
 	"context"
-	"errors"
+	"google.golang.org/api/iterator"
 	"io"
 	"io/ioutil"
 	"os"
@@ -48,10 +48,10 @@ func cleanFilepath(path Path) string {
 	return strings.Replace(path.String(), "file://", "/", 1)
 }
 
-func (li localIterator) Next() (*storage.ObjectAttrs, error) {
+func (li *localIterator) Next() (*storage.ObjectAttrs, error) {
 	defer func() { li.index++ }()
 	if li.index >= len(li.files) {
-		return nil, errors.New("stop iteration")
+		return nil, iterator.Done
 	}
 	info := li.files[li.index]
 	p, err := NewPath(filepath.Join(li.dir, info.Name()))
@@ -88,12 +88,16 @@ func (lc localClient) Open(ctx context.Context, path Path) (io.ReadCloser, error
 }
 
 func (lc localClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {
-	files, err := ioutil.ReadDir(filepath.Dir(cleanFilepath(path)))
-	if err != nil {
-		return localIterator{}
+	p := cleanFilepath(path)
+	if !strings.HasSuffix(p, "/") {
+		p += "/"
 	}
-	return localIterator{
-		dir:   filepath.Dir(cleanFilepath(path)),
+	files, err := ioutil.ReadDir(p)
+	if err != nil {
+		return &localIterator{}
+	}
+	return &localIterator{
+		dir:   filepath.Dir(p),
 		files: files,
 	}
 }

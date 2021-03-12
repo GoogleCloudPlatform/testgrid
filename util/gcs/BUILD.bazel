@@ -14,7 +14,9 @@ go_library(
     deps = [
         "//metadata:go_default_library",
         "//metadata/junit:go_default_library",
+        "//pb/state:go_default_library",
         "@com_github_fvbommel_sortorder//:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
         "@com_google_cloud_go_storage//:go_default_library",
         "@io_k8s_api//core/v1:go_default_library",
         "@org_golang_google_api//iterator:go_default_library",

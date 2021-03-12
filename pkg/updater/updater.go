@@ -432,7 +432,7 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 
 	var oldCols []inflatedColumn
 
-	old, err := downloadGrid(ctx, client, gridPath)
+	old, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}

@@ -21,15 +21,20 @@ limitations under the License.
 package gcs
 
 import (
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"strings"
 
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+
 	"cloud.google.com/go/storage"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/api/option"
 )
 
@@ -168,4 +173,27 @@ func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte,
 		return fmt.Errorf("close: %w", err)
 	}
 	return nil
+}
+
+// DownloadGrid downloads and decompresses a grid from the specified path.
+func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid, error) {
+	var g statepb.Grid
+	r, err := opener.Open(ctx, path)
+	if err != nil && err == storage.ErrObjectNotExist {
+		return &g, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("open: %w", err)
+	}
+	defer r.Close()
+	zr, err := zlib.NewReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("open zlib: %w", err)
+	}
+	pbuf, err := ioutil.ReadAll(zr)
+	if err != nil {
+		return nil, fmt.Errorf("decompress: %w", err)
+	}
+	err = proto.Unmarshal(pbuf, &g)
+	return &g, err
 }
