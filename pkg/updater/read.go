@@ -31,6 +31,40 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency int) ColumnReader {
+	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []inflatedColumn, stop time.Time) ([]inflatedColumn, error) {
+		tgPaths, err := groupPaths(tg)
+		if err != nil {
+			return nil, fmt.Errorf("group path: %w", err)
+		}
+
+		var since string
+		if len(oldCols) > 0 {
+			since = oldCols[0].Column.Build
+			newStop := time.Unix(int64(oldCols[0].Column.Started/1000), 0)
+			if newStop.After(stop) {
+				log.WithFields(logrus.Fields{
+					"old columns": len(oldCols),
+					"previously":  stop,
+					"stop":        newStop,
+				}).Debug("Advanced stop")
+				stop = newStop
+			}
+		}
+
+		builds, err := listBuilds(ctx, client, since, tgPaths...)
+		if err != nil {
+			return nil, fmt.Errorf("list builds: %w", err)
+		}
+		log.WithField("total", len(builds)).Debug("Listed builds")
+
+		builds = truncateBuilds(log, builds, oldCols)
+
+		const maxCols = 50
+		return readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
+	}
+}
+
 // readColumns will list, download and process builds into inflatedColumns.
 func readColumns(parent context.Context, client gcs.Downloader, group *configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
 	// Spawn build readers
@@ -130,7 +164,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 					}
 					return
 				}
-				if int64(col.column.Started) < stop {
+				if int64(col.Column.Started) < stop {
 					// Multiple go-routines may all read an old result.
 					// So we need to use a mutex to read the current max column
 					// and then truncate it to idx if idx is smaller.
@@ -149,7 +183,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 									"idx":     idx,
 									"id":      id,
 									"path":    b.Path,
-									"started": int64(col.column.Started / 1000),
+									"started": int64(col.Column.Started / 1000),
 									"stop":    stopTime,
 								}).Debug("Stopped")
 							}

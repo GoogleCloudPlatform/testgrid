@@ -319,6 +319,8 @@ message TestGroup {
       // JUnit results, parsed from GCS buckets.
       JUnitConfig junit_config = 2;
     }
+
+    reserved 4; // Private source
   }
 
   // Configuration type of the result source.

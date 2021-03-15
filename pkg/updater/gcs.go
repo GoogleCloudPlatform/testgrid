@@ -45,10 +45,10 @@ type gcsResult struct {
 
 const maxDuplicates = 20
 
-var overflowCell = cell{
-	result:  statuspb.TestStatus_FAIL,
-	icon:    "...",
-	message: "Too many duplicately named rows",
+var overflowCell = Cell{
+	Result:  statuspb.TestStatus_FAIL,
+	Icon:    "...",
+	Message: "Too many duplicately named rows",
 }
 
 func propertyMap(r *junit.Result) map[string][]string {
@@ -62,7 +62,7 @@ func propertyMap(r *junit.Result) map[string][]string {
 	return out
 }
 
-func means(properties map[string][]string) map[string]float64 {
+func Means(properties map[string][]string) map[string]float64 {
 	out := make(map[string]float64, len(properties))
 	for name, values := range properties {
 		var sum float64
@@ -99,8 +99,8 @@ const (
 	podInfoRow = "Pod"
 )
 
-func mergeCells(cells ...cell) cell {
-	var out cell
+func MergeCells(cells ...Cell) Cell {
+	var out Cell
 	if len(cells) == 0 {
 		panic("empty cells")
 	}
@@ -119,38 +119,38 @@ func mergeCells(cells ...cell) cell {
 	// gather all metrics
 	means := map[string][]float64{}
 
-	current := out.result
+	current := out.Result
 
 	for _, c := range cells {
-		if result.GTE(c.result, current) {
-			current = c.result
+		if result.GTE(c.Result, current) {
+			current = c.Result
 		}
 		switch {
-		case result.Passing(c.result):
+		case result.Passing(c.Result):
 			pass++
-			if passMsg == "" && c.message != "" {
-				passMsg = c.message
+			if passMsg == "" && c.Message != "" {
+				passMsg = c.Message
 			}
-		case result.Failing(c.result):
+		case result.Failing(c.Result):
 			fail++
-			if failMsg == "" && c.message != "" {
-				failMsg = c.message
+			if failMsg == "" && c.Message != "" {
+				failMsg = c.Message
 			}
 		}
 
-		for metric, mean := range c.metrics {
+		for metric, mean := range c.Metrics {
 			means[metric] = append(means[metric], mean)
 		}
 	}
 	if pass > 0 && fail > 0 {
-		out.result = statuspb.TestStatus_FLAKY
+		out.Result = statuspb.TestStatus_FLAKY
 	} else {
-		out.result = current
+		out.Result = current
 	}
 
 	// determine the icon
 	total := len(cells)
-	out.icon = strconv.Itoa(pass) + "/" + strconv.Itoa(total)
+	out.Icon = strconv.Itoa(pass) + "/" + strconv.Itoa(total)
 
 	// compile the message
 	var msg string
@@ -163,23 +163,23 @@ func mergeCells(cells ...cell) cell {
 	if msg != "" {
 		msg = ": " + msg
 	}
-	out.message = out.icon + " runs passed" + msg
+	out.Message = out.Icon + " runs passed" + msg
 
 	// merge metrics
 	if len(means) > 0 {
-		out.metrics = make(map[string]float64, len(means))
+		out.Metrics = make(map[string]float64, len(means))
 		for metric, means := range means {
 			var sum float64
 			for _, m := range means {
 				sum += m
 			}
-			out.metrics[metric] = sum / float64(len(means))
+			out.Metrics[metric] = sum / float64(len(means))
 		}
 	}
 	return out
 }
 
-func splitCells(originalName string, cells ...cell) map[string]cell {
+func SplitCells(originalName string, cells ...Cell) map[string]Cell {
 	n := len(cells)
 	if n == 0 {
 		return nil
@@ -187,7 +187,7 @@ func splitCells(originalName string, cells ...cell) map[string]cell {
 	if n > maxDuplicates {
 		n = maxDuplicates
 	}
-	out := make(map[string]cell, n)
+	out := make(map[string]Cell, n)
 	for idx, c := range cells {
 		// Ensure each name is unique
 		// If we have multiple results with the same name foo
@@ -214,7 +214,7 @@ func splitCells(originalName string, cells ...cell) map[string]cell {
 
 // convertResult returns an inflatedColumn representation of the GCS result.
 func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, opt groupOptions) (*inflatedColumn, error) {
-	cells := map[string][]cell{}
+	cells := map[string][]Cell{}
 	var cellID string
 	if nameCfg.multiJob {
 		cellID = result.job + "/" + id
@@ -229,39 +229,39 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 			if r.Skipped != nil && *r.Skipped == "" {
 				continue
 			}
-			c := cell{cellID: cellID}
+			c := Cell{CellID: cellID}
 			if elapsed := r.Time; elapsed > 0 {
-				c.metrics = setElapsed(c.metrics, elapsed)
+				c.Metrics = setElapsed(c.Metrics, elapsed)
 			}
 
 			props := propertyMap(&r)
-			for metric, mean := range means(props) {
-				if c.metrics == nil {
-					c.metrics = map[string]float64{}
+			for metric, mean := range Means(props) {
+				if c.Metrics == nil {
+					c.Metrics = map[string]float64{}
 				}
-				c.metrics[metric] = mean
+				c.Metrics[metric] = mean
 			}
 
 			const max = 140
 			if msg := r.Message(max); msg != "" {
-				c.message = msg
+				c.Message = msg
 			}
 
 			switch {
 			case r.Failure != nil:
-				c.result = statuspb.TestStatus_FAIL
-				if c.message != "" {
-					c.icon = "F"
+				c.Result = statuspb.TestStatus_FAIL
+				if c.Message != "" {
+					c.Icon = "F"
 				}
 			case r.Skipped != nil:
-				c.result = statuspb.TestStatus_PASS_WITH_SKIPS
-				c.icon = "S"
+				c.Result = statuspb.TestStatus_PASS_WITH_SKIPS
+				c.Icon = "S"
 			default:
-				c.result = statuspb.TestStatus_PASS
+				c.Result = statuspb.TestStatus_PASS
 			}
 
-			if f, ok := c.metrics[metricKey]; ok {
-				c.icon = strconv.FormatFloat(f, 'g', 4, 64)
+			if f, ok := c.Metrics[metricKey]; ok {
+				c.Icon = strconv.FormatFloat(f, 'g', 4, 64)
 			}
 
 			name := nameCfg.render(result.job, r.Name, first(props), suite.Metadata, meta)
@@ -270,11 +270,11 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	}
 
 	overall := overallCell(result)
-	if overall.result == statuspb.TestStatus_FAIL && overall.message == "" { // Ensure failing build has a failing cell and/or overall message
+	if overall.Result == statuspb.TestStatus_FAIL && overall.Message == "" { // Ensure failing build has a failing cell and/or overall message
 		var found bool
 		for _, namedCells := range cells {
 			for _, c := range namedCells {
-				if c.result == statuspb.TestStatus_FAIL {
+				if c.Result == statuspb.TestStatus_FAIL {
 					found = true // Failing test, huzzah!
 					break
 				}
@@ -283,46 +283,46 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 				break
 			}
 		}
-		if !found { // Nope, add the F icon and an explanatory message
-			overall.icon = "F"
-			overall.message = "Build failed outside of test results"
+		if !found { // Nope, add the F icon and an explanatory Message
+			overall.Icon = "F"
+			overall.Message = "Build failed outside of test results"
 		}
 	}
 
-	injectedCells := map[string]cell{
+	injectedCells := map[string]Cell{
 		overallRow: overall,
 	}
 
 	if opt.analyzeProwJob {
-		if pic := podInfoCell(result.podInfo); pic.message != gcs.MissingPodInfo || overall.result != statuspb.TestStatus_RUNNING {
+		if pic := podInfoCell(result.podInfo); pic.Message != gcs.MissingPodInfo || overall.Result != statuspb.TestStatus_RUNNING {
 			injectedCells[podInfoRow] = pic
 		}
 	}
 
 	for name, c := range injectedCells {
 		if nameCfg.multiJob {
-			c.cellID = cellID
+			c.CellID = cellID
 			jobName := result.job + "." + name
-			cells[jobName] = append([]cell{c}, cells[jobName]...)
+			cells[jobName] = append([]Cell{c}, cells[jobName]...)
 		}
-		cells[name] = append([]cell{c}, cells[name]...)
+		cells[name] = append([]Cell{c}, cells[name]...)
 	}
 
 	out := inflatedColumn{
-		column: &statepb.Column{
+		Column: &statepb.Column{
 			Build:   id,
 			Started: float64(result.started.Timestamp * 1000),
 		},
-		cells: map[string]cell{},
+		Cells: map[string]Cell{},
 	}
 
 	for name, cells := range cells {
 		switch {
 		case opt.merge:
-			out.cells[name] = mergeCells(cells...)
+			out.Cells[name] = MergeCells(cells...)
 		default:
-			for n, c := range splitCells(name, cells...) {
-				out.cells[n] = c
+			for n, c := range SplitCells(name, cells...) {
+				out.Cells[n] = c
 			}
 		}
 	}
@@ -331,16 +331,16 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		val, ok := meta[h]
 		if !ok && h == "Commit" && version != metadata.Missing {
 			val = version
-		} else if !ok && overall.result != statuspb.TestStatus_RUNNING {
+		} else if !ok && overall.Result != statuspb.TestStatus_RUNNING {
 			val = "missing"
 		}
-		out.column.Extra = append(out.column.Extra, val)
+		out.Column.Extra = append(out.Column.Extra, val)
 	}
 
 	return &out, nil
 }
 
-func podInfoCell(podInfo gcs.PodInfo) cell {
+func podInfoCell(podInfo gcs.PodInfo) Cell {
 	pass, msg := podInfo.Summarize()
 	var status statuspb.TestStatus
 	var icon string
@@ -359,16 +359,16 @@ func podInfoCell(podInfo gcs.PodInfo) cell {
 		icon = "F"
 	}
 
-	return cell{
-		message: msg,
-		icon:    icon,
-		result:  status,
+	return Cell{
+		Message: msg,
+		Icon:    icon,
+		Result:  status,
 	}
 }
 
 // overallCell generates the overall cell for this GCS result.
-func overallCell(result gcsResult) cell {
-	var c cell
+func overallCell(result gcsResult) Cell {
+	var c Cell
 	var finished int64
 	if result.finished.Timestamp != nil {
 		finished = *result.finished.Timestamp
@@ -381,39 +381,39 @@ func overallCell(result gcsResult) cell {
 		case result.finished.Passed == nil:
 			if res != "" {
 				passed = res == "SUCCESS"
-				c.icon = "E"
-				c.message = fmt.Sprintf(`finished.json missing "passed": %t`, passed)
+				c.Icon = "E"
+				c.Message = fmt.Sprintf(`finished.json missing "passed": %t`, passed)
 			}
 		case result.finished.Passed != nil:
 			passed = *result.finished.Passed
 		}
 
 		if passed {
-			c.result = statuspb.TestStatus_PASS
+			c.Result = statuspb.TestStatus_PASS
 		} else {
-			c.result = statuspb.TestStatus_FAIL
+			c.Result = statuspb.TestStatus_FAIL
 		}
-		c.metrics = setElapsed(nil, float64(finished-result.started.Timestamp))
+		c.Metrics = setElapsed(nil, float64(finished-result.started.Timestamp))
 	case time.Now().Add(-24*time.Hour).Unix() > result.started.Timestamp:
-		c.result = statuspb.TestStatus_FAIL
-		c.message = "Build did not complete within 24 hours"
-		c.icon = "T"
+		c.Result = statuspb.TestStatus_FAIL
+		c.Message = "Build did not complete within 24 hours"
+		c.Icon = "T"
 	default:
-		c.result = statuspb.TestStatus_RUNNING
-		c.message = "Build still running..."
-		c.icon = "R"
+		c.Result = statuspb.TestStatus_RUNNING
+		c.Message = "Build still running..."
+		c.Icon = "R"
 	}
 	return c
 }
 
-const elapsedKey = "test-duration-minutes"
+const ElapsedKey = "test-duration-minutes"
 
 // setElapsed inserts the seconds-elapsed metric.
 func setElapsed(metrics map[string]float64, seconds float64) map[string]float64 {
 	if metrics == nil {
 		metrics = map[string]float64{}
 	}
-	metrics[elapsedKey] = seconds / 60
+	metrics[ElapsedKey] = seconds / 60
 	return metrics
 }
 

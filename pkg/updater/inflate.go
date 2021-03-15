@@ -24,37 +24,44 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
-// inflatedColumn holds all the entries for a given column.
+// InflatedColumn holds all the entries for a given column.
 //
 // This includes both:
 // * Column state metadata and
-// * cell values for every row in this column
-type inflatedColumn struct {
-	column *statepb.Column
-	cells  map[string]cell
+// * Cell values for every row in this column
+type InflatedColumn struct {
+	Column *statepb.Column
+	Cells  map[string]Cell
 }
 
-// cell holds a row's values for a given column
-type cell struct {
-	result statuspb.TestStatus
+// TODO(fejta): rename everything to InflatedColumn
+type inflatedColumn = InflatedColumn
 
-	cellID string
+// Cell holds a row's values for a given column
+type Cell struct {
+	Result statuspb.TestStatus
 
-	icon    string
-	message string
+	ID     string
+	CellID string
 
-	metrics map[string]float64
+	Icon    string
+	Message string
+
+	Metrics map[string]float64
 }
 
-// inflateGrid inflates the grid's rows into an inflatedColumn channel.
-func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []inflatedColumn {
-	var cols []inflatedColumn
+// TODO(fejta): rename everything to Cell
+type cell = Cell
+
+// inflateGrid inflates the grid's rows into an InflatedColumn channel.
+func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColumn {
+	var cols []InflatedColumn
 
 	// nothing is blocking, so no need for a parent context.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rows := make(map[string]<-chan cell, len(grid.Rows))
+	rows := make(map[string]<-chan Cell, len(grid.Rows))
 	for _, row := range grid.Rows {
 		rows[row.Name] = inflateRow(ctx, row)
 	}
@@ -62,12 +69,12 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []inflatedColum
 	for _, col := range grid.Columns {
 		// Even if we wind up skipping the column
 		// we still need to inflate the cells.
-		item := inflatedColumn{
-			column: col,
-			cells:  make(map[string]cell, len(rows)),
+		item := InflatedColumn{
+			Column: col,
+			Cells:  make(map[string]Cell, len(rows)),
 		}
 		for rowName, rowCells := range rows {
-			item.cells[rowName] = <-rowCells
+			item.Cells[rowName] = <-rowCells
 		}
 		when := int64(col.Started / 1000)
 		if when > latest.Unix() {
@@ -82,26 +89,27 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []inflatedColum
 	return cols
 }
 
-// inflateRow inflates the values for each column into a cell channel.
-func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
-	out := make(chan cell)
+// inflateRow inflates the values for each column into a Cell channel.
+func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
+	out := make(chan Cell)
+	addCellID := hasCellID(row.Name)
 
 	go func() {
 		ctx, cancel := context.WithCancel(parent)
 		defer close(out)
 		defer cancel()
 		var filledIdx int
-		metrics := map[string]<-chan *float64{}
+		Metrics := map[string]<-chan *float64{}
 		for i, m := range row.Metrics {
 			if m.Name == "" && len(row.Metrics) > i {
 				m.Name = row.Metric[i]
 			}
-			metrics[m.Name] = inflateMetric(ctx, m)
+			Metrics[m.Name] = inflateMetric(ctx, m)
 		}
 		var val *float64
 		for result := range inflateResults(ctx, row.Results) {
-			c := cell{result: result}
-			for name, ch := range metrics {
+			c := Cell{Result: result}
+			for name, ch := range Metrics {
 				select {
 				case <-ctx.Done():
 					return
@@ -110,15 +118,17 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan cell {
 				if val == nil {
 					continue
 				}
-				if c.metrics == nil {
-					c.metrics = map[string]float64{}
+				if c.Metrics == nil {
+					c.Metrics = map[string]float64{}
 				}
-				c.metrics[name] = *val
+				c.Metrics[name] = *val
 			}
 			if result != statuspb.TestStatus_NO_RESULT {
-				c.icon = row.Icons[filledIdx]
-				c.message = row.Messages[filledIdx]
-				c.cellID = row.CellIds[filledIdx]
+				c.Icon = row.Icons[filledIdx]
+				c.Message = row.Messages[filledIdx]
+				if addCellID {
+					c.CellID = row.CellIds[filledIdx]
+				}
 				filledIdx++
 			}
 			select {
