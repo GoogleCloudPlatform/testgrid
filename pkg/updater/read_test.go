@@ -115,12 +115,12 @@ func TestReadColumns(t *testing.T) {
 		dur         time.Duration
 		concurrency int
 
-		expected []inflatedColumn
+		expected []InflatedColumn
 		err      bool
 	}{
 		{
 			name:     "basically works",
-			expected: []inflatedColumn{},
+			expected: []InflatedColumn{},
 		},
 		{
 			name: "convert results correctly",
@@ -154,18 +154,18 @@ func TestReadColumns(t *testing.T) {
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result:  statuspb.TestStatus_FAIL,
-							icon:    "F",
-							message: "Build failed outside of test results",
-							metrics: map[string]float64{
+							Result:  statuspb.TestStatus_FAIL,
+							Icon:    "F",
+							Message: "Build failed outside of test results",
+							Metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
@@ -173,14 +173,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
@@ -237,9 +237,9 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 						Extra: []string{
@@ -247,12 +247,12 @@ func TestReadColumns(t *testing.T) {
 							"new information",
 						},
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result:  statuspb.TestStatus_FAIL,
-							icon:    "F",
-							message: "Build failed outside of test results",
-							metrics: map[string]float64{
+							Result:  statuspb.TestStatus_FAIL,
+							Icon:    "F",
+							Message: "Build failed outside of test results",
+							Metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
@@ -260,7 +260,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 						Extra: []string{
@@ -268,10 +268,10 @@ func TestReadColumns(t *testing.T) {
 							"old information",
 						},
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
@@ -322,35 +322,35 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
 						podInfoRow: podInfoPassCell,
 						"name good - context context-a - thread 33": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 						"name bad - context context-a - thread 33": {
-							result:  statuspb.TestStatus_FAIL,
-							icon:    "F",
-							message: "bad",
+							Result:  statuspb.TestStatus_FAIL,
+							Icon:    "F",
+							Message: "bad",
 						},
 						"name good - context context-b - thread 44": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 						"name bad - context context-b - thread 44": {
-							result:  statuspb.TestStatus_FAIL,
-							icon:    "F",
-							message: "bad",
+							Result:  statuspb.TestStatus_FAIL,
+							Icon:    "F",
+							Message: "bad",
 						},
 					},
 				},
@@ -401,16 +401,16 @@ func TestReadColumns(t *testing.T) {
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
@@ -418,14 +418,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
@@ -491,16 +491,16 @@ func TestReadColumns(t *testing.T) {
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "13",
 						Started: float64(now+13) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
@@ -508,14 +508,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
@@ -583,16 +583,16 @@ func TestReadColumns(t *testing.T) {
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "13",
 						Started: float64(now+13) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
@@ -600,14 +600,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
@@ -615,14 +615,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "11",
 						Started: float64(now+11) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
@@ -630,14 +630,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "10",
 						Started: float64(now+10) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
@@ -704,16 +704,16 @@ func TestReadColumns(t *testing.T) {
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
-			expected: []inflatedColumn{
+			expected: []InflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "13",
 						Started: float64(now+13) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
@@ -721,14 +721,14 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "12",
 						Started: float64(now+12) * 1000,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						overallRow: {
-							result: statuspb.TestStatus_PASS,
-							metrics: map[string]float64{
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
@@ -785,7 +785,7 @@ func TestReadColumns(t *testing.T) {
 			case tc.err:
 				t.Error("readColumns(): failed to receive an error")
 			default:
-				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
 					t.Errorf("readColumns() got unexpected diff (-got +want):\n%s", diff)
 				}
 			}

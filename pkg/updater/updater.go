@@ -64,7 +64,8 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) 
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
-		return updateGCSGroup(ctx, log, client, tg, gridPath, concurrency, write, buildTimeout)
+		gcsColReader := gcsColumnReader(client, buildTimeout, concurrency)
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader)
 	}
 }
 
@@ -316,13 +317,13 @@ func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 //
 // If there are 20 columns where all are complete except the 3rd and 7th, this will
 // return the 8th and later columns.
-func truncateRunning(cols []inflatedColumn) []inflatedColumn {
+func truncateRunning(cols []InflatedColumn) []InflatedColumn {
 	if len(cols) == 0 {
 		return cols
 	}
 	var stillRunning int
 	for i, c := range cols {
-		if c.cells[overallRow].result == statuspb.TestStatus_RUNNING {
+		if c.Cells[overallRow].Result == statuspb.TestStatus_RUNNING {
 			stillRunning = i + 1
 		}
 	}
@@ -358,7 +359,7 @@ func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedC
 	// determine the average number of rows per column
 	var rows int
 	for _, c := range cols {
-		rows += len(c.cells)
+		rows += len(c.Cells)
 	}
 
 	nc := len(cols)
@@ -414,19 +415,17 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 	return out, nil
 }
 
-func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, concurrency int, write bool, buildTimeout time.Duration) error {
-	tgPaths, err := groupPaths(tg)
-	if err != nil {
-		return fmt.Errorf("group path: %w", err)
-	}
+// A ColumnReader will find, process and return new columns to insert into the front of grid state.
+type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []inflatedColumn, stop time.Time) ([]inflatedColumn, error)
 
+// InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
+func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader) error {
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
 	} else {
 		dur = days(7)
 	}
-	const maxCols = 50
 
 	stop := time.Now().Add(-dur)
 
@@ -440,29 +439,7 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-12*time.Hour)))
 	}
 
-	var since string
-	if len(oldCols) > 0 {
-		since = oldCols[0].column.Build
-		newStop := time.Unix(int64(oldCols[0].column.Started/1000), 0)
-		if newStop.After(stop) {
-			log.WithFields(logrus.Fields{
-				"old columns": len(oldCols),
-				"previously":  stop,
-				"stop":        newStop,
-			}).Debug("Advanced stop")
-			stop = newStop
-		}
-	}
-
-	builds, err := listBuilds(ctx, client, since, tgPaths...)
-	if err != nil {
-		return fmt.Errorf("list builds: %w", err)
-	}
-	log.WithField("total", len(builds)).Debug("Listed builds")
-
-	builds = truncateBuilds(log, builds, oldCols)
-
-	newCols, err := readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
+	newCols, err := readCols(ctx, log, tg, oldCols, stop)
 	if err != nil {
 		return fmt.Errorf("read columns: %w", err)
 	}
@@ -494,17 +471,17 @@ func updateGCSGroup(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 // mergeColumns combines newCols and oldCols.
 //
 // When old and new both contain a column, chooses the new column.
-func mergeColumns(newCols, oldCols []inflatedColumn) []inflatedColumn {
+func mergeColumns(newCols, oldCols []InflatedColumn) []InflatedColumn {
 	// accept all the new columns
-	out := append([]inflatedColumn{}, newCols...)
+	out := append([]InflatedColumn{}, newCols...)
 	if len(out) == 0 {
 		return oldCols
 	}
 
 	// accept all the old columns which are older than the accepted columns.
-	oldestCol := out[len(out)-1].column
+	oldestCol := out[len(out)-1].Column
 	for i := 0; i < len(oldCols); i++ {
-		if oldCols[i].column.Started > oldestCol.Started || oldCols[i].column.Build == oldestCol.Build {
+		if oldCols[i].Column.Started > oldestCol.Started || oldCols[i].Column.Build == oldestCol.Build {
 			continue
 		}
 		return append(out, oldCols[i:]...)
@@ -617,13 +594,17 @@ func appendMetric(metric *statepb.Metric, idx int32, value float64) {
 	metric.Values = append(metric.Values, value)
 }
 
-var emptyCell = cell{result: statuspb.TestStatus_NO_RESULT}
+var emptyCell = Cell{Result: statuspb.TestStatus_NO_RESULT}
+
+func hasCellID(name string) bool {
+	return !strings.Contains(name, "@TESTGRID@")
+}
 
 // appendCell adds the rowResult column to the row.
 //
 // Handles the details like missing fields and run-length-encoding the result.
 func appendCell(row *statepb.Row, cell cell, start, count int) {
-	latest := int32(cell.result)
+	latest := int32(cell.Result)
 	n := len(row.Results)
 	switch {
 	case n == 0, row.Results[n-2] != latest:
@@ -632,9 +613,11 @@ func appendCell(row *statepb.Row, cell cell, start, count int) {
 		row.Results[n-1] += int32(count)
 	}
 
+	addCellID := hasCellID(row.Name)
+
 	for i := 0; i < count; i++ {
 		columnIdx := int32(start + i)
-		for metricName, measurement := range cell.metrics {
+		for metricName, measurement := range cell.Metrics {
 			var metric *statepb.Metric
 			var ok bool
 			for _, name := range row.Metric {
@@ -659,13 +642,15 @@ func appendCell(row *statepb.Row, cell cell, start, count int) {
 			// len()-1 because we already appended the cell id
 			appendMetric(metric, columnIdx, measurement)
 		}
-		if cell.result == statuspb.TestStatus_NO_RESULT {
+		if cell.Result == statuspb.TestStatus_NO_RESULT {
 			continue
 		}
-		row.CellIds = append(row.CellIds, cell.cellID)
+		if addCellID {
+			row.CellIds = append(row.CellIds, cell.CellID)
+		}
 		// Javascript client expects no result cells to skip icons/messages
-		row.Messages = append(row.Messages, cell.message)
-		row.Icons = append(row.Icons, cell.icon)
+		row.Messages = append(row.Messages, cell.Message)
+		row.Icons = append(row.Icons, cell.Icon)
 	}
 }
 
@@ -676,8 +661,8 @@ func appendCell(row *statepb.Row, cell cell, start, count int) {
 // * adding auto metadata like duration, commit as well as any user-added metadata
 // * extracting build metadata into the appropriate column header
 // * Ensuring row names are unique and formatted with metadata
-func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated inflatedColumn) {
-	grid.Columns = append(grid.Columns, inflated.column)
+func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated InflatedColumn) {
+	grid.Columns = append(grid.Columns, inflated.Column)
 	colIdx := len(grid.Columns) - 1
 
 	missing := map[string]*statepb.Row{}
@@ -685,14 +670,18 @@ func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated inf
 		missing[name] = row
 	}
 
-	for name, cell := range inflated.cells {
+	for name, cell := range inflated.Cells {
 		delete(missing, name)
 
 		row, ok := rows[name]
 		if !ok {
+			id := cell.ID
+			if id == "" {
+				id = name
+			}
 			row = &statepb.Row{
 				Name:    name,
-				Id:      name,
+				Id:      id,
 				CellIds: []string{}, // TODO(fejta): try and leave this nil
 			}
 			rows[name] = row

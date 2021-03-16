@@ -82,24 +82,24 @@ func TestInflateGrid(t *testing.T) {
 			latest: hours[23],
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:      "build",
 						Name:       "name",
 						Started:    5,
 						Extra:      []string{"extra", "fun"},
 						HotlistIds: "hot topic",
 					},
-					cells: map[string]cell{},
+					Cells: map[string]cell{},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:      "second build",
 						Name:       "second name",
 						Started:    10,
 						Extra:      []string{"more", "gooder"},
 						HotlistIds: "hot pocket",
 					},
-					cells: map[string]cell{},
+					Cells: map[string]cell{},
 				},
 			},
 		},
@@ -155,45 +155,45 @@ func TestInflateGrid(t *testing.T) {
 			latest: hours[23],
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "b1",
 						Name:    "n1",
 						Started: 1,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						"name": {
-							result:  statuspb.TestStatus_FAIL,
-							cellID:  "this",
-							message: "important",
-							icon:    "I1",
-							metrics: map[string]float64{
+							Result:  statuspb.TestStatus_FAIL,
+							CellID:  "this",
+							Message: "important",
+							Icon:    "I1",
+							Metrics: map[string]float64{
 								"this": 0.1,
 							},
 						},
 						"second": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "b2",
 						Name:    "n2",
 						Started: 2,
 					},
-					cells: map[string]cell{
+					Cells: map[string]cell{
 						"name": {
-							result:  statuspb.TestStatus_FAIL,
-							cellID:  "that",
-							message: "notice",
-							icon:    "I2",
-							metrics: map[string]float64{
+							Result:  statuspb.TestStatus_FAIL,
+							CellID:  "that",
+							Message: "notice",
+							Icon:    "I2",
+							Metrics: map[string]float64{
 								"this":     0.2,
 								"override": 1.1,
 							},
 						},
 						"second": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 					},
 				},
@@ -247,23 +247,23 @@ func TestInflateGrid(t *testing.T) {
 			latest: hours[20],
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "keep1",
 						Started: millis(hours[20]) + 999,
 					},
-					cells: map[string]cell{
-						"hello": {result: statuspb.TestStatus_FAIL},
-						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FAIL},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "keep2",
 						Started: millis(hours[10]),
 					},
-					cells: map[string]cell{
-						"hello": {result: statuspb.TestStatus_FLAKY},
-						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FLAKY},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 			},
@@ -317,23 +317,23 @@ func TestInflateGrid(t *testing.T) {
 			earliest: hours[10],
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "current1",
 						Started: millis(hours[20]),
 					},
-					cells: map[string]cell{
-						"hello": {result: statuspb.TestStatus_RUNNING},
-						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_RUNNING},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "current2",
 						Started: millis(hours[10]),
 					},
-					cells: map[string]cell{
-						"hello": {result: statuspb.TestStatus_PASS},
-						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_PASS},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 			},
@@ -382,13 +382,13 @@ func TestInflateGrid(t *testing.T) {
 			earliest: hours[10],
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "keep-old1",
 						Started: millis(hours[10]) - 1,
 					},
-					cells: map[string]cell{
-						"hello": {result: statuspb.TestStatus_FAIL},
-						"world": {result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FAIL},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
 					},
 				},
 			},
@@ -430,22 +430,22 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: statuspb.TestStatus_PASS,
-					cellID: "cell-a",
+					Result: statuspb.TestStatus_PASS,
+					CellID: "cell-a",
 				},
 				{
-					result: statuspb.TestStatus_PASS,
-					cellID: "cell-b",
+					Result: statuspb.TestStatus_PASS,
+					CellID: "cell-b",
 				},
 				{
-					result: statuspb.TestStatus_NO_RESULT,
+					Result: statuspb.TestStatus_NO_RESULT,
 				},
 				{
-					result: statuspb.TestStatus_PASS,
-					cellID: "cell-d",
+					Result: statuspb.TestStatus_PASS,
+					CellID: "cell-d",
 				},
 				{
-					result: statuspb.TestStatus_NO_RESULT,
+					Result: statuspb.TestStatus_NO_RESULT,
 				},
 			},
 		},
@@ -471,21 +471,21 @@ func TestInflateRow(t *testing.T) {
 				{},
 				{},
 				{
-					result:  statuspb.TestStatus_FAIL,
-					icon:    "F1",
-					message: "fail",
+					Result:  statuspb.TestStatus_FAIL,
+					Icon:    "F1",
+					Message: "fail",
 				},
 				{},
 				{},
 				{
-					result:  statuspb.TestStatus_FLAKY,
-					icon:    "~1",
-					message: "flake-first",
+					Result:  statuspb.TestStatus_FLAKY,
+					Icon:    "~1",
+					Message: "flake-first",
 				},
 				{
-					result:  statuspb.TestStatus_FLAKY,
-					icon:    "~2",
-					message: "flake-second",
+					Result:  statuspb.TestStatus_FLAKY,
+					Icon:    "~2",
+					Message: "flake-second",
 				},
 				{},
 			},
@@ -509,8 +509,8 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: statuspb.TestStatus_PASS,
-					metrics: map[string]float64{
+					Result: statuspb.TestStatus_PASS,
+					Metrics: map[string]float64{
 						"found-it": 7,
 					},
 				},
@@ -536,8 +536,8 @@ func TestInflateRow(t *testing.T) {
 			},
 			expected: []cell{
 				{
-					result: statuspb.TestStatus_PASS,
-					metrics: map[string]float64{
+					Result: statuspb.TestStatus_PASS,
+					Metrics: map[string]float64{
 						"oh yeah": 7,
 					},
 				},

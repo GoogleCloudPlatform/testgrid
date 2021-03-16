@@ -403,11 +403,11 @@ var (
 		},
 	}
 	podInfoSuccess     = jsonPodInfo(podInfoSuccessPodInfo)
-	podInfoPassCell    = cell{result: statuspb.TestStatus_PASS}
+	podInfoPassCell    = cell{Result: statuspb.TestStatus_PASS}
 	podInfoMissingCell = cell{
-		result:  statuspb.TestStatus_FAIL,
-		icon:    "!",
-		message: gcs.MissingPodInfo,
+		Result:  statuspb.TestStatus_FAIL,
+		Icon:    "!",
+		Message: gcs.MissingPodInfo,
 	}
 )
 
@@ -524,75 +524,6 @@ func TestSortGroups(t *testing.T) {
 	}
 }
 
-func TestGroupPaths(t *testing.T) {
-	cases := []struct {
-		name     string
-		prefix   string
-		allowed  bool
-		expected []gcs.Path
-		err      bool
-	}{
-		{
-			name: "basically works",
-		},
-		{
-			name:   "single group allowed",
-			prefix: "foo/bar",
-			expected: []gcs.Path{
-				newPathOrDie("gs://foo/bar/"),
-			},
-		},
-		{
-			name:   "reject multiple prefixes by default",
-			prefix: "gs://foo/bar,gs://another/one",
-			err:    true,
-		},
-		{
-			name:    "conditionally allow multiple prefixes",
-			prefix:  "foo/bar,another/one",
-			allowed: true,
-			expected: []gcs.Path{
-				newPathOrDie("gs://foo/bar/"),
-				newPathOrDie("gs://another/one/"),
-			},
-		},
-		{
-			name:   "reject bad path",
-			prefix: "foo:6667/haha",
-			err:    true,
-		},
-	}
-
-	old := AllowMultiplePaths
-	defer func() { AllowMultiplePaths = old }()
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var group configpb.TestGroup
-			group.Name = tc.name
-			group.GcsPrefix = tc.prefix
-			if tc.allowed {
-				AllowMultiplePaths = map[string]bool{
-					group.Name: true,
-				}
-			}
-			actual, err := groupPaths(&group)
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("groupPaths() got unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Error("groupPaths() failed to return an error")
-			default:
-				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(gcs.Path{})); diff != "" {
-					t.Errorf("groupPaths() got unexpected diff (-have, +want):\n%s", diff)
-				}
-			}
-		})
-	}
-}
-
 func TestTruncateRunning(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -605,42 +536,42 @@ func TestTruncateRunning(t *testing.T) {
 		{
 			name: "keep everything (no Overall)",
 			cols: []inflatedColumn{
-				{column: &statepb.Column{Build: "this"}},
-				{column: &statepb.Column{Build: "that"}},
-				{column: &statepb.Column{Build: "another"}},
+				{Column: &statepb.Column{Build: "this"}},
+				{Column: &statepb.Column{Build: "that"}},
+				{Column: &statepb.Column{Build: "another"}},
 			},
 		},
 		{
 			name: "keep everything completed",
 			cols: []inflatedColumn{
 				{
-					column: &statepb.Column{Build: "passed"},
-					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_PASS}},
+					Column: &statepb.Column{Build: "passed"},
+					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_PASS}},
 				},
 				{
-					column: &statepb.Column{Build: "failed"},
-					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_FAIL}},
+					Column: &statepb.Column{Build: "failed"},
+					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_FAIL}},
 				},
 			},
 		},
 		{
 			name: "drop everything before oldest running",
 			cols: []inflatedColumn{
-				{column: &statepb.Column{Build: "this1"}},
-				{column: &statepb.Column{Build: "this2"}},
+				{Column: &statepb.Column{Build: "this1"}},
+				{Column: &statepb.Column{Build: "this2"}},
 				{
-					column: &statepb.Column{Build: "running1"},
-					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{Build: "running1"},
+					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
 				},
-				{column: &statepb.Column{Build: "this3"}},
+				{Column: &statepb.Column{Build: "this3"}},
 				{
-					column: &statepb.Column{Build: "running2"},
-					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{Build: "running2"},
+					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
 				},
-				{column: &statepb.Column{Build: "this4"}},
-				{column: &statepb.Column{Build: "this5"}},
-				{column: &statepb.Column{Build: "this6"}},
-				{column: &statepb.Column{Build: "this7"}},
+				{Column: &statepb.Column{Build: "this4"}},
+				{Column: &statepb.Column{Build: "this5"}},
+				{Column: &statepb.Column{Build: "this6"}},
+				{Column: &statepb.Column{Build: "this7"}},
 			},
 			expected: func(cols []inflatedColumn) []inflatedColumn {
 				return cols[5:] // this4 and earlier
@@ -650,12 +581,12 @@ func TestTruncateRunning(t *testing.T) {
 			name: "drop all as all are running",
 			cols: []inflatedColumn{
 				{
-					column: &statepb.Column{Build: "running1"},
-					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{Build: "running1"},
+					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
 				},
 				{
-					column: &statepb.Column{Build: "running2"},
-					cells:  map[string]cell{overallRow: {result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{Build: "running2"},
+					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
 				},
 			},
 			expected: func(cols []inflatedColumn) []inflatedColumn {
@@ -732,12 +663,12 @@ func TestTruncateBuilds(t *testing.T) {
 
 			for _, r := range tc.rows {
 				col := inflatedColumn{
-					cells: map[string]cell{},
+					Cells: map[string]cell{},
 				}
 				for i := 0; i < r; i++ {
 					id := fmt.Sprintf("cell %d", i)
-					c := cell{cellID: id}
-					col.cells[id] = c
+					c := cell{CellID: id}
+					col.Cells[id] = c
 				}
 				cols = append(cols, col)
 			}
@@ -987,7 +918,7 @@ func TestListBuilds(t *testing.T) {
 	}
 }
 
-func TestUpdateGCSGroup(t *testing.T) {
+func TestInflateDropAppend(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
@@ -1078,21 +1009,21 @@ func TestUpdateGCSGroup(t *testing.T) {
 								Id:   overallRow,
 							},
 							cell{
-								result:  statuspb.TestStatus_RUNNING,
-								message: "Build still running...",
-								icon:    "R",
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "Build still running...",
+								Icon:    "R",
 							},
 							cell{
-								result:  statuspb.TestStatus_PASS,
-								metrics: setElapsed(nil, 1),
+								Result:  statuspb.TestStatus_PASS,
+								Metrics: setElapsed(nil, 1),
 							},
 							cell{
-								result:  statuspb.TestStatus_FAIL,
-								metrics: setElapsed(nil, 1),
+								Result:  statuspb.TestStatus_FAIL,
+								Metrics: setElapsed(nil, 1),
 							},
 							cell{
-								result:  statuspb.TestStatus_PASS,
-								metrics: setElapsed(nil, 1),
+								Result:  statuspb.TestStatus_PASS,
+								Metrics: setElapsed(nil, 1),
 							},
 						),
 						setupRow(
@@ -1100,7 +1031,7 @@ func TestUpdateGCSGroup(t *testing.T) {
 								Name: podInfoRow,
 								Id:   podInfoRow,
 							},
-							cell{result: statuspb.TestStatus_NO_RESULT},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
 							podInfoPassCell,
 							podInfoPassCell,
 							podInfoPassCell,
@@ -1110,34 +1041,34 @@ func TestUpdateGCSGroup(t *testing.T) {
 								Name: "flaky",
 								Id:   "flaky",
 							},
-							cell{result: statuspb.TestStatus_NO_RESULT},
-							cell{result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+							cell{Result: statuspb.TestStatus_PASS},
 							cell{
-								result:  statuspb.TestStatus_FAIL,
-								message: "flaky",
-								icon:    "F",
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "flaky",
+								Icon:    "F",
 							},
-							cell{result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
 						),
 						setupRow(
 							&statepb.Row{
 								Name: "good1",
 								Id:   "good1",
 							},
-							cell{result: statuspb.TestStatus_NO_RESULT},
-							cell{result: statuspb.TestStatus_PASS},
-							cell{result: statuspb.TestStatus_PASS},
-							cell{result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
 						),
 						setupRow(
 							&statepb.Row{
 								Name: "good2",
 								Id:   "good2",
 							},
-							cell{result: statuspb.TestStatus_NO_RESULT},
-							cell{result: statuspb.TestStatus_PASS},
-							cell{result: statuspb.TestStatus_PASS},
-							cell{result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
 						),
 					},
 				}),
@@ -1225,15 +1156,15 @@ func TestUpdateGCSGroup(t *testing.T) {
 			}
 			client.fakeLister[buildsPath] = fi
 
-			err := updateGCSGroup(
+			colReader := gcsColumnReader(client, *tc.buildTimeout, tc.concurrency)
+			err := InflateDropAppend(
 				ctx,
 				logrus.WithField("test", tc.name),
 				client,
 				&tc.group,
 				uploadPath,
-				tc.concurrency,
 				!tc.skipWrite,
-				*tc.buildTimeout,
+				colReader,
 			)
 			switch {
 			case err != nil:
@@ -1289,37 +1220,37 @@ func TestMergeColumns(t *testing.T) {
 			name: "only new cols",
 			newCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "hello",
 					},
-					cells: map[string]cell{
-						"this": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"this": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "world",
 					},
-					cells: map[string]cell{
-						"that": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"that": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "hello",
 					},
-					cells: map[string]cell{
-						"this": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"this": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "world",
 					},
-					cells: map[string]cell{
-						"that": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"that": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 			},
@@ -1328,37 +1259,37 @@ func TestMergeColumns(t *testing.T) {
 			name: "only old cols",
 			oldCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "ancient",
 					},
-					cells: map[string]cell{
-						"this": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"this": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "graveyard",
 					},
-					cells: map[string]cell{
-						"that": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"that": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "ancient",
 					},
-					cells: map[string]cell{
-						"this": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"this": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build: "graveyard",
 					},
-					cells: map[string]cell{
-						"that": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"that": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 			},
@@ -1367,79 +1298,79 @@ func TestMergeColumns(t *testing.T) {
 			name: "accept all when old are all older than new",
 			newCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_RUNNING},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 			},
 			oldCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FLAKY},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FLAKY},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_RUNNING},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FLAKY},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FLAKY},
 					},
 				},
 			},
@@ -1448,133 +1379,133 @@ func TestMergeColumns(t *testing.T) {
 			name: "accept all new and oldest old, reject olds which are >= new",
 			newCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_RUNNING},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-200",
 						Started: 200,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 200"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 200"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-100",
 						Started: 100,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 100"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 100"},
 					},
 				},
 			},
 			oldCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-500",
 						Started: 500,
 					},
-					cells: map[string]cell{
-						"test": {message: "reject old"},
+					Cells: map[string]cell{
+						"test": {Message: "reject old"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-150",
 						Started: 150,
 					},
-					cells: map[string]cell{
-						"test": {message: "reject old"},
+					Cells: map[string]cell{
+						"test": {Message: "reject old"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FLAKY},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FLAKY},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_RUNNING},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-200",
 						Started: 200,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 200"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 200"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-100",
 						Started: 100,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 100"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 100"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FLAKY},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FLAKY},
 					},
 				},
 			},
@@ -1583,163 +1514,163 @@ func TestMergeColumns(t *testing.T) {
 			name: "accept all new and oldest old, reject old duplicates",
 			newCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_RUNNING},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-110",
 						Started: 110,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 110"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 110"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-100",
 						Started: 100,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 100"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 100"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-90",
 						Started: 90,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 90"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 90"},
 					},
 				},
 			},
 			oldCols: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-110",
 						Started: 110,
 						Extra:   []string{"reject old"},
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-100",
 						Started: 100,
 						Extra:   []string{"reject old"},
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-90",
 						Started: 90,
 						Extra:   []string{"reject old"},
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FLAKY},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FLAKY},
 					},
 				},
 			},
 			expected: []inflatedColumn{
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-1000",
 						Started: 1000,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_RUNNING},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "new-900",
 						Started: 900,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_PASS},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-110",
 						Started: 110,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 110"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 110"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-100",
 						Started: 100,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 100"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 100"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "shared-90",
 						Started: 90,
 					},
-					cells: map[string]cell{
-						"test": {message: "accept new 90"},
+					Cells: map[string]cell{
+						"test": {Message: "accept new 90"},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-50",
 						Started: 50,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FAIL},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FAIL},
 					},
 				},
 				{
-					column: &statepb.Column{
+					Column: &statepb.Column{
 						Build:   "old-40",
 						Started: 40,
 					},
-					cells: map[string]cell{
-						"test": {result: statuspb.TestStatus_FLAKY},
+					Cells: map[string]cell{
+						"test": {Result: statuspb.TestStatus_FLAKY},
 					},
 				},
 			},
@@ -1771,40 +1702,40 @@ func TestConstructGrid(t *testing.T) {
 			name: "multiple columns",
 			cols: []inflatedColumn{
 				{
-					column: &statepb.Column{Build: "15"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "15"},
+					Cells: map[string]cell{
 						"green": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 						"red": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 						"only-15": {
-							result: statuspb.TestStatus_FLAKY,
+							Result: statuspb.TestStatus_FLAKY,
 						},
 					},
 				},
 				{
-					column: &statepb.Column{Build: "10"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "10"},
+					Cells: map[string]cell{
 						"full": {
-							result:  statuspb.TestStatus_PASS,
-							cellID:  "cell",
-							icon:    "icon",
-							message: "message",
-							metrics: map[string]float64{
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "cell",
+							Icon:    "icon",
+							Message: "message",
+							Metrics: map[string]float64{
 								"elapsed": 1,
 								"keys":    2,
 							},
 						},
 						"green": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 						"red": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 						"only-10": {
-							result: statuspb.TestStatus_FLAKY,
+							Result: statuspb.TestStatus_FLAKY,
 						},
 					},
 				},
@@ -1822,11 +1753,11 @@ func TestConstructGrid(t *testing.T) {
 						},
 						emptyCell,
 						cell{
-							result:  statuspb.TestStatus_PASS,
-							cellID:  "cell",
-							icon:    "icon",
-							message: "message",
-							metrics: map[string]float64{
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "cell",
+							Icon:    "icon",
+							Message: "message",
+							Metrics: map[string]float64{
 								"elapsed": 1,
 								"keys":    2,
 							},
@@ -1837,8 +1768,8 @@ func TestConstructGrid(t *testing.T) {
 							Name: "green",
 							Id:   "green",
 						},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
 					),
 					setupRow(
 						&statepb.Row{
@@ -1846,14 +1777,14 @@ func TestConstructGrid(t *testing.T) {
 							Id:   "only-10",
 						},
 						emptyCell,
-						cell{result: statuspb.TestStatus_FLAKY},
+						cell{Result: statuspb.TestStatus_FLAKY},
 					),
 					setupRow(
 						&statepb.Row{
 							Name: "only-15",
 							Id:   "only-15",
 						},
-						cell{result: statuspb.TestStatus_FLAKY},
+						cell{Result: statuspb.TestStatus_FLAKY},
 						emptyCell,
 					),
 					setupRow(
@@ -1861,8 +1792,8 @@ func TestConstructGrid(t *testing.T) {
 							Name: "red",
 							Id:   "red",
 						},
-						cell{result: statuspb.TestStatus_FAIL},
-						cell{result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
 					),
 				},
 			},
@@ -1874,24 +1805,24 @@ func TestConstructGrid(t *testing.T) {
 			},
 			cols: []inflatedColumn{
 				{
-					column: &statepb.Column{Build: "4"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "4"},
+					Cells: map[string]cell{
 						"just-flaky": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 						"broken": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 					},
 				},
 				{
-					column: &statepb.Column{Build: "3"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "3"},
+					Cells: map[string]cell{
 						"just-flaky": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 						"broken": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 					},
 				},
@@ -1907,16 +1838,16 @@ func TestConstructGrid(t *testing.T) {
 							Name: "broken",
 							Id:   "broken",
 						},
-						cell{result: statuspb.TestStatus_FAIL},
-						cell{result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
 					),
 					setupRow(
 						&statepb.Row{
 							Name: "just-flaky",
 							Id:   "just-flaky",
 						},
-						cell{result: statuspb.TestStatus_FAIL},
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_PASS},
 					),
 				},
 			},
@@ -1929,46 +1860,46 @@ func TestConstructGrid(t *testing.T) {
 			},
 			cols: []inflatedColumn{
 				{
-					column: &statepb.Column{Build: "4"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "4"},
+					Cells: map[string]cell{
 						"still-broken": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 						"fixed": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 					},
 				},
 				{
-					column: &statepb.Column{Build: "3"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "3"},
+					Cells: map[string]cell{
 						"still-broken": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 						"fixed": {
-							result: statuspb.TestStatus_PASS,
+							Result: statuspb.TestStatus_PASS,
 						},
 					},
 				},
 				{
-					column: &statepb.Column{Build: "2"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "2"},
+					Cells: map[string]cell{
 						"still-broken": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 						"fixed": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 					},
 				},
 				{
-					column: &statepb.Column{Build: "1"},
-					cells: map[string]cell{
+					Column: &statepb.Column{Build: "1"},
+					Cells: map[string]cell{
 						"still-broken": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 						"fixed": {
-							result: statuspb.TestStatus_FAIL,
+							Result: statuspb.TestStatus_FAIL,
 						},
 					},
 				},
@@ -1986,20 +1917,20 @@ func TestConstructGrid(t *testing.T) {
 							Name: "fixed",
 							Id:   "fixed",
 						},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_FAIL},
-						cell{result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
 					),
 					setupRow(
 						&statepb.Row{
 							Name: "still-broken",
 							Id:   "still-broken",
 						},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_FAIL},
-						cell{result: statuspb.TestStatus_FAIL},
-						cell{result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
 					),
 				},
 			},
@@ -2143,7 +2074,7 @@ func TestAppendCell(t *testing.T) {
 		{
 			name: "first result",
 			cell: cell{
-				result: statuspb.TestStatus_PASS,
+				Result: statuspb.TestStatus_PASS,
 			},
 			count: 1,
 			expected: statepb.Row{
@@ -2156,11 +2087,11 @@ func TestAppendCell(t *testing.T) {
 		{
 			name: "all fields filled",
 			cell: cell{
-				result:  statuspb.TestStatus_PASS,
-				cellID:  "cell-id",
-				message: "hi",
-				icon:    "there",
-				metrics: map[string]float64{
+				Result:  statuspb.TestStatus_PASS,
+				CellID:  "cell-id",
+				Message: "hi",
+				Icon:    "there",
+				Metrics: map[string]float64{
 					"pi":     3.14,
 					"golden": 1.618,
 				},
@@ -2200,10 +2131,10 @@ func TestAppendCell(t *testing.T) {
 				Icons:    []string{"", "", ""},
 			},
 			cell: cell{
-				result:  statuspb.TestStatus_FLAKY,
-				message: "echo",
-				cellID:  "again and",
-				icon:    "keeps going",
+				Result:  statuspb.TestStatus_FLAKY,
+				Message: "echo",
+				CellID:  "again and",
+				Icon:    "keeps going",
 			},
 			count: 2,
 			expected: statepb.Row{
@@ -2224,7 +2155,7 @@ func TestAppendCell(t *testing.T) {
 				Icons:    []string{"", "", ""},
 			},
 			cell: cell{
-				result: statuspb.TestStatus_PASS,
+				Result: statuspb.TestStatus_PASS,
 			},
 			count: 2,
 			expected: statepb.Row{
@@ -2238,7 +2169,7 @@ func TestAppendCell(t *testing.T) {
 			},
 		},
 		{
-			name: "append no result (results, no cellIDs, messages or icons)",
+			name: "append no Result (results, no cellIDs, messages or icons)",
 			row: statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
@@ -2248,7 +2179,7 @@ func TestAppendCell(t *testing.T) {
 				Icons:    []string{"", "", ""},
 			},
 			cell: cell{
-				result: statuspb.TestStatus_NO_RESULT,
+				Result: statuspb.TestStatus_NO_RESULT,
 			},
 			count: 2,
 			expected: statepb.Row{
@@ -2286,8 +2217,8 @@ func TestAppendCell(t *testing.T) {
 				},
 			},
 			cell: cell{
-				result: statuspb.TestStatus_PASS,
-				metrics: map[string]float64{
+				Result: statuspb.TestStatus_PASS,
+				Metrics: map[string]float64{
 					"continued-series":  5.1,
 					"new-series":        5.2,
 					"additional-metric": 5.3,
@@ -2372,7 +2303,7 @@ func TestAppendColumn(t *testing.T) {
 	}{
 		{
 			name: "append first column",
-			col:  inflatedColumn{column: &statepb.Column{Build: "10"}},
+			col:  inflatedColumn{Column: &statepb.Column{Build: "10"}},
 			expected: statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
@@ -2387,7 +2318,7 @@ func TestAppendColumn(t *testing.T) {
 					{Build: "11"},
 				},
 			},
-			col: inflatedColumn{column: &statepb.Column{Build: "20"}},
+			col: inflatedColumn{Column: &statepb.Column{Build: "20"}},
 			expected: statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
@@ -2399,19 +2330,19 @@ func TestAppendColumn(t *testing.T) {
 		{
 			name: "add rows to first column",
 			col: inflatedColumn{
-				column: &statepb.Column{Build: "10"},
-				cells: map[string]cell{
+				Column: &statepb.Column{Build: "10"},
+				Cells: map[string]cell{
 					"hello": {
-						result: statuspb.TestStatus_PASS,
-						cellID: "yes",
-						metrics: map[string]float64{
+						Result: statuspb.TestStatus_PASS,
+						CellID: "yes",
+						Metrics: map[string]float64{
 							"answer": 42,
 						},
 					},
 					"world": {
-						result:  statuspb.TestStatus_FAIL,
-						message: "boom",
-						icon:    "X",
+						Result:  statuspb.TestStatus_FAIL,
+						Message: "boom",
+						Icon:    "X",
 					},
 				},
 			},
@@ -2426,17 +2357,17 @@ func TestAppendColumn(t *testing.T) {
 							Id:   "hello",
 						},
 						cell{
-							result:  statuspb.TestStatus_PASS,
-							cellID:  "yes",
-							metrics: map[string]float64{"answer": 42},
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "yes",
+							Metrics: map[string]float64{"answer": 42},
 						}),
 					setupRow(&statepb.Row{
 						Name: "world",
 						Id:   "world",
 					}, cell{
-						result:  statuspb.TestStatus_FAIL,
-						message: "boom",
-						icon:    "X",
+						Result:  statuspb.TestStatus_FAIL,
+						Message: "boom",
+						Icon:    "X",
 					}),
 				},
 			},
@@ -2452,23 +2383,23 @@ func TestAppendColumn(t *testing.T) {
 				Rows: []*statepb.Row{
 					setupRow(
 						&statepb.Row{Name: "deleted"},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
 					),
 					setupRow(
 						&statepb.Row{Name: "always"},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
 					),
 				},
 			},
 			col: inflatedColumn{
-				column: &statepb.Column{Build: "20"},
-				cells: map[string]cell{
-					"always": {result: statuspb.TestStatus_PASS},
-					"new":    {result: statuspb.TestStatus_PASS},
+				Column: &statepb.Column{Build: "20"},
+				Cells: map[string]cell{
+					"always": {Result: statuspb.TestStatus_PASS},
+					"new":    {Result: statuspb.TestStatus_PASS},
 				},
 			},
 			expected: statepb.Grid{
@@ -2481,17 +2412,17 @@ func TestAppendColumn(t *testing.T) {
 				Rows: []*statepb.Row{
 					setupRow(
 						&statepb.Row{Name: "deleted"},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
 						emptyCell,
 					),
 					setupRow(
 						&statepb.Row{Name: "always"},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
 					),
 					setupRow(
 						&statepb.Row{
@@ -2501,7 +2432,7 @@ func TestAppendColumn(t *testing.T) {
 						emptyCell,
 						emptyCell,
 						emptyCell,
-						cell{result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
 					),
 				},
 			},

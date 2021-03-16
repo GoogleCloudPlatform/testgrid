@@ -37,29 +37,29 @@ import (
 func TestMergeCells(t *testing.T) {
 	cases := []struct {
 		name     string
-		cells    []cell
-		expected cell
+		cells    []Cell
+		expected Cell
 	}{
 		{
 			name: "basically works",
-			cells: []cell{
+			cells: []Cell{
 				{
-					result:  statuspb.TestStatus_TOOL_FAIL,
-					cellID:  "random",
-					icon:    "religious",
-					message: "empty",
-					metrics: map[string]float64{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					CellID:  "random",
+					Icon:    "religious",
+					Message: "empty",
+					Metrics: map[string]float64{
 						"answer":   42,
 						"question": 1,
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_TOOL_FAIL,
-				cellID:  "random",
-				icon:    "religious",
-				message: "empty",
-				metrics: map[string]float64{
+			expected: Cell{
+				Result:  statuspb.TestStatus_TOOL_FAIL,
+				CellID:  "random",
+				Icon:    "religious",
+				Message: "empty",
+				Metrics: map[string]float64{
 					"answer":   42,
 					"question": 1,
 				},
@@ -67,56 +67,56 @@ func TestMergeCells(t *testing.T) {
 		},
 		{
 			name: "passes work and take first filled message",
-			cells: []cell{
+			cells: []Cell{
 				{
-					result: statuspb.TestStatus_PASS,
-					icon:   "drop",
+					Result: statuspb.TestStatus_PASS,
+					Icon:   "drop",
 				},
 				{
-					result:  statuspb.TestStatus_BUILD_PASSED,
-					message: "woah",
+					Result:  statuspb.TestStatus_BUILD_PASSED,
+					Message: "woah",
 				},
 				{
-					result:  statuspb.TestStatus_PASS,
-					message: "there",
+					Result:  statuspb.TestStatus_PASS,
+					Message: "there",
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_PASS,
-				message: "3/3 runs passed: woah",
-				icon:    "3/3",
+			expected: Cell{
+				Result:  statuspb.TestStatus_PASS,
+				Message: "3/3 runs passed: woah",
+				Icon:    "3/3",
 			},
 		},
 		{
 			name: "merge metrics",
-			cells: []cell{
+			cells: []Cell{
 				{
-					result: statuspb.TestStatus_PASS,
-					metrics: map[string]float64{
+					Result: statuspb.TestStatus_PASS,
+					Metrics: map[string]float64{
 						"common": 1,
 						"first":  1,
 					},
 				},
 				{
-					result: statuspb.TestStatus_PASS,
-					metrics: map[string]float64{
+					Result: statuspb.TestStatus_PASS,
+					Metrics: map[string]float64{
 						"common": 2,
 						"second": 2,
 					},
 				},
 				{
-					result: statuspb.TestStatus_PASS,
-					metrics: map[string]float64{
+					Result: statuspb.TestStatus_PASS,
+					Metrics: map[string]float64{
 						"common": 108, // total 111
 						"third":  3,
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_PASS,
-				message: "3/3 runs passed",
-				icon:    "3/3",
-				metrics: map[string]float64{
+			expected: Cell{
+				Result:  statuspb.TestStatus_PASS,
+				Message: "3/3 runs passed",
+				Icon:    "3/3",
+				Metrics: map[string]float64{
 					"common": 37,
 					"first":  1,
 					"second": 2,
@@ -126,52 +126,52 @@ func TestMergeCells(t *testing.T) {
 		},
 		{
 			name: "failures take highest failure, first failure message",
-			cells: []cell{
+			cells: []Cell{
 				{
-					result:  statuspb.TestStatus_TIMED_OUT,
-					message: "agonizingly slow",
-					icon:    "drop",
+					Result:  statuspb.TestStatus_TIMED_OUT,
+					Message: "agonizingly slow",
+					Icon:    "drop",
 				},
 				{
-					result: statuspb.TestStatus_BUILD_FAIL,
-					icon:   "drop",
+					Result: statuspb.TestStatus_BUILD_FAIL,
+					Icon:   "drop",
 				},
 				{
-					result: statuspb.TestStatus_CATEGORIZED_FAIL,
-					icon:   "drop",
+					Result: statuspb.TestStatus_CATEGORIZED_FAIL,
+					Icon:   "drop",
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_BUILD_FAIL,
-				icon:    "0/3",
-				message: "0/3 runs passed: agonizingly slow",
+			expected: Cell{
+				Result:  statuspb.TestStatus_BUILD_FAIL,
+				Icon:    "0/3",
+				Message: "0/3 runs passed: agonizingly slow",
 			},
 		},
 		{
 			name: "mix of passes and failures flake",
-			cells: []cell{
+			cells: []Cell{
 				{
-					result:  statuspb.TestStatus_PASS,
-					message: "yay",
+					Result:  statuspb.TestStatus_PASS,
+					Message: "yay",
 				},
 				{
-					result:  statuspb.TestStatus_FAIL,
-					message: "boom",
+					Result:  statuspb.TestStatus_FAIL,
+					Message: "boom",
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_FLAKY,
-				icon:    "1/2",
-				message: "1/2 runs passed: boom",
+			expected: Cell{
+				Result:  statuspb.TestStatus_FLAKY,
+				Icon:    "1/2",
+				Message: "1/2 runs passed: boom",
 			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := mergeCells(tc.cells...)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
-				t.Errorf("mergeCells() got unexpected diff (-have, +want):\n%s", diff)
+			actual := MergeCells(tc.cells...)
+			if diff := cmp.Diff(actual, tc.expected); diff != "" {
+				t.Errorf("MergeCells() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
@@ -181,47 +181,47 @@ func TestSplitCells(t *testing.T) {
 	const cellName = "foo"
 	cases := []struct {
 		name     string
-		cells    []cell
-		expected map[string]cell
+		cells    []Cell
+		expected map[string]Cell
 	}{
 		{
 			name: "basically works",
 		},
 		{
 			name:  "single item returns that item",
-			cells: []cell{{message: "hi"}},
-			expected: map[string]cell{
-				"foo": {message: "hi"},
+			cells: []Cell{{Message: "hi"}},
+			expected: map[string]Cell{
+				"foo": {Message: "hi"},
 			},
 		},
 		{
 			name: "multiple items have [1] starting from second",
-			cells: []cell{
-				{message: "first"},
-				{message: "second"},
-				{message: "third"},
+			cells: []Cell{
+				{Message: "first"},
+				{Message: "second"},
+				{Message: "third"},
 			},
-			expected: map[string]cell{
-				"foo":     {message: "first"},
-				"foo [1]": {message: "second"},
-				"foo [2]": {message: "third"},
+			expected: map[string]Cell{
+				"foo":     {Message: "first"},
+				"foo [1]": {Message: "second"},
+				"foo [2]": {Message: "third"},
 			},
 		},
 		{
 			name: "many items eventually truncate",
-			cells: func() []cell {
-				var out []cell
+			cells: func() []Cell {
+				var out []Cell
 				for i := 0; i < maxDuplicates*2; i++ {
-					out = append(out, cell{icon: fmt.Sprintf("row %d", i)})
+					out = append(out, Cell{Icon: fmt.Sprintf("row %d", i)})
 				}
 				return out
 			}(),
-			expected: func() map[string]cell {
-				out := map[string]cell{}
-				out[cellName] = cell{icon: "row 0"}
+			expected: func() map[string]Cell {
+				out := map[string]Cell{}
+				out[cellName] = Cell{Icon: "row 0"}
 				for i := 1; i < maxDuplicates; i++ {
 					name := fmt.Sprintf("%s [%d]", cellName, i)
-					out[name] = cell{icon: fmt.Sprintf("row %d", i)}
+					out[name] = Cell{Icon: fmt.Sprintf("row %d", i)}
 				}
 				out[cellName+" [overflow]"] = overflowCell
 				return out
@@ -231,9 +231,9 @@ func TestSplitCells(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := splitCells(cellName, tc.cells...)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
-				t.Errorf("splitCells() got unexpected diff (-have, +want):\n%s", diff)
+			actual := SplitCells(cellName, tc.cells...)
+			if diff := cmp.Diff(actual, tc.expected); diff != "" {
+				t.Errorf("SplitCells() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
@@ -256,17 +256,17 @@ func TestConvertResult(t *testing.T) {
 		metricKey string
 		result    gcsResult
 		opt       groupOptions
-		expected  *inflatedColumn
+		expected  *InflatedColumn
 	}{
 		{
 			name: "basically works",
-			expected: &inflatedColumn{
-				column: &statepb.Column{},
-				cells: map[string]cell{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{},
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "T",
-						message: "Build did not complete within 24 hours",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "T",
+						Message: "Build did not complete within 24 hours",
 					},
 				},
 			},
@@ -291,8 +291,8 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Build:   "hello",
 					Started: 300 * 1000,
 					Extra: []string{
@@ -302,11 +302,11 @@ func TestConvertResult(t *testing.T) {
 						"missing",
 					},
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "T",
-						message: "Build did not complete within 24 hours",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "T",
+						Message: "Build did not complete within 24 hours",
 					},
 				},
 			},
@@ -331,8 +331,8 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Build:   "hello",
 					Started: float64(now * 1000),
 					Extra: []string{
@@ -342,11 +342,11 @@ func TestConvertResult(t *testing.T) {
 						"", // not missing
 					},
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_RUNNING,
-						icon:    "R",
-						message: "Build still running...",
+						Result:  statuspb.TestStatus_RUNNING,
+						Icon:    "R",
+						Message: "Build still running...",
 					},
 				},
 			},
@@ -388,29 +388,29 @@ func TestConvertResult(t *testing.T) {
 				},
 				job: "job-name",
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 					Build:   "build",
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "F",
-						message: "Build failed outside of test results",
-						metrics: setElapsed(nil, 1),
-						cellID:  "job-name/build",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
+						Message: "Build failed outside of test results",
+						Metrics: setElapsed(nil, 1),
+						CellID:  "job-name/build",
 					},
 					"job-name.Overall": {
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "F",
-						message: "Build failed outside of test results",
-						metrics: setElapsed(nil, 1),
-						cellID:  "job-name/build",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
+						Message: "Build failed outside of test results",
+						Metrics: setElapsed(nil, 1),
+						CellID:  "job-name/build",
 					},
 					"job-name.this.that": {
-						result: statuspb.TestStatus_PASS,
-						cellID: "job-name/build",
+						Result: statuspb.TestStatus_PASS,
+						CellID: "job-name/build",
 					},
 				},
 			},
@@ -450,19 +450,19 @@ func TestConvertResult(t *testing.T) {
 				},
 				job: "job-name",
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "F",
-						message: "Build failed outside of test results",
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
+						Message: "Build failed outside of test results",
+						Metrics: setElapsed(nil, 1),
 					},
 					"job-name.this.that": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 				},
 			},
@@ -501,19 +501,19 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "F",
-						message: "Build failed outside of test results",
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
+						Message: "Build failed outside of test results",
+						Metrics: setElapsed(nil, 1),
 					},
 					"this.that": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 				},
 			},
@@ -581,51 +581,51 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_FAIL,
+						Metrics: setElapsed(nil, 1),
 					},
 					"elapsed": {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 5),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 5),
 					},
 					"failed no message": {
-						result: statuspb.TestStatus_FAIL,
+						Result: statuspb.TestStatus_FAIL,
 					},
 					"failed": {
-						message: "boom",
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "F",
+						Message: "boom",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
 					},
 					"failed other message": {
-						message: "irrelevant message",
-						result:  statuspb.TestStatus_FAIL,
-						icon:    "F",
+						Message: "irrelevant message",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
 					},
 					// no invisible skip
 					"visible skip": {
-						result:  statuspb.TestStatus_PASS_WITH_SKIPS,
-						message: "tl;dr",
-						icon:    "S",
+						Result:  statuspb.TestStatus_PASS_WITH_SKIPS,
+						Message: "tl;dr",
+						Icon:    "S",
 					},
 					"stderr message": {
-						message: "ouch",
-						result:  statuspb.TestStatus_PASS,
+						Message: "ouch",
+						Result:  statuspb.TestStatus_PASS,
 					},
 					"stdout message": {
-						message: "bellybutton",
-						result:  statuspb.TestStatus_PASS,
+						Message: "bellybutton",
+						Result:  statuspb.TestStatus_PASS,
 					},
 				},
 			},
 		},
 		{
-			name: "icon set by metric key",
+			name: "Icon set by metric key",
 			nameCfg: nameConfig{
 				format: "%s",
 				parts:  []string{testsName},
@@ -727,65 +727,65 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_FAIL,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_FAIL,
+						Metrics: setElapsed(nil, 1),
 					},
 					"no properties": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 					"missing property": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 					"not a number": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 					"short number": {
-						result: statuspb.TestStatus_PASS,
-						icon:   "123",
-						metrics: map[string]float64{
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "123",
+						Metrics: map[string]float64{
 							"food": 123,
 						},
 					},
 					"large number": {
-						result: statuspb.TestStatus_PASS,
-						icon:   "1.235e+08",
-						metrics: map[string]float64{
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "1.235e+08",
+						Metrics: map[string]float64{
 							"food": 123456789,
 						},
 					},
 					"many digits": {
-						result: statuspb.TestStatus_PASS,
-						icon:   "1.568",
-						metrics: map[string]float64{
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "1.568",
+						Metrics: map[string]float64{
 							"food": 1.567890,
 						},
 					},
 					"multiple values": {
-						result: statuspb.TestStatus_PASS,
-						icon:   "2.5",
-						metrics: map[string]float64{
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "2.5",
+						Metrics: map[string]float64{
 							"food": 2.5,
 						},
 					},
 					"preceds failure message": {
-						result:  statuspb.TestStatus_FAIL,
-						message: "boom",
-						icon:    "1",
-						metrics: map[string]float64{
+						Result:  statuspb.TestStatus_FAIL,
+						Message: "boom",
+						Icon:    "1",
+						Metrics: map[string]float64{
 							"food": 1,
 						},
 					},
 					"preceds skip message": {
-						result:  statuspb.TestStatus_PASS_WITH_SKIPS,
-						message: "tl;dr",
-						icon:    "1",
-						metrics: map[string]float64{
+						Result:  statuspb.TestStatus_PASS_WITH_SKIPS,
+						Message: "tl;dr",
+						Icon:    "1",
+						Metrics: map[string]float64{
 							"food": 1,
 						},
 					},
@@ -859,20 +859,20 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
 					},
 					"elapsed - first [second] (good-property)": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 					"other - hey [] ()": {
-						result: statuspb.TestStatus_PASS,
+						Result: statuspb.TestStatus_PASS,
 					},
 				},
 			},
@@ -940,20 +940,20 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
 					},
 					"same - same": {
-						result:  statuspb.TestStatus_FLAKY,
-						icon:    "2/3",
-						message: "2/3 runs passed: ugh",
-						metrics: setElapsed(nil, 2), // mean
+						Result:  statuspb.TestStatus_FLAKY,
+						Icon:    "2/3",
+						Message: "2/3 runs passed: ugh",
+						Metrics: setElapsed(nil, 2), // mean
 					},
 				},
 			},
@@ -1017,26 +1017,26 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
 					},
 					"same - same": {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
 					},
 					"same - same [1]": {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 2),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 2),
 					},
 					"same - same [2]": {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 3),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 3),
 					},
 				},
 			},
@@ -1091,33 +1091,33 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: func() map[string]cell {
-					out := map[string]cell{
+				Cells: func() map[string]Cell {
+					out := map[string]Cell{
 						overallRow: {
-							result:  statuspb.TestStatus_PASS,
-							metrics: setElapsed(nil, 1),
+							Result:  statuspb.TestStatus_PASS,
+							Metrics: setElapsed(nil, 1),
 						},
 					}
-					under := cell{result: statuspb.TestStatus_PASS}
-					max := cell{result: statuspb.TestStatus_PASS}
-					over := cell{result: statuspb.TestStatus_PASS}
+					under := Cell{Result: statuspb.TestStatus_PASS}
+					max := Cell{Result: statuspb.TestStatus_PASS}
+					over := Cell{Result: statuspb.TestStatus_PASS}
 					out["under"] = under
 					out["max"] = max
 					out["over"] = over
 					for i := 1; i < maxDuplicates; i++ {
 						t := float64(i)
-						under.metrics = setElapsed(nil, t)
+						under.Metrics = setElapsed(nil, t)
 						out[fmt.Sprintf("under [%d]", i)] = under
-						max.metrics = setElapsed(nil, t)
+						max.Metrics = setElapsed(nil, t)
 						out[fmt.Sprintf("max [%d]", i)] = max
-						over.metrics = setElapsed(nil, t)
+						over.Metrics = setElapsed(nil, t)
 						out[fmt.Sprintf("over [%d]", i)] = over
 					}
-					max.metrics = setElapsed(nil, maxDuplicates)
+					max.Metrics = setElapsed(nil, maxDuplicates)
 					out[`max [overflow]`] = overflowCell
 					out[`over [overflow]`] = overflowCell
 					return out
@@ -1142,14 +1142,14 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
 					},
 					podInfoRow: podInfoMissingCell,
 				},
@@ -1178,14 +1178,14 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_PASS,
-						metrics: setElapsed(nil, 1),
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
 					},
 					podInfoRow: podInfoPassCell,
 				},
@@ -1203,15 +1203,15 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_RUNNING,
-						icon:    "R",
-						message: "Build still running...",
+						Result:  statuspb.TestStatus_RUNNING,
+						Icon:    "R",
+						Message: "Build still running...",
 					},
 				},
 			},
@@ -1233,15 +1233,15 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &inflatedColumn{
-				column: &statepb.Column{
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
-				cells: map[string]cell{
+				Cells: map[string]Cell{
 					overallRow: {
-						result:  statuspb.TestStatus_RUNNING,
-						icon:    "R",
-						message: "Build still running...",
+						Result:  statuspb.TestStatus_RUNNING,
+						Icon:    "R",
+						Message: "Build still running...",
 					},
 					podInfoRow: podInfoPassCell,
 				},
@@ -1261,7 +1261,7 @@ func TestConvertResult(t *testing.T) {
 			case tc.expected == nil:
 				t.Error("convertResult() failed to return an error")
 			default:
-				if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
 					t.Errorf("convertResult() got unexpected diff (-have, +want):\n%s", diff)
 				}
 			}
@@ -1273,7 +1273,7 @@ func TestPodInfoCell(t *testing.T) {
 	cases := []struct {
 		name     string
 		podInfo  gcs.PodInfo
-		expected cell
+		expected Cell
 	}{
 		{
 			name:     "basically works",
@@ -1287,10 +1287,10 @@ func TestPodInfoCell(t *testing.T) {
 		{
 			name:    "no pod utils works",
 			podInfo: gcs.PodInfo{Pod: &core.Pod{}},
-			expected: cell{
-				message: gcs.NoPodUtils,
-				icon:    "E",
-				result:  statuspb.TestStatus_PASS,
+			expected: Cell{
+				Message: gcs.NoPodUtils,
+				Icon:    "E",
+				Result:  statuspb.TestStatus_PASS,
 			},
 		},
 		{
@@ -1308,10 +1308,10 @@ func TestPodInfoCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				message: "pod did not schedule: hi there",
-				icon:    "F",
-				result:  statuspb.TestStatus_FAIL,
+			expected: Cell{
+				Message: "pod did not schedule: hi there",
+				Icon:    "F",
+				Result:  statuspb.TestStatus_FAIL,
 			},
 		},
 	}
@@ -1319,7 +1319,7 @@ func TestPodInfoCell(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := podInfoCell(tc.podInfo)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
+			if diff := cmp.Diff(actual, tc.expected); diff != "" {
 				t.Errorf("podInfoCell(%s) got unexpected diff (-have, +want):\n%s", tc.podInfo, diff)
 			}
 		})
@@ -1335,7 +1335,7 @@ func TestOverallCell(t *testing.T) {
 	cases := []struct {
 		name     string
 		result   gcsResult
-		expected cell
+		expected Cell
 	}{
 		{
 			name: "result timed out",
@@ -1346,10 +1346,10 @@ func TestOverallCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_FAIL,
-				message: "Build did not complete within 24 hours",
-				icon:    "T",
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Message: "Build did not complete within 24 hours",
+				Icon:    "T",
 			},
 		},
 		{
@@ -1367,9 +1367,9 @@ func TestOverallCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_PASS,
-				metrics: setElapsed(nil, 150),
+			expected: Cell{
+				Result:  statuspb.TestStatus_PASS,
+				Metrics: setElapsed(nil, 150),
 			},
 		},
 		{
@@ -1387,11 +1387,11 @@ func TestOverallCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_FAIL,
-				icon:    "E",
-				message: `finished.json missing "passed": false`,
-				metrics: setElapsed(nil, 150),
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Icon:    "E",
+				Message: `finished.json missing "passed": false`,
+				Metrics: setElapsed(nil, 150),
 			},
 		},
 		{
@@ -1409,11 +1409,11 @@ func TestOverallCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_PASS,
-				icon:    "E",
-				message: `finished.json missing "passed": true`,
-				metrics: setElapsed(nil, 150),
+			expected: Cell{
+				Result:  statuspb.TestStatus_PASS,
+				Icon:    "E",
+				Message: `finished.json missing "passed": true`,
+				Metrics: setElapsed(nil, 150),
 			},
 		},
 		{
@@ -1431,9 +1431,9 @@ func TestOverallCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_FAIL,
-				metrics: setElapsed(nil, 150),
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Metrics: setElapsed(nil, 150),
 			},
 		},
 		{
@@ -1450,9 +1450,9 @@ func TestOverallCell(t *testing.T) {
 					},
 				},
 			},
-			expected: cell{
-				result:  statuspb.TestStatus_FAIL,
-				metrics: setElapsed(nil, 150),
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Metrics: setElapsed(nil, 150),
 			},
 		},
 	}
@@ -1460,7 +1460,7 @@ func TestOverallCell(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := overallCell(tc.result)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{})); diff != "" {
+			if diff := cmp.Diff(actual, tc.expected); diff != "" {
 				t.Errorf("overallCell(%v) got unexpected diff:\n%s", tc.result, diff)
 			}
 		})
@@ -1478,7 +1478,7 @@ func TestSetElapsed(t *testing.T) {
 			name:    "nil map works",
 			seconds: 10,
 			expected: map[string]float64{
-				elapsedKey: 10 / 60.0,
+				ElapsedKey: 10 / 60.0,
 			},
 		},
 		{
@@ -1489,17 +1489,17 @@ func TestSetElapsed(t *testing.T) {
 			seconds: 5,
 			expected: map[string]float64{
 				"hello":    7,
-				elapsedKey: 5 / 60.0,
+				ElapsedKey: 5 / 60.0,
 			},
 		},
 		{
 			name: "override existing value",
 			metrics: map[string]float64{
-				elapsedKey: 3 / 60.0,
+				ElapsedKey: 3 / 60.0,
 			},
 			seconds: 10,
 			expected: map[string]float64{
-				elapsedKey: 10 / 60.0,
+				ElapsedKey: 10 / 60.0,
 			},
 		},
 	}
