@@ -34,7 +34,8 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 )
 
-// MissingFieldError is an error that includes the missing field.
+// MissingFieldError is an error that includes the missing root field.
+// Entities that contain no children should use a ConfigError, so they can point to the empty Entity
 type MissingFieldError struct {
 	Field string
 }
@@ -81,6 +82,9 @@ func normalize(s string) string {
 	s = strings.ToLower(s)
 	return s
 }
+
+const MIN_NAME_LENGTH = 3
+const MAX_NAME_LENGTH = 2048
 
 // validateUnique checks that a list has no duplicate normalized entries.
 func validateUnique(items []string, entity string) error {
@@ -211,8 +215,13 @@ func validateReferencesExist(c *configpb.Configuration) error {
 // TestGrid file prefix, post-normalization.
 func validateName(s string) error {
 	name := normalize(s)
-	if name == "" {
-		return errors.New("normalized name can't be empty")
+
+	if len(name) < MIN_NAME_LENGTH {
+		return fmt.Errorf("names must contain at least %d alphanumeric characters", MIN_NAME_LENGTH)
+	}
+
+	if len(name) > MAX_NAME_LENGTH {
+		return fmt.Errorf("names should not contain more than %d alphanumeric characters", MAX_NAME_LENGTH)
 	}
 
 	invalidPrefixes := []string{"dashboard", "alerter", "summary", "bugs"}
@@ -441,6 +450,13 @@ func Validate(c *configpb.Configuration) error {
 	}
 	if len(c.GetDashboards()) == 0 {
 		return multierror.Append(mErr, MissingFieldError{"Dashboards"})
+	}
+
+	// Each Dashboard must contain at least 1 Tab to do anything
+	for _, dashboard := range c.GetDashboards() {
+		if len(dashboard.DashboardTab) == 0 {
+			mErr = multierror.Append(mErr, ConfigError{dashboard.Name, "Dashboard", "contains no tabs"})
+		}
 	}
 
 	// Names have to be unique (after normalizing) within types of entities, to prevent storing

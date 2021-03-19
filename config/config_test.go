@@ -19,6 +19,7 @@ package config
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -363,37 +364,70 @@ func TestValidateReferencesExist(t *testing.T) {
 	}
 }
 
-func TestUpdate_validateNames(t *testing.T) {
+func TestValidateName(t *testing.T) {
+	stringOfLength := func(length int) string {
+		var sb strings.Builder
+		for i := 0; i < length; i++ {
+			sb.WriteRune('a')
+		}
+		return sb.String()
+	}
+
 	tests := []struct {
+		name  string
 		input string
 		pass  bool
 	}{
 		{
+			name:  "Names can't be empty",
 			input: "",
 		},
 		{
-			input: "_",
+			name:  "Invalid characters are filtered out",
+			input: "___%%%***!!!???'''|||@@@###$$$^^^///\\\\\\",
 		},
 		{
+			name:  "Names can't be too short",
+			input: "q",
+		},
+		{
+			name:  "Names must contain 3+ alphanumeric characters",
+			input: "?rs=%%",
+		},
+		{
+			name:  "Names can't be too long",
+			input: stringOfLength(2049),
+		},
+		{
+			name:  "Names can't start with dashboard",
 			input: "dashboard",
 		},
 		{
+			name:  "Names can't start with summary",
 			input: "_summary_",
 		},
 		{
+			name:  "Names can't start with alerter",
 			input: "ALERTER",
 		},
 		{
+			name:  "Names can't start with bugs",
 			input: "bugs-1-2-3",
 		},
 		{
+			name:  "Names may contain forbidden prefixes in the middle",
+			input: "file-bugs-for-alerter",
+			pass:  true,
+		},
+		{
+			name:  "Valid name",
 			input: "some-test-group",
 			pass:  true,
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(test.input, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			err := validateName(test.input)
 			pass := err == nil
 			if pass != test.pass {
@@ -908,6 +942,36 @@ func TestUpdate_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "Empty Dashboard; returns error",
+			input: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
+					},
+					{
+						Name: "dash_2",
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:             "test_group_1",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
+					},
+				},
+			},
+			expectedErrs: []error{
+				ConfigError{"dash_2", "Dashboard", "contains no tabs"},
+			},
+		},
+		{
 			name: "Dashboards and Dashboard Groups cannot share names.",
 			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
@@ -975,8 +1039,13 @@ func TestUpdate_Validate(t *testing.T) {
 			input: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name:         "dash_1",
-						DashboardTab: []*configpb.DashboardTab{},
+						Name: "dash_1",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "tab_1",
+								TestGroupName: "test_group_1",
+							},
+						},
 					},
 				},
 				TestGroups: []*configpb.TestGroup{
@@ -986,10 +1055,16 @@ func TestUpdate_Validate(t *testing.T) {
 						DaysOfResults:    1,
 						NumColumnsRecent: 1,
 					},
+					{
+						Name:             "test_group_2",
+						GcsPrefix:        "fake GcsPrefix",
+						DaysOfResults:    1,
+						NumColumnsRecent: 1,
+					},
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"test_group_1", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
+				ConfigError{"test_group_2", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
 			},
 		},
 		{
