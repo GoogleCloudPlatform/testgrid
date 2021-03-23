@@ -2,8 +2,6 @@ syntax = "proto3";
 
 // Protocol buffer for configuring testgrid.k8s.io
 
-// NOTE: Do NOT update this until you have updated the internal config.proto!
-
 import "pb/custom_evaluator/custom_evaluator.proto";
 
 // Specifies the test name, and its source
@@ -294,9 +292,14 @@ message TestGroup {
   // methods.
   bool link_bugs_by_test_methods = 45;
 
-  // Regex to match test methods. Only tests methods with names that match
+  // Regex to match test methods. Only test methods with names that match
   // this regex will be included in the table.
   string test_method_match_regex = 46;
+
+  // Regex to exclude test methods. Test methods with names that match
+  // this regex will be excluded from the table, even if they match
+  // test_method_match_regex.
+  string test_method_unmatch_regex = 61;
 
   // If true, test method names are printed with the full class names.
   bool use_full_method_names = 47;
@@ -357,6 +360,8 @@ message TestGroup {
   // disable_merged_status 57
 
   // disable_prowjob_analysis 58
+
+  // test_method_unmatch_regex 61
 }
 
 message JUnitConfig {}
