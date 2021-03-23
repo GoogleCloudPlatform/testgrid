@@ -102,6 +102,7 @@ type Result struct {
 	Failure    *string     `xml:"failure,omitempty"`
 	Output     *string     `xml:"system-out,omitempty"`
 	Error      *string     `xml:"system-err,omitempty"`
+	Errored    *string     `xml:"error,omitempty"`
 	Skipped    *string     `xml:"skipped,omitempty"`
 	Properties *Properties `xml:"properties,omitempty"`
 }
@@ -130,10 +131,12 @@ func (r *Result) SetProperty(name, value string) {
 
 // Message extracts the message for the junit test case.
 //
-// Will use the first non-empty <failure/>, <skipped/>, <system-err/>, <system-out/> value.
+// Will use the first non-empty <error/>, <failure/>, <skipped/>, <system-err/>, <system-out/> value.
 func (r Result) Message(max int) string {
 	var msg string
 	switch {
+	case r.Errored != nil && *r.Errored != "":
+		msg = *r.Errored
 	case r.Failure != nil && *r.Failure != "":
 		msg = *r.Failure
 	case r.Skipped != nil && *r.Skipped != "":
@@ -172,7 +175,7 @@ func truncatePointer(str *string, max int) {
 
 // Truncate ensures that strings do not exceed the specified length.
 func (r Result) Truncate(max int) {
-	for _, s := range []*string{r.Failure, r.Skipped, r.Error, r.Output} {
+	for _, s := range []*string{r.Errored, r.Failure, r.Skipped, r.Error, r.Output} {
 		truncatePointer(s, max)
 	}
 }
