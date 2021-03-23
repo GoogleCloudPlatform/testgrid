@@ -299,7 +299,7 @@ message TestGroup {
   // Regex to exclude test methods. Test methods with names that match
   // this regex will be excluded from the table, even if they match
   // test_method_match_regex.
-  string test_method_unmatch_regex = 59;
+  string test_method_unmatch_regex = 61;
 
   // If true, test method names are printed with the full class names.
   bool use_full_method_names = 47;
@@ -361,7 +361,7 @@ message TestGroup {
 
   // disable_prowjob_analysis 58
 
-  // test_method_unmatch_regex 59
+  // test_method_unmatch_regex 61
 }
 
 message JUnitConfig {}
