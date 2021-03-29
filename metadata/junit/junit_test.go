@@ -39,7 +39,18 @@ func TestMessage(t *testing.T) {
 			name: "basically works",
 		},
 		{
-			name: "failure takes top priority",
+			name: "errored takes top priority",
+			jr: Result{
+				Errored: pstr("errored-0"),
+				Failure: pstr("failure-1"),
+				Skipped: pstr("skipped-2"),
+				Error:   pstr("error-3"),
+				Output:  pstr("output-4"),
+			},
+			expected: "errored-0",
+		},
+		{
+			name: "failure priorized over skipped, error and output",
 			jr: Result{
 				Failure: pstr("failure-0"),
 				Skipped: pstr("skipped-1"),
@@ -100,6 +111,9 @@ func TestMessage(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	pstr := func(s string) *string {
+		return &s
+	}
 	cases := []struct {
 		name     string
 		buf      []byte
@@ -134,6 +148,12 @@ func TestParse(t *testing.T) {
                             <testsuite name="fun">
                                 <testsuite name="knee">
                                     <testcase name="bone" time="6" />
+                                    <testcase name="head" time="3" >
+										<failure message="failure"> failure message </failure>
+									</testcase>
+                                    <testcase name="neck" time="2" >
+										<error message="error"> error message </error>
+									</testcase>
                                 </testsuite>
                                 <testcase name="word" time="7" />
                             </testsuite>
@@ -153,6 +173,16 @@ func TestParse(t *testing.T) {
 									{
 										Name: "bone",
 										Time: 6,
+									},
+									{
+										Name:    "head",
+										Time:    3,
+										Failure: pstr(" failure message "),
+									},
+									{
+										Name:    "neck",
+										Time:    2,
+										Errored: pstr(" error message "),
 									},
 								},
 							},
