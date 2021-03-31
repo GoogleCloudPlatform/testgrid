@@ -2526,6 +2526,18 @@ func TestAlertRow(t *testing.T) {
 			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3]),
 		},
 		{
+			name: "rows without cell IDs can alert",
+			row: statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_FAIL), 3,
+					int32(statuspb.TestStatus_PASS), 3,
+				},
+				Messages: []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+			},
+			failOpen: 3,
+			expected: alertInfo(3, "no", "", "", columns[2], columns[0], columns[3]),
+		},
+		{
 			name: "too few passes do not close",
 			row: statepb.Row{
 				Results: []int32{
