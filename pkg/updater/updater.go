@@ -768,9 +768,13 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	if failures < failuresToOpen {
 		return nil
 	}
-	id := row.CellIds[failIdx]
+	var id string
+	var latestID string
+	if len(row.CellIds) > 0 { // not all rows have cell ids
+		id = row.CellIds[failIdx]
+		latestID = row.CellIds[latestFailIdx]
+	}
 	msg := row.Messages[latestFailIdx]
-	latestID := row.CellIds[latestFailIdx]
 	return alertInfo(totalFailures, msg, id, latestID, firstFail, latestFail, latestPass)
 }
 
