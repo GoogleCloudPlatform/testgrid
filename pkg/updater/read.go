@@ -20,7 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -327,15 +329,26 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 	}
 	ec := make(chan error) // Receives errors from anyone
 
+	var lock sync.Mutex
+	addMissing := func(s string) {
+		lock.Lock()
+		defer lock.Unlock()
+		result.missing = append(result.missing, s)
+	}
+
 	var work int
 
 	// Download podinfo.json
 	work++
 	go func() {
 		pi, err := build.PodInfo(ctx, client)
-		if err != nil {
+		switch {
+		case errors.Is(err, io.EOF):
+			addMissing("podinfo.json")
+			err = nil
+		case err != nil:
 			err = fmt.Errorf("podinfo: %w", err)
-		} else if pi != nil {
+		case pi != nil:
 			result.podInfo = *pi
 		}
 		select {
@@ -348,9 +361,13 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 	work++
 	go func() {
 		s, err := build.Started(ctx, client)
-		if err != nil {
+		switch {
+		case errors.Is(err, io.EOF):
+			addMissing("started.json")
+			err = nil
+		case err != nil:
 			err = fmt.Errorf("started: %w", err)
-		} else {
+		default:
 			result.started = *s
 		}
 		select {
@@ -363,9 +380,13 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 	work++
 	go func() {
 		f, err := build.Finished(ctx, client)
-		if err != nil {
+		switch {
+		case errors.Is(err, io.EOF):
+			addMissing("finished.json")
+			err = nil
+		case err != nil:
 			err = fmt.Errorf("finished: %w", err)
-		} else {
+		default:
 			result.finished = *f
 		}
 		select {
@@ -399,6 +420,9 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 			}
 		}
 	}
+	sort.Slice(result.missing, func(i, j int) bool {
+		return result.missing[i] < result.missing[j]
+	})
 	return &result, nil
 }
 

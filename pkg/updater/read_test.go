@@ -1085,6 +1085,21 @@ func TestReadResult(t *testing.T) {
 			},
 		},
 		{
+			name: "empty files report missing",
+			data: map[string]fakeObject{
+				"finished.json": {data: ""},
+				"started.json":  {data: ""},
+				"podinfo.json":  {data: ""},
+			},
+			expected: &gcsResult{
+				missing: []string{
+					"finished.json",
+					"podinfo.json",
+					"started.json",
+				},
+			},
+		},
+		{
 			name: "missing started.json reports pending",
 			data: map[string]fakeObject{
 				"finished.json":      {data: `{"passed": true}`},
@@ -1218,7 +1233,7 @@ func TestReadResult(t *testing.T) {
 			for name, fo := range tc.data {
 				p, err := path.ResolveReference(&url.URL{Path: name})
 				if err != nil {
-					t.Fatalf("path.ResolveReference(%q): %w", name, err)
+					t.Fatalf("path.ResolveReference(%q): %v", name, err)
 				}
 				fi.objects = append(fi.objects, storage.ObjectAttrs{
 					Name: p.Object(),
@@ -1389,7 +1404,7 @@ func TestReadSuites(t *testing.T) {
 			for name, fo := range tc.data {
 				p, err := path.ResolveReference(&url.URL{Path: name})
 				if err != nil {
-					t.Fatalf("path.ResolveReference(%q): %w", name, err)
+					t.Fatalf("path.ResolveReference(%q): %v", name, err)
 				}
 				fi.objects = append(fi.objects, storage.ObjectAttrs{
 					Name: p.Object(),
