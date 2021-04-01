@@ -1353,6 +1353,30 @@ func TestOverallCell(t *testing.T) {
 			},
 		},
 		{
+			name: "missing results fail",
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: 100,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(250),
+						Passed:    &yes,
+					},
+				},
+				missing: []string{
+					"podinfo.json",
+				},
+			},
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Message: "Missing status from files: podinfo.json",
+				Icon:    "E",
+			},
+		},
+		{
 			name: "passed result passes",
 			result: gcsResult{
 				started: gcs.Started{

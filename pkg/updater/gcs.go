@@ -19,6 +19,7 @@ package updater
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -41,6 +42,7 @@ type gcsResult struct {
 	suites   []gcs.SuitesMeta
 	job      string
 	build    string
+	missing  []string
 }
 
 const maxDuplicates = 20
@@ -374,6 +376,10 @@ func overallCell(result gcsResult) Cell {
 		finished = *result.finished.Timestamp
 	}
 	switch {
+	case len(result.missing) > 0:
+		c.Result = statuspb.TestStatus_FAIL
+		c.Message = fmt.Sprintf("Missing status from files: %s", strings.Join(result.missing, ", "))
+		c.Icon = "E"
 	case finished > 0: // completed result
 		var passed bool
 		res := result.finished.Result
