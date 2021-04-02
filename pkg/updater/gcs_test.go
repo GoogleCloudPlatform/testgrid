@@ -1366,13 +1366,13 @@ func TestOverallCell(t *testing.T) {
 						Passed:    &yes,
 					},
 				},
-				missing: []string{
+				malformed: []string{
 					"podinfo.json",
 				},
 			},
 			expected: Cell{
 				Result:  statuspb.TestStatus_FAIL,
-				Message: "Missing status from files: podinfo.json",
+				Message: "Malformed artifacts: podinfo.json",
 				Icon:    "E",
 			},
 		},

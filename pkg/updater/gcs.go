@@ -36,13 +36,13 @@ import (
 //
 // The suite results become rows and the job metadata is added to the column.
 type gcsResult struct {
-	podInfo  gcs.PodInfo
-	started  gcs.Started
-	finished gcs.Finished
-	suites   []gcs.SuitesMeta
-	job      string
-	build    string
-	missing  []string
+	podInfo   gcs.PodInfo
+	started   gcs.Started
+	finished  gcs.Finished
+	suites    []gcs.SuitesMeta
+	job       string
+	build     string
+	malformed []string
 }
 
 const maxDuplicates = 20
@@ -376,9 +376,9 @@ func overallCell(result gcsResult) Cell {
 		finished = *result.finished.Timestamp
 	}
 	switch {
-	case len(result.missing) > 0:
+	case len(result.malformed) > 0:
 		c.Result = statuspb.TestStatus_FAIL
-		c.Message = fmt.Sprintf("Missing status from files: %s", strings.Join(result.missing, ", "))
+		c.Message = fmt.Sprintf("Malformed artifacts: %s", strings.Join(result.malformed, ", "))
 		c.Icon = "E"
 	case finished > 0: // completed result
 		var passed bool

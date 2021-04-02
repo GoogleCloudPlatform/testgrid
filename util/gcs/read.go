@@ -437,6 +437,22 @@ func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, erro
 	return suitesMeta, nil
 }
 
+// Error wraps an error in an associated Path.
+type Error struct {
+	Path
+	err error
+}
+
+// Unwrap the underlying error
+func (e Error) Unwrap() error {
+	return e.err
+}
+
+// Error satisfies the error interface type.
+func (e Error) Error() string {
+	return fmt.Sprintf("%s: %s", e.Path, e.err)
+}
+
 // Suites takes a channel of artifact names, parses those representing junit suites, writing the result to the suites channel.
 //
 // Note that junit suites are parsed in parallel, so there are no guarantees about suites ordering.
@@ -490,7 +506,7 @@ func (build Build) Suites(parent context.Context, opener Opener, artifacts <-cha
 			if err != nil {
 				select {
 				case <-ctx.Done():
-				case ec <- fmt.Errorf("read %s suites: %w", *path, err):
+				case ec <- fmt.Errorf("read %w", Error{*path, err}):
 				}
 				return
 			}

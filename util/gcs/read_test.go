@@ -246,7 +246,7 @@ func TestBuildJob(t *testing.T) {
 		t.Run(tc.path, func(t *testing.T) {
 			p, err := NewPath(tc.path)
 			if err != nil {
-				t.Fatal("NewPath(%q) got unexpected error: %v", tc.path, err)
+				t.Fatalf("NewPath(%q) got unexpected error: %v", tc.path, err)
 			}
 			b := Build{Path: *p}
 			job, build := b.Job(), b.Build()
@@ -1260,8 +1260,9 @@ func TestSuites(t *testing.T) {
 		artifacts   map[string]string
 		concurrency int
 
-		expected []SuitesMeta
-		err      bool
+		expected      []SuitesMeta
+		err           bool
+		expectedError *Error
 	}{
 		{
 			name: "basically works",
@@ -1410,9 +1411,10 @@ func TestSuites(t *testing.T) {
 			name: "read suites error returns errors",
 			path: newPathOrDie("gs://where/whatever"),
 			artifacts: map[string]string{
-				"/something/junit.xml": `<this is invalid json`,
+				"something/junit.xml": `<this is invalid json`,
 			},
-			err: true,
+			err:           true,
+			expectedError: &Error{Path: newPathOrDie("gs://where/something/junit.xml")},
 		},
 		{
 			name: "interrupted context returns error",
@@ -1483,6 +1485,15 @@ func TestSuites(t *testing.T) {
 			case err != nil:
 				if !tc.err {
 					t.Errorf("Suites() unexpected error: %v", err)
+				}
+				if tc.expectedError != nil {
+					var e Error
+					if !errors.As(err, &e) {
+						t.Fatalf("Suites() failed to return an Error, got %v", err)
+					}
+					if actual, expected := e.Path, tc.expectedError.Path; !reflect.DeepEqual(actual, expected) {
+						t.Errorf("Suites() Error paths do not match expected %v, got %v", expected, actual)
+					}
 				}
 			case tc.err:
 				t.Errorf("Suites() failed to receive expected error")
