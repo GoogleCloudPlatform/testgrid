@@ -36,8 +36,6 @@ type options struct {
 	config           gcs.Path // gs://path/to/config/proto
 	creds            string
 	confirm          bool
-	debug            bool
-	trace            bool
 	group            string
 	groupConcurrency int
 	buildConcurrency int
@@ -45,7 +43,10 @@ type options struct {
 	groupTimeout     time.Duration
 	buildTimeout     time.Duration
 	gridPrefix       string
-	jsonLogs         bool
+
+	debug    bool
+	trace    bool
+	jsonLogs bool
 }
 
 // validate ensures sane options
@@ -75,8 +76,6 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.Var(&o.config, "config", "gs://path/to/config.pb")
 	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	fs.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
-	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.StringVar(&o.group, "test-group", "", "Only update named group if set")
 	fs.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
@@ -84,7 +83,11 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
+
+	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
+	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
+
 	fs.Parse(args)
 	return o
 }

@@ -39,6 +39,10 @@ type options struct {
 	wait              time.Duration
 	gridPathPrefix    string
 	summaryPathPrefix string
+
+	debug    bool
+	trace    bool
+	jsonLogs bool
 }
 
 func (o *options) validate() error {
@@ -61,6 +65,11 @@ func gatherOptions() options {
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.StringVar(&o.gridPathPrefix, "grid-path", "", "Read grid states under this GCS path.")
 	flag.StringVar(&o.summaryPathPrefix, "summary-path", "", "Write summaries under this GCS path.")
+
+	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
+	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
+	flag.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
+
 	flag.Parse()
 	return o
 }
@@ -74,6 +83,18 @@ func main() {
 	if !opt.confirm {
 		logrus.Info("--confirm=false (DRY-RUN): will not write to gcs")
 	}
+
+	switch {
+	case opt.trace:
+		logrus.SetLevel(logrus.TraceLevel)
+	case opt.debug:
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+
+	if opt.jsonLogs {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	}
+	logrus.SetReportCaller(true)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
