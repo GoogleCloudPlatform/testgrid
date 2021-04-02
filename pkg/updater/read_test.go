@@ -1092,7 +1092,7 @@ func TestReadResult(t *testing.T) {
 				"podinfo.json":  {data: ""},
 			},
 			expected: &gcsResult{
-				missing: []string{
+				malformed: []string{
 					"finished.json",
 					"podinfo.json",
 					"started.json",
@@ -1204,11 +1204,20 @@ func TestReadResult(t *testing.T) {
 			},
 		},
 		{
-			name: "artifact error returns error",
+			name: "artifact error added to malformed list",
 			data: map[string]fakeObject{
 				"started.json":       {data: `{"node": "fun"}`},
 				"finished.json":      {data: `{"passed": true}`},
 				"junit_super_88.xml": {openErr: errors.New("injected open error")},
+			},
+			expected: &gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{Node: "fun"},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{Passed: &yes},
+				},
+				malformed: []string{"junit_super_88.xml"},
 			},
 		},
 	}

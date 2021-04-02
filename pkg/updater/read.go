@@ -330,10 +330,10 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 	ec := make(chan error) // Receives errors from anyone
 
 	var lock sync.Mutex
-	addMissing := func(s string) {
+	addMalformed := func(s string) {
 		lock.Lock()
 		defer lock.Unlock()
-		result.missing = append(result.missing, s)
+		result.malformed = append(result.malformed, s)
 	}
 
 	var work int
@@ -344,7 +344,7 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 		pi, err := build.PodInfo(ctx, client)
 		switch {
 		case errors.Is(err, io.EOF):
-			addMissing("podinfo.json")
+			addMalformed("podinfo.json")
 			err = nil
 		case err != nil:
 			err = fmt.Errorf("podinfo: %w", err)
@@ -363,7 +363,7 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 		s, err := build.Started(ctx, client)
 		switch {
 		case errors.Is(err, io.EOF):
-			addMissing("started.json")
+			addMalformed("started.json")
 			err = nil
 		case err != nil:
 			err = fmt.Errorf("started: %w", err)
@@ -382,7 +382,7 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 		f, err := build.Finished(ctx, client)
 		switch {
 		case errors.Is(err, io.EOF):
-			addMissing("finished.json")
+			addMalformed("finished.json")
 			err = nil
 		case err != nil:
 			err = fmt.Errorf("finished: %w", err)
@@ -400,7 +400,13 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 	go func() {
 		var err error
 		result.suites, err = readSuites(ctx, client, build)
-		if err != nil {
+		var gcsError gcs.Error
+		switch {
+		case errors.As(err, &gcsError):
+			s := strings.TrimPrefix(gcsError.Path.String(), build.Path.String())
+			addMalformed(s)
+			err = nil
+		case err != nil:
 			err = fmt.Errorf("suites: %w", err)
 		}
 
@@ -420,8 +426,8 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 			}
 		}
 	}
-	sort.Slice(result.missing, func(i, j int) bool {
-		return result.missing[i] < result.missing[j]
+	sort.Slice(result.malformed, func(i, j int) bool {
+		return result.malformed[i] < result.malformed[j]
 	})
 	return &result, nil
 }
