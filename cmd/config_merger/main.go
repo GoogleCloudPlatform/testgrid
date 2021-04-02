@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"io/ioutil"
+	"net/http"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/merger"
@@ -30,6 +31,7 @@ import (
 
 type options struct {
 	listPath     string
+	listURL      string
 	creds        string
 	confirm      bool
 	wait         time.Duration
@@ -37,8 +39,8 @@ type options struct {
 }
 
 func (o *options) validate(log logrus.FieldLogger) {
-	if o.listPath == "" {
-		log.Fatal("--config-list of configurations to merge required")
+	if o.listPath == "" && o.listURL == "" {
+		log.Fatal("List of configurations to merge required (--config-list or --config-url)")
 	}
 	if !o.confirm {
 		log.Info("--confirm=false (DRY-RUN): will not write to gcs")
@@ -50,7 +52,8 @@ func (o *options) validate(log logrus.FieldLogger) {
 
 func gatherOptions() options {
 	var o options
-	flag.StringVar(&o.listPath, "config-list", "", "List of configurations to merge")
+	flag.StringVar(&o.listPath, "config-list", "", "List of configurations to merge (at file)")
+	flag.StringVar(&o.listURL, "config-url", "", "List of configurations to merge (at web URL)")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time ahs passed since the last loop. (Run only once if zero)")
@@ -61,17 +64,34 @@ func gatherOptions() options {
 
 func main() {
 	log := logrus.WithField("component", "config-merger")
-
 	opt := gatherOptions()
 	opt.validate(log)
-	file, err := ioutil.ReadFile(opt.listPath)
-	if err != nil {
-		log.WithField("--config-list", opt.listPath).WithError(err).Fatalf("Can't find --config-list")
+
+	var file []byte
+
+	if opt.listPath != "" {
+		var err error
+		file, err = ioutil.ReadFile(opt.listPath)
+		if err != nil {
+			log.WithField("--config-list", opt.listPath).WithError(err).Fatalf("Can't find --config-list")
+		}
+	}
+
+	if opt.listURL != "" {
+		resp, err := http.Get(opt.listURL)
+		if err != nil {
+			log.WithField("--config-url", opt.listURL).WithError(err).Fatalf("Can't GET --config-url")
+		}
+		defer resp.Body.Close()
+		file, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.WithField("--config-url", opt.listURL).WithError(err).Fatalf("Can't read contents at --config-url")
+		}
 	}
 
 	list, err := merger.ParseAndCheck(file)
 	if err != nil {
-		log.WithField("--config-list", opt.listPath).WithError(err).Fatal("Can't parse --config-list")
+		log.WithError(err).Fatal("Can't parse YAML merge config")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
