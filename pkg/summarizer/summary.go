@@ -97,8 +97,8 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 					errCh <- errors.New(dash.Name)
 					continue
 				}
-				log.WithField("summary", sum).Info("summarized")
 				if !confirm {
+					log.WithField("summary", sum).Info("Summarized")
 					continue
 				}
 				summaryPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(summaryPathPrefix, summaryPath(dash.Name))})
@@ -112,6 +112,7 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 					errCh <- errors.New(dash.Name)
 					continue
 				}
+				log.Info("Wrote dashboard summary")
 				errCh <- nil
 			}
 			wg.Done()
