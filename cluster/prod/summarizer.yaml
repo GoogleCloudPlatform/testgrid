@@ -26,7 +26,7 @@ spec:
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm
-        # TODO(fejta): next release: --json-logs
+        - --json-logs
         - --wait=5m
 ---
 apiVersion: apps/v1
@@ -57,7 +57,7 @@ spec:
         - --config=gs://k8s-testgrid/config
         - --confirm
         - --grid-path=grid
-        # TODO(fejta): next release: --json-logs
+        - --json-logs
         - --summary-path=summary
         - --wait=5m
 ---

@@ -29,7 +29,7 @@ spec:
         args:
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
-        # TODO(fejta): next release: --json-logs
+        - --json-logs
         - --wait=1h
 ---
 apiVersion: apps/v1
@@ -63,7 +63,7 @@ spec:
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
         - --grid-path=grid
-        # TODO(fejta): next release: --json-logs
+        - --json-logs
         - --summary-path=summary
         - --wait=1h
 ---
