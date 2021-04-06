@@ -559,6 +559,14 @@ func TestConvertResult(t *testing.T) {
 											Output:  pstr("irrelevant message"),
 										},
 										{
+											Name:    "errored no message",
+											Failure: pstr(""),
+										},
+										{
+											Name:    "errored",
+											Failure: pstr("oh no"),
+										},
+										{
 											Name:    "invisible skip",
 											Skipped: pstr(""),
 										},
@@ -604,6 +612,14 @@ func TestConvertResult(t *testing.T) {
 					},
 					"failed other message": {
 						Message: "irrelevant message",
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "F",
+					},
+					"errored no message": {
+						Result: statuspb.TestStatus_FAIL,
+					},
+					"errored": {
+						Message: "oh no",
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "F",
 					},
