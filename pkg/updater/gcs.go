@@ -250,6 +250,11 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 			}
 
 			switch {
+			case r.Errored != nil:
+				c.Result = statuspb.TestStatus_FAIL
+				if c.Message != "" {
+					c.Icon = "F"
+				}
 			case r.Failure != nil:
 				c.Result = statuspb.TestStatus_FAIL
 				if c.Message != "" {
