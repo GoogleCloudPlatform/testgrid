@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: testgrid-config-merger
-  namespace: testgrid-canary
+  namespace: testgrid
   labels:
     app: testgrid
     channel: stable
@@ -27,7 +27,7 @@ spec:
       - name: config-merger
         image: gcr.io/k8s-testgrid/config_merger:latest # TODO(chases2): pin to a version that contains this PR
         args:
-        - --config-url=https://raw.githubusercontent.com/kubernetes/test-infra/master/config/mergelists/canary.yaml
+        - --config-url=https://raw.githubusercontent.com/kubernetes/test-infra/master/config/mergelists/prod.yaml
         - --confirm
         - --wait=15m
 ---
@@ -38,4 +38,4 @@ metadata:
     # Uses same as updater
     iam.gke.io/gcp-service-account: testgrid-canary@k8s-testgrid.iam.gserviceaccount.com
   name: config-merger
-  namespace: testgrid-canary
+  namespace: testgrid

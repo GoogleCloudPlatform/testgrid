@@ -21,6 +21,7 @@ k8s_objects(
         ":namespace",  # Must be first
         ":summarizer",
         ":updater",
+        ":config_merger",
         ":knative-namespace",  # Must be first
         ":knative-summarizer",
         ":knative-updater",
@@ -43,6 +44,13 @@ k8s_object(
     cluster = CLUSTER,
     kind = MULTI_KIND,
     template = "summarizer.yaml",
+)
+
+k8s_object(
+    name = "config_merger",
+    cluster = CLUSTER,
+    kind = MULTI_KIND,
+    template = "config_merger.yaml",
 )
 
 k8s_object(

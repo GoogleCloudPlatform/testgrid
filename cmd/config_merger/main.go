@@ -103,15 +103,19 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 
-	updateOnce := func(ctx context.Context) error {
+	updateOnce := func(ctx context.Context) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
-		return merger.MergeAndUpdate(ctx, client, list, opt.skipValidate, opt.confirm)
+		log.Info("Starting MergeAndUpdate")
+		err := merger.MergeAndUpdate(ctx, client, list, opt.skipValidate, opt.confirm)
+		if err != nil {
+			log.WithError(err).Error("Update failed")
+			return
+		}
+		log.Info("Update successful")
 	}
 
-	if err := updateOnce(ctx); err != nil {
-		log.WithError(err).Error("Failed update")
-	}
+	updateOnce(ctx)
 	if opt.wait == 0 {
 		return
 	}
@@ -119,9 +123,7 @@ func main() {
 	defer timer.Stop()
 	for range timer.C {
 		timer.Reset(opt.wait)
-		if err := updateOnce(ctx); err != nil {
-			log.WithError(err).Error("Failed update")
-		}
+		updateOnce(ctx)
 		log.WithField("--wait", opt.wait).Info("Sleeping")
 	}
 }
