@@ -83,9 +83,7 @@ message TestGroup {
   // ignored, then the name of the tests will be the build target.
   TestsName tests_name_policy = 6;
 
-  // Whether to infer the test properties from the test results.
-  // Deprecated; recommended as "true"
-  bool gather_test_properties = 7 [deprecated=true];
+  reserved 7;  // Unused gather_test_properties
 
   // Tests with names that include these substrings will be removed from the
   // table.
