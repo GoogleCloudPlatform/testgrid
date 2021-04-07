@@ -25,7 +25,7 @@ spec:
       serviceAccountName: config-merger
       containers:
       - name: config-merger
-        image: gcr.io/k8s-testgrid/config_merger:latest # TODO(chases2): pin to a version that contains this PR
+        image: gcr.io/k8s-testgrid/config_merger:v20210406-v0.0.59-11-g7c93e0a
         args:
         - --config-url=https://raw.githubusercontent.com/kubernetes/test-infra/master/config/mergelists/prod.yaml
         - --confirm
@@ -36,6 +36,6 @@ kind: ServiceAccount
 metadata:
   annotations:
     # Uses same as updater
-    iam.gke.io/gcp-service-account: testgrid-canary@k8s-testgrid.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
   name: config-merger
   namespace: testgrid
