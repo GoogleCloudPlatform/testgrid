@@ -54,7 +54,32 @@ The TestGrid configuration located at `gs://your-bucket/config` can be rendered 
 - The service account `k8s-testgrid@appspot.gserviceaccount.com` must be given
 permission to read from these files.
 
+## Examples
+
+### Standalone Testgrid FE For Knative Prow
+
+#### Generate testgrid config
+
+Set up a prow job that generates testgrid config from prow configs with
+`configurator`. In knative scenario, the [configurator job example] writes the
+config to a GCS bucket `gs://knative-own-testgrid/config`.
+
+After this step, `testgrid.k8s.io/r/knative-own-testgrid` can already display
+dashboards and dashboard tabs, but there is no test results yet.
+
+#### Load data
+
+Create the [deployment] of `Updater` and `Summarizer` in testgrid cluster (Note:
+this can be a kubernetes cluster of your choice), make sure passing
+`--config=gs://knative-own-testgrid` to both deployments.
+
+After this step, data will be slowly rolled into
+`testgrid.k8s.io/r/knative-own-testgrid`. The initial round could take a couple
+of hours, then the update would be much faster.
+
 
 [testgrid.k8s.io]: (http://testgrid.k8s.io)
 [configuration]: config.md
-
+[configurator job example]: https://github.com/knative/test-infra/blob/13d8d5df1f5273ff3d751bf8cd92eec873a35d7b/config/prod/prow/jobs/custom/test-infra.yaml#L643
+[deployment]:
+https://github.com/GoogleCloudPlatform/testgrid/tree/master/cluster/prod/knative
