@@ -321,13 +321,15 @@ func truncateRunning(cols []InflatedColumn) []InflatedColumn {
 	if len(cols) == 0 {
 		return cols
 	}
-	var stillRunning int
-	for i, c := range cols {
-		if c.Cells[overallRow].Result == statuspb.TestStatus_RUNNING {
-			stillRunning = i + 1
+	for i := len(cols) - 1; i >= 0; i-- {
+		for _, cell := range cols[i].Cells {
+			if cell.Result == statuspb.TestStatus_RUNNING {
+				return cols[i+1:]
+			}
 		}
 	}
-	return cols[stillRunning:]
+	// No cells are found to be running; do not truncate
+	return cols
 }
 
 var (
