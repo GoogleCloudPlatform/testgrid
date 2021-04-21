@@ -101,7 +101,7 @@ const (
 	podInfoRow = "Pod"
 )
 
-func MergeCells(cells ...Cell) Cell {
+func MergeCells(flakyFail bool, cells ...Cell) Cell {
 	var out Cell
 	if len(cells) == 0 {
 		panic("empty cells")
@@ -122,6 +122,8 @@ func MergeCells(cells ...Cell) Cell {
 	means := map[string][]float64{}
 
 	current := out.Result
+	passMessageResult := current
+	failMessageResult := current
 
 	for _, c := range cells {
 		if result.GTE(c.Result, current) {
@@ -130,13 +132,15 @@ func MergeCells(cells ...Cell) Cell {
 		switch {
 		case result.Passing(c.Result):
 			pass++
-			if passMsg == "" && c.Message != "" {
+			if c.Message != "" && result.GTE(c.Result, passMessageResult) {
 				passMsg = c.Message
+				passMessageResult = c.Result
 			}
 		case result.Failing(c.Result):
 			fail++
-			if failMsg == "" && c.Message != "" {
+			if c.Message != "" && result.GTE(c.Result, failMessageResult) {
 				failMsg = c.Message
+				failMessageResult = c.Result
 			}
 		}
 
@@ -144,7 +148,8 @@ func MergeCells(cells ...Cell) Cell {
 			means[metric] = append(means[metric], mean)
 		}
 	}
-	if pass > 0 && fail > 0 {
+
+	if flakyFail && pass > 0 && fail > 0 {
 		out.Result = statuspb.TestStatus_FLAKY
 	} else {
 		out.Result = current
@@ -326,7 +331,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	for name, cells := range cells {
 		switch {
 		case opt.merge:
-			out.Cells[name] = MergeCells(cells...)
+			out.Cells[name] = MergeCells(true, cells...)
 		default:
 			for n, c := range SplitCells(name, cells...) {
 				out.Cells[n] = c
