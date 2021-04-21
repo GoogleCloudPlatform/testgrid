@@ -36,10 +36,10 @@ import (
 
 func TestMergeCells(t *testing.T) {
 	cases := []struct {
-		name      string
-		flakyFail bool
-		cells     []Cell
-		expected  Cell
+		name     string
+		flaky    bool
+		cells    []Cell
+		expected Cell
 	}{
 		{
 			name: "basically works",
@@ -157,8 +157,8 @@ func TestMergeCells(t *testing.T) {
 			},
 		},
 		{
-			name:      "mix of passes and failures flake upon request",
-			flakyFail: true,
+			name:  "mix of passes and failures flake upon request",
+			flaky: true,
 			cells: []Cell{
 				{
 					Result:  statuspb.TestStatus_PASS,
@@ -205,7 +205,7 @@ func TestMergeCells(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := MergeCells(tc.flakyFail, tc.cells...)
+			got := MergeCells(tc.flaky, tc.cells...)
 			if diff := cmp.Diff(tc.expected, got); diff != "" {
 				t.Errorf("MergeCells() got unexpected diff (-want +got):\n%s", diff)
 			}
