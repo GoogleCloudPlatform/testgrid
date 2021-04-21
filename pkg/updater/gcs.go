@@ -101,7 +101,17 @@ const (
 	podInfoRow = "Pod"
 )
 
-func MergeCells(flakyFail bool, cells ...Cell) Cell {
+// MergeCells will combine the cells into a single result.
+//
+// The flaky argument determines whether returned result
+// is flaky (true) or failing when merging cells with both passing
+// and failing results.
+//
+// Merging multiple results will set the icon to n/N passes
+//
+// Includes the message from the "most relevant" cell that includes a message.
+// Where relevance is determined by result.GTE.
+func MergeCells(flaky bool, cells ...Cell) Cell {
 	var out Cell
 	if len(cells) == 0 {
 		panic("empty cells")
@@ -149,7 +159,7 @@ func MergeCells(flakyFail bool, cells ...Cell) Cell {
 		}
 	}
 
-	if flakyFail && pass > 0 && fail > 0 {
+	if flaky && pass > 0 && fail > 0 {
 		out.Result = statuspb.TestStatus_FLAKY
 	} else {
 		out.Result = current
@@ -186,6 +196,10 @@ func MergeCells(flakyFail bool, cells ...Cell) Cell {
 	return out
 }
 
+// SplitCells appends a unique suffix to each cell.
+//
+// When an excessive number of cells contain the same name
+// the list gets truncated, replaced with a synthetic "... [overflow]" cell.
 func SplitCells(originalName string, cells ...Cell) map[string]Cell {
 	n := len(cells)
 	if n == 0 {
