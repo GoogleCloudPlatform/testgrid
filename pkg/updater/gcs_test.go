@@ -36,9 +36,10 @@ import (
 
 func TestMergeCells(t *testing.T) {
 	cases := []struct {
-		name     string
-		cells    []Cell
-		expected Cell
+		name      string
+		flakyFail bool
+		cells     []Cell
+		expected  Cell
 	}{
 		{
 			name: "basically works",
@@ -66,7 +67,7 @@ func TestMergeCells(t *testing.T) {
 			},
 		},
 		{
-			name: "passes work and take first filled message",
+			name: "passes work and take highest filled message",
 			cells: []Cell{
 				{
 					Result: statuspb.TestStatus_PASS,
@@ -77,14 +78,21 @@ func TestMergeCells(t *testing.T) {
 					Message: "woah",
 				},
 				{
+					Result: statuspb.TestStatus_PASS_WITH_ERRORS, // highest but empty
+				},
+				{
+					Result:  statuspb.TestStatus_PASS_WITH_SKIPS, // highest with message
+					Message: "already got one",
+				},
+				{
 					Result:  statuspb.TestStatus_PASS,
 					Message: "there",
 				},
 			},
 			expected: Cell{
-				Result:  statuspb.TestStatus_PASS,
-				Message: "3/3 runs passed: woah",
-				Icon:    "3/3",
+				Result:  statuspb.TestStatus_PASS_WITH_ERRORS,
+				Message: "5/5 runs passed: already got one",
+				Icon:    "5/5",
 			},
 		},
 		{
@@ -125,7 +133,7 @@ func TestMergeCells(t *testing.T) {
 			},
 		},
 		{
-			name: "failures take highest failure, first failure message",
+			name: "failures take highest failure and highest failure message",
 			cells: []Cell{
 				{
 					Result:  statuspb.TestStatus_TIMED_OUT,
@@ -133,22 +141,24 @@ func TestMergeCells(t *testing.T) {
 					Icon:    "drop",
 				},
 				{
-					Result: statuspb.TestStatus_BUILD_FAIL,
-					Icon:   "drop",
+					Result:  statuspb.TestStatus_CATEGORIZED_FAIL, //highest with message
+					Icon:    "drop",
+					Message: "categorically wrong",
 				},
 				{
-					Result: statuspb.TestStatus_CATEGORIZED_FAIL,
+					Result: statuspb.TestStatus_BUILD_FAIL, // highest
 					Icon:   "drop",
 				},
 			},
 			expected: Cell{
 				Result:  statuspb.TestStatus_BUILD_FAIL,
 				Icon:    "0/3",
-				Message: "0/3 runs passed: agonizingly slow",
+				Message: "0/3 runs passed: categorically wrong",
 			},
 		},
 		{
-			name: "mix of passes and failures flake",
+			name:      "mix of passes and failures flake upon request",
+			flakyFail: true,
 			cells: []Cell{
 				{
 					Result:  statuspb.TestStatus_PASS,
@@ -165,13 +175,39 @@ func TestMergeCells(t *testing.T) {
 				Message: "1/2 runs passed: boom",
 			},
 		},
+		{
+			name: "mix of passes and failures will fail upon request",
+			cells: []Cell{
+				{
+					Result:  statuspb.TestStatus_PASS,
+					Message: "yay",
+				},
+				{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					Message: "boom",
+				},
+				{
+					Result:  statuspb.TestStatus_FAIL, // highest result.GTE
+					Message: "bang",
+				},
+				{
+					Result:  statuspb.TestStatus_BUILD_FAIL,
+					Message: "missing ;",
+				},
+			},
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Icon:    "1/4",
+				Message: "1/4 runs passed: bang",
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := MergeCells(tc.cells...)
-			if diff := cmp.Diff(actual, tc.expected); diff != "" {
-				t.Errorf("MergeCells() got unexpected diff (-have, +want):\n%s", diff)
+			got := MergeCells(tc.flakyFail, tc.cells...)
+			if diff := cmp.Diff(tc.expected, got); diff != "" {
+				t.Errorf("MergeCells() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
