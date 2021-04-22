@@ -593,6 +593,35 @@ func TestTruncateRunning(t *testing.T) {
 				return cols[2:]
 			},
 		},
+		{
+			name: "drop running columns if any process is running",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{Build: "running"},
+					Cells: map[string]cell{
+						"process1": {Result: statuspb.TestStatus_RUNNING},
+						"process2": {Result: statuspb.TestStatus_RUNNING},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "running-partially"},
+					Cells: map[string]cell{
+						"process1": {Result: statuspb.TestStatus_RUNNING},
+						"process2": {Result: statuspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "ok"},
+					Cells: map[string]cell{
+						"process1": {Result: statuspb.TestStatus_PASS},
+						"process2": {Result: statuspb.TestStatus_PASS},
+					},
+				},
+			},
+			expected: func(cols []inflatedColumn) []inflatedColumn {
+				return cols[2:]
+			},
+		},
 	}
 
 	for _, tc := range cases {
