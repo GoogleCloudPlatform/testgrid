@@ -631,7 +631,7 @@ func TestTruncateRunning(t *testing.T) {
 			if tc.expected != nil {
 				expected = tc.expected(expected)
 			}
-			if diff := cmp.Diff(actual, expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(actual, expected, protocmp.Transform()); diff != "" {
 				t.Errorf("truncateRunning() got unexpected diff:\n%s", diff)
 			}
 		})
@@ -1012,21 +1012,25 @@ func TestInflateDropAppend(t *testing.T) {
 					Columns: []*statepb.Column{
 						{
 							Build:   "99",
+							Hint:    "99",
 							Started: float64(now+99) * 1000,
 							Extra:   []string{""},
 						},
 						{
 							Build:   "80",
+							Hint:    "80",
 							Started: float64(now+80) * 1000,
 							Extra:   []string{"build80"},
 						},
 						{
 							Build:   "50",
+							Hint:    "50",
 							Started: float64(now+50) * 1000,
 							Extra:   []string{"build50"},
 						},
 						{
 							Build:   "10",
+							Hint:    "10",
 							Started: float64(now+10) * 1000,
 							Extra:   []string{"build10"},
 						},
@@ -1230,6 +1234,451 @@ func TestInflateDropAppend(t *testing.T) {
 					return
 				}
 				t.Errorf("gcs.DownloadGrid() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFormatStrftime(t *testing.T) {
+	cases := []struct {
+		name string
+		want string
+	}{
+		{
+			name: "basically works",
+			want: "basically works",
+		},
+		{
+			name: "Mon Jan 2 15:04:05",
+			want: "Mon Jan 2 15:04:05",
+		},
+		{
+			name: "python am/pm: %p",
+			want: "python am/pm: PM",
+		},
+		{
+			name: "python year: %Y",
+			want: "python year: 2006",
+		},
+		{
+			name: "python short year: %y",
+			want: "python short year: 06",
+		},
+		{
+			name: "python month: %m",
+			want: "python month: 01",
+		},
+		{
+			name: "python date: %d",
+			want: "python date: 02",
+		},
+		{
+			name: "python 24hr: %H",
+			want: "python 24hr: 15",
+		},
+		{
+			name: "python minutes: %M",
+			want: "python minutes: 04",
+		},
+		{
+			name: "python seconds: %S",
+			want: "python seconds: 05",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := formatStrftime(tc.name); got != tc.want {
+				t.Errorf("formatStrftime(%q) got %q want %q", tc.name, got, tc.want)
+			}
+		})
+	}
+
+}
+
+func TestOverrideBuild(t *testing.T) {
+	cases := []struct {
+		name string
+		tg   *configpb.TestGroup
+		cols []InflatedColumn
+		want []InflatedColumn
+	}{
+		{
+			name: "basically works",
+			tg:   &configpb.TestGroup{},
+		},
+		{
+			name: "empty override does not override",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "hello",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "world",
+						Started: 6,
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "hello",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "world",
+						Started: 6,
+					},
+				},
+			},
+		},
+		{
+			name: "override with python style",
+			tg: &configpb.TestGroup{
+				CommitOverrideStrftime: "%y-%m-%d (%Y) %H:%M:%S %p",
+			},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "drop",
+						Hint:    "of fruit",
+						Name:    "keep",
+						Started: float64(time.Date(2021, 04, 22, 13, 14, 15, 0, time.Local).Unix() * 1000),
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me too"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "21-04-22 (2021) 13:14:15 PM",
+						Hint:    "of fruit",
+						Name:    "keep",
+						Started: float64(time.Date(2021, 04, 22, 13, 14, 15, 0, time.Local).Unix() * 1000),
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me too"},
+					},
+				},
+			},
+		},
+		{
+			name: "override with golang format",
+			tg: &configpb.TestGroup{
+				CommitOverrideStrftime: "hello 2006 PM",
+			},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "drop",
+						Hint:    "of fruit",
+						Name:    "keep",
+						Started: float64(time.Date(2021, 04, 22, 13, 14, 15, 0, time.Local).Unix() * 1000),
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me too"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "hello 2021 PM",
+						Hint:    "of fruit",
+						Name:    "keep",
+						Started: float64(time.Date(2021, 04, 22, 13, 14, 15, 0, time.Local).Unix() * 1000),
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me too"},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			overrideBuild(tc.tg, tc.cols)
+			if diff := cmp.Diff(tc.want, tc.cols, protocmp.Transform()); diff != "" {
+				t.Errorf("overrideBuild() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGroupColumns(t *testing.T) {
+	cases := []struct {
+		name string
+		cols []InflatedColumn
+		want []InflatedColumn
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "single column groups do not change",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "hello",
+						Name:    "world",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "another",
+						Name:    "column",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "hello",
+						Name:    "world",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "another",
+						Name:    "column",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+		},
+		{
+			name: "group columns with the same build and name",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "99",
+						Started: 7,
+						Extra: []string{
+							"first",
+							"",
+							"same",
+							"different",
+						},
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "100",
+						Started: 9,
+						Extra: []string{
+							"",
+							"second",
+							"same",
+							"changed",
+						},
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Started: 7,
+						Hint:    "100",
+						Extra: []string{
+							"first",
+							"second",
+							"same",
+							"*",
+						},
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+						"also": {ID: "remains"},
+					},
+				},
+			},
+		},
+		{
+			name: "do not group different builds",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "this",
+						Name:    "same",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "that",
+						Name:    "same",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "this",
+						Name:    "same",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "that",
+						Name:    "same",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+		},
+		{
+			name: "do not group different names",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "different",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "changed",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "different",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "changed",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+		},
+		{
+			name: "split merged rows with the same name",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "same",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"first": {ID: "first"},
+						"same":  {ID: "first-different"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "same",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"same":   {ID: "second-changed"},
+						"second": {ID: "second"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "same",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"first":    {ID: "first"},
+						"same":     {ID: "first-different"},
+						"same [1]": {ID: "second-changed"},
+						"second":   {ID: "second"},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := groupColumns(tc.cols)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("groupColumns() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}

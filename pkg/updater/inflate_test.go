@@ -65,13 +65,14 @@ func TestInflateGrid(t *testing.T) {
 				Columns: []*statepb.Column{
 					{
 						Build:      "build",
+						Hint:       "xyzpdq",
 						Name:       "name",
 						Started:    5,
 						Extra:      []string{"extra", "fun"},
 						HotlistIds: "hot topic",
 					},
 					{
-						Build:      "second build",
+						Build:      "second build", // Also becomes Hint
 						Name:       "second name",
 						Started:    10,
 						Extra:      []string{"more", "gooder"},
@@ -84,6 +85,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:      "build",
+						Hint:       "xyzpdq",
 						Name:       "name",
 						Started:    5,
 						Extra:      []string{"extra", "fun"},
@@ -94,6 +96,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:      "second build",
+						Hint:       "second build",
 						Name:       "second name",
 						Started:    10,
 						Extra:      []string{"more", "gooder"},
@@ -157,6 +160,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "b1",
+						Hint:    "b1",
 						Name:    "n1",
 						Started: 1,
 					},
@@ -178,6 +182,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "b2",
+						Hint:    "b2",
 						Name:    "n2",
 						Started: 2,
 					},
@@ -249,6 +254,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "keep1",
+						Hint:    "keep1",
 						Started: millis(hours[20]) + 999,
 					},
 					Cells: map[string]cell{
@@ -259,6 +265,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "keep2",
+						Hint:    "keep2",
 						Started: millis(hours[10]),
 					},
 					Cells: map[string]cell{
@@ -319,6 +326,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "current1",
+						Hint:    "current1",
 						Started: millis(hours[20]),
 					},
 					Cells: map[string]cell{
@@ -329,6 +337,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "current2",
+						Hint:    "current2",
 						Started: millis(hours[10]),
 					},
 					Cells: map[string]cell{
@@ -384,6 +393,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "keep-old1",
+						Hint:    "keep-old1",
 						Started: millis(hours[10]) - 1,
 					},
 					Cells: map[string]cell{

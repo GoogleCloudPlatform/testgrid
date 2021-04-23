@@ -330,6 +330,7 @@ func TestConvertResult(t *testing.T) {
 			expected: &InflatedColumn{
 				Column: &statepb.Column{
 					Build:   "hello",
+					Hint:    "hello",
 					Started: 300 * 1000,
 					Extra: []string{
 						"1.2.3",
@@ -370,6 +371,7 @@ func TestConvertResult(t *testing.T) {
 			expected: &InflatedColumn{
 				Column: &statepb.Column{
 					Build:   "hello",
+					Hint:    "hello",
 					Started: float64(now * 1000),
 					Extra: []string{
 						"1.2.3",
@@ -428,6 +430,7 @@ func TestConvertResult(t *testing.T) {
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 					Build:   "build",
+					Hint:    "build",
 				},
 				Cells: map[string]Cell{
 					overallRow: {
