@@ -28,6 +28,7 @@ spec:
         - --config=gs://knative-own-testgrid/config
         - --confirm
         - --group-timeout=5m
+        - --json-logs
         - --wait=5m
 ---
 apiVersion: v1
