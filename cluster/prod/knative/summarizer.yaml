@@ -26,6 +26,7 @@ spec:
         args:
         - --config=gs://knative-own-testgrid/config
         - --confirm
+        - --json-logs
         - --wait=5m
 ---
 apiVersion: apps/v1
