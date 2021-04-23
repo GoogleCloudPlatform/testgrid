@@ -158,6 +158,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "11",
+						Hint:    "11",
 						Started: float64(now+11) * 1000,
 					},
 					Cells: map[string]cell{
@@ -175,6 +176,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "10",
+						Hint:    "10",
 						Started: float64(now+10) * 1000,
 					},
 					Cells: map[string]cell{
@@ -241,6 +243,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "11",
+						Hint:    "11",
 						Started: float64(now+11) * 1000,
 						Extra: []string{
 							"build11",
@@ -262,6 +265,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "10",
+						Hint:    "10",
 						Started: float64(now+10) * 1000,
 						Extra: []string{
 							"build10",
@@ -326,6 +330,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "10",
+						Hint:    "10",
 						Started: float64(now+10) * 1000,
 					},
 					Cells: map[string]cell{
@@ -405,6 +410,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "12",
+						Hint:    "12",
 						Started: float64(now+12) * 1000,
 					},
 					Cells: map[string]cell{
@@ -420,6 +426,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "11",
+						Hint:    "11",
 						Started: float64(now+11) * 1000,
 					},
 					Cells: map[string]cell{
@@ -495,6 +502,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "13",
+						Hint:    "13",
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
@@ -510,6 +518,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "12",
+						Hint:    "12",
 						Started: float64(now+12) * 1000,
 					},
 					Cells: map[string]cell{
@@ -587,6 +596,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "13",
+						Hint:    "13",
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
@@ -602,6 +612,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "12",
+						Hint:    "12",
 						Started: float64(now+12) * 1000,
 					},
 					Cells: map[string]cell{
@@ -617,6 +628,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "11",
+						Hint:    "11",
 						Started: float64(now+11) * 1000,
 					},
 					Cells: map[string]cell{
@@ -632,6 +644,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "10",
+						Hint:    "10",
 						Started: float64(now+10) * 1000,
 					},
 					Cells: map[string]cell{
@@ -708,6 +721,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "13",
+						Hint:    "13",
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
@@ -723,6 +737,7 @@ func TestReadColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "12",
+						Hint:    "12",
 						Started: float64(now+12) * 1000,
 					},
 					Cells: map[string]cell{

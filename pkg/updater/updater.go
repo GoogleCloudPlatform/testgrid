@@ -446,7 +446,10 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		return fmt.Errorf("read columns: %w", err)
 	}
 
+	overrideBuild(tg, newCols)
+
 	cols := mergeColumns(newCols, oldCols)
+	cols = groupColumns(cols)
 
 	grid := constructGrid(log, tg, cols)
 	buf, err := marshalGrid(grid)
@@ -470,6 +473,119 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	return nil
 }
 
+// formatStrftime replaces python codes with what go expects.
+//
+// aka %Y-%m-%d becomes 2006-01-02
+func formatStrftime(in string) string {
+	replacements := map[string]string{
+		"%p": "PM",
+		"%Y": "2006",
+		"%y": "06",
+		"%m": "01",
+		"%d": "02",
+		"%H": "15",
+		"%M": "04",
+		"%S": "05",
+	}
+
+	out := in
+
+	for bad, good := range replacements {
+		out = strings.ReplaceAll(out, bad, good)
+	}
+	return out
+}
+
+func overrideBuild(tg *configpb.TestGroup, cols []InflatedColumn) {
+	fmt := tg.CommitOverrideStrftime
+	if fmt == "" {
+		return
+	}
+	fmt = formatStrftime(fmt)
+	for _, col := range cols {
+		started := int64(col.Column.Started)
+		when := time.Unix(started/1000, (started%1000)*int64(time.Millisecond/time.Nanosecond))
+		col.Column.Build = when.Format(fmt)
+	}
+}
+
+const columnIDSeparator = "\ue000"
+
+// GroupColumns merges columns with the same Name and Build.
+//
+// Cells are joined together, splitting those with the same name.
+// Started is the smallest value.
+// Extra is the most recent filled value.
+func groupColumns(cols []InflatedColumn) []InflatedColumn {
+	groups := map[string][]InflatedColumn{}
+	var ids []string
+	for _, c := range cols {
+		id := c.Column.Name + columnIDSeparator + c.Column.Build
+		groups[id] = append(groups[id], c)
+		ids = append(ids, id)
+	}
+
+	if len(groups) == 0 {
+		return nil
+	}
+
+	out := make([]InflatedColumn, 0, len(groups))
+
+	seen := make(map[string]bool, len(groups))
+
+	for _, id := range ids {
+		if seen[id] {
+			continue // already merged this group.
+		}
+		seen[id] = true
+		var col InflatedColumn
+
+		groupedCells := groups[id]
+		if len(groupedCells) == 1 {
+			out = append(out, groupedCells[0])
+			continue
+		}
+
+		cells := map[string][]Cell{}
+
+		var count int
+		for i, c := range groupedCells {
+			if i == 0 {
+				col.Column = c.Column
+			} else {
+				if c.Column.Started < col.Column.Started {
+					col.Column.Started = c.Column.Started
+				}
+				if !sortorder.NaturalLess(c.Column.Hint, col.Column.Hint) {
+					col.Column.Hint = c.Column.Hint
+				}
+				for i, val := range c.Column.Extra {
+					if val == "" || val == col.Column.Extra[i] {
+						continue
+					}
+					if col.Column.Extra[i] == "" {
+						col.Column.Extra[i] = c.Column.Extra[i]
+					} else {
+						col.Column.Extra[i] = "*" // values differ
+					}
+				}
+			}
+			for key, cell := range c.Cells {
+				cells[key] = append(cells[key], cell)
+				count++
+			}
+		}
+		col.Cells = make(map[string]Cell, count)
+		for name, duplicateCells := range cells {
+			for name, cell := range SplitCells(name, duplicateCells...) {
+				col.Cells[name] = cell
+			}
+		}
+		out = append(out, col)
+	}
+	return out
+}
+
 // mergeColumns combines newCols and oldCols.
 //
 // When old and new both contain a column, chooses the new column.
@@ -483,7 +599,10 @@ func mergeColumns(newCols, oldCols []InflatedColumn) []InflatedColumn {
 	// accept all the old columns which are older than the accepted columns.
 	oldestCol := out[len(out)-1].Column
 	for i := 0; i < len(oldCols); i++ {
-		if oldCols[i].Column.Started > oldestCol.Started || oldCols[i].Column.Build == oldestCol.Build {
+		if oldCols[i].Column.Started > oldestCol.Started {
+			continue
+		}
+		if oldCols[i].Column.Build == oldestCol.Build && oldCols[i].Column.Name == oldestCol.Name {
 			continue
 		}
 		return append(out, oldCols[i:]...)

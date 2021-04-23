@@ -120,6 +120,9 @@ message Column {
 
   // Custom hotlist ids.
   string hotlist_ids = 5;
+
+  // An optional hint for the updater.
+  string hint = 6;
 }
 
 // TestGrid rows (also known as TestRow)

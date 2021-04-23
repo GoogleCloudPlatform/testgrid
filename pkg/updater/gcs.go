@@ -338,6 +338,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		Column: &statepb.Column{
 			Build:   id,
 			Started: float64(result.started.Timestamp * 1000),
+			Hint:    id,
 		},
 		Cells: map[string]Cell{},
 	}

@@ -42,7 +42,7 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 
 		var since string
 		if len(oldCols) > 0 {
-			since = oldCols[0].Column.Build
+			since = oldCols[0].Column.Hint
 			newStop := time.Unix(int64(oldCols[0].Column.Started/1000), 0)
 			if newStop.After(stop) {
 				log.WithFields(logrus.Fields{

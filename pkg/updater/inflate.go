@@ -73,6 +73,9 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 			Column: col,
 			Cells:  make(map[string]Cell, len(rows)),
 		}
+		if col.Hint == "" { // TODO(fejta): drop after everything sets its hint.
+			col.Hint = col.Build
+		}
 		for rowName, rowCells := range rows {
 			item.Cells[rowName] = <-rowCells
 		}
