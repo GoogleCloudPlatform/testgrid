@@ -317,11 +317,19 @@ func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 //
 // If there are 20 columns where all are complete except the 3rd and 7th, this will
 // return the 8th and later columns.
+//
+// Running columns more than 3 days old are not considered.
 func truncateRunning(cols []InflatedColumn) []InflatedColumn {
 	if len(cols) == 0 {
 		return cols
 	}
+
+	floor := float64(time.Now().Add(-72*time.Hour).UTC().Unix() * 1000)
+
 	for i := len(cols) - 1; i >= 0; i-- {
+		if cols[i].Column.Started < floor {
+			continue
+		}
 		for _, cell := range cols[i].Cells {
 			if cell.Result == statuspb.TestStatus_RUNNING {
 				return cols[i+1:]

@@ -525,6 +525,8 @@ func TestSortGroups(t *testing.T) {
 }
 
 func TestTruncateRunning(t *testing.T) {
+	now := float64(time.Now().UTC().Unix() * 1000)
+	ancient := float64(time.Now().Add(-74*time.Hour).UTC().Unix() * 1000)
 	cases := []struct {
 		name     string
 		cols     []inflatedColumn
@@ -536,42 +538,104 @@ func TestTruncateRunning(t *testing.T) {
 		{
 			name: "keep everything (no Overall)",
 			cols: []inflatedColumn{
-				{Column: &statepb.Column{Build: "this"}},
-				{Column: &statepb.Column{Build: "that"}},
-				{Column: &statepb.Column{Build: "another"}},
+				{
+					Column: &statepb.Column{
+						Build:   "this",
+						Started: now,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "that",
+						Started: now,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "another",
+						Started: now,
+					},
+				},
 			},
 		},
 		{
 			name: "keep everything completed",
 			cols: []inflatedColumn{
 				{
-					Column: &statepb.Column{Build: "passed"},
-					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_PASS}},
+					Column: &statepb.Column{
+						Build:   "passed",
+						Started: now,
+					},
+					Cells: map[string]cell{overallRow: {Result: statuspb.TestStatus_PASS}},
 				},
 				{
-					Column: &statepb.Column{Build: "failed"},
-					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_FAIL}},
+					Column: &statepb.Column{
+						Build:   "failed",
+						Started: now,
+					},
+					Cells: map[string]cell{overallRow: {Result: statuspb.TestStatus_FAIL}},
 				},
 			},
 		},
 		{
 			name: "drop everything before oldest running",
 			cols: []inflatedColumn{
-				{Column: &statepb.Column{Build: "this1"}},
-				{Column: &statepb.Column{Build: "this2"}},
 				{
-					Column: &statepb.Column{Build: "running1"},
-					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{
+						Build:   "this1",
+						Started: now,
+					},
 				},
-				{Column: &statepb.Column{Build: "this3"}},
 				{
-					Column: &statepb.Column{Build: "running2"},
-					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{
+						Build:   "this2",
+						Started: now,
+					},
 				},
-				{Column: &statepb.Column{Build: "this4"}},
-				{Column: &statepb.Column{Build: "this5"}},
-				{Column: &statepb.Column{Build: "this6"}},
-				{Column: &statepb.Column{Build: "this7"}},
+				{
+					Column: &statepb.Column{
+						Build:   "running1",
+						Started: now,
+					},
+					Cells: map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "this3",
+						Started: now,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "running2",
+						Started: now,
+					},
+					Cells: map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "this4",
+						Started: now,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "this5",
+						Started: now,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "this6",
+						Started: now,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "this7",
+						Started: now,
+					},
+				},
 			},
 			expected: func(cols []inflatedColumn) []inflatedColumn {
 				return cols[5:] // this4 and earlier
@@ -581,12 +645,18 @@ func TestTruncateRunning(t *testing.T) {
 			name: "drop all as all are running",
 			cols: []inflatedColumn{
 				{
-					Column: &statepb.Column{Build: "running1"},
-					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{
+						Build:   "running1",
+						Started: now,
+					},
+					Cells: map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
 				},
 				{
-					Column: &statepb.Column{Build: "running2"},
-					Cells:  map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
+					Column: &statepb.Column{
+						Build:   "running2",
+						Started: now,
+					},
+					Cells: map[string]cell{overallRow: {Result: statuspb.TestStatus_RUNNING}},
 				},
 			},
 			expected: func(cols []inflatedColumn) []inflatedColumn {
@@ -597,21 +667,30 @@ func TestTruncateRunning(t *testing.T) {
 			name: "drop running columns if any process is running",
 			cols: []InflatedColumn{
 				{
-					Column: &statepb.Column{Build: "running"},
+					Column: &statepb.Column{
+						Build:   "running",
+						Started: now,
+					},
 					Cells: map[string]cell{
 						"process1": {Result: statuspb.TestStatus_RUNNING},
 						"process2": {Result: statuspb.TestStatus_RUNNING},
 					},
 				},
 				{
-					Column: &statepb.Column{Build: "running-partially"},
+					Column: &statepb.Column{
+						Build:   "running-partially",
+						Started: now,
+					},
 					Cells: map[string]cell{
 						"process1": {Result: statuspb.TestStatus_RUNNING},
 						"process2": {Result: statuspb.TestStatus_PASS},
 					},
 				},
 				{
-					Column: &statepb.Column{Build: "ok"},
+					Column: &statepb.Column{
+						Build:   "ok",
+						Started: now,
+					},
 					Cells: map[string]cell{
 						"process1": {Result: statuspb.TestStatus_PASS},
 						"process2": {Result: statuspb.TestStatus_PASS},
@@ -620,6 +699,43 @@ func TestTruncateRunning(t *testing.T) {
 			},
 			expected: func(cols []inflatedColumn) []inflatedColumn {
 				return cols[2:]
+			},
+		},
+		{
+			name: "ignore ancient running columns",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "recent-running",
+						Started: now,
+					},
+					Cells: map[string]cell{"drop": {Result: statuspb.TestStatus_RUNNING}},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "recent-done",
+						Started: now - 1,
+					},
+					Cells: map[string]cell{"keep": {Result: statuspb.TestStatus_PASS}},
+				},
+
+				{
+					Column: &statepb.Column{
+						Build:   "running-ancient",
+						Started: ancient,
+					},
+					Cells: map[string]cell{"too-old-to-drop": {Result: statuspb.TestStatus_RUNNING}},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "ok",
+						Started: ancient - 1,
+					},
+					Cells: map[string]cell{"also keep": {Result: statuspb.TestStatus_PASS}},
+				},
+			},
+			expected: func(cols []inflatedColumn) []inflatedColumn {
+				return cols[1:]
 			},
 		},
 	}
