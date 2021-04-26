@@ -1540,6 +1540,7 @@ func TestOverrideBuild(t *testing.T) {
 func TestGroupColumns(t *testing.T) {
 	cases := []struct {
 		name string
+		tg   *configpb.TestGroup
 		cols []InflatedColumn
 		want []InflatedColumn
 	}{
@@ -1788,11 +1789,59 @@ func TestGroupColumns(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ignore_old_results only takes newest",
+			tg: &configpb.TestGroup{
+				IgnoreOldResults: true,
+			},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "same",
+						Started: 9,
+					},
+					Cells: map[string]Cell{
+						"first": {ID: "first"},
+						"same":  {ID: "first-different"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "same",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"same":   {ID: "second-changed"},
+						"second": {ID: "second"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "same",
+						Started: 7,
+					},
+					Cells: map[string]Cell{
+						"first":  {ID: "first"},
+						"same":   {ID: "first-different"},
+						"second": {ID: "second"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := groupColumns(tc.cols)
+			tg := tc.tg
+			if tg == nil {
+				tg = &configpb.TestGroup{}
+			}
+			got := groupColumns(tg, tc.cols)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("groupColumns() got unexpected diff (-want +got):\n%s", diff)
 			}

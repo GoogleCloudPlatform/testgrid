@@ -457,7 +457,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	overrideBuild(tg, newCols)
 
 	cols := mergeColumns(newCols, oldCols)
-	cols = groupColumns(cols)
+	cols = groupColumns(tg, cols)
 
 	grid := constructGrid(log, tg, cols)
 	buf, err := marshalGrid(grid)
@@ -524,7 +524,7 @@ const columnIDSeparator = "\ue000"
 // Cells are joined together, splitting those with the same name.
 // Started is the smallest value.
 // Extra is the most recent filled value.
-func groupColumns(cols []InflatedColumn) []InflatedColumn {
+func groupColumns(tg *configpb.TestGroup, cols []InflatedColumn) []InflatedColumn {
 	groups := map[string][]InflatedColumn{}
 	var ids []string
 	for _, c := range cols {
@@ -583,8 +583,16 @@ func groupColumns(cols []InflatedColumn) []InflatedColumn {
 				count++
 			}
 		}
-		col.Cells = make(map[string]Cell, count)
+		if tg.IgnoreOldResults {
+			col.Cells = make(map[string]Cell, len(cells))
+		} else {
+			col.Cells = make(map[string]Cell, count)
+		}
 		for name, duplicateCells := range cells {
+			if tg.IgnoreOldResults {
+				col.Cells[name] = duplicateCells[0]
+				continue
+			}
 			for name, cell := range SplitCells(name, duplicateCells...) {
 				col.Cells[name] = cell
 			}
