@@ -34,9 +34,6 @@ type InflatedColumn struct {
 	Cells  map[string]Cell
 }
 
-// TODO(fejta): rename everything to InflatedColumn
-type inflatedColumn = InflatedColumn
-
 // Cell holds a row's values for a given column
 type Cell struct {
 	Result statuspb.TestStatus
@@ -49,9 +46,6 @@ type Cell struct {
 
 	Metrics map[string]float64
 }
-
-// TODO(fejta): rename everything to Cell
-type cell = Cell
 
 // inflateGrid inflates the grid's rows into an InflatedColumn channel.
 func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColumn {
