@@ -41,7 +41,16 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
 )
+
+type fakeUpload = fake.Upload
+type fakeStater = fake.Stater
+type fakeStat = fake.Stat
+type fakeUploader = fake.Uploader
+type fakeUploadClient = fake.UploadClient
+type fakeLister = fake.Lister
+type fakeOpener = fake.Opener
 
 func TestGCS(t *testing.T) {
 	cases := []struct {
@@ -146,14 +155,14 @@ func TestUpdate(t *testing.T) {
 			},
 			expected: fakeUploader{
 				*resolveOrDie(&configPath, "hello"): {
-					buf:          mustGrid(&statepb.Grid{}),
-					cacheControl: "no-cache",
-					worldRead:    gcs.DefaultACL,
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
 				},
 				*resolveOrDie(&configPath, "skip-non-k8s"): {
-					buf:          mustGrid(&statepb.Grid{}),
-					cacheControl: "no-cache",
-					worldRead:    gcs.DefaultACL,
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
 				},
 			},
 		},
@@ -182,22 +191,22 @@ func TestUpdate(t *testing.T) {
 			}
 
 			client := fakeUploadClient{
-				fakeUploader: fakeUploader{},
-				fakeClient: fakeClient{
-					fakeLister: fakeLister{},
-					fakeOpener: fakeOpener{},
+				Uploader: fakeUploader{},
+				Client: fakeClient{
+					Lister: fakeLister{},
+					Opener: fakeOpener{},
 				},
 			}
 
-			client.fakeOpener[configPath] = fakeObject{
-				data: func() string {
+			client.Opener[configPath] = fakeObject{
+				Data: func() string {
 					b, err := config.MarshalBytes(&tc.config)
 					if err != nil {
 						t.Fatalf("config.MarshalBytes() errored: %v", err)
 					}
 					return string(b)
 				}(),
-				readErr: tc.configErr,
+				ReadErr: tc.configErr,
 			}
 
 			for _, group := range tc.config.TestGroups {
@@ -206,13 +215,13 @@ func TestUpdate(t *testing.T) {
 					continue
 				}
 				buildsPath := newPathOrDie("gs://" + group.GcsPrefix)
-				fi := client.fakeLister[buildsPath]
-				for _, build := range client.addBuilds(buildsPath, builds...) {
-					fi.objects = append(fi.objects, storage.ObjectAttrs{
+				fi := client.Lister[buildsPath]
+				for _, build := range addBuilds(&client.Client, buildsPath, builds...) {
+					fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 						Prefix: build.Path.Object(),
 					})
 				}
-				client.fakeLister[buildsPath] = fi
+				client.Lister[buildsPath] = fi
 			}
 
 			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm)
@@ -235,7 +244,7 @@ func TestUpdate(t *testing.T) {
 			case tc.err:
 				t.Error("Update() failed to receive an errro")
 			default:
-				actual := client.fakeUploader
+				actual := client.Uploader
 				diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(fakeUpload{}))
 				if diff == "" {
 					return
@@ -305,88 +314,15 @@ func TestTestGroupPath(t *testing.T) {
 	}
 }
 
-type fakeUploadClient struct {
-	fakeClient
-	fakeUploader
-	fakeStater
-}
-
-func (fuc fakeUploadClient) If(read, write *storage.Conditions) gcs.ConditionalClient {
-	return fuc
-}
-
-type fakeStat struct {
-	err   error
-	attrs storage.ObjectAttrs
-}
-
-type fakeStater map[gcs.Path]fakeStat
-
-func (fs fakeStater) Stat(ctx context.Context, path gcs.Path) (*storage.ObjectAttrs, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("injected interrupt: %w", err)
-	}
-
-	ret, ok := fs[path]
-	if !ok {
-		return nil, storage.ErrObjectNotExist
-	}
-	if ret.err != nil {
-		return nil, fmt.Errorf("injected upload error: %w", ret.err)
-	}
-	return &ret.attrs, nil
-}
-
-type fakeUploader map[gcs.Path]fakeUpload
-
-func (fu fakeUploader) Copy(ctx context.Context, from, to gcs.Path) error {
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("injected interrupt: %w", err)
-	}
-	u, present := fu[from]
-	if !present {
-		return storage.ErrObjectNotExist
-	}
-	if err := u.err; err != nil {
-		return fmt.Errorf("injected from error: %w", err)
-	}
-
-	fu[to] = u
-	return nil
-}
-
-func (fuc fakeUploader) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cacheControl string) error {
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("injected interrupt: %w", err)
-	}
-	if err := fuc[path].err; err != nil {
-		return fmt.Errorf("injected upload error: %w", err)
-	}
-
-	fuc[path] = fakeUpload{
-		buf:          buf,
-		cacheControl: cacheControl,
-		worldRead:    worldRead,
-	}
-	return nil
-}
-
-type fakeUpload struct {
-	buf          []byte
-	cacheControl string
-	worldRead    bool
-	err          error
-}
-
 func jsonStarted(stamp int64) *fakeObject {
 	return &fakeObject{
-		data: jsonData(metadata.Started{Timestamp: stamp}),
+		Data: jsonData(metadata.Started{Timestamp: stamp}),
 	}
 }
 
 func jsonFinished(stamp int64, passed bool, meta metadata.Metadata) *fakeObject {
 	return &fakeObject{
-		data: jsonData(metadata.Finished{
+		Data: jsonData(metadata.Finished{
 			Timestamp: &stamp,
 			Passed:    &passed,
 			Metadata:  meta,
@@ -412,7 +348,7 @@ var (
 )
 
 func jsonPodInfo(podInfo gcs.PodInfo) *fakeObject {
-	return &fakeObject{data: jsonData(podInfo)}
+	return &fakeObject{Data: jsonData(podInfo)}
 }
 
 func mustGrid(grid *statepb.Grid) []byte {
@@ -508,9 +444,9 @@ func TestSortGroups(t *testing.T) {
 			for name, updated := range tc.updated {
 				var stat fakeStat
 				if updated == nil {
-					stat.err = errors.New("error")
+					stat.Err = errors.New("error")
 				} else {
-					stat.attrs.Updated = *updated
+					stat.Attrs.Updated = *updated
 				}
 				path, err := testGroupPath(*configPath, gridPrefix, name)
 				if err != nil {
@@ -848,7 +784,7 @@ func TestListBuilds(t *testing.T) {
 			name: "list stuff correctly",
 			client: fakeLister{
 				newPathOrDie("gs://prefix/job/"): fakeIterator{
-					objects: []storage.ObjectAttrs{
+					Objects: []storage.ObjectAttrs{
 						{
 							Prefix: "job/1/",
 						},
@@ -859,9 +795,9 @@ func TestListBuilds(t *testing.T) {
 							Prefix: "job/2/",
 						},
 					},
-					idx:    0,
-					err:    0,
-					offset: "",
+					Idx:    0,
+					Err:    0,
+					Offset: "",
 				},
 			},
 			paths: []gcs.Path{
@@ -884,7 +820,7 @@ func TestListBuilds(t *testing.T) {
 			since: "3",
 			client: fakeLister{
 				newPathOrDie("gs://prefix/job/"): fakeIterator{
-					objects: []storage.ObjectAttrs{
+					Objects: []storage.ObjectAttrs{
 						{
 							Prefix: "job/1/",
 						},
@@ -898,9 +834,9 @@ func TestListBuilds(t *testing.T) {
 							Prefix: "job/3/",
 						},
 					},
-					idx:    0,
-					err:    0,
-					offset: "",
+					Idx:    0,
+					Err:    0,
+					Offset: "",
 				},
 			},
 			paths: []gcs.Path{
@@ -919,7 +855,7 @@ func TestListBuilds(t *testing.T) {
 			name: "collate stuff correctly",
 			client: fakeLister{
 				newPathOrDie("gs://prefix/job/"): fakeIterator{
-					objects: []storage.ObjectAttrs{
+					Objects: []storage.ObjectAttrs{
 						{
 							Prefix: "job/1/",
 						},
@@ -932,7 +868,7 @@ func TestListBuilds(t *testing.T) {
 					},
 				},
 				newPathOrDie("gs://other-prefix/presubmit-job/"): fakeIterator{
-					objects: []storage.ObjectAttrs{
+					Objects: []storage.ObjectAttrs{
 						{
 							Name: "job/2",
 							Metadata: map[string]string{
@@ -988,7 +924,7 @@ func TestListBuilds(t *testing.T) {
 			since: "5", // drop 4 3 2 1, keep 20, 10
 			client: fakeLister{
 				newPathOrDie("gs://prefix/job/"): fakeIterator{
-					objects: []storage.ObjectAttrs{
+					Objects: []storage.ObjectAttrs{
 						{
 							Prefix: "job/1/",
 						},
@@ -1001,7 +937,7 @@ func TestListBuilds(t *testing.T) {
 					},
 				},
 				newPathOrDie("gs://other-prefix/presubmit-job/"): fakeIterator{
-					objects: []storage.ObjectAttrs{
+					Objects: []storage.ObjectAttrs{
 						{
 							Name: "job/2",
 							Metadata: map[string]string{
@@ -1124,7 +1060,7 @@ func TestInflateDropAppend(t *testing.T) {
 				},
 			},
 			expected: &fakeUpload{
-				buf: mustGrid(&statepb.Grid{
+				Buf: mustGrid(&statepb.Grid{
 					Columns: []*statepb.Column{
 						{
 							Build:   "99",
@@ -1221,8 +1157,8 @@ func TestInflateDropAppend(t *testing.T) {
 						),
 					},
 				}),
-				cacheControl: "no-cache",
-				worldRead:    gcs.DefaultACL,
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
 			},
 		},
 		{
@@ -1289,21 +1225,21 @@ func TestInflateDropAppend(t *testing.T) {
 			}
 
 			client := fakeUploadClient{
-				fakeUploader: fakeUploader{},
-				fakeClient: fakeClient{
-					fakeLister: fakeLister{},
-					fakeOpener: fakeOpener{},
+				Uploader: fakeUploader{},
+				Client: fakeClient{
+					Lister: fakeLister{},
+					Opener: fakeOpener{},
 				},
 			}
 
 			buildsPath := newPathOrDie("gs://" + tc.group.GcsPrefix)
-			fi := client.fakeLister[buildsPath]
-			for _, build := range client.addBuilds(buildsPath, tc.builds...) {
-				fi.objects = append(fi.objects, storage.ObjectAttrs{
+			fi := client.Lister[buildsPath]
+			for _, build := range addBuilds(&client.Client, buildsPath, tc.builds...) {
+				fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 					Prefix: build.Path.Object(),
 				})
 			}
-			client.fakeLister[buildsPath] = fi
+			client.Lister[buildsPath] = fi
 
 			colReader := gcsColumnReader(client, *tc.buildTimeout, tc.concurrency)
 			err := InflateDropAppend(
@@ -1327,20 +1263,20 @@ func TestInflateDropAppend(t *testing.T) {
 				if tc.expected != nil {
 					expected[uploadPath] = *tc.expected
 				}
-				actual := client.fakeUploader
+				actual := client.Uploader
 				diff := cmp.Diff(actual, expected, cmp.AllowUnexported(gcs.Path{}, fakeUpload{}), protocmp.Transform())
 				if diff == "" {
 					return
 				}
 				t.Errorf("updateGroup() got unexpected diff (-have, +want):\n%s", diff)
 				fakeDownloader := fakeOpener{
-					uploadPath: {data: string(actual[uploadPath].buf)},
+					uploadPath: {Data: string(actual[uploadPath].Buf)},
 				}
 				actualGrid, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
 					t.Errorf("actual gcs.DownloadGrid() got unexpected error: %v", err)
 				}
-				fakeDownloader[uploadPath] = fakeObject{data: string(tc.expected.buf)}
+				fakeDownloader[uploadPath] = fakeObject{Data: string(tc.expected.Buf)}
 				expectedGrid, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
 					t.Errorf("expected gcs.DownloadGrid() got unexpected error: %v", err)
