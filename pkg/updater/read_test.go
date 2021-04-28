@@ -17,13 +17,10 @@ limitations under the License.
 package updater
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
-	"fmt"
-	"io"
 	"net/url"
 	"reflect"
 	"sort"
@@ -36,13 +33,17 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/api/iterator"
 	"google.golang.org/protobuf/testing/protocmp"
 	core "k8s.io/api/core/v1"
 )
+
+type fakeObject = fake.Object
+type fakeClient = fake.Client
+type fakeIterator = fake.Iterator
 
 func TestDownloadGrid(t *testing.T) {
 	cases := []struct {
@@ -128,10 +129,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "11",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 11}),
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 22),
 							Passed:    &no,
 						}),
@@ -141,10 +142,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 						}),
@@ -197,10 +198,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "11",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 11}),
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 22),
 							Passed:    &no,
 							Metadata: metadata.Metadata{
@@ -214,10 +215,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 							Metadata: metadata.Metadata{
@@ -290,21 +291,21 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					podInfo: podInfoSuccess,
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 						}),
 					},
 					artifacts: map[string]fakeObject{
 						"junit_context-a_33.xml": {
-							data: makeJunit([]string{"good"}, []string{"bad"}),
+							Data: makeJunit([]string{"good"}, []string{"bad"}),
 						},
 						"junit_context-b_44.xml": {
-							data: makeJunit([]string{"good"}, []string{"bad"}),
+							Data: makeJunit([]string{"good"}, []string{"bad"}),
 						},
 					},
 				},
@@ -368,10 +369,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "12",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 12}),
+						Data: jsonData(metadata.Started{Timestamp: now + 12}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 24),
 							Passed:    &yes,
 						}),
@@ -380,10 +381,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "11",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 11}),
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 22),
 							Passed:    &yes,
 						}),
@@ -393,10 +394,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 						}),
@@ -448,10 +449,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "13",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 13}),
+						Data: jsonData(metadata.Started{Timestamp: now + 13}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 26),
 							Passed:    &yes,
 						}),
@@ -461,10 +462,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "12",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 12}),
+						Data: jsonData(metadata.Started{Timestamp: now + 12}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 24),
 							Passed:    &yes,
 						}),
@@ -473,10 +474,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "11",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 11}),
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 22),
 							Passed:    &yes,
 						}),
@@ -485,10 +486,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 						}),
@@ -541,10 +542,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "13",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 13}),
+						Data: jsonData(metadata.Started{Timestamp: now + 13}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 26),
 							Passed:    &yes,
 						}),
@@ -554,10 +555,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "12",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 12}),
+						Data: jsonData(metadata.Started{Timestamp: now + 12}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 24),
 							Passed:    &yes,
 						}),
@@ -566,10 +567,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "11",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 11}),
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 22),
 							Passed:    &yes,
 						}),
@@ -579,10 +580,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 						}),
@@ -667,10 +668,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "13",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 13}),
+						Data: jsonData(metadata.Started{Timestamp: now + 13}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 26),
 							Passed:    &yes,
 						}),
@@ -679,10 +680,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "12",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 12}),
+						Data: jsonData(metadata.Started{Timestamp: now + 12}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 24),
 							Passed:    &yes,
 						}),
@@ -692,10 +693,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "11",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 11}),
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 22),
 							Passed:    &yes,
 						}),
@@ -704,10 +705,10 @@ func TestReadColumns(t *testing.T) {
 				{
 					id: "10",
 					started: &fakeObject{
-						data: jsonData(metadata.Started{Timestamp: now + 10}),
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
 					},
 					finished: &fakeObject{
-						data: jsonData(metadata.Finished{
+						Data: jsonData(metadata.Finished{
 							Timestamp: pint64(now + 20),
 							Passed:    &yes,
 						}),
@@ -773,11 +774,11 @@ func TestReadColumns(t *testing.T) {
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
 			client := fakeClient{
-				fakeLister: fakeLister{},
-				fakeOpener: fakeOpener{},
+				Lister: fake.Lister{},
+				Opener: fake.Opener{},
 			}
 
-			builds := client.addBuilds(path, tc.builds...)
+			builds := addBuilds(&client, path, tc.builds...)
 
 			if tc.concurrency == 0 {
 				tc.concurrency = 1
@@ -1060,10 +1061,10 @@ func TestReadResult(t *testing.T) {
 		{
 			name: "all info present",
 			data: map[string]fakeObject{
-				"podinfo.json":       {data: `{"pod":{"metadata":{"name":"woot"}}}`},
-				"started.json":       {data: `{"node": "fun"}`},
-				"finished.json":      {data: `{"passed": true}`},
-				"junit_super_88.xml": {data: `<testsuite><testcase name="foo"/></testsuite>`},
+				"podinfo.json":       {Data: `{"pod":{"metadata":{"name":"woot"}}}`},
+				"started.json":       {Data: `{"node": "fun"}`},
+				"finished.json":      {Data: `{"passed": true}`},
+				"junit_super_88.xml": {Data: `<testsuite><testcase name="foo"/></testsuite>`},
 			},
 			expected: &gcsResult{
 				podInfo: func() gcs.PodInfo {
@@ -1102,9 +1103,9 @@ func TestReadResult(t *testing.T) {
 		{
 			name: "empty files report missing",
 			data: map[string]fakeObject{
-				"finished.json": {data: ""},
-				"started.json":  {data: ""},
-				"podinfo.json":  {data: ""},
+				"finished.json": {Data: ""},
+				"started.json":  {Data: ""},
+				"podinfo.json":  {Data: ""},
 			},
 			expected: &gcsResult{
 				malformed: []string{
@@ -1117,8 +1118,8 @@ func TestReadResult(t *testing.T) {
 		{
 			name: "missing started.json reports pending",
 			data: map[string]fakeObject{
-				"finished.json":      {data: `{"passed": true}`},
-				"junit_super_88.xml": {data: `<testsuite><testcase name="foo"/></testsuite>`},
+				"finished.json":      {Data: `{"passed": true}`},
+				"junit_super_88.xml": {Data: `<testsuite><testcase name="foo"/></testsuite>`},
 			},
 			expected: &gcsResult{
 				started: gcs.Started{
@@ -1152,8 +1153,8 @@ func TestReadResult(t *testing.T) {
 		{
 			name: "no finished reports running",
 			data: map[string]fakeObject{
-				"started.json":       {data: `{"node": "fun"}`},
-				"junit_super_88.xml": {data: `<testsuite><testcase name="foo"/></testsuite>`},
+				"started.json":       {Data: `{"node": "fun"}`},
+				"junit_super_88.xml": {Data: `<testsuite><testcase name="foo"/></testsuite>`},
 			},
 			expected: &gcsResult{
 				started: gcs.Started{
@@ -1187,8 +1188,8 @@ func TestReadResult(t *testing.T) {
 		{
 			name: "no artifacts report no suites",
 			data: map[string]fakeObject{
-				"started.json":  {data: `{"node": "fun"}`},
-				"finished.json": {data: `{"passed": true}`},
+				"started.json":  {Data: `{"node": "fun"}`},
+				"finished.json": {Data: `{"passed": true}`},
 			},
 			expected: &gcsResult{
 				started: gcs.Started{
@@ -1203,27 +1204,27 @@ func TestReadResult(t *testing.T) {
 			name: "started error returns error",
 			data: map[string]fakeObject{
 				"started.json": {
-					data:     "{}",
-					closeErr: errors.New("injected closer error"),
+					Data:     "{}",
+					CloseErr: errors.New("injected closer error"),
 				},
-				"finished.json":      {data: `{"passed": true}`},
-				"junit_super_88.xml": {data: `<testsuite><testcase name="foo"/></testsuite>`},
+				"finished.json":      {Data: `{"passed": true}`},
+				"junit_super_88.xml": {Data: `<testsuite><testcase name="foo"/></testsuite>`},
 			},
 		},
 		{
 			name: "finished error returns error",
 			data: map[string]fakeObject{
-				"started.json":       {data: `{"node": "fun"}`},
-				"finished.json":      {readErr: errors.New("injected read error")},
-				"junit_super_88.xml": {data: `<testsuite><testcase name="foo"/></testsuite>`},
+				"started.json":       {Data: `{"node": "fun"}`},
+				"finished.json":      {ReadErr: errors.New("injected read error")},
+				"junit_super_88.xml": {Data: `<testsuite><testcase name="foo"/></testsuite>`},
 			},
 		},
 		{
 			name: "artifact error added to malformed list",
 			data: map[string]fakeObject{
-				"started.json":       {data: `{"node": "fun"}`},
-				"finished.json":      {data: `{"passed": true}`},
-				"junit_super_88.xml": {openErr: errors.New("injected open error")},
+				"started.json":       {Data: `{"node": "fun"}`},
+				"finished.json":      {Data: `{"passed": true}`},
+				"junit_super_88.xml": {OpenErr: errors.New("injected open error")},
 			},
 			expected: &gcsResult{
 				started: gcs.Started{
@@ -1249,8 +1250,8 @@ func TestReadResult(t *testing.T) {
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
 			client := fakeClient{
-				fakeLister: fakeLister{},
-				fakeOpener: fakeOpener{},
+				Lister: fake.Lister{},
+				Opener: fake.Opener{},
 			}
 
 			fi := fakeIterator{}
@@ -1259,12 +1260,12 @@ func TestReadResult(t *testing.T) {
 				if err != nil {
 					t.Fatalf("path.ResolveReference(%q): %v", name, err)
 				}
-				fi.objects = append(fi.objects, storage.ObjectAttrs{
+				fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 					Name: p.Object(),
 				})
-				client.fakeOpener[*p] = fo
+				client.Opener[*p] = fo
 			}
-			client.fakeLister[path] = fi
+			client.Lister[path] = fi
 
 			build := gcs.Build{
 				Path: path,
@@ -1310,11 +1311,11 @@ func TestReadSuites(t *testing.T) {
 		{
 			name: "multiple suites from multiple artifacts work",
 			data: map[string]fakeObject{
-				"ignore-this": {data: "<invalid></xml>"},
-				"junit.xml":   {data: `<testsuite><testcase name="hi"/></testsuite>`},
-				"ignore-that": {data: "<invalid></xml>"},
+				"ignore-this": {Data: "<invalid></xml>"},
+				"junit.xml":   {Data: `<testsuite><testcase name="hi"/></testsuite>`},
+				"ignore-that": {Data: "<invalid></xml>"},
 				"nested/junit_context_20201122-1234_88.xml": {
-					data: `
+					Data: `
                         <testsuites>
                             <testsuite name="fun">
                                 <testsuite name="knee">
@@ -1385,9 +1386,9 @@ func TestReadSuites(t *testing.T) {
 		{
 			name: "list error returns error",
 			data: map[string]fakeObject{
-				"ignore-this": {data: "<invalid></xml>"},
-				"junit.xml":   {data: `<testsuite><testcase name="hi"/></testsuite>`},
-				"ignore-that": {data: "<invalid></xml>"},
+				"ignore-this": {Data: "<invalid></xml>"},
+				"junit.xml":   {Data: `<testsuite><testcase name="hi"/></testsuite>`},
+				"ignore-that": {Data: "<invalid></xml>"},
 			},
 			listIdxErr: 1,
 			err:        true,
@@ -1404,7 +1405,7 @@ func TestReadSuites(t *testing.T) {
 		{
 			name: "suites error returns error",
 			data: map[string]fakeObject{
-				"junit.xml": {data: "<invalid></xml>"},
+				"junit.xml": {Data: "<invalid></xml>"},
 			},
 			err: true,
 		},
@@ -1418,24 +1419,24 @@ func TestReadSuites(t *testing.T) {
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
 			client := fakeClient{
-				fakeLister: fakeLister{},
-				fakeOpener: fakeOpener{},
+				Lister: fake.Lister{},
+				Opener: fake.Opener{},
 			}
 
 			fi := fakeIterator{
-				err: tc.listIdxErr,
+				Err: tc.listIdxErr,
 			}
 			for name, fo := range tc.data {
 				p, err := path.ResolveReference(&url.URL{Path: name})
 				if err != nil {
 					t.Fatalf("path.ResolveReference(%q): %v", name, err)
 				}
-				fi.objects = append(fi.objects, storage.ObjectAttrs{
+				fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 					Name: p.Object(),
 				})
-				client.fakeOpener[*p] = fo
+				client.Opener[*p] = fo
 			}
-			client.fakeLister[path] = fi
+			client.Lister[path] = fi
 
 			build := gcs.Build{
 				Path: path,
@@ -1463,145 +1464,49 @@ func TestReadSuites(t *testing.T) {
 	}
 }
 
-type fakeOpener map[gcs.Path]fakeObject
-
-func (fo fakeOpener) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, error) {
-	o, ok := fo[path]
-	if !ok {
-		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
-	}
-	if o.openErr != nil {
-		return nil, o.openErr
-	}
-	return &fakeReader{
-		buf:      bytes.NewBufferString(o.data),
-		readErr:  o.readErr,
-		closeErr: o.closeErr,
-	}, nil
-}
-
-type fakeObject struct {
-	data     string
-	openErr  error
-	readErr  error
-	closeErr error
-}
-
-type fakeReader struct {
-	buf      *bytes.Buffer
-	readErr  error
-	closeErr error
-}
-
-func (fr *fakeReader) Read(p []byte) (int, error) {
-	if fr.readErr != nil {
-		return 0, fr.readErr
-	}
-	return fr.buf.Read(p)
-}
-
-func (fr *fakeReader) Close() error {
-	if fr.closeErr != nil {
-		return fr.closeErr
-	}
-	fr.readErr = errors.New("already closed")
-	fr.closeErr = fr.readErr
-	return nil
-}
-
-type fakeLister map[gcs.Path]fakeIterator
-
-func (fl fakeLister) Objects(ctx context.Context, path gcs.Path, _, offset string) gcs.Iterator {
-	f := fl[path]
-	f.ctx = ctx
-	return &f
-}
-
-type fakeIterator struct {
-	objects []storage.ObjectAttrs
-	idx     int
-	err     int // must be > 0
-	ctx     context.Context
-	offset  string
-}
-
-type fakeClient struct {
-	fakeLister
-	fakeOpener
-}
-
-func (fi *fakeIterator) Next() (*storage.ObjectAttrs, error) {
-	if fi.ctx.Err() != nil {
-		return nil, fi.ctx.Err()
-	}
-	for fi.idx < len(fi.objects) {
-		if fi.offset == "" {
-			break
-		}
-		name, prefix := fi.objects[fi.idx].Name, fi.objects[fi.idx].Prefix
-		if name != "" && name < fi.offset {
-			continue
-		}
-		if prefix != "" && prefix < fi.offset {
-			continue
-		}
-		fi.idx++
-	}
-	if fi.idx >= len(fi.objects) {
-		return nil, iterator.Done
-	}
-	if fi.idx > 0 && fi.idx == fi.err {
-		return nil, errors.New("injected fakeIterator error")
-	}
-
-	o := fi.objects[fi.idx]
-	fi.idx++
-	return &o, nil
-}
-
-func (fc *fakeClient) addBuilds(path gcs.Path, fakes ...fakeBuild) []gcs.Build {
+func addBuilds(fc *fake.Client, path gcs.Path, s ...fakeBuild) []gcs.Build {
 	var builds []gcs.Build
-	for _, build := range fakes {
+	for _, build := range s {
 		buildPath := resolveOrDie(&path, build.id+"/")
 		builds = append(builds, gcs.Build{Path: *buildPath})
-		fi := fakeIterator{}
+		fi := fake.Iterator{}
 
 		if build.podInfo != nil {
 			p := resolveOrDie(buildPath, "podinfo.json")
-			fi.objects = append(fi.objects, storage.ObjectAttrs{
+			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.fakeOpener[*p] = *build.podInfo
+			fc.Opener[*p] = *build.podInfo
 		}
 		if build.started != nil {
 			p := resolveOrDie(buildPath, "started.json")
-			fi.objects = append(fi.objects, storage.ObjectAttrs{
+			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.fakeOpener[*p] = *build.started
+			fc.Opener[*p] = *build.started
 		}
 		if build.finished != nil {
 			p := resolveOrDie(buildPath, "finished.json")
-			fi.objects = append(fi.objects, storage.ObjectAttrs{
+			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.fakeOpener[*p] = *build.finished
+			fc.Opener[*p] = *build.finished
 		}
 		if len(build.passed)+len(build.failed) > 0 {
 			p := resolveOrDie(buildPath, "junit_automatic.xml")
-			fc.fakeOpener[*p] = fakeObject{data: makeJunit(build.passed, build.failed)}
-			fi.objects = append(fi.objects, storage.ObjectAttrs{
+			fc.Opener[*p] = fake.Object{Data: makeJunit(build.passed, build.failed)}
+			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
 		}
 		for n, fo := range build.artifacts {
 			p := resolveOrDie(buildPath, n)
-			fi.objects = append(fi.objects, storage.ObjectAttrs{
+			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.fakeOpener[*p] = fo
+			fc.Opener[*p] = fo
 		}
-		fc.fakeLister[*buildPath] = fi
+		fc.Lister[*buildPath] = fi
 	}
 	return builds
 
