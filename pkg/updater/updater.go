@@ -33,7 +33,6 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -71,52 +70,25 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) 
 
 // sortGroups sorts test groups by last update time, returning the current generation ID for each group.
 func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) (map[string]int64, error) {
-	log.Info("Sorting groups")
-	updated := make(map[string]time.Time, len(groups))
-	generations := make(map[string]int64, len(groups))
-	var wg sync.WaitGroup
-	var lock sync.Mutex
+	groupedPaths := make(map[gcs.Path]*configpb.TestGroup, len(groups))
+	paths := make([]gcs.Path, 0, len(groups))
 	for _, tg := range groups {
 		tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
 		if err != nil {
 			return nil, fmt.Errorf("%s bad group path: %w", tg.Name, err)
 		}
-		wg.Add(1)
-		log := log.WithField("group", tg.Name)
-		name := tg.Name
-		go func() {
-			defer wg.Done()
-			attrs, err := client.Stat(ctx, *tgp)
-			lock.Lock()
-			defer lock.Unlock()
-			switch {
-			case err == storage.ErrObjectNotExist:
-				log.Info("No existing grid state")
-				generations[name] = 0
-			case err != nil:
-				log.WithError(err).Warning("Cannot determine group update time")
-				generations[name] = -1 // Should always fail
-			default:
-				updated[name] = attrs.Updated
-				generations[name] = attrs.Generation
-				log.WithField("updated", attrs.Updated).Debug("Found updated time")
-			}
-		}()
+		groupedPaths[*tgp] = tg
+		paths = append(paths, *tgp)
 	}
-	wg.Wait()
 
-	sort.SliceStable(groups, func(i, j int) bool {
-		return !updated[groups[i].Name].After(updated[groups[j].Name])
-	})
-	n := len(groups) - 1
-	if n > 0 {
-		log.WithFields(logrus.Fields{
-			"newest-name": groups[n].Name,
-			"newest":      updated[groups[n].Name],
-			"oldest-name": groups[0].Name,
-			"oldest":      updated[groups[0].Name],
-		}).Info("Sorted")
+	generationPaths := gcs.LeastRecentlyUpdated(ctx, log, client, paths)
+	generations := make(map[string]int64, len(generationPaths))
+	for i, p := range paths {
+		tg := groupedPaths[p]
+		groups[i] = tg
+		generations[tg.Name] = generationPaths[p]
 	}
+
 	return generations, nil
 }
 
@@ -127,23 +99,16 @@ func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, 
 // will only allow one of them to "win". The others receive a PreconditionFailed error and can
 // move onto the next group.
 func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) error {
-	var cond storage.Conditions
-	if generation != 0 {
-		// Attempt to cloud-copy the object to its current location
-		// - only 1 will win in a concurrent situation
-		// - Increases the last update time.
-		cond.GenerationMatch = generation
-		return client.If(&cond, &cond).Copy(ctx, path, path)
+	var buf []byte
+	if generation == 0 {
+		var grid statepb.Grid
+		var err error
+		if buf, err = marshalGrid(&grid); err != nil {
+			return fmt.Errorf("marshal: %w", err)
+		}
 	}
 
-	// New group, create an empty grid for it.
-	cond.DoesNotExist = true
-	var grid statepb.Grid
-	buf, err := marshalGrid(&grid)
-	if err != nil {
-		return fmt.Errorf("marshal: %w", err)
-	}
-	return client.If(&cond, &cond).Upload(ctx, path, buf, gcs.DefaultACL, "no-cache")
+	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
 // Update performs a single update pass of all all test groups specified by the config.
@@ -178,18 +143,20 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 				}
 				if write && generations != nil {
 					if err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
+						var ok bool
 						switch ee := err.(type) {
 						case *googleapi.Error:
 							if ee.Code == http.StatusPreconditionFailed {
+								ok = true
 								log.Debug("Lost the lock race")
-								continue
 							}
 						}
-						log.WithError(err).Warning("Failed to acquire lock")
+						if !ok {
+							log.WithError(err).Warning("Failed to acquire lock")
+						}
 						continue
-					} else {
-						log.Debug("Acquired update lock")
 					}
+					log.Debug("Acquired update lock")
 				}
 				if err := updateGroup(ctx, log, client, &tg, *tgp); err != nil {
 					log.WithError(err).Error("Error updating group")
@@ -209,12 +176,10 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 		}
 		groups <- *tg
 	} else { // All groups
-		log.Info("Sorting groups")
 		generations, err = sortGroups(ctx, log, client, configPath, gridPrefix, cfg.TestGroups)
 		if err != nil {
 			log.WithError(err).Warning("Failed to sort groups")
 		}
-		log.Info("Sorted")
 		idxChan := make(chan int)
 		defer close(idxChan)
 		go logUpdate(idxChan, len(cfg.TestGroups), "Update in progress")

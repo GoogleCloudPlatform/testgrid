@@ -22,11 +22,90 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
+
+type ConditionalClient struct {
+	UploadClient
+	read, write *storage.Conditions
+}
+
+func (cc ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error {
+	if from != nil && cc.read != nil {
+		attrs, err := cc.Stat(ctx, *from)
+		if err != nil {
+			return err
+		}
+		if cc.read.GenerationMatch != 0 && cc.read.GenerationMatch != attrs.Generation {
+			return fmt.Errorf("bad generation: %w", &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			})
+		}
+	}
+	if to != nil && cc.write != nil {
+		attrs, err := cc.Stat(ctx, *to)
+		switch {
+		case err == storage.ErrObjectNotExist:
+			if cc.write.GenerationMatch != 0 {
+				return fmt.Errorf("bad generation: %w", &googleapi.Error{
+					Code: http.StatusPreconditionFailed,
+				})
+			}
+		case err != nil:
+			return err
+		case cc.write.GenerationMatch != 0 && cc.write.GenerationMatch != attrs.Generation:
+			return fmt.Errorf("bad generation: %w", &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			})
+		}
+	}
+	return nil
+}
+
+func (cc ConditionalClient) Copy(ctx context.Context, from, to gcs.Path) error {
+	if err := cc.check(ctx, &from, &to); err != nil {
+		return err
+	}
+
+	gen := cc.Uploader[to].Generation + 1
+	if err := cc.UploadClient.Copy(ctx, from, to); err != nil {
+		return err
+	}
+	u := cc.Uploader[to]
+	u.Generation = gen
+	cc.Uploader[to] = u
+	return nil
+}
+
+func (cc ConditionalClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cache string) error {
+	if err := cc.check(ctx, nil, &path); err != nil {
+		return err
+	}
+
+	gen := cc.Uploader[path].Generation + 1
+	err := cc.UploadClient.Upload(ctx, path, buf, worldRead, cache)
+	if err != nil {
+		return err
+	}
+
+	u := cc.Uploader[path]
+	u.Generation = gen
+	cc.Uploader[path] = u
+	return nil
+}
+
+func (cc ConditionalClient) If(read, write *storage.Conditions) gcs.ConditionalClient {
+	return ConditionalClient{
+		UploadClient: cc.UploadClient,
+		read:         read,
+		write:        write,
+	}
+}
 
 type UploadClient struct {
 	Client
@@ -74,6 +153,7 @@ func (fu Uploader) Copy(ctx context.Context, from, to gcs.Path) error {
 		return fmt.Errorf("injected from error: %w", err)
 	}
 
+	u.Generation++
 	fu[to] = u
 	return nil
 }
@@ -99,6 +179,7 @@ type Upload struct {
 	CacheControl string
 	WorldRead    bool
 	Err          error
+	Generation   int64
 }
 
 type Opener map[gcs.Path]Object
