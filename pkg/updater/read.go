@@ -34,7 +34,7 @@ import (
 )
 
 func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency int) ColumnReader {
-	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []inflatedColumn, stop time.Time) ([]inflatedColumn, error) {
+	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error) {
 		tgPaths, err := groupPaths(tg)
 		if err != nil {
 			return nil, fmt.Errorf("group path: %w", err)
@@ -68,7 +68,7 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 }
 
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(parent context.Context, client gcs.Downloader, group *configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]inflatedColumn, error) {
+func readColumns(parent context.Context, client gcs.Downloader, group *configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]InflatedColumn, error) {
 	// Spawn build readers
 	if concurrency == 0 {
 		return nil, errors.New("zero readers")
@@ -92,7 +92,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 		builds = builds[:max]
 	}
 	maxIdx := len(builds)
-	cols := make([]inflatedColumn, maxIdx)
+	cols := make([]InflatedColumn, maxIdx)
 	log.WithField("timeout", buildTimeout).Debug("Updating")
 	ec := make(chan error)
 	old := make(chan int)

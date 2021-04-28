@@ -29,6 +29,12 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
+// TODO(fejta): rename everything to InflatedColumn
+type inflatedColumn = InflatedColumn
+
+// TODO(fejta): rename everything to Cell
+type cell = Cell
+
 func blank(n int) []string {
 	var out []string
 	for i := 0; i < n; i++ {

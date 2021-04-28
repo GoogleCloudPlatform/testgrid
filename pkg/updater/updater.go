@@ -330,7 +330,7 @@ func growMaxUpdateArea() {
 	updateAreaLock.Unlock()
 }
 
-func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
+func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []InflatedColumn) []gcs.Build {
 	// determine the average number of rows per column
 	var rows int
 	for _, c := range cols {
@@ -391,7 +391,7 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 }
 
 // A ColumnReader will find, process and return new columns to insert into the front of grid state.
-type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []inflatedColumn, stop time.Time) ([]inflatedColumn, error)
+type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error)
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
 func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader) error {
@@ -404,7 +404,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 
 	stop := time.Now().Add(-dur)
 
-	var oldCols []inflatedColumn
+	var oldCols []InflatedColumn
 
 	old, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
@@ -602,7 +602,7 @@ func days(d float64) time.Duration {
 // constructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []inflatedColumn) *statepb.Grid {
+func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -705,7 +705,7 @@ func hasCellID(name string) bool {
 // appendCell adds the rowResult column to the row.
 //
 // Handles the details like missing fields and run-length-encoding the result.
-func appendCell(row *statepb.Row, cell cell, start, count int) {
+func appendCell(row *statepb.Row, cell Cell, start, count int) {
 	latest := int32(cell.Result)
 	n := len(row.Results)
 	switch {

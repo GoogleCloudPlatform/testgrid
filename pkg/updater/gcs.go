@@ -233,8 +233,8 @@ func SplitCells(originalName string, cells ...Cell) map[string]Cell {
 	return out
 }
 
-// convertResult returns an inflatedColumn representation of the GCS result.
-func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, opt groupOptions) (*inflatedColumn, error) {
+// convertResult returns an InflatedColumn representation of the GCS result.
+func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, opt groupOptions) (*InflatedColumn, error) {
 	cells := map[string][]Cell{}
 	var cellID string
 	if nameCfg.multiJob {
@@ -334,7 +334,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		cells[name] = append([]Cell{c}, cells[name]...)
 	}
 
-	out := inflatedColumn{
+	out := InflatedColumn{
 		Column: &statepb.Column{
 			Build:   id,
 			Started: float64(result.started.Timestamp * 1000),
