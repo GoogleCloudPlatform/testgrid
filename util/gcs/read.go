@@ -24,7 +24,6 @@ import (
 	"net/url"
 	"path"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -181,22 +180,6 @@ func readLink(objAttrs *storage.ObjectAttrs) string {
 		return link
 	}
 	return ""
-}
-
-// Sort the builds by monotonically increasing original prefix base name.
-//
-// In other words,
-//   gs://c/10
-//   gs://a/5
-//   gs://b/1
-// becomes:
-//   gs://b/1
-//   gs://a/5
-//   gs://c/10
-func Sort(builds []Build) {
-	sort.SliceStable(builds, func(i, j int) bool {
-		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName)
-	})
 }
 
 // hackOffset handles tot's sequential names, which GCS handles poorly

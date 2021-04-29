@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/fvbommel/sortorder"
 	"github.com/sirupsen/logrus"
 )
 
@@ -92,4 +93,20 @@ func Touch(ctx context.Context, client ConditionalClient, path Path, generation 
 	// New group, upload the bytes for this situation.
 	cond.DoesNotExist = true
 	return client.If(&cond, &cond).Upload(ctx, path, genZero, DefaultACL, "no-cache")
+}
+
+// Sort the builds by monotonically decreasing original prefix base name.
+//
+// In other words,
+//   gs://b/1
+//   gs://a/5
+//   gs://c/10
+// becomes:
+//   gs://c/10
+//   gs://a/5
+//   gs://b/1
+func Sort(builds []Build) {
+	sort.SliceStable(builds, func(i, j int) bool {
+		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName)
+	})
 }
