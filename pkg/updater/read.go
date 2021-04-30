@@ -44,11 +44,15 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 		if len(oldCols) > 0 {
 			since = oldCols[0].Column.Hint
 			newStop := time.Unix(int64(oldCols[0].Column.Started/1000), 0)
+			if len(tgPaths) > 1 {
+				newStop = newStop.Add(-time.Hour)
+			}
 			if newStop.After(stop) {
 				log.WithFields(logrus.Fields{
 					"old columns": len(oldCols),
 					"previously":  stop,
 					"stop":        newStop,
+					"since":       since,
 				}).Debug("Advanced stop")
 				stop = newStop
 			}
@@ -89,7 +93,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 	defer cancel()
 	if lb := len(builds); lb > max {
 		log.WithField("total", lb).WithField("max", max).Debug("Truncating")
-		builds = builds[:max]
+		builds = builds[lb-max:]
 	}
 	maxIdx := len(builds)
 	cols := make([]InflatedColumn, maxIdx)

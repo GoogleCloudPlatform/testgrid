@@ -398,10 +398,6 @@ func TestListBuilds(t *testing.T) {
 					Path:     resolveOrDie(path, "world"),
 					baseName: "world",
 				},
-				{
-					Path:     resolveOrDie(path, "more"),
-					baseName: "more",
-				},
 			},
 		},
 		{
@@ -452,10 +448,6 @@ func TestListBuilds(t *testing.T) {
 					Path:     resolveOrDie(path, "600"),
 					baseName: "600",
 				},
-				{
-					Path:     resolveOrDie(path, "500"),
-					baseName: "500",
-				},
 			},
 		},
 		{
@@ -483,10 +475,6 @@ func TestListBuilds(t *testing.T) {
 				{
 					Path:     resolveOrDie(path, "hello101"),
 					baseName: "hello101",
-				},
-				{
-					Path:     resolveOrDie(path, "hello100"),
-					baseName: "hello100",
 				},
 			},
 		},
@@ -520,10 +508,6 @@ func TestListBuilds(t *testing.T) {
 					Path:     newPathOrDie("gs://second-bucket/somewhere/101/"),
 					baseName: "101",
 				},
-				{
-					Path:     newPathOrDie("gs://another-bucket/path/inside/100/"),
-					baseName: "100",
-				},
 			},
 		},
 		{
@@ -540,10 +524,6 @@ func TestListBuilds(t *testing.T) {
 				{
 					Path:     newPathOrDie("gs://third-bucket/else/"),
 					baseName: "third",
-				},
-				{
-					Path:     newPathOrDie("gs://second-bucket/somewhere/"),
-					baseName: "second",
 				},
 			},
 		},

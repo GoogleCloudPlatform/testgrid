@@ -264,8 +264,8 @@ func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path
 		// GCS will return 200 2000 30 for a prefix of 100
 		// testgrid expects this as 2000 200 (dropping 30)
 		for i, b := range all {
-			if sortorder.NaturalLess(b.baseName, offsetBaseName) {
-				return all[:i], nil
+			if sortorder.NaturalLess(b.baseName, offsetBaseName) || b.baseName == offsetBaseName {
+				return all[:i], nil // b <= offsetBaseName, so skip this one
 			}
 		}
 	}

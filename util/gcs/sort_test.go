@@ -48,6 +48,41 @@ func TestSort(t *testing.T) {
 			},
 		},
 		{
+			name: "stable", // already sorted elements do not move
+			builds: []Build{
+				{
+					baseName:          "c",
+					suitesConcurrency: 7,
+				},
+				{
+					baseName:          "c",
+					suitesConcurrency: 1,
+				},
+				{
+					baseName:          "c",
+					suitesConcurrency: 5,
+				},
+				{baseName: "a"},
+				{baseName: "b"},
+			},
+			want: []Build{
+				{
+					baseName:          "c",
+					suitesConcurrency: 7,
+				},
+				{
+					baseName:          "c",
+					suitesConcurrency: 1,
+				},
+				{
+					baseName:          "c",
+					suitesConcurrency: 5,
+				},
+				{baseName: "b"},
+				{baseName: "a"},
+			},
+		},
+		{
 			name: "resort",
 			builds: []Build{
 				{baseName: "b"},
