@@ -186,14 +186,7 @@ message TestGroup {
   // This is displayed on any dashboard tab backed by this test group.
   repeated Notification notifications = 27;
 
-  enum ColumnSortBy {
-    COLUMN_SORT_DATE = 0;
-    COLUMN_SORT_COMMIT_NUM = 1;
-  }
-
-  // Specifies how to sort a test group's columns. The default is to sort by
-  // date, from most recent to oldest.
-  ColumnSortBy column_sort_by = 28;
+  reserved 28; // Unused externally (column_sort_by)
 
   enum PrimaryGrouping {
     PRIMARY_GROUPING_NONE = 0;
