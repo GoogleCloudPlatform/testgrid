@@ -410,22 +410,6 @@ func TestReadColumns(t *testing.T) {
 			expected: []InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Build:   "12",
-						Hint:    "12",
-						Started: float64(now+12) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result: statuspb.TestStatus_PASS,
-							Metrics: map[string]float64{
-								"test-duration-minutes": 12 / 60.0,
-							},
-						},
-						podInfoRow: podInfoMissingCell,
-					},
-				},
-				{
-					Column: &statepb.Column{
 						Build:   "11",
 						Hint:    "11",
 						Started: float64(now+11) * 1000,
@@ -438,6 +422,22 @@ func TestReadColumns(t *testing.T) {
 							},
 						},
 						podInfoRow: podInfoPassCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "10",
+						Hint:    "10",
+						Started: float64(now+10) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 10 / 60.0,
+							},
+						},
+						podInfoRow: podInfoMissingCell,
 					},
 				},
 			},

@@ -360,7 +360,7 @@ func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []InflatedC
 			"delayed": n - nCols,
 			"old":     len(cols),
 		}).Info("Trucated update")
-		return builds[n-nCols : n]
+		return builds[n-nCols:]
 	}
 	return builds
 }
@@ -383,7 +383,7 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 		out = append(out, builds...)
 	}
 
-	if len(paths) > 0 {
+	if len(paths) > 1 {
 		gcs.Sort(out)
 	}
 
@@ -414,14 +414,13 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-12*time.Hour)))
 	}
 
-	newCols, err := readCols(ctx, log, tg, oldCols, stop)
+	cols, err := readCols(ctx, log, tg, oldCols, stop)
 	if err != nil {
 		return fmt.Errorf("read columns: %w", err)
 	}
 
-	overrideBuild(tg, newCols)
-
-	cols := mergeColumns(newCols, oldCols)
+	overrideBuild(tg, cols)
+	cols = append(cols, oldCols...)
 	cols = groupColumns(tg, cols)
 
 	grid := constructGrid(log, tg, cols)
@@ -563,30 +562,6 @@ func groupColumns(tg *configpb.TestGroup, cols []InflatedColumn) []InflatedColum
 			}
 		}
 		out = append(out, col)
-	}
-	return out
-}
-
-// mergeColumns combines newCols and oldCols.
-//
-// When old and new both contain a column, chooses the new column.
-func mergeColumns(newCols, oldCols []InflatedColumn) []InflatedColumn {
-	// accept all the new columns
-	out := append([]InflatedColumn{}, newCols...)
-	if len(out) == 0 {
-		return oldCols
-	}
-
-	// accept all the old columns which are older than the accepted columns.
-	oldestCol := out[len(out)-1].Column
-	for i := 0; i < len(oldCols); i++ {
-		if oldCols[i].Column.Started > oldestCol.Started {
-			continue
-		}
-		if oldCols[i].Column.Build == oldestCol.Build && oldCols[i].Column.Name == oldestCol.Name {
-			continue
-		}
-		return append(out, oldCols[i:]...)
 	}
 	return out
 }

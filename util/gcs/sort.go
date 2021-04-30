@@ -106,7 +106,7 @@ func Touch(ctx context.Context, client ConditionalClient, path Path, generation 
 //   gs://a/5
 //   gs://b/1
 func Sort(builds []Build) {
-	sort.SliceStable(builds, func(i, j int) bool {
-		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName)
+	sort.SliceStable(builds, func(i, j int) bool { // greater
+		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName) && builds[i].baseName != builds[j].baseName
 	})
 }
