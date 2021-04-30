@@ -255,13 +255,7 @@ message TestGroup {
   // ID is in the bug.
   bool link_bugs_by_group = 39;
 
-  enum Environment {
-    PROD = 0;
-    QA = 1;
-  }
-
-  // Test instance to query for this test group. Optionally used by updater.
-  Environment environment_instance = 40;
+  reserved 40;
 
   // A string key value pair message
   message KeyValue {
