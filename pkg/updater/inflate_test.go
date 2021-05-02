@@ -282,6 +282,102 @@ func TestInflateGrid(t *testing.T) {
 			},
 		},
 		{
+			name: "unsorted", // drop old and new
+			grid: statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Build:   "current1",
+						Started: millis(hours[20]),
+					},
+					{
+						Build:   "old1",
+						Started: millis(hours[10]) - 1,
+					},
+					{
+						Build:   "new1",
+						Started: millis(hours[22]),
+					},
+					{
+						Build:   "current3",
+						Started: millis(hours[19]),
+					},
+					{
+						Build:   "new2",
+						Started: millis(hours[23]),
+					},
+					{
+						Build:   "old2",
+						Started: millis(hours[0]),
+					},
+					{
+						Build:   "current2",
+						Started: millis(hours[10]),
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:     "hello",
+						CellIds:  blank(7),
+						Messages: blank(7),
+						Icons:    blank(7),
+						Results: []int32{
+							int32(statuspb.TestStatus_RUNNING), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+							int32(statuspb.TestStatus_FLAKY), 1,
+						},
+					},
+					{
+						Name:     "world",
+						CellIds:  blank(7),
+						Messages: blank(7),
+						Icons:    blank(7),
+						Results: []int32{
+							int32(statuspb.TestStatus_PASS_WITH_SKIPS), 7,
+						},
+					},
+				},
+			},
+			latest:   hours[21],
+			earliest: hours[10],
+			expected: []inflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "current1",
+						Hint:    "current1",
+						Started: millis(hours[20]),
+					},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_RUNNING},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "current3",
+						Hint:    "current3",
+						Started: millis(hours[19]),
+					},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FAIL},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "current2",
+						Hint:    "current2",
+						Started: millis(hours[10]),
+					},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FLAKY},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+			},
+		},
+		{
 			name: "drop old columns",
 			grid: statepb.Grid{
 				Columns: []*statepb.Column{
@@ -414,8 +510,8 @@ func TestInflateGrid(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := inflateGrid(&tc.grid, tc.earliest, tc.latest)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
-				t.Errorf("inflateGrid() got unexpected diff (-have, +want):\n%s", diff)
+			if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+				t.Errorf("inflateGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 
