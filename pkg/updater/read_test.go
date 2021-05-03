@@ -102,6 +102,106 @@ func pint64(n int64) *int64 {
 	return &n
 }
 
+func TestHintStarted(t *testing.T) {
+	cases := []struct {
+		name     string
+		cols     []InflatedColumn
+		wantHint string
+		wantWhen time.Time
+	}{
+		{
+			name:     "basic",
+			wantWhen: time.Unix(0, 0),
+		},
+		{
+			name: "ordered",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Hint:    "b",
+						Started: 1200,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Hint:    "a",
+						Started: 1100,
+					},
+				},
+			},
+			wantHint: "b",
+			wantWhen: time.Unix(1, 200*int64(time.Millisecond)),
+		},
+		{
+			name: "reversed",
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Hint:    "a",
+						Started: 1100,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Hint:    "b",
+						Started: 1200,
+					},
+				},
+			},
+			wantHint: "b",
+			wantWhen: time.Unix(1, 200*int64(time.Millisecond)),
+		},
+		{
+			name: "different", // hint and started come from diff cols
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Hint:    "a",
+						Started: 1100,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Hint:    "b",
+						Started: 900,
+					},
+				},
+			},
+			wantHint: "b",
+			wantWhen: time.Unix(1, 100*int64(time.Millisecond)),
+		},
+		{
+			name: "numerical", // hint10 > hint2
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Hint: "hint2",
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Hint: "hint10",
+					},
+				},
+			},
+			wantHint: "hint10",
+			wantWhen: time.Unix(0, 0),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotHint, gotWhen := hintStarted(tc.cols)
+			if tc.wantHint != gotHint {
+				t.Errorf("hintStarted() got hint %q, want %q", gotHint, tc.wantHint)
+			}
+			if !gotWhen.Equal(tc.wantWhen) {
+				t.Errorf("hintStarted() got when %v, want %v", gotWhen, tc.wantWhen)
+			}
+		})
+	}
+}
+
 func TestReadColumns(t *testing.T) {
 	now := time.Now().Unix()
 	yes := true

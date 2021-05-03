@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"path"
 	"sort"
 	"strings"
@@ -30,8 +31,27 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
+	"github.com/fvbommel/sortorder"
 	"github.com/sirupsen/logrus"
 )
+
+// hintStarted returns the maximum hint and start time
+func hintStarted(cols []InflatedColumn) (string, time.Time) {
+	var hint string
+	var started float64
+	for i, col := range cols {
+		if newHint := col.Column.Hint; i == 0 || sortorder.NaturalLess(hint, newHint) {
+			hint = newHint
+		}
+
+		newStarted := col.Column.Started
+		if i == 0 || newStarted > started {
+			started = newStarted
+		}
+	}
+	when := time.Unix(int64(started/1000), int64(math.Remainder(started, 1000))*int64(time.Millisecond/time.Nanosecond))
+	return hint, when
+}
 
 func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency int) ColumnReader {
 	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error) {
@@ -40,22 +60,15 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 			return nil, fmt.Errorf("group path: %w", err)
 		}
 
-		var since string
-		if len(oldCols) > 0 {
-			since = oldCols[0].Column.Hint
-			newStop := time.Unix(int64(oldCols[0].Column.Started/1000), 0)
-			if len(tgPaths) > 1 {
-				newStop = newStop.Add(-time.Hour)
-			}
-			if newStop.After(stop) {
-				log.WithFields(logrus.Fields{
-					"old columns": len(oldCols),
-					"previously":  stop,
-					"stop":        newStop,
-					"since":       since,
-				}).Debug("Advanced stop")
-				stop = newStop
-			}
+		since, newStop := hintStarted(oldCols)
+		if newStop.After(stop) {
+			log.WithFields(logrus.Fields{
+				"old columns": len(oldCols),
+				"previously":  stop,
+				"stop":        newStop,
+				"since":       since,
+			}).Debug("Advanced stop")
+			stop = newStop
 		}
 
 		builds, err := listBuilds(ctx, client, since, tgPaths...)
