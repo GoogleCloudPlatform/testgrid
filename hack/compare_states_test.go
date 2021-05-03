@@ -205,7 +205,7 @@ func TestCompare(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			if diffed := compare(ctx, tc.first, tc.second); diffed != tc.diffed {
-				t.Errorf("compare(%s, %s) not as expected; got %t, want %t")
+				t.Errorf("compare(%s, %s) not as expected; got %t, want %t", tc.first, tc.second, diffed, tc.diffed)
 			}
 		})
 	}
