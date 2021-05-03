@@ -55,7 +55,7 @@ import (
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) GroupUpdater {
+func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error {
 		if !tg.UseKubernetesClient {
 			log.Debug("Skipping non-kubernetes client group")
@@ -64,7 +64,7 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) 
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
 		gcsColReader := gcsColumnReader(client, buildTimeout, concurrency)
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader)
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols)
 	}
 }
 
@@ -393,8 +393,18 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 // A ColumnReader will find, process and return new columns to insert into the front of grid state.
 type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error)
 
+// A ColumnSorter sort InflatedColumns as desired.
+type ColumnSorter func(*configpb.TestGroup, []InflatedColumn)
+
+// SortStarted sorts InflatedColumns by column start time.
+func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
+	sort.SliceStable(cols, func(i, j int) bool {
+		return cols[i].Column.Started > cols[j].Column.Started
+	})
+}
+
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader) error {
+func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter) error {
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -411,7 +421,9 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
 	if old != nil {
-		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-12*time.Hour)))
+		cols := inflateGrid(old, stop, time.Now().Add(-12*time.Hour))
+		SortStarted(tg, cols) // Our processing requires descending start time.
+		oldCols = truncateRunning(cols)
 	}
 
 	cols, err := readCols(ctx, log, tg, oldCols, stop)
@@ -422,6 +434,8 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	overrideBuild(tg, cols)
 	cols = append(cols, oldCols...)
 	cols = groupColumns(tg, cols)
+
+	sortCols(tg, cols)
 
 	grid := constructGrid(log, tg, cols)
 	buf, err := marshalGrid(grid)

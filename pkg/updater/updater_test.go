@@ -77,7 +77,7 @@ func TestGCS(t *testing.T) {
 			// either because the context is canceled or things like client are unset)
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			updater := GCS(0, 0, 0, false)
+			updater := GCS(0, 0, 0, false, SortStarted)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tc.fail {
@@ -224,7 +224,7 @@ func TestUpdate(t *testing.T) {
 				client.Lister[buildsPath] = fi
 			}
 
-			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm)
+			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
 
 			err := Update(
 				ctx,
@@ -1013,6 +1013,7 @@ func TestInflateDropAppend(t *testing.T) {
 		group        configpb.TestGroup
 		concurrency  int
 		skipWrite    bool
+		colSorter    ColumnSorter
 		groupTimeout *time.Duration
 		buildTimeout *time.Duration
 		expected     *fakeUpload
@@ -1165,6 +1166,168 @@ func TestInflateDropAppend(t *testing.T) {
 			},
 		},
 		{
+			name: "sort ascending",
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			colSorter: func(tg *configpb.TestGroup, cols []InflatedColumn) {
+				want := configpb.TestGroup{ // same as tc.group
+					GcsPrefix: "bucket/path/to/build/",
+					ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+						{
+							ConfigurationValue: "Commit",
+						},
+					},
+				}
+				if diff := cmp.Diff(&want, tg, protocmp.Transform()); diff != "" {
+					panic(fmt.Sprintf("bad TestGroup:\n%s", diff))
+				}
+				sort.SliceStable(cols, func(i, j int) bool {
+					return cols[i].Column.Started < cols[j].Column.Started
+				})
+			},
+			builds: []fakeBuild{
+				{
+					id:      "99",
+					started: jsonStarted(now + 99),
+				},
+				{
+					id:      "80",
+					started: jsonStarted(now + 80),
+					podInfo: podInfoSuccess,
+					finished: jsonFinished(now+81, true, metadata.Metadata{
+						metadata.JobVersion: "build80",
+					}),
+					passed: []string{"good1", "good2", "flaky"},
+				},
+				{
+					id:      "50",
+					started: jsonStarted(now + 50),
+					podInfo: podInfoSuccess,
+					finished: jsonFinished(now+51, false, metadata.Metadata{
+						metadata.JobVersion: "build50",
+					}),
+					passed: []string{"good1", "good2"},
+					failed: []string{"flaky"},
+				},
+				{
+					id:      "10",
+					started: jsonStarted(now + 10),
+					podInfo: podInfoSuccess,
+					finished: jsonFinished(now+11, true, metadata.Metadata{
+						metadata.JobVersion: "build10",
+					}),
+					passed: []string{"good1", "good2", "flaky"},
+				},
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "10",
+							Hint:    "10",
+							Started: float64(now+10) * 1000,
+							Extra:   []string{"build10"},
+						},
+						{
+							Build:   "50",
+							Hint:    "50",
+							Started: float64(now+50) * 1000,
+							Extra:   []string{"build50"},
+						},
+						{
+							Build:   "80",
+							Hint:    "80",
+							Started: float64(now+80) * 1000,
+							Extra:   []string{"build80"},
+						},
+						{
+							Build:   "99",
+							Hint:    "99",
+							Started: float64(now+99) * 1000,
+							Extra:   []string{""},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: overallRow,
+								Id:   overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Metrics: setElapsed(nil, 1),
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Metrics: setElapsed(nil, 1),
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Metrics: setElapsed(nil, 1),
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "Build still running...",
+								Icon:    "R",
+							},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: podInfoRow,
+								Id:   podInfoRow,
+							},
+							podInfoPassCell,
+							podInfoPassCell,
+							podInfoPassCell,
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: "flaky",
+								Id:   "flaky",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "flaky",
+								Icon:    "F",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: "good1",
+								Id:   "good1",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: "good2",
+								Id:   "good2",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+			},
+		},
+		{
 			name:      "do not write when requested",
 			skipWrite: true,
 			group: configpb.TestGroup{
@@ -1245,6 +1408,9 @@ func TestInflateDropAppend(t *testing.T) {
 			client.Lister[buildsPath] = fi
 
 			colReader := gcsColumnReader(client, *tc.buildTimeout, tc.concurrency)
+			if tc.colSorter == nil {
+				tc.colSorter = SortStarted
+			}
 			err := InflateDropAppend(
 				ctx,
 				logrus.WithField("test", tc.name),
@@ -1253,6 +1419,7 @@ func TestInflateDropAppend(t *testing.T) {
 				uploadPath,
 				!tc.skipWrite,
 				colReader,
+				tc.colSorter,
 			)
 			switch {
 			case err != nil:

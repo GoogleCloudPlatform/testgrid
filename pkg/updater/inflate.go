@@ -77,8 +77,8 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 		if when > latest.Unix() {
 			continue
 		}
-		if when < earliest.Unix() && len(cols) > 0 {
-			break // Always keep at least one old column
+		if when < earliest.Unix() && len(cols) > 0 { // Always keep at least one old column
+			continue // Do not assume they are sorted by start time.
 		}
 		cols = append(cols, item)
 

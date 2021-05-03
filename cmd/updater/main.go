@@ -133,7 +133,7 @@ func main() {
 		"build": opt.buildConcurrency,
 	}).Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm)
+	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 	updateOnce := func() {
 		start := time.Now()
 		if err := updater.Update(ctx, client, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm); err != nil {
