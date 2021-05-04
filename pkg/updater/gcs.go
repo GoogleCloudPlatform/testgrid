@@ -239,6 +239,8 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	var cellID string
 	if nameCfg.multiJob {
 		cellID = result.job + "/" + id
+	} else if opt.addCellID {
+		cellID = id
 	}
 
 	meta := result.finished.Metadata.Strings()
@@ -326,8 +328,8 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	}
 
 	for name, c := range injectedCells {
+		c.CellID = cellID
 		if nameCfg.multiJob {
-			c.CellID = cellID
 			jobName := result.job + "." + name
 			cells[jobName] = append([]Cell{c}, cells[jobName]...)
 		}
