@@ -96,7 +96,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Pa
 			for dash := range dashboards {
 				log := log.WithField("dashboard", dash.Name)
 				log.Debug("Summarizing dashboard")
-				summaryPath, err := dashboardPath(configPath, summaryPathPrefix, dash.Name)
+				summaryPath, err := summaryPath(configPath, summaryPathPrefix, dash.Name)
 				if err != nil {
 					log.WithError(err).Error("Cannot resolve summary path")
 					errCh <- errors.New(dash.Name)
@@ -134,7 +134,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Pa
 					errCh <- errors.New(dash.Name)
 					continue
 				}
-				log.Info("Wrote dashboard summary")
+				log.WithField("path", *summaryPath).Info("Wrote dashboard summary")
 				errCh <- nil
 			}
 			wg.Done()
@@ -191,27 +191,11 @@ func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.P
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
-func dashboardPath(g gcs.Path, prefix, name string) (*gcs.Path, error) {
-	fullName := path.Join(prefix, name)
-	u, err := url.Parse(fullName)
-	if err != nil {
-		return nil, fmt.Errorf("parse url: %w", err)
-	}
-	np, err := g.ResolveReference(u)
-	if err != nil {
-		return nil, fmt.Errorf("resolve reference: %w", err)
-	}
-	if err == nil && np.Bucket() != g.Bucket() {
-		return nil, fmt.Errorf("dashboard %s should not change bucket", fullName)
-	}
-	return np, nil
-}
-
 func sortDashboards(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, summaryPathPrefix string, dashboards []*configpb.Dashboard) (map[string]int64, error) {
 	pathedDashboards := make(map[gcs.Path]*configpb.Dashboard, len(dashboards))
 	paths := make([]gcs.Path, 0, len(dashboards))
 	for _, d := range dashboards {
-		path, err := dashboardPath(configPath, summaryPathPrefix, d.Name)
+		path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
 		if err != nil {
 			return nil, fmt.Errorf("bad dashboard path: %s: %w", d.Name, err)
 		}
@@ -234,9 +218,22 @@ var (
 	normalizer = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-func summaryPath(name string) string {
+func summaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	// ''.join(c for c in n.lower() if c is alphanumeric
-	return "summary-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
+	name := "summary-" + normalizer.ReplaceAllString(strings.ToLower(dashboard), "")
+	fullName := path.Join(prefix, name)
+	u, err := url.Parse(fullName)
+	if err != nil {
+		return nil, fmt.Errorf("parse url: %w", err)
+	}
+	np, err := g.ResolveReference(u)
+	if err != nil {
+		return nil, fmt.Errorf("resolve reference: %w", err)
+	}
+	if err == nil && np.Bucket() != g.Bucket() {
+		return nil, fmt.Errorf("dashboard %s should not change bucket", fullName)
+	}
+	return np, nil
 }
 
 func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
@@ -267,7 +264,7 @@ func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder group
 	var sum summarypb.DashboardSummary
 	for _, tab := range dash.DashboardTab {
 		log := log.WithField("tab", tab.Name)
-		log.Info("Summarizing tab")
+		log.Debug("Summarizing tab")
 		s, err := updateTab(ctx, tab, finder)
 		if err != nil {
 			log.WithError(err).Error("Cannot summarize tab")
