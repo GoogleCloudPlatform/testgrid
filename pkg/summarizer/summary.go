@@ -93,6 +93,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Pa
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for dash := range dashboards {
 				log := log.WithField("dashboard", dash.Name)
 				log.Debug("Summarizing dashboard")
@@ -125,6 +126,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Pa
 					errCh <- errors.New(dash.Name)
 					continue
 				}
+				log = log.WithField("path", summaryPath)
 				if !confirm {
 					log.WithField("summary", sum).Info("Summarized")
 					continue
@@ -134,10 +136,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Pa
 					errCh <- errors.New(dash.Name)
 					continue
 				}
-				log.WithField("path", *summaryPath).Info("Wrote dashboard summary")
+				log.Info("Wrote dashboard summary")
 				errCh <- nil
 			}
-			wg.Done()
 		}()
 	}
 
@@ -230,7 +231,7 @@ func summaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve reference: %w", err)
 	}
-	if err == nil && np.Bucket() != g.Bucket() {
+	if np.Bucket() != g.Bucket() {
 		return nil, fmt.Errorf("dashboard %s should not change bucket", fullName)
 	}
 	return np, nil

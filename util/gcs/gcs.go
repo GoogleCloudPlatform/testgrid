@@ -23,6 +23,7 @@ package gcs
 import (
 	"compress/zlib"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -105,6 +106,24 @@ func (g *Path) SetURL(u *url.URL) error {
 	}
 	g.url = *u
 	return nil
+}
+
+// MarshalJSON encodes Path as a string
+func (g Path) MarshalJSON() ([]byte, error) {
+	return json.Marshal(g.String())
+}
+
+// MarshalJSON decodes a string into Path
+func (g *Path) UnmarshalJSON(buf []byte) error {
+	var str string
+	err := json.Unmarshal(buf, &str)
+	if err != nil {
+		return err
+	}
+	if g == nil {
+		g = &Path{}
+	}
+	return g.Set(str)
 }
 
 // ResolveReference returns the path relative to the current path
