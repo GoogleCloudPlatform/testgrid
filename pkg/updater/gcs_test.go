@@ -1302,6 +1302,64 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "addCellID",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				addCellID: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Name: "this",
+									Results: []junit.Result{
+										{
+											Name: "that",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			id: "McLovin",
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+					Build:   "McLovin",
+					Hint:    "McLovin",
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+						CellID:  "McLovin",
+					},
+					"this.that": {
+						Result: statuspb.TestStatus_PASS,
+						CellID: "McLovin",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1316,8 +1374,8 @@ func TestConvertResult(t *testing.T) {
 			case tc.expected == nil:
 				t.Error("convertResult() failed to return an error")
 			default:
-				if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
-					t.Errorf("convertResult() got unexpected diff (-have, +want):\n%s", diff)
+				if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+					t.Errorf("convertResult() got unexpected diff (-want +got):\n%s", diff)
 				}
 			}
 		})

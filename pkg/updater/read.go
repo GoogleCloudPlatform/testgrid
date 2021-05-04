@@ -238,12 +238,14 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 type groupOptions struct {
 	merge          bool
 	analyzeProwJob bool
+	addCellID      bool
 }
 
 func makeOptions(group *configpb.TestGroup) groupOptions {
 	return groupOptions{
 		merge:          !group.DisableMergedStatus,
 		analyzeProwJob: !group.DisableProwjobAnalysis,
+		addCellID:      group.CommitOverrideStrftime != "",
 	}
 }
 
