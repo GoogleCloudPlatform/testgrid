@@ -1244,7 +1244,7 @@ func TestOverallStatus(t *testing.T) {
 			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
-			name:   "do not consider still-running results as flaky",
+			name:   "incomplete passing results", // ignore them
 			recent: 5,
 			rows: []*statepb.Row{
 				{
@@ -1254,13 +1254,32 @@ func TestOverallStatus(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 				{
-					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 2},
+					Results: []int32{int32(statuspb.TestStatus_RUNNING), 2},
 				},
 				{
 					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "incomplete flaky results", // ignore them
+			recent: 5,
+			rows: []*statepb.Row{
+				{
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 1},
+				},
+				{
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
+				},
+				{
+					Results: []int32{int32(statuspb.TestStatus_RUNNING), 2},
+				},
+				{
+					Results: []int32{int32(statuspb.TestStatus_FAIL), 2},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
 			name:   "ignore old failures",
@@ -1274,6 +1293,73 @@ func TestOverallStatus(t *testing.T) {
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "dropped columns", // should not impact status
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Name: "current",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+				{
+					Name: "ignore dropped",
+					Results: []int32{
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+					},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "dropped columns", // should not impact status
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Name: "current",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+				{
+					Name: "ignore dropped",
+					Results: []int32{
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+					},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "running", // do not count as recent
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Name: "pass",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+				{
+					Name: "running",
+					Results: []int32{
+						int32(statuspb.TestStatus_RUNNING), 1,
+						int32(statuspb.TestStatus_PASS), 1,
+					},
+				},
+				{
+					Name: "flake",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+					},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
 			name:   "partial results work",
