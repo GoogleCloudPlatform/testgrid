@@ -43,6 +43,7 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 type fakeGroup struct {
@@ -51,6 +52,20 @@ type fakeGroup struct {
 	mod   time.Time
 	gen   int64
 	err   error
+}
+
+func TestUpdate(t *testing.T) {
+	cases := []struct {
+		name string
+	}{
+		{},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// TODO(fejta): implement
+		})
+	}
 }
 
 func TestUpdateDashboard(t *testing.T) {
@@ -2283,6 +2298,63 @@ func TestResultIter(t *testing.T) {
 			}
 			if !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("%s != expected %s", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestSummaryPath(t *testing.T) {
+	mustPath := func(s string) *gcs.Path {
+		p, err := gcs.NewPath(s)
+		if err != nil {
+			t.Fatalf("gcs.NewPath(%q) got err: %v", s, err)
+		}
+		return p
+	}
+	cases := []struct {
+		name   string
+		path   gcs.Path
+		prefix string
+		dash   string
+		want   *gcs.Path
+		err    bool
+	}{
+		{
+			name: "normal",
+			path: *mustPath("gs://bucket/config"),
+			dash: "hello",
+			want: mustPath("gs://bucket/summary-hello"),
+		},
+		{
+			name:   "prefix", // construct path with a prefix correctly
+			path:   *mustPath("gs://bucket/config"),
+			prefix: "summary",
+			dash:   "hello",
+			want:   mustPath("gs://bucket/summary/summary-hello"),
+		},
+		{
+			name:   "normalize", // normalize dashboard name correctly
+			path:   *mustPath("gs://bucket/config"),
+			prefix: "UpperCase",       // do not normalize
+			dash:   "Hello --- World", // normalize
+			want:   mustPath("gs://bucket/UpperCase/summary-helloworld"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := summaryPath(tc.path, tc.prefix, tc.dash)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("summaryPath(%q, %q, %q) got unexpected error: %v", tc.path, tc.prefix, tc.dash, err)
+				}
+			case tc.err:
+				t.Errorf("summaryPath(%q, %q, %q) failed to get an error", tc.path, tc.prefix, tc.name)
+			default:
+				if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(gcs.Path{})); diff != "" {
+					t.Errorf("summaryPath(%q, %q, %q) got unexpected diff (-want +got):\n%s", tc.path, tc.prefix, tc.dash, diff)
+				}
 			}
 		})
 	}
