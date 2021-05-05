@@ -1495,6 +1495,9 @@ func TestReadSuites(t *testing.T) {
 		},
 		{
 			name: "cancelled context returns err",
+			data: map[string]fakeObject{
+				"junit.xml": {Data: `<testsuite><testcase name="hi"/></testsuite>`},
+			},
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
