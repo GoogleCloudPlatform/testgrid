@@ -103,7 +103,7 @@ message TestGroup {
     FALLBACK_GROUPING_DATE = 1;
     FALLBACK_GROUPING_LABELS = 2;
     FALLBACK_GROUPING_ID = 3;
-    FALLBACK_GROUPING_COMMIT_NUM = 4;
+    FALLBACK_GROUPING_BUILD = 4;
 
     // When using this, ensure fallback_grouping_configuration_value is
     // also set.
@@ -190,7 +190,7 @@ message TestGroup {
 
   enum PrimaryGrouping {
     PRIMARY_GROUPING_NONE = 0;
-    PRIMARY_GROUPING_COMMIT_NUM = 1;
+    PRIMARY_GROUPING_BUILD = 1;
   }
 
   // A primary grouping strategy for grouping test results in columns.
