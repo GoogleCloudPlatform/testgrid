@@ -584,11 +584,22 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 	defer cancel()
 
 	results := results(ctx, grid.Rows)
+	moreCols := true
 	var found bool
-	for _, resultCh := range results {
-		recentResults := recent
-		for r := range resultCh {
-			// TODO(fejta): fail old running results.
+	for moreCols && recent > 0 {
+		moreCols = false
+		var foundCol bool
+		var running bool
+		for _, resultCh := range results {
+			r, ok := <-resultCh
+			if !ok {
+				continue
+			}
+			moreCols = true
+			if r == statuspb.TestStatus_RUNNING {
+				running = true
+				continue
+			}
 			r = coalesceResult(r, result.IgnoreRunning)
 			if r == statuspb.TestStatus_NO_RESULT {
 				continue
@@ -596,11 +607,16 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 			if r != statuspb.TestStatus_PASS {
 				return summarypb.DashboardTabSummary_FLAKY
 			}
+			foundCol = true
+		}
+
+		if running {
+			continue
+		}
+
+		if foundCol {
 			found = true
-			recentResults--
-			if recentResults == 0 {
-				break
-			}
+			recent--
 		}
 
 	}
