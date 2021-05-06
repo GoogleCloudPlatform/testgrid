@@ -55,15 +55,16 @@ type fakeOpener = fake.Opener
 func TestGCS(t *testing.T) {
 	cases := []struct {
 		name  string
-		group configpb.TestGroup
+		group *configpb.TestGroup
 		fail  bool
 	}{
 		{
-			name: "ignore non-kubernetes clients",
+			name:  "basic",
+			group: &configpb.TestGroup{},
 		},
 		{
-			name: "fail kubernetes clients",
-			group: configpb.TestGroup{
+			name: "kubernetes", // should fail
+			group: &configpb.TestGroup{
 				UseKubernetesClient: true,
 			},
 			fail: true,
@@ -85,7 +86,7 @@ func TestGCS(t *testing.T) {
 					}
 				}
 			}()
-			err := updater(ctx, logrus.WithField("case", tc.name), nil, &tc.group, gcs.Path{})
+			err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
 			switch {
 			case err != nil:
 				if !tc.fail {
@@ -104,7 +105,7 @@ func TestUpdate(t *testing.T) {
 	cases := []struct {
 		name             string
 		ctx              context.Context
-		config           configpb.Configuration
+		config           *configpb.Configuration
 		configErr        error
 		builds           map[string][]fakeBuild
 		gridPrefix       string
@@ -120,7 +121,7 @@ func TestUpdate(t *testing.T) {
 	}{
 		{
 			name: "basically works",
-			config: configpb.Configuration{
+			config: &configpb.Configuration{
 				TestGroups: []*configpb.TestGroup{
 					{
 						Name:                "hello",
@@ -200,7 +201,7 @@ func TestUpdate(t *testing.T) {
 
 			client.Opener[configPath] = fakeObject{
 				Data: func() string {
-					b, err := config.MarshalBytes(&tc.config)
+					b, err := config.MarshalBytes(tc.config)
 					if err != nil {
 						t.Fatalf("config.MarshalBytes() errored: %v", err)
 					}
