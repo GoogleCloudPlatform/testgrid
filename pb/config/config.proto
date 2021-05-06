@@ -150,13 +150,7 @@ message TestGroup {
   // DEPRECATED: use DashboardTabAlertOptions > wait_minutes_between_emails
   int32 min_elapsed_minutes_between_mails = 21 [deprecated = true];
 
-  // Whether to read configuration values from invocation and use that
-  // to send email alerts. If this is true, values for
-  // alert_mail_to_addresses, alert_mail_failure_message and
-  // alert_mail_debug_url will be gathered from invocation properties and will
-  // get precedence.
-  // Deprecated without replacement
-  bool use_configuration_values_as_alert_params = 22 [deprecated = true];
+  reserved 22; // No longer used
 
   // Whether to treat a combination of passes and failures within one test as a
   // flaky status.
