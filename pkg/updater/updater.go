@@ -483,7 +483,7 @@ func formatStrftime(in string) string {
 }
 
 func overrideBuild(tg *configpb.TestGroup, cols []InflatedColumn) {
-	fmt := tg.CommitOverrideStrftime
+	fmt := tg.BuildOverrideStrftime
 	if fmt == "" {
 		return
 	}

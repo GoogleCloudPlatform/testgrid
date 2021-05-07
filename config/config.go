@@ -269,9 +269,6 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	}
 
 	// Regexes should be valid.
-	if _, err := regexp.Compile(tg.GetCommitOverrideLabelPattern()); err != nil {
-		mErr = multierror.Append(mErr, fmt.Errorf("commit_override_label_pattern doesn't compile: %v", err))
-	}
 	if _, err := regexp.Compile(tg.GetTestMethodMatchRegex()); err != nil {
 		mErr = multierror.Append(mErr, fmt.Errorf("test_method_match_regex doesn't compile: %v", err))
 	}

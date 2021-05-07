@@ -245,7 +245,7 @@ func makeOptions(group *configpb.TestGroup) groupOptions {
 	return groupOptions{
 		merge:          !group.DisableMergedStatus,
 		analyzeProwJob: !group.DisableProwjobAnalysis,
-		addCellID:      group.CommitOverrideStrftime != "",
+		addCellID:      group.BuildOverrideStrftime != "",
 	}
 }
 

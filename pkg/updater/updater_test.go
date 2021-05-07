@@ -1571,7 +1571,7 @@ func TestOverrideBuild(t *testing.T) {
 		{
 			name: "override with python style",
 			tg: &configpb.TestGroup{
-				CommitOverrideStrftime: "%y-%m-%d (%Y) %H:%M:%S %p",
+				BuildOverrideStrftime: "%y-%m-%d (%Y) %H:%M:%S %p",
 			},
 			cols: []InflatedColumn{
 				{
@@ -1603,7 +1603,7 @@ func TestOverrideBuild(t *testing.T) {
 		{
 			name: "override with golang format",
 			tg: &configpb.TestGroup{
-				CommitOverrideStrftime: "hello 2006 PM",
+				BuildOverrideStrftime: "hello 2006 PM",
 			},
 			cols: []InflatedColumn{
 				{

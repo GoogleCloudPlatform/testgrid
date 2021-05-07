@@ -501,16 +501,6 @@ func TestValidateTestGroup(t *testing.T) {
 			},
 		},
 		{
-			name: "commit_override_label_pattern must compile",
-			testGroup: &configpb.TestGroup{
-				Name:                       "test_group",
-				DaysOfResults:              1,
-				GcsPrefix:                  "fake path",
-				NumColumnsRecent:           1,
-				CommitOverrideLabelPattern: "[.*",
-			},
-		},
-		{
 			name: "test_method_match_regex must compile",
 			testGroup: &configpb.TestGroup{
 				Name:                 "test_group",
@@ -610,8 +600,7 @@ func TestValidateTestGroup(t *testing.T) {
 				GcsPrefix:        "fake path",
 				NumColumnsRecent: 1,
 				// Regexes compile
-				CommitOverrideLabelPattern: "label.*",
-				TestMethodMatchRegex:       "test.*",
+				TestMethodMatchRegex: "test.*",
 				// Simple notification
 				Notifications: []*configpb.Notification{
 					{
