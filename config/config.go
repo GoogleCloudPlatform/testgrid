@@ -268,58 +268,10 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 		mErr = multierror.Append(mErr, errors.New("num_columns_recent should be positive"))
 	}
 
-	// Regexes should be valid.
-	if _, err := regexp.Compile(tg.GetTestMethodMatchRegex()); err != nil {
-		mErr = multierror.Append(mErr, fmt.Errorf("test_method_match_regex doesn't compile: %v", err))
-	}
-
-	// Email address for alerts should be valid.
-	if tg.GetAlertMailToAddresses() != "" {
-		if err := validateEmails(tg.GetAlertMailToAddresses()); err != nil {
-			mErr = multierror.Append(mErr, err)
-		}
-	}
-
-	// Test metadata options should be reasonable, valid values.
-	metadataOpts := tg.GetTestMetadataOptions()
-	for _, opt := range metadataOpts {
-		if opt.GetBugComponent() <= 0 {
-			mErr = multierror.Append(mErr, errors.New("bug_component is required"))
-		}
-		if opt.GetMessageRegex() == "" && opt.GetTestNameRegex() == "" {
-			mErr = multierror.Append(mErr, errors.New("at least one of message_regex or test_name_regex must be specified"))
-		}
-		if _, err := regexp.Compile(opt.GetMessageRegex()); err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("message_regex doesn't compile: %v", err))
-		}
-		if _, err := regexp.Compile(opt.GetTestNameRegex()); err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("test_name_regex doesn't compile: %v", err))
-		}
-	}
-
 	for _, notification := range tg.GetNotifications() {
 		if notification.GetSummary() == "" {
 			mErr = multierror.Append(mErr, errors.New("summary is required"))
 		}
-	}
-
-	annotations := tg.GetTestAnnotations()
-	for _, annotation := range annotations {
-		if annotation.GetPropertyName() == "" {
-			mErr = multierror.Append(mErr, errors.New("property_name is required"))
-		}
-		if annotation.GetShortText() == "" || len(annotation.GetShortText()) >= 5 {
-			mErr = multierror.Append(mErr, errors.New("short_text must be 1-5 characters long"))
-		}
-	}
-
-	fallbackConfigSettingSet := tg.GetFallbackGrouping() == configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE
-	fallbackConfigValueSet := tg.GetFallbackGroupingConfigurationValue() != ""
-	if fallbackConfigSettingSet != fallbackConfigValueSet {
-		mErr = multierror.Append(
-			mErr,
-			errors.New("fallback_grouping_configuration_value and fallback_grouping = FALLBACK_GROUPING_CONFIGURATION_VALUE require each other"),
-		)
 	}
 
 	// For each defined column_header, verify it has exactly one value set.

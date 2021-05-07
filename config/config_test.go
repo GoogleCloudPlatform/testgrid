@@ -501,16 +501,6 @@ func TestValidateTestGroup(t *testing.T) {
 			},
 		},
 		{
-			name: "test_method_match_regex must compile",
-			testGroup: &configpb.TestGroup{
-				Name:                 "test_group",
-				DaysOfResults:        1,
-				GcsPrefix:            "fake path",
-				NumColumnsRecent:     1,
-				TestMethodMatchRegex: "[.*",
-			},
-		},
-		{
 			name: "Notifications must have a summary",
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
@@ -519,105 +509,6 @@ func TestValidateTestGroup(t *testing.T) {
 				NumColumnsRecent: 1,
 				Notifications: []*configpb.Notification{
 					{},
-				},
-			},
-		},
-		{
-			name: "Test Annotations must have property_name",
-			testGroup: &configpb.TestGroup{
-				Name:             "test_group",
-				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
-				NumColumnsRecent: 1,
-				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
-					{
-						ShortText: "a",
-					},
-				},
-			},
-		},
-		{
-			name: "Test Annotation short_text has to be at least 1 character",
-			testGroup: &configpb.TestGroup{
-				Name:             "test_group",
-				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
-				NumColumnsRecent: 1,
-				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
-					{
-						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
-							PropertyName: "something",
-						},
-						ShortText: "",
-					},
-				},
-			},
-		},
-		{
-			name: "Test Annotation short_text has to be at most 5 characters",
-			testGroup: &configpb.TestGroup{
-				Name:             "test_group",
-				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
-				NumColumnsRecent: 1,
-				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
-					{
-						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
-							PropertyName: "something",
-						},
-						ShortText: "abcdef",
-					},
-				},
-			},
-		},
-		{
-			name: "fallback_grouping_configuration_value requires fallback_group = configuration_value",
-			testGroup: &configpb.TestGroup{
-				Name:                               "test_group",
-				DaysOfResults:                      1,
-				GcsPrefix:                          "fake path",
-				NumColumnsRecent:                   1,
-				FallbackGroupingConfigurationValue: "something",
-			},
-		},
-		{
-			name: "fallback_grouping = configuration_value requires fallback_grouping_configuration_value",
-			testGroup: &configpb.TestGroup{
-				Name:             "test_group",
-				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
-				NumColumnsRecent: 1,
-				FallbackGrouping: configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE,
-			},
-		},
-		{
-			name: "Complex config passes",
-			pass: true,
-			testGroup: &configpb.TestGroup{
-				// Basic config
-				Name:             "test_group",
-				DaysOfResults:    1,
-				GcsPrefix:        "fake path",
-				NumColumnsRecent: 1,
-				// Regexes compile
-				TestMethodMatchRegex: "test.*",
-				// Simple notification
-				Notifications: []*configpb.Notification{
-					{
-						Summary: "I'm a notification!",
-					},
-				},
-				// Fallback grouping based on a configuration value
-				FallbackGrouping:                   configpb.TestGroup_FALLBACK_GROUPING_CONFIGURATION_VALUE,
-				FallbackGroupingConfigurationValue: "something",
-				// Simple test annotation based on a property
-				TestAnnotations: []*configpb.TestGroup_TestAnnotation{
-					{
-						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
-							PropertyName: "something",
-						},
-						ShortText: "abc",
-					},
 				},
 			},
 		},

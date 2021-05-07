@@ -67,9 +67,7 @@ message TestGroup {
   // Whether to ignore pending (currently running) test results.
   bool ignore_pending = 4;
 
-  // Whether to ignore reported build results. It is recommended that tests
-  // report BUILD_FAIL instead of relying on this being disabled.
-  bool ignore_built = 5;
+  reserved 5; // ignore_built
 
   enum TestsName {
     TESTS_NAME_UNSPECIFIED = 0;
@@ -84,10 +82,7 @@ message TestGroup {
   TestsName tests_name_policy = 6;
 
   reserved 7;  // Unused gather_test_properties
-
-  // Tests with names that include these substrings will be removed from the
-  // table.
-  repeated string ignore_test_substring = 8;
+  reserved 8; // ignore_test_substring
 
   // Custom column headers for defining extra column-heading rows from values in
   // the test result.
@@ -98,20 +93,7 @@ message TestGroup {
   }
   repeated ColumnHeader column_header = 9;
 
-  enum FallbackGrouping {
-    FALLBACK_GROUPING_NONE = 0;
-    FALLBACK_GROUPING_DATE = 1;
-    FALLBACK_GROUPING_LABELS = 2;
-    FALLBACK_GROUPING_ID = 3;
-    FALLBACK_GROUPING_BUILD = 4;
-
-    // When using this, ensure fallback_grouping_configuration_value is
-    // also set.
-    FALLBACK_GROUPING_CONFIGURATION_VALUE = 5;
-  }
-
-  // A test grouping option used if not specified by primary_grouping (#29)
-  FallbackGrouping fallback_grouping = 10;
+  reserved 10; // fallback_grouping
 
   // DEPRECATED: use DashboardTabAlertOptions > alert_stale_result_hours
   int32 alert_stale_results_hours = 11 [deprecated = true];
@@ -119,9 +101,7 @@ message TestGroup {
   // DEPRECATED: use DashboardTabAlertOptions > num_failures_to_alert
   int32 num_failures_to_alert = 12 [deprecated = true];
 
-  // Whether to automatically file bugs, and what component to file them to.
-  // Requires further implementation of additional components.
-  int32 bug_component = 13;
+  reserved 13; 
 
   // Default code search path for searching regressions. Overridden by
   // code_search_path in DashboardTab.
@@ -135,26 +115,16 @@ message TestGroup {
   // specific cases.
   bool use_test_metadata = 16;
 
-  // DEPRECATED: use DashboardTabAlertOptions > alert_mail_to_address instead
-  string alert_mail_to_addresses = 17 [deprecated = true];
+  reserved 17; // alert_mail_to_addresses
+  reserved 18; // alert_mail_subject
+  reserved 19; // alert_mail_failure_message
+  reserved 20; // alert_mail_debug_url
 
-  // DEPRECATED: use DashboardTabAlertOptions > subject
-  string alert_mail_subject = 18 [deprecated = true];
-
-  // DEPRECATED: use DashboardTabAlertOptions > alert_mail_failure_message
-  string alert_mail_failure_message = 19 [deprecated = true];
-
-  // DEPRECATED: use DashboardTabAlertOptions > debug_url
-  string alert_mail_debug_url = 20 [deprecated = true];
-
-  // DEPRECATED: use DashboardTabAlertOptions > wait_minutes_between_emails
-  int32 min_elapsed_minutes_between_mails = 21 [deprecated = true];
+  reserved 21; // min_elapsed_minutes_betwee_mails
 
   reserved 22; // No longer used
 
-  // Whether to treat a combination of passes and failures within one test as a
-  // flaky status.
-  bool enable_flaky_status = 23;
+  reserved 23; // enable_flaky_status
 
   // disable_merged_status will restores deprecated behavior of
   // splitting multiple foo rows into foo [2], etc rather a single
@@ -181,137 +151,42 @@ message TestGroup {
   repeated Notification notifications = 27;
 
   reserved 28; // Unused externally (column_sort_by)
-
-  enum PrimaryGrouping {
-    PRIMARY_GROUPING_NONE = 0;
-    PRIMARY_GROUPING_BUILD = 1;
-  }
-
-  // A primary grouping strategy for grouping test results in columns.
-  // If a primary grouping is specified, the fallback grouping is ignored.
-  PrimaryGrouping primary_grouping = 29;
-
-  // Whether to collect pass-fail data for test methods. Additional test cases
-  // will be added for each test method in a target.
-  bool enable_test_methods = 30;
-
-  // Associates the presence of a named test property with a custom short text
-  // displayed over the results. Short text must be <=5 characters long.
-  message TestAnnotation {
-    string short_text = 1;
-    oneof short_text_message_source {
-      string property_name = 2;
-    }
-  }
-
-  // Test annotations to look for. Adds custom short text overlays to results.
-  repeated TestAnnotation test_annotations = 31;
-
-  // Maximum number of individual test methods to collect for any given test row.
-  // If a test has more than this many methods, no methods will be displayed.
-  int32 max_test_methods_per_test = 32;
-
-  reserved 33;
-
-  // Default metadata that should be applied for opening bugs, if a given regex
-  // matches against a test's name.
-  // Requires 'use_test_metadata = true'.
-  repeated TestMetadataOptions test_metadata_options = 34;
-
-  // A space-delimited string of tags that are used to filter test targets.
-  // A leading - before the tag means this tag should not be present
-  // in the target.
-  // Example:
-  //  contains tag1, but not tag2: test_tag_pattern = 'tag1 -tag2'
-  string test_tag_pattern = 35;
-
-  // Options for auto-filed bugs, if enabled.
-  AutoBugOptions auto_bug_options = 36;
-
-  // Max number of days any single test can take.
-  int32 max_test_runtime_hours = 37;
+  reserved 29; // primary_grouping
+  reserved 30; // enable_test_methods
+  reserved 31; // test_annotations
+  reserved 32; // max_test_methods_per_test
+  reserved 33; // commit_override_label_pattern
+  reserved 34; // test_metadata_options
+  reserved 35; // test_tag_pattern
+  reserved 36; // auto_bug_options
+  reserved 37; // max_test_runtime_hours
 
   // The number of consecutive test passes to close the alert.
   int32 num_passes_to_disable_alert = 38;
 
-  // If true, also associate bugs with tests if the test result's overview/group
-  // ID is in the bug.
-  bool link_bugs_by_group = 39;
+  reserved 39; // link_bugs_by_group
 
   reserved 40;
 
-  // A string key value pair message
-  message KeyValue {
-    string key = 1;
-    string value = 2;
-  }
-
-  // Only show test methods with all required properties
-  repeated KeyValue test_method_properties = 41;
-
-  // If true, allows gathering and associating bugs with targets in the dashboard.
-  // Required in order to auto-file bugs.
-  bool gather_bugs = 42;
+  reserved 41; // test_method_properties
+  reserved 42; // gather_bugs
 
   // Numeric property metric value to be used for short text. If this property
   // is present, it will override all the other short text values.
   string short_text_metric = 43;
 
-  reserved 44;
+  reserved 44; // commit_override_configuration_value
+  reserved 45; // link_bugs_by_test_methods
+  reserved 46; // test_method_match_regex
 
-  // If true, only associate bugs with test methods if that test method is
-  // mentioned in the bug. If false, bugs will be associated with all test
-  // methods.
-  bool link_bugs_by_test_methods = 45;
+  reserved 61; // test_method_unmatch_regex
 
-  // Regex to match test methods. Only test methods with names that match
-  // this regex will be included in the table.
-  string test_method_match_regex = 46;
-
-  // Regex to exclude test methods. Test methods with names that match
-  // this regex will be excluded from the table, even if they match
-  // test_method_match_regex.
-  string test_method_unmatch_regex = 61;
-
-  // If true, test method names are printed with the full class names.
-  bool use_full_method_names = 47;
-
-  // The string list of full path evaluator rules in the format:
-  // <config_directory>.<rule_set_file>.<RuleSetClassName>.<rule_name>
-  //
-  // Deprecated feature
-  repeated string custom_result_evaluator_rules = 48 [deprecated = true];
-
-  // A configuration value that is used as a fallback grouping.
-  // This is useful for cases where there are builds that shared the same
-  // commit but are run at separate times of day.
-  string fallback_grouping_configuration_value = 49;
-
-  message ResultSource {
-    reserved 1, 3; // Legacy sources
-
-    oneof result_source_config {
-      // JUnit results, parsed from GCS buckets.
-      JUnitConfig junit_config = 2;
-    }
-
-    reserved 4; // Private source
-  }
-
-  // Configuration type of the result source.
-  ResultSource result_source = 50;
-
-  // Set of rules that are evaluated with each test result. If an evaluation is
-  // successful, the status of that test result will be whatever is specified
-  // for a given rule. For more information, look at RuleSet documention
-  RuleSet custom_evaluator_rule_set = 51;
-
-  // If true, instead of updating the group, read the state proto from storage
-  // and update summary, alerts, etc. from that state.
-  // This only applies to test group state, not bug state for a test group.
-  // This assumes that the state proto is updated through other means (another
-  // updater, manually, etc).
-  bool read_state_from_storage = 52;
+  reserved 47; // use_full_method_names
+  reserved 48; // custom_result_evaluator_rules
+  reserved 49; // fallback_grouping_configuration_value
+  reserved 50; // result_source
+  reserved 51; // custom_evaluator_rule_set
+  reserved 52; // read_state_from_storage
 
   // If true, only add the most recent result for a test when multiple results
   // for a test with the same name are encountered.
@@ -325,115 +200,11 @@ message TestGroup {
   // for aggregating multiple columns that don't have a matching commit.
   string build_override_strftime = 55;
 
-  // Specify a property that will be read into state in the user_property field.
-  // These can be substituted into LinkTemplates.
-  string user_property = 56;
+  reserved 56; // user_property
 
   reserved 58,59;
 
   // disable_prowjob_analysis 62
-}
-
-message JUnitConfig {}
-
-// Default metadata to apply when opening bugs.
-message TestMetadataOptions {
-  // Apply the following metadata if this regex matches a test's name.
-  string test_name_regex = 1;
-
-  // Default bug component to open a bug in.
-  int32 bug_component = 2;
-
-  // Default owner to assign a bug to.
-  string owner = 3;
-
-  // List of default users to CC a bug to.
-  repeated string cc = 4;
-
-  // Apply following metadata if this regex matches a test’s failure message.
-  string message_regex = 5;
-}
-
-message AutoBugOptions {
-  // [BETA] When specified, file bugs to this component, using the beta AutoBug.
-  // If you do not want to opt into the beta, specify `bug_component` in your
-  // TestGroup instead.
-  // TODO(b/154866134): Rename to autobug_component once we've migrated.
-  int32 beta_autobug_component = 10;
-
-
-  // Whether to auto-close auto-filed bugs.
-  bool auto_close = 1;
-
-  // A list of hotlist ids attached to auto-filed bugs.
-  repeated int64 hotlist_ids = 2;
-
-  // Scale of issue priority, used to indicate importance of issue.
-  enum Priority {
-    // Unspecified; may not set priority at all
-    PRIORITY_UNSPECIFIED = 0;
-    // See https://developers.google.com/issue-tracker/concepts/issues
-    P0 = 1;
-    P1 = 2;
-    P2 = 3;
-    P3 = 4;
-    P4 = 5;
-  }
-
-  // The priority of the auto-filed bug. If provided, this will overwrite the
-  // priority in the component default template
-  Priority priority = 3;
-
-  // A list of hotlist id sources
-  // Corresponds with the list hotlist_ids (#2)
-  repeated HotlistIdFromSource hotlist_ids_from_source = 4;
-
-  // If True, files separate bugs for each failing target, instead of one bug
-  // for each set of targets failing at the same run.
-  bool file_individual = 5;
-
-  // If True; keep only one automantic bug per target, regardless of the number of
-  // separate failures a target gets. This also requires `auto_close` and
-  // `file_individual` to be True.
-  // Consider setting `num_passes_to_disable_alert` instead if you're tracking
-  // flaky tests.
-  bool singleton_autobug = 6;
-
-  // If provided: only raise one bug if the number of failures for a single
-  // query by testgrid for a single failure group exceeds this value. Requires
-  // 'file_individual' to be True.
-  int32 max_allowed_individual_bugs = 7;
-
-  // If True; file issues for the 'Overall' target, even if otherwise invalid.
-  bool file_overall = 8;
-
-  message DefaultTestMetadata {
-    int32 bug_component = 1;
-    string owner = 2;
-    string cc = 3;
-  }
-
-  // If provided: supplements `max_allowed_individual_bugs` field to raise a
-  // single bug if the number of failures for a single query by testgrid exceeds
-  // the max_allowed_individual_bugs` value, regardless of `TEST_METADATA`
-  // configurations. This is useful for filing fewer suspected environmental
-  // failure bugs and routing them to a specific location (i.e. an oncall).
-  // Requires 'file_individual' to be true and `max_allowed_individual_bugs` to
-  // not be empty.
-  DefaultTestMetadata default_test_metadata = 9;
-
-  // [BETA] If True, query the test metadata API to get issue-routing metadata.
-  // Enables routing issues using structured test failures.
-  bool advanced_test_metadata = 11;
-}
-
-message HotlistIdFromSource {
-  oneof hotlist_id_source {
-    // ID value of hotlists
-    int64 value = 1;
-    // A label prefix
-    string label = 2;
-  }
 }
 
 // Specifies a dashboard.
@@ -568,10 +339,7 @@ message DashboardTab {
   // columns are "broken" (ratio of failed to total tests exceeds <threshold>).
   float broken_column_threshold = 21;
 
-  // Options for auto-filed bugs.
-  // Using this for a dashboard tab requires specifying `beta_autobug_component`
-  // and will opt you into the beta AutoBug.
-  AutoBugOptions beta_autobug_options = 22;
+  reserved 22;
 
   // Options for the configuration of the flakiness analysis tool, on a per tab basis
   HealthAnalysisOptions health_analysis_options = 23;
