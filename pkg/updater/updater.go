@@ -64,7 +64,8 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, 
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
 		gcsColReader := gcsColumnReader(client, buildTimeout, concurrency)
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols)
+		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess)
 	}
 }
 
@@ -404,7 +405,7 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 }
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter) error {
+func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) error {
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -421,7 +422,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
 	if old != nil {
-		cols := inflateGrid(old, stop, time.Now().Add(-12*time.Hour))
+		cols := inflateGrid(old, stop, time.Now().Add(-reprocess))
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
 	}

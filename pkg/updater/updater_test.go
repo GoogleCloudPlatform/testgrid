@@ -1015,8 +1015,10 @@ func TestInflateDropAppend(t *testing.T) {
 		concurrency  int
 		skipWrite    bool
 		colSorter    ColumnSorter
+		reprocess    time.Duration
 		groupTimeout *time.Duration
 		buildTimeout *time.Duration
+		current      *fake.Object
 		expected     *fakeUpload
 		err          bool
 	}{
@@ -1371,6 +1373,235 @@ func TestInflateDropAppend(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "recent", // keep columns past the reprocess boundary
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			reprocess: 10 * time.Second,
+			builds: []fakeBuild{
+				{
+					id:      "current",
+					started: jsonStarted(now),
+				},
+			},
+			current: &fake.Object{
+				Data: string(mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "should reprocess",
+							Started: float64(now * 1000),
+							Extra:   []string{""},
+						},
+						{
+							Build:   "at boundary",
+							Hint:    "1 should disappear",
+							Started: float64(now-9) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "past boundary",
+							Hint:    "boundary+999",
+							Started: float64(now-9)*1000 - 1,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: overallRow,
+								Id:   overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "old data",
+								Icon:    "should reprocess",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "current",
+							Started: float64(now) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "past boundary",
+							Hint:    "boundary+999",
+							Started: float64(now-9)*1000 - 1,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: overallRow,
+								Id:   overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "Build still running...",
+								Icon:    "R",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+			},
+		},
+		{
+			// short reprocessing time depends on our reprocessing running columns outside this timeframe.
+			name: "running", // reprocess everything at least as new as the running column
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			reprocess: 10 * time.Second,
+			builds: []fakeBuild{
+				{
+					id:      "current",
+					started: jsonStarted(now),
+				},
+			},
+			current: &fake.Object{
+				Data: string(mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "should reprocess",
+							Started: float64(now * 1000),
+							Extra:   []string{""},
+						},
+						{
+							Build:   "at boundary",
+							Hint:    "1 should disappear",
+							Started: float64(now-9) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "past boundary",
+							Hint:    "1 done but still reprocess",
+							Started: float64(now-40) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "paster boundary",
+							Hint:    "1 running",
+							Started: float64(now-50) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "pastest boundary",
+							Hint:    "1 oldest",
+							Started: float64(now-60) * 1000,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: overallRow,
+								Id:   overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "old data",
+								Icon:    "should reprocess",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "current",
+							Started: float64(now) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "pastest boundary",
+							Hint:    "1 oldest",
+							Started: float64(now-60) * 1000,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: overallRow,
+								Id:   overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "Build still running...",
+								Icon:    "R",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1399,6 +1630,10 @@ func TestInflateDropAppend(t *testing.T) {
 				},
 			}
 
+			if tc.current != nil {
+				client.Opener[uploadPath] = *tc.current
+			}
+
 			buildsPath := newPathOrDie("gs://" + tc.group.GcsPrefix)
 			fi := client.Lister[buildsPath]
 			for _, build := range addBuilds(&client.Client, buildsPath, tc.builds...) {
@@ -1421,6 +1656,7 @@ func TestInflateDropAppend(t *testing.T) {
 				!tc.skipWrite,
 				colReader,
 				tc.colSorter,
+				tc.reprocess,
 			)
 			switch {
 			case err != nil:
@@ -1435,11 +1671,11 @@ func TestInflateDropAppend(t *testing.T) {
 					expected[uploadPath] = *tc.expected
 				}
 				actual := client.Uploader
-				diff := cmp.Diff(actual, expected, cmp.AllowUnexported(gcs.Path{}, fakeUpload{}), protocmp.Transform())
+				diff := cmp.Diff(expected, actual, cmp.AllowUnexported(gcs.Path{}, fakeUpload{}), protocmp.Transform())
 				if diff == "" {
 					return
 				}
-				t.Errorf("updateGroup() got unexpected diff (-have, +want):\n%s", diff)
+				t.Errorf("updateGroup() got unexpected diff (-want +got):\n%s", diff)
 				fakeDownloader := fakeOpener{
 					uploadPath: {Data: string(actual[uploadPath].Buf)},
 				}
@@ -1452,11 +1688,11 @@ func TestInflateDropAppend(t *testing.T) {
 				if err != nil {
 					t.Errorf("expected gcs.DownloadGrid() got unexpected error: %v", err)
 				}
-				diff = cmp.Diff(actualGrid, expectedGrid, protocmp.Transform())
+				diff = cmp.Diff(expectedGrid, actualGrid, protocmp.Transform())
 				if diff == "" {
 					return
 				}
-				t.Errorf("gcs.DownloadGrid() got unexpected diff (-have, +want):\n%s", diff)
+				t.Errorf("gcs.DownloadGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
