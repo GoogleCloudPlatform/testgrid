@@ -133,18 +133,19 @@ func TestInflateGrid(t *testing.T) {
 						Results: []int32{
 							int32(statuspb.TestStatus_FAIL), 2,
 						},
-						CellIds:  []string{"this", "that"},
-						Messages: []string{"important", "notice"},
-						Icons:    []string{"I1", "I2"},
-						Metric:   []string{"this", "that"},
+						CellIds:      []string{"this", "that"},
+						Messages:     []string{"important", "notice"},
+						Icons:        []string{"I1", "I2"},
+						Metric:       []string{"this", "that"},
+						UserProperty: []string{"hello", "there"},
 						Metrics: []*statepb.Metric{
 							{
-								Indices: []int32{0, 2},
+								Indices: []int32{0, 2}, // both columns
 								Values:  []float64{0.1, 0.2},
 							},
 							{
 								Name:    "override",
-								Indices: []int32{1, 1},
+								Indices: []int32{1, 1}, // only second
 								Values:  []float64{1.1},
 							},
 						},
@@ -154,10 +155,22 @@ func TestInflateGrid(t *testing.T) {
 						Results: []int32{
 							int32(statuspb.TestStatus_PASS), 2,
 						},
-						CellIds:  blank(2),
-						Messages: blank(2),
-						Icons:    blank(2),
-						Metric:   blank(2),
+						CellIds:      blank(2),
+						Messages:     blank(2),
+						Icons:        blank(2),
+						Metric:       blank(2),
+						UserProperty: blank(2),
+					},
+					{
+						Name: "sparse",
+						Results: []int32{
+							int32(statuspb.TestStatus_NO_RESULT), 1,
+							int32(statuspb.TestStatus_FLAKY), 1,
+						},
+						CellIds:      []string{"that-sparse"},
+						Messages:     []string{"notice-sparse"},
+						Icons:        []string{"I2-sparse"},
+						UserProperty: []string{"there-sparse"},
 					},
 				},
 			},
@@ -179,10 +192,12 @@ func TestInflateGrid(t *testing.T) {
 							Metrics: map[string]float64{
 								"this": 0.1,
 							},
+							UserProperty: "hello",
 						},
 						"second": {
 							Result: statuspb.TestStatus_PASS,
 						},
+						"sparse": {},
 					},
 				},
 				{
@@ -202,9 +217,17 @@ func TestInflateGrid(t *testing.T) {
 								"this":     0.2,
 								"override": 1.1,
 							},
+							UserProperty: "there",
 						},
 						"second": {
 							Result: statuspb.TestStatus_PASS,
+						},
+						"sparse": {
+							Result:       statuspb.TestStatus_FLAKY,
+							CellID:       "that-sparse",
+							Message:      "notice-sparse",
+							Icon:         "I2-sparse",
+							UserProperty: "there-sparse",
 						},
 					},
 				},

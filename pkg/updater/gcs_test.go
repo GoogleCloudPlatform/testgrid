@@ -285,14 +285,13 @@ func TestConvertResult(t *testing.T) {
 	yes := true
 	now := time.Now().Unix()
 	cases := []struct {
-		name      string
-		nameCfg   nameConfig
-		id        string
-		headers   []string
-		metricKey string
-		result    gcsResult
-		opt       groupOptions
-		expected  *InflatedColumn
+		name     string
+		nameCfg  nameConfig
+		id       string
+		headers  []string
+		result   gcsResult
+		opt      groupOptions
+		expected *InflatedColumn
 	}{
 		{
 			name: "basically works",
@@ -680,12 +679,14 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "Icon set by metric key",
+			name: "metricKey",
 			nameCfg: nameConfig{
 				format: "%s",
 				parts:  []string{testsName},
 			},
-			metricKey: "food",
+			opt: groupOptions{
+				metricKey: "food",
+			},
 			result: gcsResult{
 				started: gcs.Started{
 					Started: metadata.Started{
@@ -843,6 +844,94 @@ func TestConvertResult(t *testing.T) {
 						Metrics: map[string]float64{
 							"food": 1,
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "userKey",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				userKey: "fries",
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "no properties",
+										},
+										{
+											Name: "missing property",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"random", "thing"},
+												},
+											},
+										},
+										{
+											Name: "present",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "curly"},
+												},
+											},
+										},
+										{
+											Name: "choose first",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "shoestring"},
+													{"fries", "curly"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+					"no properties": {
+						Result: statuspb.TestStatus_PASS,
+					},
+					"missing property": {
+						Result: statuspb.TestStatus_PASS,
+					},
+					"present": {
+						Result:       statuspb.TestStatus_PASS,
+						UserProperty: "curly",
+					},
+					"choose first": {
+						Result:       statuspb.TestStatus_PASS,
+						UserProperty: "shoestring",
 					},
 				},
 			},
@@ -1365,7 +1454,7 @@ func TestConvertResult(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.WithField("test name", tc.name)
-			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, tc.opt)
+			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.result, tc.opt)
 			switch {
 			case err != nil:
 				if tc.expected != nil {

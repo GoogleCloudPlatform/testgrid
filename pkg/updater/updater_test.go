@@ -2231,6 +2231,7 @@ func TestConstructGrid(t *testing.T) {
 								"elapsed": 1,
 								"keys":    2,
 							},
+							UserProperty: "food",
 						},
 						"green": {
 							Result: statuspb.TestStatus_PASS,
@@ -2252,8 +2253,9 @@ func TestConstructGrid(t *testing.T) {
 				Rows: []*statepb.Row{
 					setupRow(
 						&statepb.Row{
-							Name: "full",
-							Id:   "full",
+							Name:         "full",
+							Id:           "full",
+							UserProperty: []string{},
 						},
 						emptyCell,
 						cell{
@@ -2265,6 +2267,7 @@ func TestConstructGrid(t *testing.T) {
 								"elapsed": 1,
 								"keys":    2,
 							},
+							UserProperty: "food",
 						},
 					),
 					setupRow(
@@ -2458,8 +2461,8 @@ func TestConstructGrid(t *testing.T) {
 					return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
 				})
 			}
-			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
-				t.Errorf("constructGrid() got unexpected diff (-have, +want):\n%s", diff)
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("constructGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -2582,10 +2585,11 @@ func TestAppendCell(t *testing.T) {
 			},
 			count: 1,
 			expected: statepb.Row{
-				Results:  []int32{int32(statuspb.TestStatus_PASS), 1},
-				CellIds:  []string{""},
-				Messages: []string{""},
-				Icons:    []string{""},
+				Results:      []int32{int32(statuspb.TestStatus_PASS), 1},
+				CellIds:      []string{""},
+				Messages:     []string{""},
+				Icons:        []string{""},
+				UserProperty: []string{""},
 			},
 		},
 		{
@@ -2599,6 +2603,7 @@ func TestAppendCell(t *testing.T) {
 					"pi":     3.14,
 					"golden": 1.618,
 				},
+				UserProperty: "hello",
 			},
 			count: 1,
 			expected: statepb.Row{
@@ -2622,6 +2627,7 @@ func TestAppendCell(t *testing.T) {
 						Values:  []float64{1.618},
 					},
 				},
+				UserProperty: []string{"hello"},
 			},
 		},
 		{
@@ -2630,22 +2636,25 @@ func TestAppendCell(t *testing.T) {
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 				},
-				CellIds:  []string{"", "", ""},
-				Messages: []string{"", "", ""},
-				Icons:    []string{"", "", ""},
+				CellIds:      []string{"", "", ""},
+				Messages:     []string{"", "", ""},
+				Icons:        []string{"", "", ""},
+				UserProperty: []string{"", "", ""},
 			},
 			cell: cell{
-				Result:  statuspb.TestStatus_FLAKY,
-				Message: "echo",
-				CellID:  "again and",
-				Icon:    "keeps going",
+				Result:       statuspb.TestStatus_FLAKY,
+				Message:      "echo",
+				CellID:       "again and",
+				Icon:         "keeps going",
+				UserProperty: "more more",
 			},
 			count: 2,
 			expected: statepb.Row{
-				Results:  []int32{int32(statuspb.TestStatus_FLAKY), 5},
-				CellIds:  []string{"", "", "", "again and", "again and"},
-				Messages: []string{"", "", "", "echo", "echo"},
-				Icons:    []string{"", "", "", "keeps going", "keeps going"},
+				Results:      []int32{int32(statuspb.TestStatus_FLAKY), 5},
+				CellIds:      []string{"", "", "", "again and", "again and"},
+				Messages:     []string{"", "", "", "echo", "echo"},
+				Icons:        []string{"", "", "", "keeps going", "keeps going"},
+				UserProperty: []string{"", "", "", "more more", "more more"},
 			},
 		},
 		{
@@ -2654,9 +2663,10 @@ func TestAppendCell(t *testing.T) {
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 				},
-				CellIds:  []string{"", "", ""},
-				Messages: []string{"", "", ""},
-				Icons:    []string{"", "", ""},
+				CellIds:      []string{"", "", ""},
+				Messages:     []string{"", "", ""},
+				Icons:        []string{"", "", ""},
+				UserProperty: []string{"", "", ""},
 			},
 			cell: cell{
 				Result: statuspb.TestStatus_PASS,
@@ -2667,9 +2677,10 @@ func TestAppendCell(t *testing.T) {
 					int32(statuspb.TestStatus_FLAKY), 3,
 					int32(statuspb.TestStatus_PASS), 2,
 				},
-				CellIds:  []string{"", "", "", "", ""},
-				Messages: []string{"", "", "", "", ""},
-				Icons:    []string{"", "", "", "", ""},
+				CellIds:      []string{"", "", "", "", ""},
+				Messages:     []string{"", "", "", "", ""},
+				Icons:        []string{"", "", "", "", ""},
+				UserProperty: []string{"", "", "", "", ""},
 			},
 		},
 		{
@@ -2678,9 +2689,10 @@ func TestAppendCell(t *testing.T) {
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 				},
-				CellIds:  []string{"", "", ""},
-				Messages: []string{"", "", ""},
-				Icons:    []string{"", "", ""},
+				CellIds:      []string{"", "", ""},
+				Messages:     []string{"", "", ""},
+				Icons:        []string{"", "", ""},
+				UserProperty: []string{"", "", ""},
 			},
 			cell: cell{
 				Result: statuspb.TestStatus_NO_RESULT,
@@ -2691,18 +2703,20 @@ func TestAppendCell(t *testing.T) {
 					int32(statuspb.TestStatus_FLAKY), 3,
 					int32(statuspb.TestStatus_NO_RESULT), 2,
 				},
-				CellIds:  []string{"", "", ""},
-				Messages: []string{"", "", ""},
-				Icons:    []string{"", "", ""},
+				CellIds:      []string{"", "", ""},
+				Messages:     []string{"", "", ""},
+				Icons:        []string{"", "", ""},
+				UserProperty: []string{"", "", ""},
 			},
 		},
 		{
 			name: "add metric to series",
 			row: statepb.Row{
-				Results:  []int32{int32(statuspb.TestStatus_PASS), 5},
-				CellIds:  []string{"", "", "", "", "c"},
-				Messages: []string{"", "", "", "", "m"},
-				Icons:    []string{"", "", "", "", "i"},
+				Results:      []int32{int32(statuspb.TestStatus_PASS), 5},
+				CellIds:      []string{"", "", "", "", "c"},
+				Messages:     []string{"", "", "", "", "m"},
+				Icons:        []string{"", "", "", "", "i"},
+				UserProperty: []string{"", "", "", "", "up"},
 				Metric: []string{
 					"continued-series",
 					"new-series",
@@ -2731,10 +2745,11 @@ func TestAppendCell(t *testing.T) {
 			start: 5,
 			count: 1,
 			expected: statepb.Row{
-				Results:  []int32{int32(statuspb.TestStatus_PASS), 6},
-				CellIds:  []string{"", "", "", "", "c", ""},
-				Messages: []string{"", "", "", "", "m", ""},
-				Icons:    []string{"", "", "", "", "i", ""},
+				Results:      []int32{int32(statuspb.TestStatus_PASS), 6},
+				CellIds:      []string{"", "", "", "", "c", ""},
+				Messages:     []string{"", "", "", "", "m", ""},
+				Icons:        []string{"", "", "", "", "i", ""},
+				UserProperty: []string{"", "", "", "", "up", ""},
 				Metric: []string{
 					"continued-series",
 					"new-series",
@@ -2791,10 +2806,18 @@ func TestAppendCell(t *testing.T) {
 	}
 }
 
+// setupRow appends cells to the row.
+//
+// Auto-drops UserProperty if row.UserProperty == nil (set to empty to preserve).
 func setupRow(row *statepb.Row, cells ...cell) *statepb.Row {
+	dropUserPropety := row.UserProperty == nil
 	for idx, c := range cells {
 		appendCell(row, c, idx, 1)
 	}
+	if dropUserPropety {
+		row.UserProperty = nil
+	}
+
 	return row
 }
 
@@ -2844,9 +2867,10 @@ func TestAppendColumn(t *testing.T) {
 						},
 					},
 					"world": {
-						Result:  statuspb.TestStatus_FAIL,
-						Message: "boom",
-						Icon:    "X",
+						Result:       statuspb.TestStatus_FAIL,
+						Message:      "boom",
+						Icon:         "X",
+						UserProperty: "prop",
 					},
 				},
 			},
@@ -2857,22 +2881,28 @@ func TestAppendColumn(t *testing.T) {
 				Rows: []*statepb.Row{
 					setupRow(
 						&statepb.Row{
-							Name: "hello",
-							Id:   "hello",
+							Name:         "hello",
+							Id:           "hello",
+							UserProperty: []string{},
 						},
 						cell{
 							Result:  statuspb.TestStatus_PASS,
 							CellID:  "yes",
 							Metrics: map[string]float64{"answer": 42},
 						}),
-					setupRow(&statepb.Row{
-						Name: "world",
-						Id:   "world",
-					}, cell{
-						Result:  statuspb.TestStatus_FAIL,
-						Message: "boom",
-						Icon:    "X",
-					}),
+					setupRow(
+						&statepb.Row{
+							Name:         "world",
+							Id:           "world",
+							UserProperty: []string{},
+						},
+						cell{
+							Result:       statuspb.TestStatus_FAIL,
+							Message:      "boom",
+							Icon:         "X",
+							UserProperty: "prop",
+						},
+					),
 				},
 			},
 		},
@@ -2886,13 +2916,19 @@ func TestAppendColumn(t *testing.T) {
 				},
 				Rows: []*statepb.Row{
 					setupRow(
-						&statepb.Row{Name: "deleted"},
+						&statepb.Row{
+							Name:         "deleted",
+							UserProperty: []string{},
+						},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
 					),
 					setupRow(
-						&statepb.Row{Name: "always"},
+						&statepb.Row{
+							Name:         "always",
+							UserProperty: []string{},
+						},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
@@ -2915,14 +2951,20 @@ func TestAppendColumn(t *testing.T) {
 				},
 				Rows: []*statepb.Row{
 					setupRow(
-						&statepb.Row{Name: "deleted"},
+						&statepb.Row{
+							Name:         "deleted",
+							UserProperty: []string{},
+						},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
 						emptyCell,
 					),
 					setupRow(
-						&statepb.Row{Name: "always"},
+						&statepb.Row{
+							Name:         "always",
+							UserProperty: []string{},
+						},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
 						cell{Result: statuspb.TestStatus_PASS},
@@ -2930,8 +2972,9 @@ func TestAppendColumn(t *testing.T) {
 					),
 					setupRow(
 						&statepb.Row{
-							Name: "new",
-							Id:   "new",
+							Name:         "new",
+							Id:           "new",
+							UserProperty: []string{},
 						},
 						emptyCell,
 						emptyCell,
@@ -2956,8 +2999,8 @@ func TestAppendColumn(t *testing.T) {
 			sort.SliceStable(tc.expected.Rows, func(i, j int) bool {
 				return tc.expected.Rows[i].Name < tc.expected.Rows[j].Name
 			})
-			if diff := cmp.Diff(tc.grid, tc.expected, protocmp.Transform()); diff != "" {
-				t.Errorf("appendColumn() got unexpected diff (-got +want):\n%s", diff)
+			if diff := cmp.Diff(tc.expected, tc.grid, protocmp.Transform()); diff != "" {
+				t.Errorf("appendColumn() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
