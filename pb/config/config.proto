@@ -276,11 +276,7 @@ message TestGroup {
   // If true, test method names are printed with the full class names.
   bool use_full_method_names = 47;
 
-  // The string list of full path evaluator rules in the format:
-  // <config_directory>.<rule_set_file>.<RuleSetClassName>.<rule_name>
-  //
-  // Deprecated feature
-  repeated string custom_result_evaluator_rules = 48 [deprecated = true];
+  reserved 48;
 
   // A configuration value that is used as a fallback grouping.
   // This is useful for cases where there are builds that shared the same
