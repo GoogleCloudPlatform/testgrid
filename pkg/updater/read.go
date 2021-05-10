@@ -174,7 +174,7 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 					return
 				}
 				id := path.Base(b.Path.Object())
-				col, err := convertResult(log, nameCfg, id, heads, group.ShortTextMetric, *result, makeOptions(group))
+				col, err := convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
 				if err != nil {
 					innerCancel()
 					select {
@@ -239,6 +239,8 @@ type groupOptions struct {
 	merge          bool
 	analyzeProwJob bool
 	addCellID      bool
+	metricKey      string
+	userKey        string
 }
 
 func makeOptions(group *configpb.TestGroup) groupOptions {
@@ -246,6 +248,8 @@ func makeOptions(group *configpb.TestGroup) groupOptions {
 		merge:          !group.DisableMergedStatus,
 		analyzeProwJob: !group.DisableProwjobAnalysis,
 		addCellID:      group.BuildOverrideStrftime != "",
+		metricKey:      group.ShortTextMetric,
+		userKey:        group.UserProperty,
 	}
 }
 

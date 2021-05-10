@@ -614,6 +614,16 @@ func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []Inf
 	})
 
 	for _, row := range grid.Rows {
+		del := true
+		for _, up := range row.UserProperty {
+			if up != "" {
+				del = false
+				break
+			}
+		}
+		if del {
+			row.UserProperty = nil
+		}
 		sort.SliceStable(row.Metric, func(i, j int) bool {
 			return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
 		})
@@ -743,6 +753,7 @@ func appendCell(row *statepb.Row, cell Cell, start, count int) {
 		// Javascript client expects no result cells to skip icons/messages
 		row.Messages = append(row.Messages, cell.Message)
 		row.Icons = append(row.Icons, cell.Icon)
+		row.UserProperty = append(row.UserProperty, cell.UserProperty)
 	}
 }
 

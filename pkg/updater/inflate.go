@@ -30,21 +30,35 @@ import (
 // * Column state metadata and
 // * Cell values for every row in this column
 type InflatedColumn struct {
+	// Column holds the header data.
 	Column *statepb.Column
-	Cells  map[string]Cell
+	// Cells holds each row's uncompressed data for this column.
+	Cells map[string]Cell
 }
 
 // Cell holds a row's values for a given column
 type Cell struct {
+	// Result determines the color of the cell, defaulting to NO_RESULT (clear)
 	Result statuspb.TestStatus
 
-	ID     string
+	// The name of the row before user-customized formatting
+	ID string
+
+	// CellID specifies the an identifier to the build, which allows
+	// clicking different cells in a column to go to different locations.
 	CellID string
 
-	Icon    string
+	// Icon is a short string that appears on the cell
+	Icon string
+	// Message is a longer string that appears on mouse-over
 	Message string
 
+	// Metrics holds numerical data, such as how long it ran, coverage, etc.
 	Metrics map[string]float64
+
+	// UserProperty holds the value of a user-defined property, which allows
+	// runtime flexibility in generating links to click on.
+	UserProperty string
 }
 
 // inflateGrid inflates the grid's rows into an InflatedColumn channel.
@@ -125,6 +139,9 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 				c.Message = row.Messages[filledIdx]
 				if addCellID {
 					c.CellID = row.CellIds[filledIdx]
+				}
+				if n := len(row.UserProperty); n > filledIdx {
+					c.UserProperty = row.UserProperty[filledIdx]
 				}
 				filledIdx++
 			}
