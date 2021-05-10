@@ -571,6 +571,13 @@ func buildFailLink(testID, target string) string {
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
+//
+// Tabs are:
+// BROKEN - called with brokenState (typically when most rows are red)
+// STALE - called with a stale mstring (typically when most recent column is old)
+// FAIL - there is at least one alert
+// FLAKY - at least one recent column has failing cells
+// PASS - all recent columns are entirely green
 func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState bool, alerts []*summarypb.FailingTestSummary) summarypb.DashboardTabSummary_TabStatus {
 	if brokenState {
 		return summarypb.DashboardTabSummary_BROKEN
@@ -587,10 +594,13 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 	results := results(ctx, grid.Rows)
 	moreCols := true
 	var found bool
+	// We want to look at recent columns, skipping over any that are still running.
 	for moreCols && recent > 0 {
 		moreCols = false
 		var foundCol bool
 		var running bool
+		// One result off each column since we don't know which
+		// cells are running ahead of time.
 		for _, resultCh := range results {
 			r, ok := <-resultCh
 			if !ok {
@@ -599,18 +609,23 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 			moreCols = true
 			if r == statuspb.TestStatus_RUNNING {
 				running = true
+				// not break because we need to pull this column's
+				// result off every row's channel.
 				continue
 			}
 			r = coalesceResult(r, result.IgnoreRunning)
 			if r == statuspb.TestStatus_NO_RESULT {
 				continue
 			}
+			// any failure in a recent column results in flaky
 			if r != statuspb.TestStatus_PASS {
 				return summarypb.DashboardTabSummary_FLAKY
 			}
 			foundCol = true
 		}
 
+		// Running columns are unfinished and therefore should
+		// not count as "recent" until they finish.
 		if running {
 			continue
 		}
