@@ -2461,7 +2461,7 @@ func TestConstructGrid(t *testing.T) {
 					return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
 				})
 			}
-			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(&tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("constructGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
@@ -2999,7 +2999,7 @@ func TestAppendColumn(t *testing.T) {
 			sort.SliceStable(tc.expected.Rows, func(i, j int) bool {
 				return tc.expected.Rows[i].Name < tc.expected.Rows[j].Name
 			})
-			if diff := cmp.Diff(tc.expected, tc.grid, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(&tc.expected, &tc.grid, protocmp.Transform()); diff != "" {
 				t.Errorf("appendColumn() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
