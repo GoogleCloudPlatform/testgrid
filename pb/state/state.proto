@@ -178,8 +178,7 @@ message Grid {
   // rows (and the results define the individual cells).
   repeated Row rows = 2;
 
-  // Seconds since epoch when last mail alert was sent.
-  double last_alert_mail_time = 3;
+  reserved 3;
 
   // The latest configuration used to generate this test group.
   TestGroup config = 4;
