@@ -25,7 +25,7 @@ spec:
       serviceAccountName: config-merger
       containers:
       - name: config-merger
-        image: gcr.io/k8s-testgrid/config_merger:v20210510-v0.0.66-8-gbe5def5
+        image: gcr.io/k8s-testgrid/config_merger:v20210521-v0.0.67-7-gdc9770c
         args:
         - --config-url=https://raw.githubusercontent.com/kubernetes/test-infra/master/config/mergelists/canary.yaml
         - --confirm
