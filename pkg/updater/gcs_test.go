@@ -291,11 +291,11 @@ func TestConvertResult(t *testing.T) {
 		headers  []string
 		result   gcsResult
 		opt      groupOptions
-		expected *InflatedColumn
+		expected InflatedColumn
 	}{
 		{
 			name: "basically works",
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{},
 				Cells: map[string]Cell{
 					overallRow: {
@@ -326,7 +326,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Build:   "hello",
 					Hint:    "hello",
@@ -367,7 +367,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Build:   "hello",
 					Hint:    "hello",
@@ -425,7 +425,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				job: "job-name",
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 					Build:   "build",
@@ -488,7 +488,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				job: "job-name",
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -539,7 +539,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -627,7 +627,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -783,7 +783,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -910,7 +910,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1003,7 +1003,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1084,7 +1084,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1161,7 +1161,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1235,7 +1235,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1286,7 +1286,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1322,7 +1322,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1347,7 +1347,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1377,7 +1377,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1430,7 +1430,7 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 			id: "McLovin",
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 					Build:   "McLovin",
@@ -1454,18 +1454,9 @@ func TestConvertResult(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.WithField("test name", tc.name)
-			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.result, tc.opt)
-			switch {
-			case err != nil:
-				if tc.expected != nil {
-					t.Errorf("convertResult() got unexpected error: %v", err)
-				}
-			case tc.expected == nil:
-				t.Error("convertResult() failed to return an error")
-			default:
-				if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
-					t.Errorf("convertResult() got unexpected diff (-want +got):\n%s", diff)
-				}
+			actual := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.result, tc.opt)
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("convertResult() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}

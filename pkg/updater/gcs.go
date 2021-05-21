@@ -234,7 +234,7 @@ func SplitCells(originalName string, cells ...Cell) map[string]Cell {
 }
 
 // convertResult returns an InflatedColumn representation of the GCS result.
-func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, result gcsResult, opt groupOptions) (*InflatedColumn, error) {
+func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, result gcsResult, opt groupOptions) InflatedColumn {
 	cells := map[string][]Cell{}
 	var cellID string
 	if nameCfg.multiJob {
@@ -370,7 +370,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		out.Column.Extra = append(out.Column.Extra, val)
 	}
 
-	return &out, nil
+	return out
 }
 
 func podInfoCell(podInfo gcs.PodInfo) Cell {
