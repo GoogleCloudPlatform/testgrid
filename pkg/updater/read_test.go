@@ -856,11 +856,142 @@ func TestReadColumns(t *testing.T) {
 		},
 		{
 			name: "cancelled context returns error",
+			builds: []fakeBuild{
+				{id: "10"},
+			},
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
 				return ctx
 			}(),
+			err: true,
+		},
+		{
+			name: "some errors",
+			builds: []fakeBuild{
+				{
+					id: "13",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 13}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 26),
+							Passed:    &no,
+						}),
+					},
+					podInfo: podInfoSuccess,
+				},
+				{
+					id: "10-b-err",
+					started: &fakeObject{
+						OpenErr: errors.New("fake open 10-b-err"),
+					},
+				},
+				{
+					id: "10-a-err",
+					started: &fakeObject{
+						ReadErr: errors.New("fake read 10-a-err"),
+					},
+				},
+				{
+					id: "9",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 9}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 18),
+							Passed:    &yes,
+						}),
+					},
+				},
+			},
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+			},
+			expected: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "13",
+						Hint:    "13",
+						Started: float64(now+13) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_FAIL,
+							Icon:    "F",
+							Message: "Build failed outside of test results",
+							Metrics: map[string]float64{
+								"test-duration-minutes": 13 / 60.0,
+							},
+						},
+						podInfoRow: podInfoPassCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "10-b-err",
+						Hint:    "10-b-err",
+						Started: float64(now+13) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_TOOL_FAIL,
+							Message: "Failed to download build from GCS: gs://bucket/path/to/build/10-b-err/: started: read: open: fake open 10-b-err",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "10-a-err",
+						Hint:    "10-a-err",
+						Started: float64(now+11) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_TOOL_FAIL,
+							Message: "Failed to download build from GCS: gs://bucket/path/to/build/10-a-err/: started: read: decode: fake read 10-a-err",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "9",
+						Hint:    "9",
+						Started: float64(now+9) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 9 / 60.0,
+							},
+						},
+						podInfoRow: podInfoMissingCell,
+					},
+				},
+			},
+		},
+		{
+			name: "only errors",
+			builds: []fakeBuild{
+				{
+					id: "10-b-err",
+					started: &fakeObject{
+						OpenErr: errors.New("fake open 10-b-err"),
+					},
+				},
+				{
+					id: "10-a-err",
+					started: &fakeObject{
+						ReadErr: errors.New("fake read 10-a-err"),
+					},
+				},
+			},
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+			},
 			err: true,
 		},
 	}
