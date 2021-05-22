@@ -56,11 +56,12 @@ func TestInflateGrid(t *testing.T) {
 	}
 
 	cases := []struct {
-		name     string
-		grid     statepb.Grid
-		earliest time.Time
-		latest   time.Time
-		expected []inflatedColumn
+		name       string
+		grid       statepb.Grid
+		earliest   time.Time
+		latest     time.Time
+		expected   []inflatedColumn
+		wantIssues map[string][]string
 	}{
 		{
 			name: "basically works",
@@ -149,6 +150,7 @@ func TestInflateGrid(t *testing.T) {
 								Values:  []float64{1.1},
 							},
 						},
+						Issues: []string{"fun", "times"},
 					},
 					{
 						Name: "second",
@@ -171,6 +173,10 @@ func TestInflateGrid(t *testing.T) {
 						Messages:     []string{"notice-sparse"},
 						Icons:        []string{"I2-sparse"},
 						UserProperty: []string{"there-sparse"},
+					},
+					{
+						Name:   "issued",
+						Issues: []string{"three", "4"},
 					},
 				},
 			},
@@ -198,6 +204,7 @@ func TestInflateGrid(t *testing.T) {
 							Result: statuspb.TestStatus_PASS,
 						},
 						"sparse": {},
+						"issued": {},
 					},
 				},
 				{
@@ -229,8 +236,13 @@ func TestInflateGrid(t *testing.T) {
 							Icon:         "I2-sparse",
 							UserProperty: "there-sparse",
 						},
+						"issued": {},
 					},
 				},
+			},
+			wantIssues: map[string][]string{
+				"issued": {"three", "4"},
+				"name":   {"fun", "times"},
 			},
 		},
 		{
@@ -532,9 +544,15 @@ func TestInflateGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := inflateGrid(&tc.grid, tc.earliest, tc.latest)
+			if tc.wantIssues == nil {
+				tc.wantIssues = map[string][]string{}
+			}
+			actual, issues := inflateGrid(&tc.grid, tc.earliest, tc.latest)
 			if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
 				t.Errorf("inflateGrid() got unexpected diff (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantIssues, issues); diff != "" {
+				t.Errorf("inflateGrid() got unexpected issue diff (-want +got):\n%s", diff)
 			}
 		})
 

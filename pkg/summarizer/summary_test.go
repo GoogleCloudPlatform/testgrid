@@ -525,17 +525,17 @@ func TestAllLinkedIssues(t *testing.T) {
 				{
 					Name:    "test-1",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"1", "2"},
+					Issues:  []string{"1", "2"},
 				},
 				{
 					Name:    "test-2",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"5"},
+					Issues:  []string{"5"},
 				},
 				{
 					Name:    "test-3",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"10", "7"},
+					Issues:  []string{"10", "7"},
 				},
 			},
 			want: []string{"1", "2", "5", "7", "10"},
@@ -546,12 +546,12 @@ func TestAllLinkedIssues(t *testing.T) {
 				{
 					Name:    "test-1",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"1", "2"},
+					Issues:  []string{"1", "2"},
 				},
 				{
 					Name:    "test-2",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"2", "3"},
+					Issues:  []string{"2", "3"},
 				},
 			},
 			want: []string{"1", "2", "3"},
@@ -1096,9 +1096,9 @@ func TestFailingTestSummaries(t *testing.T) {
 			rows: []*statepb.Row{
 				{},
 				{
-					Name:  "foo-name",
-					Id:    "foo-target",
-					BugId: []string{"1234", "5678"},
+					Name:   "foo-name",
+					Id:     "foo-target",
+					Issues: []string{"1234", "5678"},
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:       "bad",
 						LatestFailBuildId: "still-bad",
@@ -1116,9 +1116,9 @@ func TestFailingTestSummaries(t *testing.T) {
 				},
 				{},
 				{
-					Name:  "bar-name",
-					Id:    "bar-target",
-					BugId: []string{"1234"},
+					Name:   "bar-name",
+					Id:     "bar-target",
+					Issues: []string{"1234"},
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:       "fbi",
 						LatestFailBuildId: "lfbi",

@@ -416,13 +416,15 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	stop := time.Now().Add(-dur)
 
 	var oldCols []InflatedColumn
+	var issues map[string][]string
 
 	old, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
 	if old != nil {
-		cols := inflateGrid(old, stop, time.Now().Add(-reprocess))
+		var cols []InflatedColumn
+		cols, issues = inflateGrid(old, stop, time.Now().Add(-reprocess))
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
 	}
@@ -438,7 +440,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 
 	sortCols(tg, cols)
 
-	grid := constructGrid(log, tg, cols)
+	grid := constructGrid(log, tg, cols, issues)
 	buf, err := marshalGrid(grid)
 	if err != nil {
 		return fmt.Errorf("marshal grid: %w", err)
@@ -592,7 +594,7 @@ func days(d float64) time.Duration {
 // constructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn) *statepb.Grid {
+func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -607,6 +609,22 @@ func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []Inf
 	}
 
 	dropEmptyRows(log, &grid, rows)
+
+	for name, row := range rows {
+		row.Issues = append(row.Issues, issues[name]...)
+		issues := make(map[string]bool, len(row.Issues))
+		for _, i := range row.Issues {
+			issues[i] = true
+		}
+		row.Issues = make([]string, 0, len(issues))
+		for i := range issues {
+			row.Issues = append(row.Issues, i)
+		}
+		sort.SliceStable(row.Issues, func(i, j int) bool {
+			// Largest issues at the front of the list
+			return !sortorder.NaturalLess(row.Issues[i], row.Issues[j])
+		})
+	}
 
 	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
@@ -755,6 +773,8 @@ func appendCell(row *statepb.Row, cell Cell, start, count int) {
 		row.Icons = append(row.Icons, cell.Icon)
 		row.UserProperty = append(row.UserProperty, cell.UserProperty)
 	}
+
+	row.Issues = append(row.Issues, cell.Issues...)
 }
 
 // appendColumn adds the build column to the grid.

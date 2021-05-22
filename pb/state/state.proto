@@ -158,13 +158,13 @@ message Row {
   // Present for any column with a non-empty status (not NO_RESULT).
   repeated string icons = 9;
 
-  // IDs for bugs associated with results in this test case.
-  repeated string bug_id = 10;
+  // IDs for issues associated with this row.
+  repeated string issues = 10;
 
-  // An alert for the failure if there's a recent failure for this test case.
+  // An alert for the failure if there's a recent failure for this row.
   AlertInfo alert_info = 11;
 
-  // Values of a user-defined property found in test results for this row.
+  // Values of a user-defined property found in cells for this row.
   repeated string user_property = 12;
 }
 

@@ -2197,6 +2197,7 @@ func TestConstructGrid(t *testing.T) {
 		name     string
 		group    configpb.TestGroup
 		cols     []inflatedColumn
+		issues   map[string][]string
 		expected statepb.Grid
 	}{
 		{
@@ -2442,11 +2443,110 @@ func TestConstructGrid(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "issues",
+			cols: []inflatedColumn{
+				{
+					Column: &statepb.Column{Build: "15"},
+					Cells: map[string]cell{
+						"row": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{
+								"from-cell-15",
+								"should-deduplicate-from-both",
+								"should-deduplicate-from-row",
+								"should-deduplicate-from-cell",
+								"should-deduplicate-from-cell",
+							},
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "10"},
+					Cells: map[string]cell{
+						"row": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{
+								"from-cell-10",
+								"should-deduplicate-from-row",
+							},
+						},
+						"other": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{"fun"},
+						},
+						"sort": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{
+								"3-is-second",
+								"100-is-last",
+								"2-is-first",
+							},
+						},
+					},
+				},
+			},
+			issues: map[string][]string{
+				"row": {
+					"from-argument",
+					"should-deduplicate-from-arg",
+					"should-deduplicate-from-arg",
+					"should-deduplicate-from-both",
+				},
+			},
+			expected: statepb.Grid{
+				Columns: []*statepb.Column{
+					{Build: "15"},
+					{Build: "10"},
+				},
+				Rows: []*statepb.Row{
+					setupRow(
+						&statepb.Row{
+							Name:   "other",
+							Id:     "other",
+							Issues: []string{"fun"},
+						},
+						cell{Result: statuspb.TestStatus_NO_RESULT},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "row",
+							Id:   "row",
+							Issues: []string{
+								"should-deduplicate-from-row",
+								"should-deduplicate-from-cell",
+								"should-deduplicate-from-both",
+								"should-deduplicate-from-arg",
+								"from-cell-15",
+								"from-cell-10",
+								"from-argument",
+							},
+						},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "sort",
+							Id:   "sort",
+							Issues: []string{
+								"100-is-last",
+								"3-is-second",
+								"2-is-first",
+							},
+						},
+						cell{Result: statuspb.TestStatus_NO_RESULT},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := constructGrid(logrus.WithField("name", tc.name), &tc.group, tc.cols)
+			actual := constructGrid(logrus.WithField("name", tc.name), &tc.group, tc.cols, tc.issues)
 			failuresOpen := int(tc.group.NumFailuresToAlert)
 			passesClose := int(tc.group.NumPassesToDisableAlert)
 			if failuresOpen > 0 && passesClose == 0 {
@@ -2780,6 +2880,17 @@ func TestAppendCell(t *testing.T) {
 			count: 7,
 			expected: statepb.Row{
 				Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 7},
+			},
+		},
+		{
+			name:  "issues",
+			count: 395,
+			cell: Cell{
+				Issues: []string{"problematic", "state"},
+			},
+			expected: statepb.Row{
+				Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 395},
+				Issues:  []string{"problematic", "state"},
 			},
 		},
 	}
