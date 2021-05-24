@@ -870,6 +870,12 @@ func TestReadColumns(t *testing.T) {
 			name: "some errors",
 			builds: []fakeBuild{
 				{
+					id: "14-err",
+					started: &fakeObject{
+						OpenErr: errors.New("fake open 14-err"),
+					},
+				},
+				{
 					id: "13",
 					started: &fakeObject{
 						Data: jsonData(metadata.Started{Timestamp: now + 13}),
@@ -906,11 +912,30 @@ func TestReadColumns(t *testing.T) {
 						}),
 					},
 				},
+				{
+					id: "8-err",
+					started: &fakeObject{
+						ReadErr: errors.New("fake read 8-err"),
+					},
+				},
 			},
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "14-err",
+						Hint:    "14-err",
+						Started: float64(now+13) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_TOOL_FAIL,
+							Message: "Failed to download build from GCS: gs://bucket/path/to/build/14-err/: started: read: open: fake open 14-err",
+						},
+					},
+				},
 				{
 					Column: &statepb.Column{
 						Build:   "13",
@@ -969,6 +994,19 @@ func TestReadColumns(t *testing.T) {
 							},
 						},
 						podInfoRow: podInfoMissingCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "8-err",
+						Hint:    "8-err",
+						Started: float64(now+9) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_TOOL_FAIL,
+							Message: "Failed to download build from GCS: gs://bucket/path/to/build/8-err/: started: read: decode: fake read 8-err",
+						},
 					},
 				},
 			},
