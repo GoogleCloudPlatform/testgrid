@@ -228,18 +228,24 @@ func readColumns(parent context.Context, client gcs.Downloader, group *configpb.
 	}
 
 	// Create fake data for errored columns
-	var prev int
+	prev := -1
 	var bad []int
 	for i := range cols {
 		err := errs[i]
 		if err == nil {
 			cur := i
+			if prev == -1 {
+				prev = cur
+			}
 			failedColumns(cols, builds, errs, prev, cur, bad...)
 			bad = nil
 			prev = cur
 			continue
 		}
 		bad = append(bad, i)
+	}
+	if len(bad) > 0 && prev != -1 {
+		failedColumns(cols, builds, errs, prev, prev, bad...)
 	}
 
 	return cols[0:maxIdx], nil
