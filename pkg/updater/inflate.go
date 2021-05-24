@@ -59,10 +59,15 @@ type Cell struct {
 	// UserProperty holds the value of a user-defined property, which allows
 	// runtime flexibility in generating links to click on.
 	UserProperty string
+
+	// Issues relevant to this cell
+	// TODO(fejta): persist cell association, currently gets written out as a row-association.
+	// TODO(fejta): support issue association when parsing prow job results.
+	Issues []string
 }
 
 // inflateGrid inflates the grid's rows into an InflatedColumn channel.
-func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColumn {
+func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColumn, map[string][]string) {
 	var cols []InflatedColumn
 
 	// nothing is blocking, so no need for a parent context.
@@ -70,8 +75,12 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 	defer cancel()
 
 	rows := make(map[string]<-chan Cell, len(grid.Rows))
+	issues := make(map[string][]string, len(grid.Rows))
 	for _, row := range grid.Rows {
 		rows[row.Name] = inflateRow(ctx, row)
+		if len(row.Issues) > 0 {
+			issues[row.Name] = row.Issues
+		}
 	}
 
 	for _, col := range grid.Columns {
@@ -97,7 +106,7 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 		cols = append(cols, item)
 
 	}
-	return cols
+	return cols, issues
 }
 
 // inflateRow inflates the values for each column into a Cell channel.

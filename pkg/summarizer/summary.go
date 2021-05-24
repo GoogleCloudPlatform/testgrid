@@ -546,7 +546,7 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 			BuildLink:          alert.BuildLink,
 			BuildLinkText:      alert.BuildLinkText,
 			BuildUrlText:       alert.BuildUrlText,
-			LinkedBugs:         row.BugId,
+			LinkedBugs:         row.Issues,
 			FailTestLink:       buildFailLink(alert.FailTestId, row.Id),
 			LatestFailTestLink: buildFailLink(alert.LatestFailTestId, row.Id),
 			Properties:         alert.Properties,
@@ -645,7 +645,7 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 func allLinkedIssues(rows []*statepb.Row) []string {
 	issueSet := make(map[string]bool)
 	for _, row := range rows {
-		for _, issueID := range row.BugId {
+		for _, issueID := range row.Issues {
 			issueSet[issueID] = true
 		}
 	}
