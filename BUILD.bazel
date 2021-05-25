@@ -1,4 +1,10 @@
 # gazelle:prefix github.com/GoogleCloudPlatform/testgrid
+load("@io_k8s_repo_infra//defs:run_in_workspace.bzl", "workspace_binary")
+
+workspace_binary(
+    name = "go",
+    cmd = "@go_sdk//:bin/go",
+)
 
 filegroup(
     name = "package-srcs",
