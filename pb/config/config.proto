@@ -571,6 +571,9 @@ message DashboardTab {
 
   // Options for the configuration of the flakiness analysis tool, on a per tab basis
   HealthAnalysisOptions health_analysis_options = 23;
+  
+  // A set of optional Link Templates when search for diffs between columns.
+  repeated LinkTemplate column_diff_link_templates = 25;
 }
 
 // Configuration options for dashboard tab alerts.
