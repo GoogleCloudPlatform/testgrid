@@ -75,8 +75,8 @@ func (e ValidationError) Error() string {
 	return fmt.Sprintf("configuration error for (%s) %s: %s", e.Entity, e.Name, e.Message)
 }
 
-// normalize lowercases, and removes all non-alphanumeric characters from a string.
-func normalize(s string) string {
+// Normalize lowercases, and removes all non-alphanumeric characters from a string.
+func Normalize(s string) string {
 	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
 	s = regex.ReplaceAllString(s, "")
 	s = strings.ToLower(s)
@@ -91,7 +91,7 @@ func validateUnique(items []string, entity string) error {
 	var mErr error
 	set := map[string]bool{}
 	for _, item := range items {
-		s := normalize(item)
+		s := Normalize(item)
 		_, ok := set[s]
 		if ok {
 			mErr = multierror.Append(mErr, DuplicateNameError{s, entity})
@@ -214,7 +214,7 @@ func validateReferencesExist(c *configpb.Configuration) error {
 // validateName validates an entity name is non-empty and contains no prefix that overlaps with a
 // TestGrid file prefix, post-normalization.
 func validateName(s string) error {
-	name := normalize(s)
+	name := Normalize(s)
 
 	if len(name) < minNameLength {
 		return fmt.Errorf("names must contain at least %d alphanumeric characters", minNameLength)

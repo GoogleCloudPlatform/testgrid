@@ -47,7 +47,7 @@ func TestNormalize(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			got := normalize(test.input)
+			got := Normalize(test.input)
 			if got != test.expected {
 				t.Fatalf("got %s, want %s", got, test.expected)
 			}
