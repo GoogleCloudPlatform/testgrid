@@ -57,7 +57,7 @@ func TestInflateGrid(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		grid       statepb.Grid
+		grid       *statepb.Grid
 		earliest   time.Time
 		latest     time.Time
 		expected   []inflatedColumn
@@ -65,10 +65,11 @@ func TestInflateGrid(t *testing.T) {
 	}{
 		{
 			name: "basically works",
+			grid: &statepb.Grid{},
 		},
 		{
 			name: "preserve column data",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:      "build",
@@ -115,7 +116,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "preserve row data",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "b1",
@@ -247,7 +248,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "drop latest columns",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "latest1",
@@ -318,7 +319,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "unsorted", // drop old and new
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "current1",
@@ -414,7 +415,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "drop old columns",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "current1",
@@ -486,7 +487,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "keep newest old column when none newer",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "drop-latest1",
@@ -547,7 +548,7 @@ func TestInflateGrid(t *testing.T) {
 			if tc.wantIssues == nil {
 				tc.wantIssues = map[string][]string{}
 			}
-			actual, issues := inflateGrid(&tc.grid, tc.earliest, tc.latest)
+			actual, issues := inflateGrid(tc.grid, tc.earliest, tc.latest)
 			if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
 				t.Errorf("inflateGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
