@@ -9,6 +9,7 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
+        "//pb/api/v1:all-srcs",
         "//pb/config:all-srcs",
         "//pb/custom_evaluator:all-srcs",
         "//pb/issue_state:all-srcs",
