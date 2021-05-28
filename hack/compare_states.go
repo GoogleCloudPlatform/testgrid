@@ -26,7 +26,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/iterator"
@@ -40,6 +39,9 @@ import (
 type options struct {
 	first, second gcs.Path
 	creds         string
+	diffRatioOK   float64
+	verbose       bool
+	testGroupURL  string
 }
 
 // validate ensures reasonable options
@@ -53,6 +55,9 @@ func (o *options) validate() error {
 	if !strings.HasSuffix(o.second.String(), "/") {
 		o.second.Set(o.second.String() + "/")
 	}
+	if o.diffRatioOK < 0.0 || o.diffRatioOK > 1.0 {
+		return errors.New("--diff-ratio-ok must be a ratio between 0.0 and 1.0.")
+	}
 
 	return nil
 }
@@ -63,6 +68,9 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.Var(&o.first, "first", "First directory of state files to compare.")
 	fs.Var(&o.second, "second", "Second directory of state files to compare.")
 	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
+	fs.Float64Var(&o.diffRatioOK, "diff-ratio-ok", 0.0, "Ratio between 0.0 and 1.0. Only count as different if ratio of differences / total is higher than this.")
+	fs.BoolVar(&o.verbose, "verbose", false, "If true, print detailed info like full diffs.")
+	fs.StringVar(&o.testGroupURL, "test-group-url", "", "Provide a TestGrid URL for viewing test group links (e.g. 'http://k8s.testgrid.io/q/testgroup/')")
 	fs.Parse(args)
 	return o
 }
@@ -75,40 +83,72 @@ func gatherOptions() options {
 func rowsAndColumns(ctx context.Context, grid *statepb.Grid) (map[string]bool, map[string]bool) {
 	rows := make(map[string]bool)
 	for _, row := range grid.GetRows() {
+		// Ignore duplicate rows.
+		if strings.HasSuffix(row.GetName(), "[1]") {
+			continue
+		}
 		rows[row.GetName()] = true
 	}
 
 	columns := make(map[string]bool)
 	for _, column := range grid.GetColumns() {
-		columns[proto.MarshalTextString(column)] = true
+		// We know times and other data will differ, so ignore them for now.
+		key := fmt.Sprintf("%s|%s", column.GetBuild(), column.GetName())
+		columns[key] = true
 	}
 
 	return rows, columns
 }
 
-func compare(ctx context.Context, first, second *statepb.Grid) bool {
-	var diffed bool
+func numDiff(diff string) int {
+	var plus, minus int
+	for _, line := range strings.Split(diff, "\n") {
+		if strings.HasPrefix(line, "+") {
+			plus += 1
+		}
+		if strings.HasPrefix(line, "-") {
+			minus += 1
+		}
+	}
+	if plus > minus {
+		return plus
+	}
+	return minus
+}
+
+func reportDiff(first, second map[string]bool, identifier string, diffRatioOK float64, verbose bool) (diffed bool) {
+	if diff := cmp.Diff(first, second); diff != "" {
+		total := len(first)
+		if len(second) > len(first) {
+			total = len(second)
+		}
+		n := numDiff(diff)
+		diffRatio := float64(n) / float64(total)
+		if diffRatio > diffRatioOK {
+			logrus.Infof("\t❌ %d / %d %ss differ (%.2f)", n, total, identifier, diffRatio)
+			diffed = true
+		}
+		if verbose {
+			logrus.Infof("\t(-first, +second): %s", diff)
+		}
+	} else {
+		logrus.Infof("\t✅ All %d %ss match!", len(first), identifier)
+	}
+	return
+}
+
+func compare(ctx context.Context, first, second *statepb.Grid, diffRatioOK float64, verbose bool) (diffed bool) {
 	logrus.Infof("*****************************")
 	logrus.Infof("Comparing %q and %q...", first.GetConfig().GetName(), second.GetConfig().GetName())
 	firstRows, firstColumns := rowsAndColumns(ctx, first)
 	secondRows, secondColumns := rowsAndColumns(ctx, second)
-
-	logrus.Infof("Checking row names...")
-	if diff := cmp.Diff(firstRows, secondRows); diff != "" {
-		logrus.Infof("\tRows differ (-first, +second): %s", diff)
+	if reportDiff(firstRows, secondRows, "row", diffRatioOK, verbose) {
 		diffed = true
-	} else {
-		logrus.Infof("\tAll %d rows match!", len(firstRows))
 	}
-
-	logrus.Infof("Checking column data...")
-	if diff := cmp.Diff(firstColumns, secondColumns); diff != "" {
-		logrus.Infof("Columns differ (-first, +second): %s", diff)
+	if reportDiff(firstColumns, secondColumns, "column", diffRatioOK, verbose) {
 		diffed = true
-	} else {
-		logrus.Infof("\tAll %d columns match!", len(firstColumns))
 	}
-	return diffed
+	return
 }
 
 func filenames(ctx context.Context, dir gcs.Path, client gcs.Client) ([]string, error) {
@@ -149,6 +189,7 @@ func main() {
 		logrus.Fatalf("Failed to list files in %q: %v", opt.first.String(), err)
 	}
 	var diffedMsgs, errorMsgs []string
+	var total int
 	for _, firstP := range firstFiles {
 		secondP := filepath.Join(opt.second.String(), filepath.Base(firstP))
 		firstPath, err := gcs.NewPath(firstP)
@@ -171,13 +212,20 @@ func main() {
 			errorMsgs = append(errorMsgs, fmt.Sprintf("gcs.DownloadGrid(%q): %v", secondP, err))
 			continue
 		}
-		if diffed := compare(ctx, firstGrid, secondGrid); diffed {
-			diffedMsgs = append(diffedMsgs, fmt.Sprintf("%q vs. %q", firstP, secondP))
+		if diffed := compare(ctx, firstGrid, secondGrid, opt.diffRatioOK, opt.verbose); diffed {
+			msg := fmt.Sprintf("%q vs. %q", firstP, secondP)
+			if opt.testGroupURL != "" {
+				parts := strings.Split(firstP, "/")
+				link := filepath.Join(opt.testGroupURL, parts[len(parts)-1])
+				msg = fmt.Sprintf("%s : %s", link, msg)
+			}
+			diffedMsgs = append(diffedMsgs, msg)
 		}
+		total += 1
 	}
-	logrus.Infof("Found diffs for %d pairs:", len(diffedMsgs))
+	logrus.Infof("Found diffs for %d of %d pairs:", len(diffedMsgs), total)
 	for _, msg := range diffedMsgs {
-		logrus.Infof("\t*%s", msg)
+		logrus.Infof("\t* %s", msg)
 	}
 	if n := len(errorMsgs); n > 0 {
 		logrus.WithField("count", n).WithField("errors", errorMsgs).Fatal("Errors when diffing directories.")

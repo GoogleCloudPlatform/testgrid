@@ -39,10 +39,11 @@ func newPathOrDie(s string) gcs.Path {
 
 func TestValidate(t *testing.T) {
 	cases := []struct {
-		name   string
-		first  gcs.Path
-		second gcs.Path
-		err    bool
+		name        string
+		first       gcs.Path
+		second      gcs.Path
+		diffRatioOK float64
+		err         bool
 	}{
 		{
 			name:   "empty paths, error",
@@ -63,15 +64,39 @@ func TestValidate(t *testing.T) {
 			err:    true,
 		},
 		{
-			name:   "basically works",
+			name:   "paths basically work",
 			first:  newPathOrDie("gs://path/to/first"),
 			second: newPathOrDie("gs://path/to/second"),
+		},
+		{
+			name:        "reject negative ratio",
+			first:       newPathOrDie("gs://path/to/first"),
+			second:      newPathOrDie("gs://path/to/second"),
+			diffRatioOK: -0.5,
+			err:         true,
+		},
+		{
+			name:        "reject ratio over 1.0",
+			first:       newPathOrDie("gs://path/to/first"),
+			second:      newPathOrDie("gs://path/to/second"),
+			diffRatioOK: 1.5,
+			err:         true,
+		},
+		{
+			name:        "ratio basically works",
+			first:       newPathOrDie("gs://path/to/first"),
+			second:      newPathOrDie("gs://path/to/second"),
+			diffRatioOK: 0.5,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			opt := options{tc.first, tc.second, ""}
+			opt := options{
+				first:       tc.first,
+				second:      tc.second,
+				diffRatioOK: tc.diffRatioOK,
+			}
 			err := opt.validate()
 			if tc.err && err == nil {
 				t.Fatalf("validate() (%v), expected error but got none", opt)
@@ -94,10 +119,11 @@ func TestValidate(t *testing.T) {
 
 func TestCompare(t *testing.T) {
 	cases := []struct {
-		name   string
-		first  *statepb.Grid
-		second *statepb.Grid
-		diffed bool
+		name        string
+		first       *statepb.Grid
+		second      *statepb.Grid
+		diffRatioOK float64
+		diffed      bool
 	}{
 		{
 			name:   "nil grids, same",
@@ -156,6 +182,29 @@ func TestCompare(t *testing.T) {
 			diffed: true,
 		},
 		{
+			name: "different rows lower than ratio, same",
+			first: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+					{Name: "row2"},
+				},
+				Columns: []*statepb.Column{
+					{Name: "col1"},
+					{Name: "col2"},
+				},
+			},
+			second: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+				},
+				Columns: []*statepb.Column{
+					{Name: "col1"},
+					{Name: "col2"},
+				},
+			},
+			diffRatioOK: 0.6,
+		},
+		{
 			name: "different columns, diff",
 			first: &statepb.Grid{
 				Rows: []*statepb.Row{
@@ -176,6 +225,29 @@ func TestCompare(t *testing.T) {
 				},
 			},
 			diffed: true,
+		},
+		{
+			name: "different columns lower than ratio, same",
+			first: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+					{Name: "row2"},
+				},
+				Columns: []*statepb.Column{
+					{Name: "col1"},
+					{Name: "col2"},
+				},
+			},
+			second: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+					{Name: "row2"},
+				},
+				Columns: []*statepb.Column{
+					{Name: "col1"},
+				},
+			},
+			diffRatioOK: 0.6,
 		},
 		{
 			name: "different grids, diff",
@@ -199,12 +271,34 @@ func TestCompare(t *testing.T) {
 			},
 			diffed: true,
 		},
+		{
+			name: "different grids lower than ratio, same",
+			first: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+					{Name: "row2"},
+				},
+				Columns: []*statepb.Column{
+					{Name: "col1"},
+					{Name: "col2"},
+				},
+			},
+			second: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+				},
+				Columns: []*statepb.Column{
+					{Name: "col1"},
+				},
+			},
+			diffRatioOK: 0.6,
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			if diffed := compare(ctx, tc.first, tc.second); diffed != tc.diffed {
+			if diffed := compare(ctx, tc.first, tc.second, tc.diffRatioOK, false); diffed != tc.diffed {
 				t.Errorf("compare(%s, %s) not as expected; got %t, want %t")
 			}
 		})
