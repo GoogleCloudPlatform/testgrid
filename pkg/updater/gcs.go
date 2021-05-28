@@ -18,6 +18,7 @@ package updater
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -131,6 +132,8 @@ func MergeCells(flaky bool, cells ...Cell) Cell {
 	// gather all metrics
 	means := map[string][]float64{}
 
+	issues := map[string]bool{}
+
 	current := out.Result
 	passMessageResult := current
 	failMessageResult := current
@@ -157,6 +160,18 @@ func MergeCells(flaky bool, cells ...Cell) Cell {
 		for metric, mean := range c.Metrics {
 			means[metric] = append(means[metric], mean)
 		}
+
+		for _, i := range c.Issues {
+			issues[i] = true
+		}
+	}
+
+	if n := len(issues); n > 0 {
+		out.Issues = make([]string, 0, len(issues))
+		for key := range issues {
+			out.Issues = append(out.Issues, key)
+		}
+		sort.Strings(out.Issues)
 	}
 
 	if flaky && pass > 0 && fail > 0 {

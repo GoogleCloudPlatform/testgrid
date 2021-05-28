@@ -133,6 +133,35 @@ func TestMergeCells(t *testing.T) {
 			},
 		},
 		{
+			name: "issues",
+			cells: []Cell{
+				{
+					Result: statuspb.TestStatus_PASS,
+					Issues: []string{"a", "b", "common"},
+				},
+				{
+					Result: statuspb.TestStatus_PASS,
+					Issues: []string{"common", "c"},
+				},
+				{
+					Result: statuspb.TestStatus_PASS,
+					Issues: []string{"common", "d"},
+				},
+			},
+			expected: Cell{
+				Result:  statuspb.TestStatus_PASS,
+				Message: "3/3 runs passed",
+				Icon:    "3/3",
+				Issues: []string{
+					"a",
+					"b",
+					"c",
+					"common",
+					"d",
+				},
+			},
+		},
+		{
 			name: "failures take highest failure and highest failure message",
 			cells: []Cell{
 				{
