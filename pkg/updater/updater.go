@@ -18,8 +18,6 @@ limitations under the License.
 package updater
 
 import (
-	"bytes"
-	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
@@ -34,7 +32,6 @@ import (
 	"time"
 
 	"github.com/fvbommel/sortorder"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/googleapi"
@@ -684,19 +681,7 @@ func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*
 
 // marhshalGrid serializes a state proto into zlib-compressed bytes.
 func marshalGrid(grid *statepb.Grid) ([]byte, error) {
-	buf, err := proto.Marshal(grid)
-	if err != nil {
-		return nil, fmt.Errorf("marshal: %w", err)
-	}
-	var zbuf bytes.Buffer
-	zw := zlib.NewWriter(&zbuf)
-	if _, err = zw.Write(buf); err != nil {
-		return nil, fmt.Errorf("compress: %w", err)
-	}
-	if err = zw.Close(); err != nil {
-		return nil, fmt.Errorf("close: %w", err)
-	}
-	return zbuf.Bytes(), nil
+	return gcs.MarshalGrid(grid)
 }
 
 // appendMetric adds the value at index to metric.
