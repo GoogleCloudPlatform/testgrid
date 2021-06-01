@@ -21,6 +21,7 @@ limitations under the License.
 package gcs
 
 import (
+	"bytes"
 	"compress/zlib"
 	"context"
 	"encoding/json"
@@ -215,4 +216,21 @@ func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid,
 	}
 	err = proto.Unmarshal(pbuf, &g)
 	return &g, err
+}
+
+// MarhshalGrid serializes a state proto into zlib-compressed bytes.
+func MarshalGrid(grid *statepb.Grid) ([]byte, error) {
+	buf, err := proto.Marshal(grid)
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+	var zbuf bytes.Buffer
+	zw := zlib.NewWriter(&zbuf)
+	if _, err = zw.Write(buf); err != nil {
+		return nil, fmt.Errorf("compress: %w", err)
+	}
+	if err = zw.Close(); err != nil {
+		return nil, fmt.Errorf("close: %w", err)
+	}
+	return zbuf.Bytes(), nil
 }
