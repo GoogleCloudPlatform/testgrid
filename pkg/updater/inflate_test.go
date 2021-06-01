@@ -548,12 +548,12 @@ func TestInflateGrid(t *testing.T) {
 			if tc.wantIssues == nil {
 				tc.wantIssues = map[string][]string{}
 			}
-			actual, issues := inflateGrid(tc.grid, tc.earliest, tc.latest)
+			actual, issues := InflateGrid(tc.grid, tc.earliest, tc.latest)
 			if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
-				t.Errorf("inflateGrid() got unexpected diff (-want +got):\n%s", diff)
+				t.Errorf("InflateGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantIssues, issues); diff != "" {
-				t.Errorf("inflateGrid() got unexpected issue diff (-want +got):\n%s", diff)
+				t.Errorf("InflateGrid() got unexpected issue diff (-want +got):\n%s", diff)
 			}
 		})
 

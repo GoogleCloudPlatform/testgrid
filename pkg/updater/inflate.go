@@ -66,8 +66,11 @@ type Cell struct {
 	Issues []string
 }
 
-// inflateGrid inflates the grid's rows into an InflatedColumn channel.
-func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColumn, map[string][]string) {
+// InflateGrid inflates the grid's rows into an InflatedColumn channel.
+//
+// Drops columns before earliest or more recent than latest.
+// Also returns a map of issues associated with each row name.
+func InflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColumn, map[string][]string) {
 	var cols []InflatedColumn
 
 	// nothing is blocking, so no need for a parent context.
@@ -128,7 +131,10 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 		}
 		var val *float64
 		for result := range inflateResults(ctx, row.Results) {
-			c := Cell{Result: result}
+			c := Cell{
+				Result: result,
+				ID:     row.Id,
+			}
 			for name, ch := range Metrics {
 				select {
 				case <-ctx.Done():

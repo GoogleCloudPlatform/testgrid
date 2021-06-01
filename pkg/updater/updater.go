@@ -424,7 +424,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	}
 	if old != nil {
 		var cols []InflatedColumn
-		cols, issues = inflateGrid(old, stop, time.Now().Add(-reprocess))
+		cols, issues = InflateGrid(old, stop, time.Now().Add(-reprocess))
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
 	}
