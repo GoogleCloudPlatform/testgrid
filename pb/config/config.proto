@@ -103,7 +103,7 @@ message TestGroup {
     FALLBACK_GROUPING_DATE = 1;
     FALLBACK_GROUPING_LABELS = 2;
     FALLBACK_GROUPING_ID = 3;
-    FALLBACK_GROUPING_COMMIT_NUM = 4;
+    FALLBACK_GROUPING_BUILD = 4;
 
     // When using this, ensure fallback_grouping_configuration_value is
     // also set.
@@ -150,13 +150,7 @@ message TestGroup {
   // DEPRECATED: use DashboardTabAlertOptions > wait_minutes_between_emails
   int32 min_elapsed_minutes_between_mails = 21 [deprecated = true];
 
-  // Whether to read configuration values from invocation and use that
-  // to send email alerts. If this is true, values for
-  // alert_mail_to_addresses, alert_mail_failure_message and
-  // alert_mail_debug_url will be gathered from invocation properties and will
-  // get precedence.
-  // Deprecated without replacement
-  bool use_configuration_values_as_alert_params = 22 [deprecated = true];
+  reserved 22; // No longer used
 
   // Whether to treat a combination of passes and failures within one test as a
   // flaky status.
@@ -165,7 +159,7 @@ message TestGroup {
   // disable_merged_status will restores deprecated behavior of
   // splitting multiple foo rows into foo [2], etc rather a single
   // potentially flaky row.
-  bool disable_merged_status = 57;
+  bool disable_merged_status = 60;
 
   // deprecated - always set to true
   bool use_kubernetes_client = 24;
@@ -174,7 +168,7 @@ message TestGroup {
   // to come from prow, which should include a prowjob.json and podinfo.json
   // to help debugging. If you do not expect these files to exist, you
   // can optionally disable this analysis.
-  bool disable_prowjob_analysis = 58;
+  bool disable_prowjob_analysis = 62;
 
   // deprecated - always set to true
   bool is_external = 25;
@@ -186,18 +180,11 @@ message TestGroup {
   // This is displayed on any dashboard tab backed by this test group.
   repeated Notification notifications = 27;
 
-  enum ColumnSortBy {
-    COLUMN_SORT_DATE = 0;
-    COLUMN_SORT_COMMIT_NUM = 1;
-  }
-
-  // Specifies how to sort a test group's columns. The default is to sort by
-  // date, from most recent to oldest.
-  ColumnSortBy column_sort_by = 28;
+  reserved 28; // Unused externally (column_sort_by)
 
   enum PrimaryGrouping {
     PRIMARY_GROUPING_NONE = 0;
-    PRIMARY_GROUPING_COMMIT_NUM = 1;
+    PRIMARY_GROUPING_BUILD = 1;
   }
 
   // A primary grouping strategy for grouping test results in columns.
@@ -224,11 +211,7 @@ message TestGroup {
   // If a test has more than this many methods, no methods will be displayed.
   int32 max_test_methods_per_test = 32;
 
-  // A regex to select a label that takes the place of the commit number.
-  // This is useful for cases where there is no commit or where the
-  // commit is not the primary identifier.
-  // The regex should have a capturing group; the captured content becomes the value.
-  string commit_override_label_pattern = 33;
+  reserved 33;
 
   // Default metadata that should be applied for opening bugs, if a given regex
   // matches against a test's name.
@@ -255,13 +238,7 @@ message TestGroup {
   // ID is in the bug.
   bool link_bugs_by_group = 39;
 
-  enum Environment {
-    PROD = 0;
-    QA = 1;
-  }
-
-  // Test instance to query for this test group. Optionally used by updater.
-  Environment environment_instance = 40;
+  reserved 40;
 
   // A string key value pair message
   message KeyValue {
@@ -280,10 +257,7 @@ message TestGroup {
   // is present, it will override all the other short text values.
   string short_text_metric = 43;
 
-  // A test configuration value that takes the place of the commit number.
-  // This is useful for cases where there is no commit or where the
-  // commit is not the primary identifier.
-  string commit_override_configuration_value = 44;
+  reserved 44;
 
   // If true, only associate bugs with test methods if that test method is
   // mentioned in the bug. If false, bugs will be associated with all test
@@ -302,11 +276,7 @@ message TestGroup {
   // If true, test method names are printed with the full class names.
   bool use_full_method_names = 47;
 
-  // The string list of full path evaluator rules in the format:
-  // <config_directory>.<rule_set_file>.<RuleSetClassName>.<rule_name>
-  //
-  // Deprecated feature
-  repeated string custom_result_evaluator_rules = 48 [deprecated = true];
+  reserved 48;
 
   // A configuration value that is used as a fallback grouping.
   // This is useful for cases where there are builds that shared the same
@@ -346,20 +316,18 @@ message TestGroup {
   // If True, ignore the 'pass with skips' status (show as a blank cell).
   bool ignore_skip = 54;
 
-  // A string containing go/strftime formatting specifiers that overrides the
+  // A string containing python formatting specifiers that overrides the
   // commit with the date formatted according to this string. This is useful
   // for aggregating multiple columns that don't have a matching commit.
-  string commit_override_strftime = 55;
+  string build_override_strftime = 55;
 
   // Specify a property that will be read into state in the user_property field.
   // These can be substituted into LinkTemplates.
   string user_property = 56;
 
-  // disable_merged_status 57
+  reserved 58,59;
 
-  // disable_prowjob_analysis 58
-
-  // test_method_unmatch_regex 61
+  // disable_prowjob_analysis 62
 }
 
 message JUnitConfig {}

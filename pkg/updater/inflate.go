@@ -30,31 +30,44 @@ import (
 // * Column state metadata and
 // * Cell values for every row in this column
 type InflatedColumn struct {
+	// Column holds the header data.
 	Column *statepb.Column
-	Cells  map[string]Cell
+	// Cells holds each row's uncompressed data for this column.
+	Cells map[string]Cell
 }
-
-// TODO(fejta): rename everything to InflatedColumn
-type inflatedColumn = InflatedColumn
 
 // Cell holds a row's values for a given column
 type Cell struct {
+	// Result determines the color of the cell, defaulting to NO_RESULT (clear)
 	Result statuspb.TestStatus
 
-	ID     string
+	// The name of the row before user-customized formatting
+	ID string
+
+	// CellID specifies the an identifier to the build, which allows
+	// clicking different cells in a column to go to different locations.
 	CellID string
 
-	Icon    string
+	// Icon is a short string that appears on the cell
+	Icon string
+	// Message is a longer string that appears on mouse-over
 	Message string
 
+	// Metrics holds numerical data, such as how long it ran, coverage, etc.
 	Metrics map[string]float64
+
+	// UserProperty holds the value of a user-defined property, which allows
+	// runtime flexibility in generating links to click on.
+	UserProperty string
+
+	// Issues relevant to this cell
+	// TODO(fejta): persist cell association, currently gets written out as a row-association.
+	// TODO(fejta): support issue association when parsing prow job results.
+	Issues []string
 }
 
-// TODO(fejta): rename everything to Cell
-type cell = Cell
-
 // inflateGrid inflates the grid's rows into an InflatedColumn channel.
-func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColumn {
+func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColumn, map[string][]string) {
 	var cols []InflatedColumn
 
 	// nothing is blocking, so no need for a parent context.
@@ -62,8 +75,12 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 	defer cancel()
 
 	rows := make(map[string]<-chan Cell, len(grid.Rows))
+	issues := make(map[string][]string, len(grid.Rows))
 	for _, row := range grid.Rows {
 		rows[row.Name] = inflateRow(ctx, row)
+		if len(row.Issues) > 0 {
+			issues[row.Name] = row.Issues
+		}
 	}
 
 	for _, col := range grid.Columns {
@@ -73,6 +90,9 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 			Column: col,
 			Cells:  make(map[string]Cell, len(rows)),
 		}
+		if col.Hint == "" { // TODO(fejta): drop after everything sets its hint.
+			col.Hint = col.Build
+		}
 		for rowName, rowCells := range rows {
 			item.Cells[rowName] = <-rowCells
 		}
@@ -80,13 +100,13 @@ func inflateGrid(grid *statepb.Grid, earliest, latest time.Time) []InflatedColum
 		if when > latest.Unix() {
 			continue
 		}
-		if when < earliest.Unix() && len(cols) > 0 {
-			break // Always keep at least one old column
+		if when < earliest.Unix() && len(cols) > 0 { // Always keep at least one old column
+			continue // Do not assume they are sorted by start time.
 		}
 		cols = append(cols, item)
 
 	}
-	return cols
+	return cols, issues
 }
 
 // inflateRow inflates the values for each column into a Cell channel.
@@ -128,6 +148,9 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 				c.Message = row.Messages[filledIdx]
 				if addCellID {
 					c.CellID = row.CellIds[filledIdx]
+				}
+				if n := len(row.UserProperty); n > filledIdx {
+					c.UserProperty = row.UserProperty[filledIdx]
 				}
 				filledIdx++
 			}

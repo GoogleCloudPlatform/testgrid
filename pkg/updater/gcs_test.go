@@ -37,6 +37,7 @@ import (
 func TestMergeCells(t *testing.T) {
 	cases := []struct {
 		name     string
+		flaky    bool
 		cells    []Cell
 		expected Cell
 	}{
@@ -66,7 +67,7 @@ func TestMergeCells(t *testing.T) {
 			},
 		},
 		{
-			name: "passes work and take first filled message",
+			name: "passes work and take highest filled message",
 			cells: []Cell{
 				{
 					Result: statuspb.TestStatus_PASS,
@@ -77,14 +78,21 @@ func TestMergeCells(t *testing.T) {
 					Message: "woah",
 				},
 				{
+					Result: statuspb.TestStatus_PASS_WITH_ERRORS, // highest but empty
+				},
+				{
+					Result:  statuspb.TestStatus_PASS_WITH_SKIPS, // highest with message
+					Message: "already got one",
+				},
+				{
 					Result:  statuspb.TestStatus_PASS,
 					Message: "there",
 				},
 			},
 			expected: Cell{
-				Result:  statuspb.TestStatus_PASS,
-				Message: "3/3 runs passed: woah",
-				Icon:    "3/3",
+				Result:  statuspb.TestStatus_PASS_WITH_ERRORS,
+				Message: "5/5 runs passed: already got one",
+				Icon:    "5/5",
 			},
 		},
 		{
@@ -125,7 +133,36 @@ func TestMergeCells(t *testing.T) {
 			},
 		},
 		{
-			name: "failures take highest failure, first failure message",
+			name: "issues",
+			cells: []Cell{
+				{
+					Result: statuspb.TestStatus_PASS,
+					Issues: []string{"a", "b", "common"},
+				},
+				{
+					Result: statuspb.TestStatus_PASS,
+					Issues: []string{"common", "c"},
+				},
+				{
+					Result: statuspb.TestStatus_PASS,
+					Issues: []string{"common", "d"},
+				},
+			},
+			expected: Cell{
+				Result:  statuspb.TestStatus_PASS,
+				Message: "3/3 runs passed",
+				Icon:    "3/3",
+				Issues: []string{
+					"a",
+					"b",
+					"c",
+					"common",
+					"d",
+				},
+			},
+		},
+		{
+			name: "failures take highest failure and highest failure message",
 			cells: []Cell{
 				{
 					Result:  statuspb.TestStatus_TIMED_OUT,
@@ -133,22 +170,24 @@ func TestMergeCells(t *testing.T) {
 					Icon:    "drop",
 				},
 				{
-					Result: statuspb.TestStatus_BUILD_FAIL,
-					Icon:   "drop",
+					Result:  statuspb.TestStatus_CATEGORIZED_FAIL, //highest with message
+					Icon:    "drop",
+					Message: "categorically wrong",
 				},
 				{
-					Result: statuspb.TestStatus_CATEGORIZED_FAIL,
+					Result: statuspb.TestStatus_BUILD_FAIL, // highest
 					Icon:   "drop",
 				},
 			},
 			expected: Cell{
 				Result:  statuspb.TestStatus_BUILD_FAIL,
 				Icon:    "0/3",
-				Message: "0/3 runs passed: agonizingly slow",
+				Message: "0/3 runs passed: categorically wrong",
 			},
 		},
 		{
-			name: "mix of passes and failures flake",
+			name:  "mix of passes and failures flake upon request",
+			flaky: true,
 			cells: []Cell{
 				{
 					Result:  statuspb.TestStatus_PASS,
@@ -165,13 +204,39 @@ func TestMergeCells(t *testing.T) {
 				Message: "1/2 runs passed: boom",
 			},
 		},
+		{
+			name: "mix of passes and failures will fail upon request",
+			cells: []Cell{
+				{
+					Result:  statuspb.TestStatus_PASS,
+					Message: "yay",
+				},
+				{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					Message: "boom",
+				},
+				{
+					Result:  statuspb.TestStatus_FAIL, // highest result.GTE
+					Message: "bang",
+				},
+				{
+					Result:  statuspb.TestStatus_BUILD_FAIL,
+					Message: "missing ;",
+				},
+			},
+			expected: Cell{
+				Result:  statuspb.TestStatus_FAIL,
+				Icon:    "1/4",
+				Message: "1/4 runs passed: bang",
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := MergeCells(tc.cells...)
-			if diff := cmp.Diff(actual, tc.expected); diff != "" {
-				t.Errorf("MergeCells() got unexpected diff (-have, +want):\n%s", diff)
+			got := MergeCells(tc.flaky, tc.cells...)
+			if diff := cmp.Diff(tc.expected, got); diff != "" {
+				t.Errorf("MergeCells() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -249,18 +314,17 @@ func TestConvertResult(t *testing.T) {
 	yes := true
 	now := time.Now().Unix()
 	cases := []struct {
-		name      string
-		nameCfg   nameConfig
-		id        string
-		headers   []string
-		metricKey string
-		result    gcsResult
-		opt       groupOptions
-		expected  *InflatedColumn
+		name     string
+		nameCfg  nameConfig
+		id       string
+		headers  []string
+		result   gcsResult
+		opt      groupOptions
+		expected InflatedColumn
 	}{
 		{
 			name: "basically works",
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{},
 				Cells: map[string]Cell{
 					overallRow: {
@@ -291,9 +355,10 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Build:   "hello",
+					Hint:    "hello",
 					Started: 300 * 1000,
 					Extra: []string{
 						"1.2.3",
@@ -331,9 +396,10 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Build:   "hello",
+					Hint:    "hello",
 					Started: float64(now * 1000),
 					Extra: []string{
 						"1.2.3",
@@ -388,10 +454,11 @@ func TestConvertResult(t *testing.T) {
 				},
 				job: "job-name",
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 					Build:   "build",
+					Hint:    "build",
 				},
 				Cells: map[string]Cell{
 					overallRow: {
@@ -450,7 +517,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				job: "job-name",
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -501,7 +568,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -589,7 +656,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -641,12 +708,14 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "Icon set by metric key",
+			name: "metricKey",
 			nameCfg: nameConfig{
 				format: "%s",
 				parts:  []string{testsName},
 			},
-			metricKey: "food",
+			opt: groupOptions{
+				metricKey: "food",
+			},
 			result: gcsResult{
 				started: gcs.Started{
 					Started: metadata.Started{
@@ -743,7 +812,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -804,6 +873,94 @@ func TestConvertResult(t *testing.T) {
 						Metrics: map[string]float64{
 							"food": 1,
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "userKey",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				userKey: "fries",
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "no properties",
+										},
+										{
+											Name: "missing property",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"random", "thing"},
+												},
+											},
+										},
+										{
+											Name: "present",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "curly"},
+												},
+											},
+										},
+										{
+											Name: "choose first",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "shoestring"},
+													{"fries", "curly"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+					"no properties": {
+						Result: statuspb.TestStatus_PASS,
+					},
+					"missing property": {
+						Result: statuspb.TestStatus_PASS,
+					},
+					"present": {
+						Result:       statuspb.TestStatus_PASS,
+						UserProperty: "curly",
+					},
+					"choose first": {
+						Result:       statuspb.TestStatus_PASS,
+						UserProperty: "shoestring",
 					},
 				},
 			},
@@ -875,7 +1032,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -956,7 +1113,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1033,7 +1190,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1107,7 +1264,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1158,7 +1315,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1194,7 +1351,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1219,7 +1376,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1249,7 +1406,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 			},
-			expected: &InflatedColumn{
+			expected: InflatedColumn{
 				Column: &statepb.Column{
 					Started: float64(now * 1000),
 				},
@@ -1263,23 +1420,72 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "addCellID",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				addCellID: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Name: "this",
+									Results: []junit.Result{
+										{
+											Name: "that",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			id: "McLovin",
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+					Build:   "McLovin",
+					Hint:    "McLovin",
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+						CellID:  "McLovin",
+					},
+					"this.that": {
+						Result: statuspb.TestStatus_PASS,
+						CellID: "McLovin",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.WithField("test name", tc.name)
-			actual, err := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.metricKey, tc.result, tc.opt)
-			switch {
-			case err != nil:
-				if tc.expected != nil {
-					t.Errorf("convertResult() got unexpected error: %v", err)
-				}
-			case tc.expected == nil:
-				t.Error("convertResult() failed to return an error")
-			default:
-				if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
-					t.Errorf("convertResult() got unexpected diff (-have, +want):\n%s", diff)
-				}
+			actual := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.result, tc.opt)
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("convertResult() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}

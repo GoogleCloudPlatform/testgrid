@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"path"
 	"regexp"
@@ -34,6 +35,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/api/googleapi"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
@@ -55,7 +57,7 @@ type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
 	if concurrency < 1 {
 		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
@@ -63,10 +65,13 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 	if err != nil {
 		return fmt.Errorf("Failed to read config: %w", err)
 	}
-	logrus.Infof("Found %d dashboards", len(cfg.Dashboards))
+	log := logrus.WithField("config", configPath)
+	log.WithField("dashboards", len(cfg.Dashboards)).Info("Updating dashboards")
 
 	dashboards := make(chan *configpb.Dashboard)
 	var wg sync.WaitGroup
+
+	var generations map[string]int64
 
 	groupFinder := func(name string) (*configpb.TestGroup, gridReader, error) {
 		group := config.FindTestGroup(name, cfg)
@@ -88,23 +93,42 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for dash := range dashboards {
-				log := logrus.WithField("dashboard", dash.Name)
-				log.Info("Summarizing dashboard")
+				log := log.WithField("dashboard", dash.Name)
+				log.Debug("Summarizing dashboard")
+				summaryPath, err := summaryPath(configPath, summaryPathPrefix, dash.Name)
+				if err != nil {
+					log.WithError(err).Error("Cannot resolve summary path")
+					errCh <- errors.New(dash.Name)
+					continue
+				}
+				if confirm && generations != nil {
+					if err := lockDashboard(ctx, client, *summaryPath, generations[dash.Name]); err != nil {
+						var ok bool
+						switch ee := err.(type) {
+						case *googleapi.Error:
+							if ee.Code == http.StatusPreconditionFailed {
+								ok = true
+								log.Debug("Lost the lock race")
+							}
+						}
+						if !ok {
+							log.WithError(err).Warning("Failed to acquire lock")
+						}
+						continue
+					}
+					log.Debug("Acquired update lock")
+				}
 				sum, err := updateDashboard(ctx, dash, groupFinder)
 				if err != nil {
 					log.WithError(err).Error("Cannot summarize dashboard")
 					errCh <- errors.New(dash.Name)
 					continue
 				}
+				log = log.WithField("path", summaryPath)
 				if !confirm {
 					log.WithField("summary", sum).Info("Summarized")
-					continue
-				}
-				summaryPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(summaryPathPrefix, summaryPath(dash.Name))})
-				if err != nil {
-					log.WithError(err).Error("Cannot resolve summary path")
-					errCh <- errors.New(dash.Name)
 					continue
 				}
 				if err := writeSummary(ctx, client, *summaryPath, sum); err != nil {
@@ -115,7 +139,6 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 				log.Info("Wrote dashboard summary")
 				errCh <- nil
 			}
-			wg.Done()
 		}()
 	}
 
@@ -135,9 +158,16 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 		close(resultCh)
 	}()
 
+	if dashboard == "" {
+		var err error
+		generations, err = sortDashboards(ctx, log, client, configPath, summaryPathPrefix, cfg.Dashboards)
+		if err != nil {
+			log.WithError(err).Warning("Failed to sort dashboards")
+		}
+	}
 	for _, d := range cfg.Dashboards {
 		if dashboard != "" && dashboard != d.Name {
-			logrus.WithField("dashboard", d.Name).Info("Skipping")
+			log.WithField("dashboard", d.Name).Info("Skipping")
 			continue
 		}
 		dashboards <- d
@@ -148,13 +178,63 @@ func Update(ctx context.Context, client gcs.Client, configPath gcs.Path, concurr
 	return <-resultCh
 }
 
+func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) error {
+	var buf []byte
+	if generation == 0 {
+		var sum summarypb.DashboardSummary
+		var err error
+		buf, err = proto.Marshal(&sum)
+		if err != nil {
+			return fmt.Errorf("marshal: %w", err)
+		}
+	}
+
+	return gcs.Touch(ctx, client, path, generation, buf)
+}
+
+func sortDashboards(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, summaryPathPrefix string, dashboards []*configpb.Dashboard) (map[string]int64, error) {
+	pathedDashboards := make(map[gcs.Path]*configpb.Dashboard, len(dashboards))
+	paths := make([]gcs.Path, 0, len(dashboards))
+	for _, d := range dashboards {
+		path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
+		if err != nil {
+			return nil, fmt.Errorf("bad dashboard path: %s: %w", d.Name, err)
+		}
+		pathedDashboards[*path] = d
+		paths = append(paths, *path)
+	}
+
+	generationPaths := gcs.LeastRecentlyUpdated(ctx, log, client, paths)
+	generations := make(map[string]int64, len(generationPaths))
+	for i, p := range paths {
+		d := pathedDashboards[p]
+		dashboards[i] = d
+		generations[d.Name] = generationPaths[p]
+	}
+
+	return generations, nil
+}
+
 var (
 	normalizer = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-func summaryPath(name string) string {
+func summaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	// ''.join(c for c in n.lower() if c is alphanumeric
-	return "summary-" + normalizer.ReplaceAllString(strings.ToLower(name), "")
+	name := "summary-" + normalizer.ReplaceAllString(strings.ToLower(dashboard), "")
+	fullName := path.Join(prefix, name)
+	u, err := url.Parse(fullName)
+	if err != nil {
+		return nil, fmt.Errorf("parse url: %w", err)
+	}
+	np, err := g.ResolveReference(u)
+	if err != nil {
+		return nil, fmt.Errorf("resolve reference: %w", err)
+	}
+	if np.Bucket() != g.Bucket() {
+		return nil, fmt.Errorf("dashboard %s should not change bucket", fullName)
+	}
+	return np, nil
 }
 
 func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
@@ -185,7 +265,7 @@ func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder group
 	var sum summarypb.DashboardSummary
 	for _, tab := range dash.DashboardTab {
 		log := log.WithField("tab", tab.Name)
-		log.Info("Summarizing tab")
+		log.Debug("Summarizing tab")
 		s, err := updateTab(ctx, tab, finder)
 		if err != nil {
 			log.WithError(err).Error("Cannot summarize tab")
@@ -466,7 +546,7 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 			BuildLink:          alert.BuildLink,
 			BuildLinkText:      alert.BuildLinkText,
 			BuildUrlText:       alert.BuildUrlText,
-			LinkedBugs:         row.BugId,
+			LinkedBugs:         row.Issues,
 			FailTestLink:       buildFailLink(alert.FailTestId, row.Id),
 			LatestFailTestLink: buildFailLink(alert.LatestFailTestId, row.Id),
 			Properties:         alert.Properties,
@@ -491,6 +571,13 @@ func buildFailLink(testID, target string) string {
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
+//
+// Tabs are:
+// BROKEN - called with brokenState (typically when most rows are red)
+// STALE - called with a stale mstring (typically when most recent column is old)
+// FAIL - there is at least one alert
+// FLAKY - at least one recent column has failing cells
+// PASS - all recent columns are entirely green
 func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState bool, alerts []*summarypb.FailingTestSummary) summarypb.DashboardTabSummary_TabStatus {
 	if brokenState {
 		return summarypb.DashboardTabSummary_BROKEN
@@ -505,23 +592,47 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 	defer cancel()
 
 	results := results(ctx, grid.Rows)
+	moreCols := true
 	var found bool
-	for _, resultCh := range results {
-		recentResults := recent
-		for r := range resultCh {
-			// TODO(fejta): fail old running results.
+	// We want to look at recent columns, skipping over any that are still running.
+	for moreCols && recent > 0 {
+		moreCols = false
+		var foundCol bool
+		var running bool
+		// One result off each column since we don't know which
+		// cells are running ahead of time.
+		for _, resultCh := range results {
+			r, ok := <-resultCh
+			if !ok {
+				continue
+			}
+			moreCols = true
+			if r == statuspb.TestStatus_RUNNING {
+				running = true
+				// not break because we need to pull this column's
+				// result off every row's channel.
+				continue
+			}
 			r = coalesceResult(r, result.IgnoreRunning)
 			if r == statuspb.TestStatus_NO_RESULT {
 				continue
 			}
+			// any failure in a recent column results in flaky
 			if r != statuspb.TestStatus_PASS {
 				return summarypb.DashboardTabSummary_FLAKY
 			}
+			foundCol = true
+		}
+
+		// Running columns are unfinished and therefore should
+		// not count as "recent" until they finish.
+		if running {
+			continue
+		}
+
+		if foundCol {
 			found = true
-			recentResults--
-			if recentResults == 0 {
-				break
-			}
+			recent--
 		}
 
 	}
@@ -534,7 +645,7 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 func allLinkedIssues(rows []*statepb.Row) []string {
 	issueSet := make(map[string]bool)
 	for _, row := range rows {
-		for _, issueID := range row.BugId {
+		for _, issueID := range row.Issues {
 			issueSet[issueID] = true
 		}
 	}

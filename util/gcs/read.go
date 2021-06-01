@@ -24,7 +24,6 @@ import (
 	"net/url"
 	"path"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -183,22 +182,6 @@ func readLink(objAttrs *storage.ObjectAttrs) string {
 	return ""
 }
 
-// Sort the builds by monotonically increasing original prefix base name.
-//
-// In other words,
-//   gs://c/10
-//   gs://a/5
-//   gs://b/1
-// becomes:
-//   gs://b/1
-//   gs://a/5
-//   gs://c/10
-func Sort(builds []Build) {
-	sort.SliceStable(builds, func(i, j int) bool {
-		return !sortorder.NaturalLess(builds[i].baseName, builds[j].baseName)
-	})
-}
-
 // hackOffset handles tot's sequential names, which GCS handles poorly
 // AKA asking GCS to return results after 6 will never find 10
 // So we always have to list everything for these types of numbers.
@@ -281,8 +264,8 @@ func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path
 		// GCS will return 200 2000 30 for a prefix of 100
 		// testgrid expects this as 2000 200 (dropping 30)
 		for i, b := range all {
-			if sortorder.NaturalLess(b.baseName, offsetBaseName) {
-				return all[:i], nil
+			if sortorder.NaturalLess(b.baseName, offsetBaseName) || b.baseName == offsetBaseName {
+				return all[:i], nil // b <= offsetBaseName, so skip this one
 			}
 		}
 	}

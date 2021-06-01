@@ -29,6 +29,12 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
+// TODO(fejta): rename everything to InflatedColumn
+type inflatedColumn = InflatedColumn
+
+// TODO(fejta): rename everything to Cell
+type cell = Cell
+
 func blank(n int) []string {
 	var out []string
 	for i := 0; i < n; i++ {
@@ -50,28 +56,31 @@ func TestInflateGrid(t *testing.T) {
 	}
 
 	cases := []struct {
-		name     string
-		grid     statepb.Grid
-		earliest time.Time
-		latest   time.Time
-		expected []inflatedColumn
+		name       string
+		grid       *statepb.Grid
+		earliest   time.Time
+		latest     time.Time
+		expected   []inflatedColumn
+		wantIssues map[string][]string
 	}{
 		{
 			name: "basically works",
+			grid: &statepb.Grid{},
 		},
 		{
 			name: "preserve column data",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:      "build",
+						Hint:       "xyzpdq",
 						Name:       "name",
 						Started:    5,
 						Extra:      []string{"extra", "fun"},
 						HotlistIds: "hot topic",
 					},
 					{
-						Build:      "second build",
+						Build:      "second build", // Also becomes Hint
 						Name:       "second name",
 						Started:    10,
 						Extra:      []string{"more", "gooder"},
@@ -84,6 +93,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:      "build",
+						Hint:       "xyzpdq",
 						Name:       "name",
 						Started:    5,
 						Extra:      []string{"extra", "fun"},
@@ -94,6 +104,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:      "second build",
+						Hint:       "second build",
 						Name:       "second name",
 						Started:    10,
 						Extra:      []string{"more", "gooder"},
@@ -105,7 +116,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "preserve row data",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "b1",
@@ -124,31 +135,49 @@ func TestInflateGrid(t *testing.T) {
 						Results: []int32{
 							int32(statuspb.TestStatus_FAIL), 2,
 						},
-						CellIds:  []string{"this", "that"},
-						Messages: []string{"important", "notice"},
-						Icons:    []string{"I1", "I2"},
-						Metric:   []string{"this", "that"},
+						CellIds:      []string{"this", "that"},
+						Messages:     []string{"important", "notice"},
+						Icons:        []string{"I1", "I2"},
+						Metric:       []string{"this", "that"},
+						UserProperty: []string{"hello", "there"},
 						Metrics: []*statepb.Metric{
 							{
-								Indices: []int32{0, 2},
+								Indices: []int32{0, 2}, // both columns
 								Values:  []float64{0.1, 0.2},
 							},
 							{
 								Name:    "override",
-								Indices: []int32{1, 1},
+								Indices: []int32{1, 1}, // only second
 								Values:  []float64{1.1},
 							},
 						},
+						Issues: []string{"fun", "times"},
 					},
 					{
 						Name: "second",
 						Results: []int32{
 							int32(statuspb.TestStatus_PASS), 2,
 						},
-						CellIds:  blank(2),
-						Messages: blank(2),
-						Icons:    blank(2),
-						Metric:   blank(2),
+						CellIds:      blank(2),
+						Messages:     blank(2),
+						Icons:        blank(2),
+						Metric:       blank(2),
+						UserProperty: blank(2),
+					},
+					{
+						Name: "sparse",
+						Results: []int32{
+							int32(statuspb.TestStatus_NO_RESULT), 1,
+							int32(statuspb.TestStatus_FLAKY), 1,
+						},
+						CellIds:      []string{"that-sparse"},
+						Messages:     []string{"notice-sparse"},
+						Icons:        []string{"I2-sparse"},
+						UserProperty: []string{"there-sparse"},
+					},
+					{
+						Name:   "issued",
+						Issues: []string{"three", "4"},
 					},
 				},
 			},
@@ -157,6 +186,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "b1",
+						Hint:    "b1",
 						Name:    "n1",
 						Started: 1,
 					},
@@ -169,15 +199,19 @@ func TestInflateGrid(t *testing.T) {
 							Metrics: map[string]float64{
 								"this": 0.1,
 							},
+							UserProperty: "hello",
 						},
 						"second": {
 							Result: statuspb.TestStatus_PASS,
 						},
+						"sparse": {},
+						"issued": {},
 					},
 				},
 				{
 					Column: &statepb.Column{
 						Build:   "b2",
+						Hint:    "b2",
 						Name:    "n2",
 						Started: 2,
 					},
@@ -191,17 +225,30 @@ func TestInflateGrid(t *testing.T) {
 								"this":     0.2,
 								"override": 1.1,
 							},
+							UserProperty: "there",
 						},
 						"second": {
 							Result: statuspb.TestStatus_PASS,
 						},
+						"sparse": {
+							Result:       statuspb.TestStatus_FLAKY,
+							CellID:       "that-sparse",
+							Message:      "notice-sparse",
+							Icon:         "I2-sparse",
+							UserProperty: "there-sparse",
+						},
+						"issued": {},
 					},
 				},
+			},
+			wantIssues: map[string][]string{
+				"issued": {"three", "4"},
+				"name":   {"fun", "times"},
 			},
 		},
 		{
 			name: "drop latest columns",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "latest1",
@@ -249,6 +296,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "keep1",
+						Hint:    "keep1",
 						Started: millis(hours[20]) + 999,
 					},
 					Cells: map[string]cell{
@@ -259,6 +307,103 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "keep2",
+						Hint:    "keep2",
+						Started: millis(hours[10]),
+					},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FLAKY},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+			},
+		},
+		{
+			name: "unsorted", // drop old and new
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Build:   "current1",
+						Started: millis(hours[20]),
+					},
+					{
+						Build:   "old1",
+						Started: millis(hours[10]) - 1,
+					},
+					{
+						Build:   "new1",
+						Started: millis(hours[22]),
+					},
+					{
+						Build:   "current3",
+						Started: millis(hours[19]),
+					},
+					{
+						Build:   "new2",
+						Started: millis(hours[23]),
+					},
+					{
+						Build:   "old2",
+						Started: millis(hours[0]),
+					},
+					{
+						Build:   "current2",
+						Started: millis(hours[10]),
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:     "hello",
+						CellIds:  blank(7),
+						Messages: blank(7),
+						Icons:    blank(7),
+						Results: []int32{
+							int32(statuspb.TestStatus_RUNNING), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+							int32(statuspb.TestStatus_FLAKY), 1,
+						},
+					},
+					{
+						Name:     "world",
+						CellIds:  blank(7),
+						Messages: blank(7),
+						Icons:    blank(7),
+						Results: []int32{
+							int32(statuspb.TestStatus_PASS_WITH_SKIPS), 7,
+						},
+					},
+				},
+			},
+			latest:   hours[21],
+			earliest: hours[10],
+			expected: []inflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "current1",
+						Hint:    "current1",
+						Started: millis(hours[20]),
+					},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_RUNNING},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "current3",
+						Hint:    "current3",
+						Started: millis(hours[19]),
+					},
+					Cells: map[string]cell{
+						"hello": {Result: statuspb.TestStatus_FAIL},
+						"world": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "current2",
+						Hint:    "current2",
 						Started: millis(hours[10]),
 					},
 					Cells: map[string]cell{
@@ -270,7 +415,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "drop old columns",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "current1",
@@ -319,6 +464,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "current1",
+						Hint:    "current1",
 						Started: millis(hours[20]),
 					},
 					Cells: map[string]cell{
@@ -329,6 +475,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "current2",
+						Hint:    "current2",
 						Started: millis(hours[10]),
 					},
 					Cells: map[string]cell{
@@ -340,7 +487,7 @@ func TestInflateGrid(t *testing.T) {
 		},
 		{
 			name: "keep newest old column when none newer",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{
 						Build:   "drop-latest1",
@@ -384,6 +531,7 @@ func TestInflateGrid(t *testing.T) {
 				{
 					Column: &statepb.Column{
 						Build:   "keep-old1",
+						Hint:    "keep-old1",
 						Started: millis(hours[10]) - 1,
 					},
 					Cells: map[string]cell{
@@ -397,9 +545,15 @@ func TestInflateGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := inflateGrid(&tc.grid, tc.earliest, tc.latest)
-			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
-				t.Errorf("inflateGrid() got unexpected diff (-have, +want):\n%s", diff)
+			if tc.wantIssues == nil {
+				tc.wantIssues = map[string][]string{}
+			}
+			actual, issues := inflateGrid(tc.grid, tc.earliest, tc.latest)
+			if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+				t.Errorf("inflateGrid() got unexpected diff (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantIssues, issues); diff != "" {
+				t.Errorf("inflateGrid() got unexpected issue diff (-want +got):\n%s", diff)
 			}
 		})
 

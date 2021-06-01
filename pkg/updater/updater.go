@@ -18,8 +18,6 @@ limitations under the License.
 package updater
 
 import (
-	"bytes"
-	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
@@ -33,9 +31,7 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/googleapi"
@@ -56,7 +52,7 @@ import (
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) GroupUpdater {
+func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error {
 		if !tg.UseKubernetesClient {
 			log.Debug("Skipping non-kubernetes client group")
@@ -65,58 +61,32 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool) 
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
 		gcsColReader := gcsColumnReader(client, buildTimeout, concurrency)
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader)
+		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess)
 	}
 }
 
 // sortGroups sorts test groups by last update time, returning the current generation ID for each group.
 func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) (map[string]int64, error) {
-	log.Info("Sorting groups")
-	updated := make(map[string]time.Time, len(groups))
-	generations := make(map[string]int64, len(groups))
-	var wg sync.WaitGroup
-	var lock sync.Mutex
+	groupedPaths := make(map[gcs.Path]*configpb.TestGroup, len(groups))
+	paths := make([]gcs.Path, 0, len(groups))
 	for _, tg := range groups {
 		tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
 		if err != nil {
 			return nil, fmt.Errorf("%s bad group path: %w", tg.Name, err)
 		}
-		wg.Add(1)
-		log := log.WithField("group", tg.Name)
-		name := tg.Name
-		go func() {
-			defer wg.Done()
-			attrs, err := client.Stat(ctx, *tgp)
-			lock.Lock()
-			defer lock.Unlock()
-			switch {
-			case err == storage.ErrObjectNotExist:
-				log.Info("No existing grid state")
-				generations[name] = 0
-			case err != nil:
-				log.WithError(err).Warning("Cannot determine group update time")
-				generations[name] = -1 // Should always fail
-			default:
-				updated[name] = attrs.Updated
-				generations[name] = attrs.Generation
-				log.WithField("updated", attrs.Updated).Debug("Found updated time")
-			}
-		}()
+		groupedPaths[*tgp] = tg
+		paths = append(paths, *tgp)
 	}
-	wg.Wait()
 
-	sort.SliceStable(groups, func(i, j int) bool {
-		return !updated[groups[i].Name].After(updated[groups[j].Name])
-	})
-	n := len(groups) - 1
-	if n > 0 {
-		log.WithFields(logrus.Fields{
-			"newest-name": groups[n].Name,
-			"newest":      updated[groups[n].Name],
-			"oldest-name": groups[0].Name,
-			"oldest":      updated[groups[0].Name],
-		}).Info("Sorted")
+	generationPaths := gcs.LeastRecentlyUpdated(ctx, log, client, paths)
+	generations := make(map[string]int64, len(generationPaths))
+	for i, p := range paths {
+		tg := groupedPaths[p]
+		groups[i] = tg
+		generations[tg.Name] = generationPaths[p]
 	}
+
 	return generations, nil
 }
 
@@ -127,23 +97,16 @@ func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, 
 // will only allow one of them to "win". The others receive a PreconditionFailed error and can
 // move onto the next group.
 func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) error {
-	var cond storage.Conditions
-	if generation != 0 {
-		// Attempt to cloud-copy the object to its current location
-		// - only 1 will win in a concurrent situation
-		// - Increases the last update time.
-		cond.GenerationMatch = generation
-		return client.If(&cond, &cond).Copy(ctx, path, path)
+	var buf []byte
+	if generation == 0 {
+		var grid statepb.Grid
+		var err error
+		if buf, err = marshalGrid(&grid); err != nil {
+			return fmt.Errorf("marshal: %w", err)
+		}
 	}
 
-	// New group, create an empty grid for it.
-	cond.DoesNotExist = true
-	var grid statepb.Grid
-	buf, err := marshalGrid(&grid)
-	if err != nil {
-		return fmt.Errorf("marshal: %w", err)
-	}
-	return client.If(&cond, &cond).Upload(ctx, path, buf, gcs.DefaultACL, "no-cache")
+	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
 // Update performs a single update pass of all all test groups specified by the config.
@@ -178,18 +141,20 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 				}
 				if write && generations != nil {
 					if err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
+						var ok bool
 						switch ee := err.(type) {
 						case *googleapi.Error:
 							if ee.Code == http.StatusPreconditionFailed {
+								ok = true
 								log.Debug("Lost the lock race")
-								continue
 							}
 						}
-						log.WithError(err).Warning("Failed to acquire lock")
+						if !ok {
+							log.WithError(err).Warning("Failed to acquire lock")
+						}
 						continue
-					} else {
-						log.Debug("Acquired update lock")
 					}
+					log.Debug("Acquired update lock")
 				}
 				if err := updateGroup(ctx, log, client, &tg, *tgp); err != nil {
 					log.WithError(err).Error("Error updating group")
@@ -209,12 +174,10 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 		}
 		groups <- *tg
 	} else { // All groups
-		log.Info("Sorting groups")
 		generations, err = sortGroups(ctx, log, client, configPath, gridPrefix, cfg.TestGroups)
 		if err != nil {
 			log.WithError(err).Warning("Failed to sort groups")
 		}
-		log.Info("Sorted")
 		idxChan := make(chan int)
 		defer close(idxChan)
 		go logUpdate(idxChan, len(cfg.TestGroups), "Update in progress")
@@ -317,17 +280,27 @@ func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 //
 // If there are 20 columns where all are complete except the 3rd and 7th, this will
 // return the 8th and later columns.
+//
+// Running columns more than 3 days old are not considered.
 func truncateRunning(cols []InflatedColumn) []InflatedColumn {
 	if len(cols) == 0 {
 		return cols
 	}
-	var stillRunning int
-	for i, c := range cols {
-		if c.Cells[overallRow].Result == statuspb.TestStatus_RUNNING {
-			stillRunning = i + 1
+
+	floor := float64(time.Now().Add(-72*time.Hour).UTC().Unix() * 1000)
+
+	for i := len(cols) - 1; i >= 0; i-- {
+		if cols[i].Column.Started < floor {
+			continue
+		}
+		for _, cell := range cols[i].Cells {
+			if cell.Result == statuspb.TestStatus_RUNNING {
+				return cols[i+1:]
+			}
 		}
 	}
-	return cols[stillRunning:]
+	// No cells are found to be running; do not truncate
+	return cols
 }
 
 var (
@@ -355,7 +328,7 @@ func growMaxUpdateArea() {
 	updateAreaLock.Unlock()
 }
 
-func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedColumn) []gcs.Build {
+func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []InflatedColumn) []gcs.Build {
 	// determine the average number of rows per column
 	var rows int
 	for _, c := range cols {
@@ -385,7 +358,7 @@ func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []inflatedC
 			"delayed": n - nCols,
 			"old":     len(cols),
 		}).Info("Trucated update")
-		return builds[n-nCols : n]
+		return builds[n-nCols:]
 	}
 	return builds
 }
@@ -408,7 +381,7 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 		out = append(out, builds...)
 	}
 
-	if len(paths) > 0 {
+	if len(paths) > 1 {
 		gcs.Sort(out)
 	}
 
@@ -416,10 +389,20 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 }
 
 // A ColumnReader will find, process and return new columns to insert into the front of grid state.
-type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []inflatedColumn, stop time.Time) ([]inflatedColumn, error)
+type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error)
+
+// A ColumnSorter sort InflatedColumns as desired.
+type ColumnSorter func(*configpb.TestGroup, []InflatedColumn)
+
+// SortStarted sorts InflatedColumns by column start time.
+func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
+	sort.SliceStable(cols, func(i, j int) bool {
+		return cols[i].Column.Started > cols[j].Column.Started
+	})
+}
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader) error {
+func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) error {
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -429,24 +412,32 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 
 	stop := time.Now().Add(-dur)
 
-	var oldCols []inflatedColumn
+	var oldCols []InflatedColumn
+	var issues map[string][]string
 
 	old, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
 	if old != nil {
-		oldCols = truncateRunning(inflateGrid(old, stop, time.Now().Add(-12*time.Hour)))
+		var cols []InflatedColumn
+		cols, issues = inflateGrid(old, stop, time.Now().Add(-reprocess))
+		SortStarted(tg, cols) // Our processing requires descending start time.
+		oldCols = truncateRunning(cols)
 	}
 
-	newCols, err := readCols(ctx, log, tg, oldCols, stop)
+	cols, err := readCols(ctx, log, tg, oldCols, stop)
 	if err != nil {
 		return fmt.Errorf("read columns: %w", err)
 	}
 
-	cols := mergeColumns(newCols, oldCols)
+	overrideBuild(tg, cols)
+	cols = append(cols, oldCols...)
+	cols = groupColumns(tg, cols)
 
-	grid := constructGrid(log, tg, cols)
+	sortCols(tg, cols)
+
+	grid := constructGrid(log, tg, cols, issues)
 	buf, err := marshalGrid(grid)
 	if err != nil {
 		return fmt.Errorf("marshal grid: %w", err)
@@ -468,23 +459,123 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	return nil
 }
 
-// mergeColumns combines newCols and oldCols.
+// formatStrftime replaces python codes with what go expects.
 //
-// When old and new both contain a column, chooses the new column.
-func mergeColumns(newCols, oldCols []InflatedColumn) []InflatedColumn {
-	// accept all the new columns
-	out := append([]InflatedColumn{}, newCols...)
-	if len(out) == 0 {
-		return oldCols
+// aka %Y-%m-%d becomes 2006-01-02
+func formatStrftime(in string) string {
+	replacements := map[string]string{
+		"%p": "PM",
+		"%Y": "2006",
+		"%y": "06",
+		"%m": "01",
+		"%d": "02",
+		"%H": "15",
+		"%M": "04",
+		"%S": "05",
 	}
 
-	// accept all the old columns which are older than the accepted columns.
-	oldestCol := out[len(out)-1].Column
-	for i := 0; i < len(oldCols); i++ {
-		if oldCols[i].Column.Started > oldestCol.Started || oldCols[i].Column.Build == oldestCol.Build {
+	out := in
+
+	for bad, good := range replacements {
+		out = strings.ReplaceAll(out, bad, good)
+	}
+	return out
+}
+
+func overrideBuild(tg *configpb.TestGroup, cols []InflatedColumn) {
+	fmt := tg.BuildOverrideStrftime
+	if fmt == "" {
+		return
+	}
+	fmt = formatStrftime(fmt)
+	for _, col := range cols {
+		started := int64(col.Column.Started)
+		when := time.Unix(started/1000, (started%1000)*int64(time.Millisecond/time.Nanosecond))
+		col.Column.Build = when.Format(fmt)
+	}
+}
+
+const columnIDSeparator = "\ue000"
+
+// GroupColumns merges columns with the same Name and Build.
+//
+// Cells are joined together, splitting those with the same name.
+// Started is the smallest value.
+// Extra is the most recent filled value.
+func groupColumns(tg *configpb.TestGroup, cols []InflatedColumn) []InflatedColumn {
+	groups := map[string][]InflatedColumn{}
+	var ids []string
+	for _, c := range cols {
+		id := c.Column.Name + columnIDSeparator + c.Column.Build
+		groups[id] = append(groups[id], c)
+		ids = append(ids, id)
+	}
+
+	if len(groups) == 0 {
+		return nil
+	}
+
+	out := make([]InflatedColumn, 0, len(groups))
+
+	seen := make(map[string]bool, len(groups))
+
+	for _, id := range ids {
+		if seen[id] {
+			continue // already merged this group.
+		}
+		seen[id] = true
+		var col InflatedColumn
+
+		groupedCells := groups[id]
+		if len(groupedCells) == 1 {
+			out = append(out, groupedCells[0])
 			continue
 		}
-		return append(out, oldCols[i:]...)
+
+		cells := map[string][]Cell{}
+
+		var count int
+		for i, c := range groupedCells {
+			if i == 0 {
+				col.Column = c.Column
+			} else {
+				if c.Column.Started < col.Column.Started {
+					col.Column.Started = c.Column.Started
+				}
+				if !sortorder.NaturalLess(c.Column.Hint, col.Column.Hint) {
+					col.Column.Hint = c.Column.Hint
+				}
+				for i, val := range c.Column.Extra {
+					if val == "" || val == col.Column.Extra[i] {
+						continue
+					}
+					if col.Column.Extra[i] == "" {
+						col.Column.Extra[i] = c.Column.Extra[i]
+					} else {
+						col.Column.Extra[i] = "*" // values differ
+					}
+				}
+			}
+			for key, cell := range c.Cells {
+				cells[key] = append(cells[key], cell)
+				count++
+			}
+		}
+		if tg.IgnoreOldResults {
+			col.Cells = make(map[string]Cell, len(cells))
+		} else {
+			col.Cells = make(map[string]Cell, count)
+		}
+		for name, duplicateCells := range cells {
+			if tg.IgnoreOldResults {
+				col.Cells[name] = duplicateCells[0]
+				continue
+			}
+			for name, cell := range SplitCells(name, duplicateCells...) {
+				col.Cells[name] = cell
+			}
+		}
+		out = append(out, col)
 	}
 	return out
 }
@@ -500,7 +591,7 @@ func days(d float64) time.Duration {
 // constructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []inflatedColumn) *statepb.Grid {
+func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -516,12 +607,38 @@ func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []inf
 
 	dropEmptyRows(log, &grid, rows)
 
+	for name, row := range rows {
+		row.Issues = append(row.Issues, issues[name]...)
+		issues := make(map[string]bool, len(row.Issues))
+		for _, i := range row.Issues {
+			issues[i] = true
+		}
+		row.Issues = make([]string, 0, len(issues))
+		for i := range issues {
+			row.Issues = append(row.Issues, i)
+		}
+		sort.SliceStable(row.Issues, func(i, j int) bool {
+			// Largest issues at the front of the list
+			return !sortorder.NaturalLess(row.Issues[i], row.Issues[j])
+		})
+	}
+
 	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
 	})
 
 	for _, row := range grid.Rows {
+		del := true
+		for _, up := range row.UserProperty {
+			if up != "" {
+				del = false
+				break
+			}
+		}
+		if del {
+			row.UserProperty = nil
+		}
 		sort.SliceStable(row.Metric, func(i, j int) bool {
 			return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
 		})
@@ -564,19 +681,7 @@ func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*
 
 // marhshalGrid serializes a state proto into zlib-compressed bytes.
 func marshalGrid(grid *statepb.Grid) ([]byte, error) {
-	buf, err := proto.Marshal(grid)
-	if err != nil {
-		return nil, fmt.Errorf("marshal: %w", err)
-	}
-	var zbuf bytes.Buffer
-	zw := zlib.NewWriter(&zbuf)
-	if _, err = zw.Write(buf); err != nil {
-		return nil, fmt.Errorf("compress: %w", err)
-	}
-	if err = zw.Close(); err != nil {
-		return nil, fmt.Errorf("close: %w", err)
-	}
-	return zbuf.Bytes(), nil
+	return gcs.MarshalGrid(grid)
 }
 
 // appendMetric adds the value at index to metric.
@@ -603,7 +708,7 @@ func hasCellID(name string) bool {
 // appendCell adds the rowResult column to the row.
 //
 // Handles the details like missing fields and run-length-encoding the result.
-func appendCell(row *statepb.Row, cell cell, start, count int) {
+func appendCell(row *statepb.Row, cell Cell, start, count int) {
 	latest := int32(cell.Result)
 	n := len(row.Results)
 	switch {
@@ -651,7 +756,10 @@ func appendCell(row *statepb.Row, cell cell, start, count int) {
 		// Javascript client expects no result cells to skip icons/messages
 		row.Messages = append(row.Messages, cell.Message)
 		row.Icons = append(row.Icons, cell.Icon)
+		row.UserProperty = append(row.UserProperty, cell.UserProperty)
 	}
+
+	row.Issues = append(row.Issues, cell.Issues...)
 }
 
 // appendColumn adds the build column to the grid.

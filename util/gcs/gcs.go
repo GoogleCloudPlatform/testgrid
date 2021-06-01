@@ -21,8 +21,10 @@ limitations under the License.
 package gcs
 
 import (
+	"bytes"
 	"compress/zlib"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -105,6 +107,24 @@ func (g *Path) SetURL(u *url.URL) error {
 	}
 	g.url = *u
 	return nil
+}
+
+// MarshalJSON encodes Path as a string
+func (g Path) MarshalJSON() ([]byte, error) {
+	return json.Marshal(g.String())
+}
+
+// MarshalJSON decodes a string into Path
+func (g *Path) UnmarshalJSON(buf []byte) error {
+	var str string
+	err := json.Unmarshal(buf, &str)
+	if err != nil {
+		return err
+	}
+	if g == nil {
+		g = &Path{}
+	}
+	return g.Set(str)
 }
 
 // ResolveReference returns the path relative to the current path
@@ -196,4 +216,21 @@ func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid,
 	}
 	err = proto.Unmarshal(pbuf, &g)
 	return &g, err
+}
+
+// MarhshalGrid serializes a state proto into zlib-compressed bytes.
+func MarshalGrid(grid *statepb.Grid) ([]byte, error) {
+	buf, err := proto.Marshal(grid)
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+	var zbuf bytes.Buffer
+	zw := zlib.NewWriter(&zbuf)
+	if _, err = zw.Write(buf); err != nil {
+		return nil, fmt.Errorf("compress: %w", err)
+	}
+	if err = zw.Close(); err != nil {
+		return nil, fmt.Errorf("close: %w", err)
+	}
+	return zbuf.Bytes(), nil
 }

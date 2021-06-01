@@ -120,6 +120,9 @@ message Column {
 
   // Custom hotlist ids.
   string hotlist_ids = 5;
+
+  // An optional hint for the updater.
+  string hint = 6;
 }
 
 // TestGrid rows (also known as TestRow)
@@ -155,13 +158,13 @@ message Row {
   // Present for any column with a non-empty status (not NO_RESULT).
   repeated string icons = 9;
 
-  // IDs for bugs associated with results in this test case.
-  repeated string bug_id = 10;
+  // IDs for issues associated with this row.
+  repeated string issues = 10;
 
-  // An alert for the failure if there's a recent failure for this test case.
+  // An alert for the failure if there's a recent failure for this row.
   AlertInfo alert_info = 11;
 
-  // Values of a user-defined property found in test results for this row.
+  // Values of a user-defined property found in cells for this row.
   repeated string user_property = 12;
 }
 
@@ -175,8 +178,7 @@ message Grid {
   // rows (and the results define the individual cells).
   repeated Row rows = 2;
 
-  // Seconds since epoch when last mail alert was sent.
-  double last_alert_mail_time = 3;
+  reserved 3;
 
   // The latest configuration used to generate this test group.
   TestGroup config = 4;

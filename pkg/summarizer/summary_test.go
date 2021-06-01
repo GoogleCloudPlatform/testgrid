@@ -43,6 +43,7 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 type fakeGroup struct {
@@ -51,6 +52,20 @@ type fakeGroup struct {
 	mod   time.Time
 	gen   int64
 	err   error
+}
+
+func TestUpdate(t *testing.T) {
+	cases := []struct {
+		name string
+	}{
+		{},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// TODO(fejta): implement
+		})
+	}
 }
 
 func TestUpdateDashboard(t *testing.T) {
@@ -510,17 +525,17 @@ func TestAllLinkedIssues(t *testing.T) {
 				{
 					Name:    "test-1",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"1", "2"},
+					Issues:  []string{"1", "2"},
 				},
 				{
 					Name:    "test-2",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"5"},
+					Issues:  []string{"5"},
 				},
 				{
 					Name:    "test-3",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"10", "7"},
+					Issues:  []string{"10", "7"},
 				},
 			},
 			want: []string{"1", "2", "5", "7", "10"},
@@ -531,12 +546,12 @@ func TestAllLinkedIssues(t *testing.T) {
 				{
 					Name:    "test-1",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"1", "2"},
+					Issues:  []string{"1", "2"},
 				},
 				{
 					Name:    "test-2",
 					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-					BugId:   []string{"2", "3"},
+					Issues:  []string{"2", "3"},
 				},
 			},
 			want: []string{"1", "2", "3"},
@@ -1081,9 +1096,9 @@ func TestFailingTestSummaries(t *testing.T) {
 			rows: []*statepb.Row{
 				{},
 				{
-					Name:  "foo-name",
-					Id:    "foo-target",
-					BugId: []string{"1234", "5678"},
+					Name:   "foo-name",
+					Id:     "foo-target",
+					Issues: []string{"1234", "5678"},
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:       "bad",
 						LatestFailBuildId: "still-bad",
@@ -1101,9 +1116,9 @@ func TestFailingTestSummaries(t *testing.T) {
 				},
 				{},
 				{
-					Name:  "bar-name",
-					Id:    "bar-target",
-					BugId: []string{"1234"},
+					Name:   "bar-name",
+					Id:     "bar-target",
+					Issues: []string{"1234"},
 					AlertInfo: &statepb.AlertInfo{
 						FailBuildId:       "fbi",
 						LatestFailBuildId: "lfbi",
@@ -1229,7 +1244,7 @@ func TestOverallStatus(t *testing.T) {
 			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
-			name:   "do not consider still-running results as flaky",
+			name:   "incomplete passing results", // ignore them
 			recent: 5,
 			rows: []*statepb.Row{
 				{
@@ -1239,13 +1254,32 @@ func TestOverallStatus(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 				{
-					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 2},
+					Results: []int32{int32(statuspb.TestStatus_RUNNING), 2},
 				},
 				{
 					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "incomplete flaky results", // ignore them
+			recent: 5,
+			rows: []*statepb.Row{
+				{
+					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 1},
+				},
+				{
+					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
+				},
+				{
+					Results: []int32{int32(statuspb.TestStatus_RUNNING), 2},
+				},
+				{
+					Results: []int32{int32(statuspb.TestStatus_FAIL), 2},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
 			name:   "ignore old failures",
@@ -1259,6 +1293,73 @@ func TestOverallStatus(t *testing.T) {
 				},
 			},
 			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "dropped columns", // should not impact status
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Name: "current",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+				{
+					Name: "ignore dropped",
+					Results: []int32{
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+					},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "dropped columns", // should not impact status
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Name: "current",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+				{
+					Name: "ignore dropped",
+					Results: []int32{
+						int32(statuspb.TestStatus_NO_RESULT), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+					},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "running", // do not count as recent
+			recent: 1,
+			rows: []*statepb.Row{
+				{
+					Name: "pass",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+				{
+					Name: "running",
+					Results: []int32{
+						int32(statuspb.TestStatus_RUNNING), 1,
+						int32(statuspb.TestStatus_PASS), 1,
+					},
+				},
+				{
+					Name: "flake",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 1,
+						int32(statuspb.TestStatus_FAIL), 1,
+					},
+				},
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
 		},
 		{
 			name:   "partial results work",
@@ -2283,6 +2384,63 @@ func TestResultIter(t *testing.T) {
 			}
 			if !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("%s != expected %s", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestSummaryPath(t *testing.T) {
+	mustPath := func(s string) *gcs.Path {
+		p, err := gcs.NewPath(s)
+		if err != nil {
+			t.Fatalf("gcs.NewPath(%q) got err: %v", s, err)
+		}
+		return p
+	}
+	cases := []struct {
+		name   string
+		path   gcs.Path
+		prefix string
+		dash   string
+		want   *gcs.Path
+		err    bool
+	}{
+		{
+			name: "normal",
+			path: *mustPath("gs://bucket/config"),
+			dash: "hello",
+			want: mustPath("gs://bucket/summary-hello"),
+		},
+		{
+			name:   "prefix", // construct path with a prefix correctly
+			path:   *mustPath("gs://bucket/config"),
+			prefix: "summary",
+			dash:   "hello",
+			want:   mustPath("gs://bucket/summary/summary-hello"),
+		},
+		{
+			name:   "normalize", // normalize dashboard name correctly
+			path:   *mustPath("gs://bucket/config"),
+			prefix: "UpperCase",       // do not normalize
+			dash:   "Hello --- World", // normalize
+			want:   mustPath("gs://bucket/UpperCase/summary-helloworld"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := summaryPath(tc.path, tc.prefix, tc.dash)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("summaryPath(%q, %q, %q) got unexpected error: %v", tc.path, tc.prefix, tc.dash, err)
+				}
+			case tc.err:
+				t.Errorf("summaryPath(%q, %q, %q) failed to get an error", tc.path, tc.prefix, tc.name)
+			default:
+				if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(gcs.Path{})); diff != "" {
+					t.Errorf("summaryPath(%q, %q, %q) got unexpected diff (-want +got):\n%s", tc.path, tc.prefix, tc.dash, diff)
+				}
 			}
 		})
 	}

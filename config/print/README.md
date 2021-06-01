@@ -5,8 +5,16 @@ human-readable format. It will read from the local filesystem or Google Cloud St
 
 ## Usage and installation
 
+The tool can be built and run with Bazel.
+
+```sh
+bazel run //config/print -- gs://example/config
+```
+
+The tool can be installed via go install. You may want to rename the
+resulting binary so it doesn't shadow your shell's `print` utility.
+
 ```sh
 go install ./config/print
 print gs://example/config
 ```
-A Bazel `run` command also works, but the utility won't be able to read from the local file system as expected.

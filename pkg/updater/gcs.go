@@ -18,6 +18,7 @@ package updater
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -101,7 +102,17 @@ const (
 	podInfoRow = "Pod"
 )
 
-func MergeCells(cells ...Cell) Cell {
+// MergeCells will combine the cells into a single result.
+//
+// The flaky argument determines whether returned result
+// is flaky (true) or failing when merging cells with both passing
+// and failing results.
+//
+// Merging multiple results will set the icon to n/N passes
+//
+// Includes the message from the "most relevant" cell that includes a message.
+// Where relevance is determined by result.GTE.
+func MergeCells(flaky bool, cells ...Cell) Cell {
 	var out Cell
 	if len(cells) == 0 {
 		panic("empty cells")
@@ -121,7 +132,11 @@ func MergeCells(cells ...Cell) Cell {
 	// gather all metrics
 	means := map[string][]float64{}
 
+	issues := map[string]bool{}
+
 	current := out.Result
+	passMessageResult := current
+	failMessageResult := current
 
 	for _, c := range cells {
 		if result.GTE(c.Result, current) {
@@ -130,21 +145,36 @@ func MergeCells(cells ...Cell) Cell {
 		switch {
 		case result.Passing(c.Result):
 			pass++
-			if passMsg == "" && c.Message != "" {
+			if c.Message != "" && result.GTE(c.Result, passMessageResult) {
 				passMsg = c.Message
+				passMessageResult = c.Result
 			}
 		case result.Failing(c.Result):
 			fail++
-			if failMsg == "" && c.Message != "" {
+			if c.Message != "" && result.GTE(c.Result, failMessageResult) {
 				failMsg = c.Message
+				failMessageResult = c.Result
 			}
 		}
 
 		for metric, mean := range c.Metrics {
 			means[metric] = append(means[metric], mean)
 		}
+
+		for _, i := range c.Issues {
+			issues[i] = true
+		}
 	}
-	if pass > 0 && fail > 0 {
+
+	if n := len(issues); n > 0 {
+		out.Issues = make([]string, 0, len(issues))
+		for key := range issues {
+			out.Issues = append(out.Issues, key)
+		}
+		sort.Strings(out.Issues)
+	}
+
+	if flaky && pass > 0 && fail > 0 {
 		out.Result = statuspb.TestStatus_FLAKY
 	} else {
 		out.Result = current
@@ -181,6 +211,10 @@ func MergeCells(cells ...Cell) Cell {
 	return out
 }
 
+// SplitCells appends a unique suffix to each cell.
+//
+// When an excessive number of cells contain the same name
+// the list gets truncated, replaced with a synthetic "... [overflow]" cell.
 func SplitCells(originalName string, cells ...Cell) map[string]Cell {
 	n := len(cells)
 	if n == 0 {
@@ -214,12 +248,14 @@ func SplitCells(originalName string, cells ...Cell) map[string]Cell {
 	return out
 }
 
-// convertResult returns an inflatedColumn representation of the GCS result.
-func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, metricKey string, result gcsResult, opt groupOptions) (*inflatedColumn, error) {
+// convertResult returns an InflatedColumn representation of the GCS result.
+func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, headers []string, result gcsResult, opt groupOptions) InflatedColumn {
 	cells := map[string][]Cell{}
 	var cellID string
 	if nameCfg.multiJob {
 		cellID = result.job + "/" + id
+	} else if opt.addCellID {
+		cellID = id
 	}
 
 	meta := result.finished.Metadata.Strings()
@@ -267,8 +303,12 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 				c.Result = statuspb.TestStatus_PASS
 			}
 
-			if f, ok := c.Metrics[metricKey]; ok {
+			if f, ok := c.Metrics[opt.metricKey]; ok {
 				c.Icon = strconv.FormatFloat(f, 'g', 4, 64)
+			}
+
+			if values, ok := props[opt.userKey]; ok && len(values) > 0 {
+				c.UserProperty = values[0]
 			}
 
 			name := nameCfg.render(result.job, r.Name, first(props), suite.Metadata, meta)
@@ -307,18 +347,19 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	}
 
 	for name, c := range injectedCells {
+		c.CellID = cellID
 		if nameCfg.multiJob {
-			c.CellID = cellID
 			jobName := result.job + "." + name
 			cells[jobName] = append([]Cell{c}, cells[jobName]...)
 		}
 		cells[name] = append([]Cell{c}, cells[name]...)
 	}
 
-	out := inflatedColumn{
+	out := InflatedColumn{
 		Column: &statepb.Column{
 			Build:   id,
 			Started: float64(result.started.Timestamp * 1000),
+			Hint:    id,
 		},
 		Cells: map[string]Cell{},
 	}
@@ -326,7 +367,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	for name, cells := range cells {
 		switch {
 		case opt.merge:
-			out.Cells[name] = MergeCells(cells...)
+			out.Cells[name] = MergeCells(true, cells...)
 		default:
 			for n, c := range SplitCells(name, cells...) {
 				out.Cells[n] = c
@@ -344,7 +385,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		out.Column.Extra = append(out.Column.Extra, val)
 	}
 
-	return &out, nil
+	return out
 }
 
 func podInfoCell(podInfo gcs.PodInfo) Cell {
