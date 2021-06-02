@@ -218,7 +218,7 @@ func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid,
 	return &g, err
 }
 
-// MarhshalGrid serializes a state proto into zlib-compressed bytes.
+// MarshalGrid serializes a state proto into zlib-compressed bytes.
 func MarshalGrid(grid *statepb.Grid) ([]byte, error) {
 	buf, err := proto.Marshal(grid)
 	if err != nil {
