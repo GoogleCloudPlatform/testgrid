@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package testgrid.api.v1;
+
+import "google/protobuf/timestamp.proto";
+import "pb/config/config.proto";
+import "pb/state/state.proto";
+
+// GET /dashboards
+// Lists dashboard names
+message ListDashboardResponse {
+  repeated Resource dashboards = 1;
+}
+
+// GET /dashboardgroups
+// Lists the dashboard group names
+message ListDashboardGroupResponse {
+  repeated Resource dashboard_groups = 1;
+}
+
+// GET /dashboards/{dashboard}/tabs
+// Lists the dashboard tab names
+message ListDashboardTabsResponse {
+  repeated Resource dashboard_tabs = 1;
+}
+
+// GET /dashboards/{dashboard}
+// Returns a Dashboard config's metadata
+// Excludes subtabs, accessed through the /tabs list method instead
+message GetDashboardResponse {
+  // A list of notifications attached to this dashboard.
+  // This is displayed on any dashboard tab in this dashboard.
+  repeated Notification notifications = 1;
+
+  // Control which tab is displayed when first opening a dashboard.
+  // Defaults to Summary
+  string default_tab = 2;
+
+  // Controls whether to suppress highlighting of failing tabs.
+  bool suppress_failing_tabs = 3;
+
+  // Controls whether to apply special highlighting to result header columns for
+  // the current day.
+  bool highlight_today = 4;
+}
+
+// GET /dashboardgroups/{dashboardgroup}
+// Lists the dashboard names in that group
+message GetDashboardGroupResponse {
+  repeated Resource dashboards = 1;
+}
+
+// GET /dashboards/{dashboard}/tabs/{tab}
+// Returns a tab’s configuration, as stored
+//message GetDashboardTabResponse = config.DashboardTab
+
+// GET /testgroups/{testgroup}
+// Returns a Test Group's configuration, as stored
+//message GetTestGroupResponse = config.TestGroup
+
+// GET /summary/{dashboard}
+// GET /dashboards/{dashboard}/summary
+// Returns a summary of this dashboard, as stored
+//message GetSummaryResponse = summary.DashboardTabSummary
+
+// GET /testgroups/{testgroup}/headers
+// GET /dashboards/{dashboard}/tabs/{tab}/headers
+// Returns the headers for grid results
+message ListHeadersResponse {
+  repeated Header headers = 1;
+
+  message Header {
+    // Unique instance of the job, typically BUILD_NUMBER from prow or a guid
+    string build = 1;
+
+    // Name associated with the column (such as the run/invocation ID). No two
+    // columns should have the same build_id and name. The name field allows the
+    // display of multiple columns with the same build_id.
+    string name = 2;
+
+    // When the build started running
+    google.protobuf.Timestamp started = 3;
+
+    // Additional custom headers like commit, image used, etc.
+    repeated string extra = 4;
+
+    // Custom hotlist ids.
+    string hotlist_ids = 5;
+  }
+}
+
+// GET /testgroups/{testgroup}/rows
+// GET /dashboards/{dashboard}/tabs/{tab}/rows
+// Returns information on grid rows, and data within those rows
+message ListRowsResponse {
+  repeated Row rows = 1;
+
+  message Row {
+    // Display name of the test case
+    string name = 1;
+
+    // Historical results of the test case. Unencoded.
+    repeated Cell cells = 2;
+
+    // Issue or Bug IDs associated with the test case
+    repeated string issues = 3;
+
+    // Alert associated with the test case
+    AlertInfo alert = 4;
+
+    // TODO(chases2): Add metrics to these resources
+  }
+
+  message Cell {
+    int32 result = 1;
+    string cell_id = 2;
+    string message = 3;
+    string icon = 4;
+  }
+}
+
+// A Resource is a REST resource, often returned by a LIST command
+// It includes the name of the resource and a link to the resource
+message Resource {
+  string name = 1;
+  string link = 2;
+}

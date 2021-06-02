@@ -27,7 +27,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
@@ -2565,38 +2564,6 @@ func TestConstructGrid(t *testing.T) {
 				t.Errorf("constructGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
-	}
-}
-
-func TestMarshalGrid(t *testing.T) {
-	g1 := statepb.Grid{
-		Columns: []*statepb.Column{
-			{Build: "alpha"},
-			{Build: "second"},
-		},
-	}
-	g2 := statepb.Grid{
-		Columns: []*statepb.Column{
-			{Build: "first"},
-			{Build: "second"},
-		},
-	}
-
-	b1, e1 := marshalGrid(&g1)
-	b2, e2 := marshalGrid(&g2)
-	uncompressed, e1a := proto.Marshal(&g1)
-
-	switch {
-	case e1 != nil, e2 != nil:
-		t.Errorf("unexpected error %v %v %v", e1, e2, e1a)
-	}
-
-	if reflect.DeepEqual(b1, b2) {
-		t.Errorf("unexpected equality %v == %v", b1, b2)
-	}
-
-	if reflect.DeepEqual(b1, uncompressed) {
-		t.Errorf("should be compressed but is not: %v", b1)
 	}
 }
 
