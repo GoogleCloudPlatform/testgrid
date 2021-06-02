@@ -46,8 +46,12 @@ type options struct {
 
 // validate ensures reasonable options
 func (o *options) validate() error {
-	if o.first.String() == "" || o.second.String() == "" {
-		return errors.New("--first and --second are required and must specify directories.")
+	if o.first.String() == "" {
+		return errors.New("unset: --first")
+	}
+
+	if o.second.String() == "" {
+		return errors.New("unset: --second")
 	}
 	if !strings.HasSuffix(o.first.String(), "/") {
 		o.first.Set(o.first.String() + "/")
@@ -56,7 +60,7 @@ func (o *options) validate() error {
 		o.second.Set(o.second.String() + "/")
 	}
 	if o.diffRatioOK < 0.0 || o.diffRatioOK > 1.0 {
-		return errors.New("--diff-ratio-ok must be a ratio between 0.0 and 1.0.")
+		return fmt.Errorf("--diff-ratio-ok must be a ratio between 0.0 and 1.0: %f", o.diffRatioOK)
 	}
 
 	return nil
@@ -104,10 +108,10 @@ func numDiff(diff string) int {
 	var plus, minus int
 	for _, line := range strings.Split(diff, "\n") {
 		if strings.HasPrefix(line, "+") {
-			plus += 1
+			plus++
 		}
 		if strings.HasPrefix(line, "-") {
-			minus += 1
+			minus++
 		}
 	}
 	if plus > minus {
@@ -221,7 +225,7 @@ func main() {
 			}
 			diffedMsgs = append(diffedMsgs, msg)
 		}
-		total += 1
+		total++
 	}
 	logrus.Infof("Found diffs for %d of %d pairs:", len(diffedMsgs), total)
 	for _, msg := range diffedMsgs {
