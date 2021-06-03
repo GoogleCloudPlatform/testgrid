@@ -38,6 +38,7 @@ filegroup(
         "//pkg/updater:all-srcs",
         "//resultstore:all-srcs",
         "//util/gcs:all-srcs",
+        "//util/metrics:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
