@@ -94,6 +94,8 @@ func main() {
 		log.WithError(err).Fatal("Can't parse YAML merge config")
 	}
 
+	log.WithField("merge-list", list).Debug("YAML mergelist read successful")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	storageClient, err := gcs.ClientWithCreds(ctx, opt.creds)
