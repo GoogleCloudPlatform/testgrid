@@ -27,6 +27,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 
 	"github.com/sirupsen/logrus"
 )
@@ -134,11 +135,13 @@ func main() {
 	}).Info("Configured concurrency")
 
 	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
+	cycle := metrics.NewLogInt64("cycle_duration", "How long an update cycle took, in seconds.", logrus.New())
 	updateOnce := func() {
 		start := time.Now()
 		if err := updater.Update(ctx, client, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm); err != nil {
 			logrus.WithError(err).Error("Could not update")
 		}
+		cycle.Set(int64(time.Since(start).Seconds()))
 		logrus.Infof("Update completed in %s", time.Since(start))
 	}
 
