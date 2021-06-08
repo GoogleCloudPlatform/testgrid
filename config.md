@@ -38,6 +38,8 @@ annotations:
   testgrid-num-failures-to-alert: "3"      # optionally, the number of continuous failures before sending an email.
                                            # Currently defaults to 3.
   testgrid-alert-stale-results-hours: "12" # optionally, send an email if this many hours pass with no results at all.
+  testgrid-in-cell-metric: "foo-metric"    # optionally, show the value of this metric as the text on a cell.
+  testgrid-disable-prowjob-analysis: false # optionally, disable Prow job analysis if your results don't upload canonical Prow files.
 
 ```
 
@@ -137,6 +139,17 @@ test_groups:
 - name: kubernetes-build
   gcs_prefix: kubernetes-jenkins/logs/ci-kubernetes-build
   days_of_results: 7
+```
+
+### Disable Prowjob Analysis
+
+Use this if you're seeing failing Pod rows due to missing podinfo.json files, and that's expected behavior.
+
+```yaml
+test_groups:
+- name: kubernetes-build
+  gcs_prefix: foo/logs/my-conformance-job
+  disable_prowjob_analysis: true
 ```
 
 ### Tab descriptions
