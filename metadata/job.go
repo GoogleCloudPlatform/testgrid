@@ -141,6 +141,7 @@ func firstFilled(def string, options ...string) string {
 	return def
 }
 
+// Missing is the key for a missing version.
 const Missing = "missing"
 
 // Version extracts the job's custom version or else the checked out repo commit.

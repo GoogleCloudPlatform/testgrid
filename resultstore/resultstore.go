@@ -52,6 +52,7 @@ type Invocation struct {
 	Description string
 }
 
+// URL returns the Resultstore URL for a given resource as a string.
 func URL(resourceName string) string {
 	u := url.URL{
 		Scheme: "https",
@@ -214,7 +215,7 @@ type Error struct {
 	Stack string
 }
 
-// Error returns the corresponding ResultStore TestError message
+// To returns the corresponding ResultStore TestError message
 func (e Error) To() *resultstore.TestError {
 	return &resultstore.TestError{
 		ErrorMessage:  e.Message,
@@ -291,8 +292,8 @@ const (
 
 	// TestLog appears in the Target Log tab.
 	TestLog = "test.log"
-	// TestXml causes ResultStore to process this junit.xml to add cases automatically (we aren't using).
-	TestXml = "test.xml"
+	// TestXML causes ResultStore to process this junit.xml to add cases automatically (we aren't using).
+	TestXML = "test.xml"
 
 	// TestCov provides line coverage, currently we're not using this.
 	TestCov = "test.lcov"

@@ -65,6 +65,7 @@ func propertyMap(r *junit.Result) map[string][]string {
 	return out
 }
 
+// Means returns means for each given property's values.
 func Means(properties map[string][]string) map[string]float64 {
 	out := make(map[string]float64, len(properties))
 	for name, values := range properties {
@@ -458,6 +459,7 @@ func overallCell(result gcsResult) Cell {
 	return c
 }
 
+// ElapsedKey is the key for the test duration metric.
 const ElapsedKey = "test-duration-minutes"
 
 // setElapsed inserts the seconds-elapsed metric.

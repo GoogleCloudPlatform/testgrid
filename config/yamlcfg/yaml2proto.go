@@ -30,14 +30,14 @@ import (
 
 // getDefaults take all paths found through seeking, returns list of dirs with defaults
 func getDefaults(allPaths []string) (defaults []string, err error) {
-	dirs_found := make(map[string]bool)
+	dirsFound := make(map[string]bool)
 	for _, path := range allPaths {
 		if filepath.Base(path) == "default.yaml" || filepath.Base(path) == "default.yml" {
-			if _, ok := dirs_found[filepath.Dir(path)]; ok {
+			if _, ok := dirsFound[filepath.Dir(path)]; ok {
 				return nil, fmt.Errorf("two default files found in dir %q", filepath.Dir(path))
 			}
 			defaults = append(defaults, path)
-			dirs_found[filepath.Dir(path)] = true
+			dirsFound[filepath.Dir(path)] = true
 		}
 	}
 	return defaults, nil
@@ -81,7 +81,7 @@ func pathDefault(path string, defaultFiles map[string]DefaultConfiguration, defa
 	return defaults
 }
 
-// Takes multiple source paths of the following form:
+// ReadConfig takes multiple source paths of the following form:
 //   If path is a local file, then the file will be parsed as YAML
 //   If path is a directory, then all files and directories within it will be parsed.
 //     If this directory has a default(s).yaml file, apply it to all configured entities,
@@ -193,6 +193,7 @@ func MarshalYAML(c *config.Configuration) ([]byte, error) {
 	return bytes, nil
 }
 
+// DefaultConfiguration describes a default configuration that should be applied before other configs.
 type DefaultConfiguration struct {
 	// A default testgroup with default initialization data
 	DefaultTestGroup *config.TestGroup `json:"default_test_group,omitempty"`
@@ -300,7 +301,7 @@ func ReconcileDashboardTab(currentTab *config.DashboardTab, defaultTab *config.D
 	}
 }
 
-// UpdateDefaults reads and validates default settings from YAML
+// LoadDefaults reads and validates default settings from YAML
 // Returns an error if the defaultConfig is partially or completely missing.
 func LoadDefaults(yamlData []byte) (DefaultConfiguration, error) {
 
@@ -319,7 +320,7 @@ func LoadDefaults(yamlData []byte) (DefaultConfiguration, error) {
 	return result, nil
 }
 
-// walks through paths and directories, calling the passed function on each YAML file
+// SeekYAMLFiles walks through paths and directories, calling the passed function on each YAML file
 // future modifications to what Configurator sees as a "config file" can be made here
 func SeekYAMLFiles(paths []string, callFunc func(path string, info os.FileInfo) error) error {
 	for _, path := range paths {

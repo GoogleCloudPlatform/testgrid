@@ -270,7 +270,7 @@ func TestValidateReferencesExist(t *testing.T) {
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"test_group_1", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
+				ValidationError{"test_group_1", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
 			},
 		},
 		{
@@ -335,7 +335,7 @@ func TestValidateReferencesExist(t *testing.T) {
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"dash_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
+				ValidationError{"dash_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
 			},
 		},
 	}
@@ -957,7 +957,7 @@ func TestUpdate_Validate(t *testing.T) {
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"dash_2", "Dashboard", "contains no tabs"},
+				ValidationError{"dash_2", "Dashboard", "contains no tabs"},
 			},
 		},
 		{
@@ -1053,7 +1053,7 @@ func TestUpdate_Validate(t *testing.T) {
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"test_group_2", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
+				ValidationError{"test_group_2", "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."},
 			},
 		},
 		{
@@ -1124,7 +1124,7 @@ func TestUpdate_Validate(t *testing.T) {
 				},
 			},
 			expectedErrs: []error{
-				ConfigError{"dash_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
+				ValidationError{"dash_1", "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."},
 			},
 		},
 	}

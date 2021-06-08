@@ -35,7 +35,7 @@ import (
 )
 
 // MissingFieldError is an error that includes the missing root field.
-// Entities that contain no children should use a ConfigError, so they can point to the empty Entity
+// Entities that contain no children should use a ValidationError, so they can point to the empty Entity
 type MissingFieldError struct {
 	Field string
 }
@@ -64,14 +64,14 @@ func (e MissingEntityError) Error() string {
 	return fmt.Sprintf("could not find the referenced (%s) %s", e.Entity, e.Name)
 }
 
-// ConfigError is an error for invalid configuration that includes what entity errored.
-type ConfigError struct {
+// ValidationError is an error for invalid configuration that includes what entity errored.
+type ValidationError struct {
 	Name    string
 	Entity  string
 	Message string
 }
 
-func (e ConfigError) Error() string {
+func (e ValidationError) Error() string {
 	return fmt.Sprintf("configuration error for (%s) %s: %s", e.Entity, e.Name, e.Message)
 }
 
@@ -83,8 +83,8 @@ func normalize(s string) string {
 	return s
 }
 
-const MIN_NAME_LENGTH = 3
-const MAX_NAME_LENGTH = 2048
+const minNameLength = 3
+const maxNameLength = 2048
 
 // validateUnique checks that a list has no duplicate normalized entries.
 func validateUnique(items []string, entity string) error {
@@ -110,7 +110,7 @@ func validateAllUnique(c *configpb.Configuration) error {
 	var tgNames []string
 	for _, tg := range c.GetTestGroups() {
 		if err := validateName(tg.GetName()); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{tg.GetName(), "TestGroup", err.Error()})
+			mErr = multierror.Append(mErr, &ValidationError{tg.GetName(), "TestGroup", err.Error()})
 		}
 		tgNames = append(tgNames, tg.GetName())
 	}
@@ -122,13 +122,13 @@ func validateAllUnique(c *configpb.Configuration) error {
 	var dashNames []string
 	for _, dash := range c.GetDashboards() {
 		if err := validateName(dash.Name); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{dash.GetName(), "Dashboard", err.Error()})
+			mErr = multierror.Append(mErr, &ValidationError{dash.GetName(), "Dashboard", err.Error()})
 		}
 		dashNames = append(dashNames, dash.Name)
 		var tabNames []string
 		for _, tab := range dash.GetDashboardTab() {
 			if err := validateName(tab.Name); err != nil {
-				mErr = multierror.Append(mErr, &ConfigError{tab.Name, "DashboardTab", err.Error()})
+				mErr = multierror.Append(mErr, &ValidationError{tab.Name, "DashboardTab", err.Error()})
 			}
 			tabNames = append(tabNames, tab.Name)
 		}
@@ -145,7 +145,7 @@ func validateAllUnique(c *configpb.Configuration) error {
 	var dgNames []string
 	for _, dg := range c.GetDashboardGroups() {
 		if err := validateName(dg.Name); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{dg.Name, "DashboardGroup", err.Error()})
+			mErr = multierror.Append(mErr, &ValidationError{dg.Name, "DashboardGroup", err.Error()})
 		}
 		dgNames = append(dgNames, dg.Name)
 	}
@@ -186,7 +186,7 @@ func validateReferencesExist(c *configpb.Configuration) error {
 	// Likewise, each Test Group must be referenced by a Dashboard Tab, so each Test Group gets displayed.
 	for tgName := range tgNames {
 		if _, ok := tgInTabs[tgName]; !ok {
-			mErr = multierror.Append(mErr, ConfigError{tgName, "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."})
+			mErr = multierror.Append(mErr, ValidationError{tgName, "TestGroup", "Each Test Group must be referenced by at least 1 Dashboard Tab."})
 		}
 	}
 
@@ -202,7 +202,7 @@ func validateReferencesExist(c *configpb.Configuration) error {
 				// The Dashboards each Dashboard Group references must exist.
 				mErr = multierror.Append(mErr, MissingEntityError{dgDash, "Dashboard"})
 			} else if _, ok = dashToDg[dgDash]; ok {
-				mErr = multierror.Append(mErr, ConfigError{dgDash, "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."})
+				mErr = multierror.Append(mErr, ValidationError{dgDash, "Dashboard", "A Dashboard cannot be in more than 1 Dashboard Group."})
 			} else {
 				dashToDg[dgDash] = true
 			}
@@ -216,12 +216,12 @@ func validateReferencesExist(c *configpb.Configuration) error {
 func validateName(s string) error {
 	name := normalize(s)
 
-	if len(name) < MIN_NAME_LENGTH {
-		return fmt.Errorf("names must contain at least %d alphanumeric characters", MIN_NAME_LENGTH)
+	if len(name) < minNameLength {
+		return fmt.Errorf("names must contain at least %d alphanumeric characters", minNameLength)
 	}
 
-	if len(name) > MAX_NAME_LENGTH {
-		return fmt.Errorf("names should not contain more than %d alphanumeric characters", MAX_NAME_LENGTH)
+	if len(name) > maxNameLength {
+		return fmt.Errorf("names should not contain more than %d alphanumeric characters", maxNameLength)
 	}
 
 	invalidPrefixes := []string{"dashboard", "alerter", "summary", "bugs"}
@@ -325,7 +325,7 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	// For each defined column_header, verify it has exactly one value set.
 	for idx, header := range tg.GetColumnHeader() {
 		if cv, p, l := header.ConfigurationValue, header.Property, header.Label; cv == "" && p == "" && l == "" {
-			mErr = multierror.Append(mErr, &ConfigError{tg.GetName(), "TestGroup", fmt.Sprintf("Column Header %d is empty", idx)})
+			mErr = multierror.Append(mErr, &ValidationError{tg.GetName(), "TestGroup", fmt.Sprintf("Column Header %d is empty", idx)})
 		} else if cv != "" && (p != "" || l != "") || p != "" && (cv != "" || l != "") {
 			mErr = multierror.Append(
 				mErr,
@@ -419,14 +419,14 @@ func validateEntityConfigs(c *configpb.Configuration) error {
 	// At the moment, don't need to further validate Dashboards or DashboardGroups.
 	for _, tg := range c.GetTestGroups() {
 		if err := validateTestGroup(tg); err != nil {
-			mErr = multierror.Append(mErr, &ConfigError{tg.GetName(), "TestGroup", err.Error()})
+			mErr = multierror.Append(mErr, &ValidationError{tg.GetName(), "TestGroup", err.Error()})
 		}
 	}
 
 	for _, d := range c.GetDashboards() {
 		for _, dt := range d.DashboardTab {
 			if err := validateDashboardTab(dt); err != nil {
-				mErr = multierror.Append(mErr, &ConfigError{dt.GetName(), "DashboardTab", err.Error()})
+				mErr = multierror.Append(mErr, &ValidationError{dt.GetName(), "DashboardTab", err.Error()})
 			}
 		}
 	}
@@ -452,7 +452,7 @@ func Validate(c *configpb.Configuration) error {
 	// Each Dashboard must contain at least 1 Tab to do anything
 	for _, dashboard := range c.GetDashboards() {
 		if len(dashboard.DashboardTab) == 0 {
-			mErr = multierror.Append(mErr, ConfigError{dashboard.Name, "Dashboard", "contains no tabs"})
+			mErr = multierror.Append(mErr, ValidationError{dashboard.Name, "Dashboard", "contains no tabs"})
 		}
 	}
 
@@ -534,7 +534,7 @@ func ReadPath(path string) (*configpb.Configuration, error) {
 // Read will read the Configuration proto message from a local or gs:// path.
 //
 // The ctx and client are only relevant when path refers to GCS.
-func Read(path string, ctx context.Context, client *storage.Client) (*configpb.Configuration, error) {
+func Read(ctx context.Context, path string, client *storage.Client) (*configpb.Configuration, error) {
 	if strings.HasPrefix(path, "gs://") {
 		gcsPath, err := gcs.NewPath(path)
 		if err != nil {

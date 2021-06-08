@@ -56,7 +56,7 @@ func main() {
 		log.WithError(err).Info("Can't make cloud storage client; proceeding")
 	}
 
-	cfg, err := config.Read(opt.configPath, ctx, storageClient)
+	cfg, err := config.Read(ctx, opt.configPath, storageClient)
 	if err != nil {
 		logrus.WithError(err).WithField("path", opt.configPath).Fatal("Can't read from path")
 	}
