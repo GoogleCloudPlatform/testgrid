@@ -27,6 +27,7 @@ type logInt64 struct {
 	log    logrus.FieldLogger
 }
 
+// NewLogInt64 creates a new Int64 metric that logs.
 func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) Int64 {
 	return logInt64{
 		name:   name,
@@ -36,10 +37,12 @@ func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) In
 	}
 }
 
+// Name returns the metric's name.
 func (m logInt64) Name() string {
 	return m.name
 }
 
+// Set the metric's value to the given number.
 func (m logInt64) Set(n int64, fields ...string) {
 	log := m.log
 	if len(fields) != len(m.fields) {
@@ -59,6 +62,7 @@ type logCounter struct {
 	log    logrus.FieldLogger
 }
 
+// NewLogCounter creates a new counter that logs.
 func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) Counter {
 	return logCounter{
 		name:   name,
@@ -68,10 +72,12 @@ func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) 
 	}
 }
 
+// Name returns the metric's name.
 func (m logCounter) Name() string {
 	return m.name
 }
 
+// Add the given number to the counter.
 func (m logCounter) Add(n int64, fields ...string) {
 	log := m.log
 	if len(fields) != len(m.fields) {

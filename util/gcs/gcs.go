@@ -114,7 +114,7 @@ func (g Path) MarshalJSON() ([]byte, error) {
 	return json.Marshal(g.String())
 }
 
-// MarshalJSON decodes a string into Path
+// UnmarshalJSON decodes a string into Path
 func (g *Path) UnmarshalJSON(buf []byte) error {
 	var str string
 	err := json.Unmarshal(buf, &str)
