@@ -136,9 +136,13 @@ func main() {
 
 	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 	cycle := metrics.NewLogInt64("cycle_duration", "How long an update cycle took, in seconds.", logrus.New())
+	mets := &updater.Metrics{
+		Successes: metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
+		Errors:    metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+	}
 	updateOnce := func() {
 		start := time.Now()
-		if err := updater.Update(ctx, client, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm); err != nil {
+		if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm); err != nil {
 			logrus.WithError(err).Error("Could not update")
 		}
 		cycle.Set(int64(time.Since(start).Seconds()))
