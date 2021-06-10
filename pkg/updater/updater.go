@@ -42,7 +42,25 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 )
+
+type Metrics struct {
+	Successes metrics.Counter
+	Errors    metrics.Counter
+}
+
+func (mets *Metrics) Error() {
+	if mets.Errors != nil {
+		mets.Errors.Add(1, "updater")
+	}
+}
+
+func (mets *Metrics) Success() {
+	if mets.Successes != nil {
+		mets.Successes.Add(1, "updater")
+	}
+}
 
 // GroupUpdater will compile the grid state proto for the specified group and upload it.
 //
@@ -109,8 +127,44 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
+func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldLogger, tg *configpb.TestGroup, configPath gcs.Path, gridPrefix string, updateGroup GroupUpdater, write bool, generations map[string]int64) error {
+	log = log.WithField("group", tg.Name)
+	log.Debug("Starting update")
+	tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
+	if err != nil {
+		log.WithError(err).Error("Bad path")
+		return err
+	}
+	if write && generations != nil {
+		if err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
+			var ok bool
+			switch ee := err.(type) {
+			case *googleapi.Error:
+				if ee.Code == http.StatusPreconditionFailed {
+					ok = true
+					log.Debug("Lost the lock race")
+				}
+			}
+			if !ok {
+				// TODO: Add metrics reporting for lost locks
+				log.WithError(err).Warning("Failed to acquire lock")
+				return err
+			}
+			return nil
+		}
+		log.Debug("Acquired update lock")
+	}
+	if err := updateGroup(ctx, log, client, tg, *tgp); err != nil {
+		log.WithError(err).Error("Error updating group")
+	}
+	// run the garbage collector after each group to minimize
+	// extraneous memory usage.
+	runtime.GC()
+	return nil
+}
+
 // Update performs a single update pass of all all test groups specified by the config.
-func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater, write bool) error {
+func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater, write bool) error {
 	defer growMaxUpdateArea()
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -132,36 +186,11 @@ func Update(parent context.Context, client gcs.ConditionalClient, configPath gcs
 		wg.Add(1)
 		go func() {
 			for tg := range groups {
-				log := log.WithField("group", tg.Name)
-				log.Debug("Starting update")
-				tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
-				if err != nil {
-					log.WithError(err).Error("Bad path")
-					continue
+				if err := update(ctx, client, log, &tg, configPath, gridPrefix, updateGroup, write, generations); err != nil {
+					mets.Error()
+				} else {
+					mets.Success()
 				}
-				if write && generations != nil {
-					if err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
-						var ok bool
-						switch ee := err.(type) {
-						case *googleapi.Error:
-							if ee.Code == http.StatusPreconditionFailed {
-								ok = true
-								log.Debug("Lost the lock race")
-							}
-						}
-						if !ok {
-							log.WithError(err).Warning("Failed to acquire lock")
-						}
-						continue
-					}
-					log.Debug("Acquired update lock")
-				}
-				if err := updateGroup(ctx, log, client, &tg, *tgp); err != nil {
-					log.WithError(err).Error("Error updating group")
-				}
-				// run the garbage collector after each group to minimize
-				// extraneous memory usage.
-				runtime.GC()
 			}
 			wg.Done()
 		}()

@@ -41,6 +41,7 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 )
 
 type fakeUpload = fake.Upload
@@ -115,8 +116,10 @@ func TestUpdate(t *testing.T) {
 		buildTimeout     *time.Duration
 		group            string
 
-		expected fakeUploader
-		err      bool
+		expected  fakeUploader
+		err       bool
+		successes int
+		errors    int
 	}{
 		{
 			name: "basically works",
@@ -165,6 +168,35 @@ func TestUpdate(t *testing.T) {
 					WorldRead:    gcs.DefaultACL,
 				},
 			},
+			successes: 2,
+		},
+		{
+			name:       "bad grid prefix",
+			gridPrefix: "!@#$%^&*()",
+			config: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:                "hello",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "hello-tab",
+								TestGroupName: "hello",
+							},
+						},
+					},
+				},
+			},
+			expected: fakeUploader{},
+			errors:   1,
 		},
 		// TODO(fejta): more cases
 	}
@@ -225,10 +257,14 @@ func TestUpdate(t *testing.T) {
 			}
 
 			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
-
+			mets := &Metrics{
+				Successes: metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
+				Errors:    metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+			}
 			err := Update(
 				ctx,
 				client,
+				mets,
 				configPath,
 				tc.gridPrefix,
 				tc.groupConcurrency,
@@ -242,7 +278,7 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Update() got unexpected error: %v", err)
 				}
 			case tc.err:
-				t.Error("Update() failed to receive an errro")
+				t.Error("Update() failed to receive an error")
 			default:
 				actual := client.Uploader
 				diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(fakeUpload{}))
@@ -250,6 +286,14 @@ func TestUpdate(t *testing.T) {
 					return
 				}
 				t.Errorf("Update() uploaded files got unexpected diff (-have, +want):\n%s", diff)
+			}
+
+			// Check that metrics also report.
+			if int64(tc.successes) != mets.Successes.Val() {
+				t.Errorf("Update() has wrong number of successful updates; want %d, got %d", tc.successes, mets.Successes.Val())
+			}
+			if int64(tc.errors) != mets.Errors.Val() {
+				t.Errorf("Update() has wrong number of failed updates; want %d, got %d", tc.errors, mets.Errors.Val())
 			}
 		})
 	}

@@ -44,7 +44,13 @@ import (
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 )
+
+type Metrics struct {
+	Successes metrics.Counter
+	Errors    metrics.Counter
+}
 
 // gridReader returns the grid content and metadata (last updated time, generation id)
 type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, error)
@@ -57,7 +63,7 @@ type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
 	if concurrency < 1 {
 		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
@@ -147,7 +153,13 @@ func Update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Pa
 		var errs []string
 		for err := range errCh {
 			if err == nil {
+				if mets.Successes != nil {
+					mets.Successes.Add(1, "summarizer")
+				}
 				continue
+			}
+			if mets.Errors != nil {
+				mets.Errors.Add(1, "summarizer")
 			}
 			errs = append(errs, err.Error())
 		}
