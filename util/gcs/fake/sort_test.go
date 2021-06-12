@@ -361,7 +361,7 @@ func TestTouch(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			err := gcs.Touch(ctx, tc.client, *path, tc.generation, tc.buf)
+			_, err := gcs.Touch(ctx, tc.client, *path, tc.generation, tc.buf)
 			switch {
 			case err != nil:
 				if !tc.err {

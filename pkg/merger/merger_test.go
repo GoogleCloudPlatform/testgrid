@@ -445,10 +445,10 @@ type fakeUploader struct {
 	err      error
 }
 
-func (fu *fakeUploader) Upload(context.Context, gcs.Path, []byte, bool, string) error {
+func (fu *fakeUploader) Upload(context.Context, gcs.Path, []byte, bool, string) (*storage.ObjectAttrs, error) {
 	if fu.err != nil {
-		return fmt.Errorf("injected upload error: %w", fu.err)
+		return nil, fmt.Errorf("injected upload error: %w", fu.err)
 	}
 	fu.uploaded = true
-	return nil
+	return nil, nil
 }
