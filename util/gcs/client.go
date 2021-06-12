@@ -25,7 +25,7 @@ import (
 
 // Uploader adds upload capabilities to a GCS client.
 type Uploader interface {
-	Upload(context.Context, Path, []byte, bool, string) error
+	Upload(context.Context, Path, []byte, bool, string) (*storage.ObjectAttrs, error)
 }
 
 // Downloader can list files and open them for reading.
@@ -57,7 +57,7 @@ type Stater interface {
 // A Copier can cloud copy an object to a new location.
 type Copier interface {
 	// Copy an object to the specified path
-	Copy(ctx context.Context, from, to Path) error
+	Copy(ctx context.Context, from, to Path) (*storage.ObjectAttrs, error)
 }
 
 // A Client can upload, download and stat.
@@ -104,7 +104,7 @@ func (gc gcsClient) clientFromPath(path Path) ConditionalClient {
 }
 
 // Copy copies the contents of 'from' into 'to'.
-func (gc gcsClient) Copy(ctx context.Context, from, to Path) error {
+func (gc gcsClient) Copy(ctx context.Context, from, to Path) (*storage.ObjectAttrs, error) {
 	client := gc.clientFromPath(from)
 	return client.Copy(ctx, from, to)
 }
@@ -122,7 +122,7 @@ func (gc gcsClient) Objects(ctx context.Context, path Path, delimiter, startOffs
 }
 
 // Upload writes content to the given path.
-func (gc gcsClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) error {
+func (gc gcsClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) (*storage.ObjectAttrs, error) {
 	client := gc.clientFromPath(path)
 	return client.Upload(ctx, path, buf, worldReadable, cacheControl)
 }
