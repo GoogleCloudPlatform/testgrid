@@ -352,7 +352,7 @@ func jsonPodInfo(podInfo gcs.PodInfo) *fakeObject {
 }
 
 func mustGrid(grid *statepb.Grid) []byte {
-	buf, err := marshalGrid(grid)
+	buf, err := gcs.MarshalGrid(grid)
 	if err != nil {
 		panic(err)
 	}
@@ -2545,7 +2545,7 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := constructGrid(logrus.WithField("name", tc.name), &tc.group, tc.cols, tc.issues)
+			actual := ConstructGrid(logrus.WithField("name", tc.name), &tc.group, tc.cols, tc.issues)
 			failuresOpen := int(tc.group.NumFailuresToAlert)
 			passesClose := int(tc.group.NumPassesToDisableAlert)
 			if failuresOpen > 0 && passesClose == 0 {
@@ -2561,7 +2561,7 @@ func TestConstructGrid(t *testing.T) {
 				})
 			}
 			if diff := cmp.Diff(&tc.expected, actual, protocmp.Transform()); diff != "" {
-				t.Errorf("constructGrid() got unexpected diff (-want +got):\n%s", diff)
+				t.Errorf("ConstructGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}

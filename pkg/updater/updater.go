@@ -101,7 +101,7 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	if generation == 0 {
 		var grid statepb.Grid
 		var err error
-		if buf, err = marshalGrid(&grid); err != nil {
+		if buf, err = gcs.MarshalGrid(&grid); err != nil {
 			return fmt.Errorf("marshal: %w", err)
 		}
 	}
@@ -437,8 +437,8 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 
 	sortCols(tg, cols)
 
-	grid := constructGrid(log, tg, cols, issues)
-	buf, err := marshalGrid(grid)
+	grid := ConstructGrid(log, tg, cols, issues)
+	buf, err := gcs.MarshalGrid(grid)
 	if err != nil {
 		return fmt.Errorf("marshal grid: %w", err)
 	}
@@ -588,10 +588,10 @@ func days(d float64) time.Duration {
 	return time.Duration(24*d) * time.Hour // Close enough
 }
 
-// constructGrid will append all the inflatedColumns into the returned Grid.
+// ConstructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func constructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+func ConstructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -677,11 +677,6 @@ func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*
 
 	grid.Rows = filled
 	log.WithField("dropped", dropped).Info("Dropped old rows")
-}
-
-// marhshalGrid serializes a state proto into zlib-compressed bytes.
-func marshalGrid(grid *statepb.Grid) ([]byte, error) {
-	return gcs.MarshalGrid(grid)
 }
 
 // appendMetric adds the value at index to metric.
