@@ -28,4 +28,6 @@ message IssueInfo {
 message IssueState {
   // List of collected info for bugs.
   repeated IssueInfo issue_info = 1;
+
+  reserved 2;
 }
