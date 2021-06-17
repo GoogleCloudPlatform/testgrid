@@ -55,10 +55,9 @@ func (rgc realGCSClient) handle(path Path, cond *storage.Conditions) *storage.Ob
 	return oh.If(*cond)
 }
 
-func (rgc realGCSClient) Copy(ctx context.Context, from, to Path) error {
+func (rgc realGCSClient) Copy(ctx context.Context, from, to Path) (*storage.ObjectAttrs, error) {
 	fromH := rgc.handle(from, rgc.readCond)
-	_, err := rgc.handle(to, rgc.writeCond).CopierFrom(fromH).Run(ctx)
-	return err
+	return rgc.handle(to, rgc.writeCond).CopierFrom(fromH).Run(ctx)
 }
 
 func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
@@ -78,7 +77,7 @@ func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter, star
 	})
 }
 
-func (rgc realGCSClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) error {
+func (rgc realGCSClient) Upload(ctx context.Context, path Path, buf []byte, worldReadable bool, cacheControl string) (*storage.ObjectAttrs, error) {
 	return UploadHandle(ctx, rgc.handle(path, rgc.writeCond), buf, worldReadable, cacheControl)
 }
 

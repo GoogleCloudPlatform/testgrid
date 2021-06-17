@@ -109,8 +109,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 					errCh <- errors.New(dash.Name)
 					continue
 				}
+				client := client
 				if confirm && generations != nil {
-					if err := lockDashboard(ctx, client, *summaryPath, generations[dash.Name]); err != nil {
+					if attrs, err := lockDashboard(ctx, client, *summaryPath, generations[dash.Name]); err != nil {
 						var ok bool
 						switch ee := err.(type) {
 						case *googleapi.Error:
@@ -123,6 +124,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 							log.WithError(err).Warning("Failed to acquire lock")
 						}
 						continue
+					} else if gen := attrs.Generation; gen > 0 {
+						cond := storage.Conditions{GenerationMatch: gen}
+						client = client.If(&cond, &cond)
 					}
 					log.Debug("Acquired update lock")
 				}
@@ -190,14 +194,14 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	return <-resultCh
 }
 
-func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) error {
+func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) (*storage.ObjectAttrs, error) {
 	var buf []byte
 	if generation == 0 {
 		var sum summarypb.DashboardSummary
 		var err error
 		buf, err = proto.Marshal(&sum)
 		if err != nil {
-			return fmt.Errorf("marshal: %w", err)
+			return nil, fmt.Errorf("marshal: %w", err)
 		}
 	}
 
@@ -254,7 +258,8 @@ func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *su
 	if err != nil {
 		return fmt.Errorf("marshal: %v", err)
 	}
-	return client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache") // TODO(fejta): configurable cache value
+	_, err = client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache") // TODO(fejta): configurable cache value
+	return err
 }
 
 // pathReader returns a reader for the specified path and last modified, generation metadata.

@@ -69,37 +69,37 @@ func (cc ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error
 }
 
 // Copy copies the contents of 'from' into 'to'.
-func (cc ConditionalClient) Copy(ctx context.Context, from, to gcs.Path) error {
+func (cc ConditionalClient) Copy(ctx context.Context, from, to gcs.Path) (*storage.ObjectAttrs, error) {
 	if err := cc.check(ctx, &from, &to); err != nil {
-		return err
+		return nil, err
 	}
 
 	gen := cc.Uploader[to].Generation + 1
-	if err := cc.UploadClient.Copy(ctx, from, to); err != nil {
-		return err
+	if _, err := cc.UploadClient.Copy(ctx, from, to); err != nil {
+		return nil, err
 	}
 	u := cc.Uploader[to]
 	u.Generation = gen
 	cc.Uploader[to] = u
-	return nil
+	return u.Attrs(to), nil
 }
 
 // Upload writes content to the given path.
-func (cc ConditionalClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cache string) error {
+func (cc ConditionalClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cache string) (*storage.ObjectAttrs, error) {
 	if err := cc.check(ctx, nil, &path); err != nil {
-		return err
+		return nil, err
 	}
 
 	gen := cc.Uploader[path].Generation + 1
-	err := cc.UploadClient.Upload(ctx, path, buf, worldRead, cache)
+	_, err := cc.UploadClient.Upload(ctx, path, buf, worldRead, cache)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	u := cc.Uploader[path]
 	u.Generation = gen
 	cc.Uploader[path] = u
-	return nil
+	return u.Attrs(path), nil
 }
 
 // If returns a fake conditional client.
@@ -152,38 +152,39 @@ func (fs Stater) Stat(ctx context.Context, path gcs.Path) (*storage.ObjectAttrs,
 type Uploader map[gcs.Path]Upload
 
 // Copy an object to the specified path
-func (fu Uploader) Copy(ctx context.Context, from, to gcs.Path) error {
+func (fu Uploader) Copy(ctx context.Context, from, to gcs.Path) (*storage.ObjectAttrs, error) {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("injected interrupt: %w", err)
+		return nil, fmt.Errorf("injected interrupt: %w", err)
 	}
 	u, present := fu[from]
 	if !present {
-		return storage.ErrObjectNotExist
+		return nil, storage.ErrObjectNotExist
 	}
 	if err := u.Err; err != nil {
-		return fmt.Errorf("injected from error: %w", err)
+		return nil, fmt.Errorf("injected from error: %w", err)
 	}
 
 	u.Generation++
 	fu[to] = u
-	return nil
+	return u.Attrs(to), nil
 }
 
 // Upload writes content to the given path.
-func (fu Uploader) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cacheControl string) error {
+func (fu Uploader) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cacheControl string) (*storage.ObjectAttrs, error) {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("injected interrupt: %w", err)
+		return nil, fmt.Errorf("injected interrupt: %w", err)
 	}
 	if err := fu[path].Err; err != nil {
-		return fmt.Errorf("injected upload error: %w", err)
+		return nil, fmt.Errorf("injected upload error: %w", err)
 	}
 
-	fu[path] = Upload{
+	u := Upload{
 		Buf:          buf,
 		CacheControl: cacheControl,
 		WorldRead:    worldRead,
 	}
-	return nil
+	fu[path] = u
+	return u.Attrs(path), nil
 }
 
 // Upload represents an upload.
@@ -193,6 +194,15 @@ type Upload struct {
 	WorldRead    bool
 	Err          error
 	Generation   int64
+}
+
+func (u Upload) Attrs(path gcs.Path) *storage.ObjectAttrs {
+	return &storage.ObjectAttrs{
+		Bucket:       path.Bucket(),
+		Name:         path.Object(),
+		CacheControl: u.CacheControl,
+		Generation:   u.Generation,
+	}
 }
 
 // Opener opens given paths.

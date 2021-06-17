@@ -161,12 +161,12 @@ const (
 )
 
 // Upload writes bytes to the specified Path by converting the client and path into an ObjectHandle.
-func Upload(ctx context.Context, client *storage.Client, path Path, buf []byte, worldReadable bool, cacheControl string) error {
+func Upload(ctx context.Context, client *storage.Client, path Path, buf []byte, worldReadable bool, cacheControl string) (*storage.ObjectAttrs, error) {
 	return realGCSClient{client: client}.Upload(ctx, path, buf, worldReadable, cacheControl)
 }
 
 // UploadHandle writes bytes to the specified ObjectHandle
-func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte, worldReadable bool, cacheControl string) error {
+func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte, worldReadable bool, cacheControl string) (*storage.ObjectAttrs, error) {
 	crc := calcCRC(buf)
 	w := handle.NewWriter(ctx)
 	defer w.Close()
@@ -185,14 +185,14 @@ func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte,
 		log.Printf("Uploading gs://%s/%s: %d/%d...", handle.BucketName(), handle.ObjectName(), bytes, len(buf))
 	}
 	if n, err := w.Write(buf); err != nil {
-		return fmt.Errorf("write: %w", err)
+		return nil, fmt.Errorf("write: %w", err)
 	} else if n != len(buf) {
-		return fmt.Errorf("partial write: %d < %d", n, len(buf))
+		return nil, fmt.Errorf("partial write: %d < %d", n, len(buf))
 	}
 	if err := w.Close(); err != nil {
-		return fmt.Errorf("close: %w", err)
+		return nil, fmt.Errorf("close: %w", err)
 	}
-	return nil
+	return w.Attrs(), nil
 }
 
 // DownloadGrid downloads and decompresses a grid from the specified path.

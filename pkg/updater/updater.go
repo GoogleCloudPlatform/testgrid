@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
@@ -114,13 +115,13 @@ func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, 
 // Regardless of how many updaters are trying to concurrently update an object foo at generation X, GCS
 // will only allow one of them to "win". The others receive a PreconditionFailed error and can
 // move onto the next group.
-func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) error {
+func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) (*storage.ObjectAttrs, error) {
 	var buf []byte
 	if generation == 0 {
 		var grid statepb.Grid
 		var err error
 		if buf, err = gcs.MarshalGrid(&grid); err != nil {
-			return fmt.Errorf("marshal: %w", err)
+			return nil, fmt.Errorf("marshal: %w", err)
 		}
 	}
 
@@ -136,7 +137,7 @@ func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldL
 		return err
 	}
 	if write && generations != nil {
-		if err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
+		if attrs, err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
 			var ok bool
 			switch ee := err.(type) {
 			case *googleapi.Error:
@@ -151,6 +152,9 @@ func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldL
 				return err
 			}
 			return nil
+		} else if gen := attrs.Generation; gen > 0 {
+			cond := storage.Conditions{GenerationMatch: gen}
+			client = client.If(&cond, &cond)
 		}
 		log.Debug("Acquired update lock")
 	}
@@ -477,7 +481,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	} else {
 		log.Debug("Writing")
 		// TODO(fejta): configurable cache value
-		if err := client.Upload(ctx, gridPath, buf, gcs.DefaultACL, "no-cache"); err != nil {
+		if _, err := client.Upload(ctx, gridPath, buf, gcs.DefaultACL, "no-cache"); err != nil {
 			return fmt.Errorf("upload: %w", err)
 		}
 	}
