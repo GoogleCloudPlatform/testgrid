@@ -47,9 +47,24 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 )
 
+// Metrics holds metrics relevant to the Updater.
 type Metrics struct {
 	Successes metrics.Counter
 	Errors    metrics.Counter
+}
+
+// Error increments the counter for failed updates.
+func (mets *Metrics) Error() {
+	if mets.Errors != nil {
+		mets.Errors.Add(1, "summarizer")
+	}
+}
+
+// Success increments the counter for successful updates.
+func (mets *Metrics) Success() {
+	if mets.Successes != nil {
+		mets.Successes.Add(1, "summarizer")
+	}
 }
 
 // gridReader returns the grid content and metadata (last updated time, generation id)
@@ -157,13 +172,11 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		var errs []string
 		for err := range errCh {
 			if err == nil {
-				if mets.Successes != nil {
-					mets.Successes.Add(1, "summarizer")
-				}
+				mets.Success()
 				continue
 			}
 			if mets.Errors != nil {
-				mets.Errors.Add(1, "summarizer")
+				mets.Error()
 			}
 			errs = append(errs, err.Error())
 		}
