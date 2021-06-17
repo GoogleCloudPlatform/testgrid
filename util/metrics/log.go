@@ -25,11 +25,13 @@ type logInt64 struct {
 	desc   string
 	fields []string
 	log    logrus.FieldLogger
+	// TODO: Record different values for different specified fields.
+	val int64
 }
 
 // NewLogInt64 creates a new Int64 metric that logs.
 func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) Int64 {
-	return logInt64{
+	return &logInt64{
 		name:   name,
 		desc:   desc,
 		log:    log,
@@ -38,12 +40,16 @@ func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) In
 }
 
 // Name returns the metric's name.
-func (m logInt64) Name() string {
+func (m *logInt64) Name() string {
 	return m.name
 }
 
+func (m *logInt64) Val() int64 {
+	return m.val
+}
+
 // Set the metric's value to the given number.
-func (m logInt64) Set(n int64, fields ...string) {
+func (m *logInt64) Set(n int64, fields ...string) {
 	log := m.log
 	if len(fields) != len(m.fields) {
 		log.Errorf("wrong number of fields; want %d (%v), got %d (%v)", len(m.fields), m.fields, len(fields), fields)
@@ -52,7 +58,8 @@ func (m logInt64) Set(n int64, fields ...string) {
 	for i, field := range fields {
 		log.WithField(m.fields[i], field)
 	}
-	log.Infof("int64 %q.Set(%d)", m.Name(), n)
+	m.val += n
+	log.Infof("int64 %q.Set(%d) = %d", m.Name(), n, m.val)
 }
 
 type logCounter struct {
@@ -60,11 +67,13 @@ type logCounter struct {
 	desc   string
 	fields []string
 	log    logrus.FieldLogger
+	// TODO: Record different values for different specified fields.
+	val int64
 }
 
 // NewLogCounter creates a new counter that logs.
 func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) Counter {
-	return logCounter{
+	return &logCounter{
 		name:   name,
 		desc:   desc,
 		log:    log,
@@ -73,12 +82,16 @@ func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) 
 }
 
 // Name returns the metric's name.
-func (m logCounter) Name() string {
+func (m *logCounter) Name() string {
 	return m.name
 }
 
+func (m *logCounter) Val() int64 {
+	return m.val
+}
+
 // Add the given number to the counter.
-func (m logCounter) Add(n int64, fields ...string) {
+func (m *logCounter) Add(n int64, fields ...string) {
 	log := m.log
 	if len(fields) != len(m.fields) {
 		log.Errorf("wrong number of fields; want %d (%v), got %d (%v)", len(m.fields), m.fields, len(fields), fields)
@@ -91,5 +104,6 @@ func (m logCounter) Add(n int64, fields ...string) {
 	for i, field := range fields {
 		log.WithField(m.fields[i], field)
 	}
-	log.Infof("counter %q.Add(%d)", m.Name(), n)
+	m.val += n
+	log.Infof("counter %q.Add(%d) = %d", m.Name(), n, m.val)
 }

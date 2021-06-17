@@ -26,6 +26,7 @@ type Metric interface {
 type Int64 interface {
 	Metric
 
+	Val() int64
 	Set(int64, ...string)
 }
 
@@ -33,5 +34,6 @@ type Int64 interface {
 type Counter interface {
 	Metric
 
+	Val() int64
 	Add(int64, ...string)
 }

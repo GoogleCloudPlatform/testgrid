@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 )
@@ -104,11 +105,14 @@ func main() {
 	}
 
 	client := gcs.NewClient(storageClient)
-
+	mets := &summarizer.Metrics{
+		Successes: metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
+		Errors:    metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+	}
 	updateOnce := func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
-		return summarizer.Update(ctx, client, opt.config, opt.concurrency, opt.dashboard, opt.gridPathPrefix, opt.summaryPathPrefix, opt.confirm)
+		return summarizer.Update(ctx, client, mets, opt.config, opt.concurrency, opt.dashboard, opt.gridPathPrefix, opt.summaryPathPrefix, opt.confirm)
 	}
 
 	if err := updateOnce(ctx); err != nil {

@@ -34,19 +34,19 @@ func TestInt64Set(t *testing.T) {
 	}{
 		{
 			name: "zero",
-			want: "int64 \"testMetric\".Set(0)",
+			want: "int64 \"testMetric\".Set(0) = 0",
 		},
 		{
 			name: "basic",
 			n:    3,
-			want: "int64 \"testMetric\".Set(3)",
+			want: "int64 \"testMetric\".Set(3) = 3",
 		},
 		{
 			name:       "fields",
 			n:          3,
 			fieldNames: []string{"user"},
 			fields:     []string{"someone"},
-			want:       "int64 \"testMetric\".Set(3)",
+			want:       "int64 \"testMetric\".Set(3) = 3",
 		},
 		{
 			name:       "not enough fields",
@@ -94,19 +94,19 @@ func TestCounterAdd(t *testing.T) {
 	}{
 		{
 			name: "zero",
-			want: "counter \"testMetric\".Add(0)",
+			want: "counter \"testMetric\".Add(0) = 0",
 		},
 		{
 			name: "basic",
 			n:    3,
-			want: "counter \"testMetric\".Add(3)",
+			want: "counter \"testMetric\".Add(3) = 3",
 		},
 		{
 			name:       "fields",
 			n:          3,
 			fieldNames: []string{"user"},
 			fields:     []string{"someone"},
-			want:       "counter \"testMetric\".Add(3)",
+			want:       "counter \"testMetric\".Add(3) = 3",
 		},
 		{
 			name: "negative",

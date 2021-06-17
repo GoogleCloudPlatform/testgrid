@@ -25,6 +25,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/merger"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 
 	"github.com/sirupsen/logrus"
 )
@@ -103,15 +104,23 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 
+	cycle := metrics.NewLogInt64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", log, "component")
+	successes := metrics.NewLogCounter("successes", "Number of successful updates", log, "component")
+	errors := metrics.NewLogCounter("errors", "Number of failed updates", log, "component")
+
 	updateOnce := func(ctx context.Context) {
+		start := time.Now()
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 		log.Info("Starting MergeAndUpdate")
 		err := merger.MergeAndUpdate(ctx, client, list, opt.skipValidate, opt.confirm)
+		cycle.Set(int64(time.Since(start).Seconds()), "config_merger")
 		if err != nil {
 			log.WithError(err).Error("Update failed")
+			errors.Add(1, "config_merger")
 			return
 		}
+		successes.Add(1, "config_merger")
 		log.Info("Update successful")
 	}
 
