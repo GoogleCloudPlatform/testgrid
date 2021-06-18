@@ -46,17 +46,20 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 )
 
+// Metrics holds metrics relevant to the Updater.
 type Metrics struct {
 	Successes metrics.Counter
 	Errors    metrics.Counter
 }
 
+// Error increments the counter for failed updates.
 func (mets *Metrics) Error() {
 	if mets.Errors != nil {
 		mets.Errors.Add(1, "updater")
 	}
 }
 
+// Success increments the counter for successful updates.
 func (mets *Metrics) Success() {
 	if mets.Successes != nil {
 		mets.Successes.Add(1, "updater")

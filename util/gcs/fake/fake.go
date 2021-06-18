@@ -196,6 +196,7 @@ type Upload struct {
 	Generation   int64
 }
 
+// Attrs returns file attributes.
 func (u Upload) Attrs(path gcs.Path) *storage.ObjectAttrs {
 	return &storage.ObjectAttrs{
 		Bucket:       path.Bucket(),
