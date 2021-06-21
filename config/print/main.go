@@ -30,8 +30,9 @@ import (
 )
 
 type options struct {
-	configPath string
-	creds      string
+	configPath    string
+	creds         string
+	printFieldUse bool
 }
 
 func gatherOptions() options {
@@ -41,6 +42,7 @@ func gatherOptions() options {
 	}
 	flag.StringVar(&o.configPath, "path", o.configPath, "Local or cloud config to read")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
+	flag.BoolVar(&o.printFieldUse, "print-field-use", false, "If True, print all config fields and # of uses of each")
 	flag.Parse()
 	return o
 }
@@ -66,4 +68,58 @@ func main() {
 	}
 
 	fmt.Printf("%s\n", b)
+
+	if opt.printFieldUse {
+		err = printFieldNames(b)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error printing fields")
+		}
+	}
+}
+
+func printFieldNames(b []byte) error {
+	type Dashboard struct {
+		DashboardTabs []map[string]interface{} `json:"dashboard_tab"`
+	}
+	type Config struct {
+		TestGroups      []map[string]interface{} `json:"test_groups"`
+		Dashboards      []Dashboard              `json:"dashboards"`
+		DashboardGroups []map[string]interface{} `json:"dashboard_groups"`
+	}
+	var output Config
+	err := json.Unmarshal(b, &output)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%d test groups, %d dashboards, %d dashboard groups\n", len(output.TestGroups), len(output.Dashboards), len(output.DashboardGroups))
+
+	testGroupFields := map[string]int64{}
+	for _, value := range output.TestGroups {
+		for k := range value {
+			testGroupFields[k] += 1
+		}
+	}
+	fmt.Printf("Test Groups (%d fields):\n", len(testGroupFields))
+	for k, v := range testGroupFields {
+		fmt.Printf("%s,%d\n", k, v)
+	}
+
+	tabFields := map[string]int64{}
+	for _, dashboard := range output.Dashboards {
+		for _, val := range dashboard.DashboardTabs {
+			for k := range val {
+				tabFields[k] += 1
+			}
+		}
+	}
+	fmt.Printf("Dashboard Tabs (%d fields):\n", len(tabFields))
+	for k, v := range tabFields {
+		fmt.Printf("%s,%d\n", k, v)
+	}
+	fmt.Printf("Test Groups (%d fields):\n", len(testGroupFields))
+	for k, v := range testGroupFields {
+		fmt.Printf("%s,%d\n", k, v)
+	}
+	return nil
 }
