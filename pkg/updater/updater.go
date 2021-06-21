@@ -32,18 +32,18 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/fvbommel/sortorder"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/api/googleapi"
-
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
+	"github.com/fvbommel/sortorder"
+	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/api/googleapi"
 )
 
 // Metrics holds metrics relevant to the Updater.
@@ -214,14 +214,10 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		if err != nil {
 			log.WithError(err).Warning("Failed to sort groups")
 		}
-		idxChan := make(chan int)
-		defer close(idxChan)
-		go logUpdate(idxChan, len(cfg.TestGroups), "Update in progress")
+		currently := util.Progress(ctx, log, time.Minute, len(cfg.TestGroups), "Update in progress")
+
 		for i, tg := range cfg.TestGroups {
-			select {
-			case idxChan <- i:
-			default:
-			}
+			currently(i)
 			groups <- *tg
 		}
 	}
@@ -243,36 +239,6 @@ func testGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) 
 		return nil, fmt.Errorf("testGroup %s should not change bucket", name)
 	}
 	return np, nil
-}
-
-// logUpdate posts Update progress every minute, including an ETA for completion.
-func logUpdate(ch <-chan int, total int, msg string) {
-	start := time.Now()
-	timer := time.NewTimer(time.Minute)
-	defer timer.Stop()
-	var current int
-	var ok bool
-	for {
-		select {
-		case current, ok = <-ch:
-			if !ok { // channel is closed
-				return
-			}
-		case now := <-timer.C:
-			elapsed := now.Sub(start)
-			rate := elapsed / time.Duration(current)
-			eta := time.Duration(total-current) * rate
-
-			logrus.WithFields(logrus.Fields{
-				"current": current,
-				"total":   total,
-				"percent": (100 * current) / total,
-				"remain":  eta.Round(time.Minute),
-				"eta":     now.Add(eta).Round(time.Minute),
-			}).Info(msg)
-			timer.Reset(time.Minute)
-		}
-	}
 }
 
 // AllowMultiplePaths enables combining multiple jobs together using a comma.
