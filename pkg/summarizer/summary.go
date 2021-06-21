@@ -33,18 +33,18 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/api/googleapi"
-
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
+	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/api/googleapi"
 )
 
 // Metrics holds metrics relevant to the Updater.
@@ -79,6 +79,8 @@ type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
 func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	if concurrency < 1 {
 		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
 	}
@@ -194,7 +196,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			log.WithError(err).Warning("Failed to sort dashboards")
 		}
 	}
-	for _, d := range cfg.Dashboards {
+	currently := util.Progress(ctx, log, time.Minute, len(cfg.Dashboards), "Summarizing dashboards...")
+	for i, d := range cfg.Dashboards {
+		currently(i)
 		if dashboard != "" && dashboard != d.Name {
 			log.WithField("dashboard", d.Name).Info("Skipping")
 			continue
