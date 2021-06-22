@@ -81,6 +81,9 @@ message AlertInfo {
 
   // A list of IDs for issue hotlists related to this failure.
   repeated string hotlist_ids = 13;
+
+  // Dynamic email list that will overwite the emails configured in the dashboard
+  repeated string email_addresses = 15;
 }
 
 // Info on default test metadata for a dashboard tab.
@@ -123,6 +126,9 @@ message Column {
 
   // An optional hint for the updater.
   string hint = 6;
+
+  // Dynamic email list that will overwite the emails configured in the dashboard
+  repeated string email_addresses = 7;
 }
 
 // TestGrid rows (also known as TestRow)

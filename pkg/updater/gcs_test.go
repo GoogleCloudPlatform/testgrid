@@ -336,6 +336,30 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
+			name: "pass dynamic email list",
+			result: gcsResult{
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Metadata: metadata.Metadata{
+							EmailListKey: []string{"world"},
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					EmailAddresses: []string{"world"},
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "T",
+						Message: "Build did not complete within 24 hours",
+					},
+				},
+			},
+		},
+		{
 			name:    "correct column information",
 			headers: []string{"Commit", "hello", "spam", "do not have this one"},
 			id:      "hello",

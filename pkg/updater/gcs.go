@@ -48,6 +48,8 @@ type gcsResult struct {
 
 const maxDuplicates = 20
 
+const EmailListKey = "EmailAddresses"
+
 var overflowCell = Cell{
 	Result:  statuspb.TestStatus_FAIL,
 	Icon:    "...",
@@ -384,6 +386,13 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 			val = "missing"
 		}
 		out.Column.Extra = append(out.Column.Extra, val)
+	}
+
+	emailAddresses, ok := result.finished.Finished.Metadata[EmailListKey].([]string)
+	if ok {
+		out.Column.EmailAddresses = emailAddresses
+	} else {
+		out.Column.EmailAddresses = []string{}
 	}
 
 	return out
