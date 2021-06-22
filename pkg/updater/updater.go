@@ -825,6 +825,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	var firstFail *statepb.Column
 	var latestFail *statepb.Column
 	var latestPass *statepb.Column
+	var latestColumn *statepb.Column
 	var failIdx int
 	var latestFailIdx int
 	// find the first number of consecutive passesToClose (no alert)
@@ -838,6 +839,9 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 				compressedIdx++
 			}
 			continue
+		}
+		if latestColumn == nil {
+			latestColumn = col
 		}
 		if res == statuspb.TestStatus_PASS {
 			passes++
@@ -880,11 +884,11 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		latestID = row.CellIds[latestFailIdx]
 	}
 	msg := row.Messages[latestFailIdx]
-	return alertInfo(totalFailures, msg, id, latestID, firstFail, latestFail, latestPass)
+	return alertInfo(totalFailures, msg, id, latestID, firstFail, latestFail, latestPass, latestColumn)
 }
 
 // alertInfo returns an alert proto with the configured fields
-func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFail, pass *statepb.Column) *statepb.AlertInfo {
+func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFail, pass *statepb.Column, latestColumn *statepb.Column) *statepb.AlertInfo {
 	return &statepb.AlertInfo{
 		FailCount:         failures,
 		FailBuildId:       buildID(fail),
@@ -895,7 +899,15 @@ func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFai
 		FailureMessage:    msg,
 		PassTime:          stamp(pass),
 		PassBuildId:       buildID(pass),
+		EmailAddresses:    emailAddresses(latestColumn),
 	}
+}
+
+func emailAddresses(col *statepb.Column) []string {
+	if col == nil {
+		return []string{}
+	}
+	return col.GetEmailAddresses()
 }
 
 // buildID extracts the ID from the first extra row or else the Build field.
