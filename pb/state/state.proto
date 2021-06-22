@@ -82,7 +82,7 @@ message AlertInfo {
   // A list of IDs for issue hotlists related to this failure.
   repeated string hotlist_ids = 13;
 
-  // Dynamic email list that will overwite the emails configured in the dashboard
+  // Dynamic email list, route email alerts to these instead of the configured defaults.
   repeated string email_addresses = 15;
 }
 
@@ -127,7 +127,7 @@ message Column {
   // An optional hint for the updater.
   string hint = 6;
 
-  // Dynamic email list that will overwite the emails configured in the dashboard
+  // Dynamic email list, route email alerts to these instead of the configured defaults.
   repeated string email_addresses = 7;
 }
 

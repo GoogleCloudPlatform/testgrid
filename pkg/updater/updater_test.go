@@ -3129,7 +3129,7 @@ func TestAppendColumn(t *testing.T) {
 }
 
 func TestDynamicEmails(t *testing.T) {
-	coulmnWithEmails := statepb.Column{Build: "columnWithEmail", Started: 100 - float64(0), EmailAddresses: []string{"email1@", "email2@"}}
+	columnWithEmails := statepb.Column{Build: "columnWithEmail", Started: 100 - float64(0), EmailAddresses: []string{"email1@", "email2@"}}
 	anotherColumnWithEmails := statepb.Column{Build: "anotherColumnWithEmails", Started: 100 - float64(1), EmailAddresses: []string{"email3@", "email2@"}}
 	columnWithoutEmails := statepb.Column{Build: "columnWithoutEmails", Started: 100 - float64(2)}
 	cases := []struct {
@@ -3144,23 +3144,23 @@ func TestDynamicEmails(t *testing.T) {
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 1,
 				},
-				Messages: []string{"no"},
-				CellIds:  []string{"no"},
+				Messages: []string{""},
+				CellIds:  []string{""},
 			},
-			columns:  []*statepb.Column{&coulmnWithEmails},
-			expected: alertInfo(1, "no", "no", "no", &coulmnWithEmails, &coulmnWithEmails, nil, &coulmnWithEmails),
+			columns:  []*statepb.Column{&columnWithEmails},
+			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil, &columnWithEmails),
 		},
 		{
-			name: "second column with dynamic emails didn't passed",
+			name: "second column with dynamic emails didn't pass",
 			row: statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 2,
 				},
-				Messages: []string{"no", "why"},
-				CellIds:  []string{"no", "why"},
+				Messages: []string{"", ""},
+				CellIds:  []string{"", ""},
 			},
-			columns:  []*statepb.Column{&columnWithoutEmails, &coulmnWithEmails},
-			expected: alertInfo(2, "no", "why", "no", &coulmnWithEmails, &columnWithoutEmails, nil, &columnWithoutEmails),
+			columns:  []*statepb.Column{&columnWithoutEmails, &columnWithEmails},
+			expected: alertInfo(2, "", "", "", &columnWithEmails, &columnWithoutEmails, nil, &columnWithoutEmails),
 		},
 		{
 			name: "first column don't have results, second column emails on the alert",
@@ -3169,11 +3169,11 @@ func TestDynamicEmails(t *testing.T) {
 					int32(statuspb.TestStatus_NO_RESULT), 1,
 					int32(statuspb.TestStatus_FAIL), 1,
 				},
-				Messages: []string{"no", "why"},
-				CellIds:  []string{"no", "why"},
+				Messages: []string{"", ""},
+				CellIds:  []string{"", ""},
 			},
-			columns:  []*statepb.Column{&coulmnWithEmails, &anotherColumnWithEmails},
-			expected: alertInfo(1, "no", "no", "no", &anotherColumnWithEmails, &anotherColumnWithEmails, nil, &anotherColumnWithEmails),
+			columns:  []*statepb.Column{&columnWithEmails, &anotherColumnWithEmails},
+			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil, &anotherColumnWithEmails),
 		},
 	}
 	for _, tc := range cases {

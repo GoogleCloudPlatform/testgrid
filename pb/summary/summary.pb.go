@@ -145,7 +145,7 @@ type FailingTestSummary struct {
 	Properties map[string]string `protobuf:"bytes,15,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// A list of IDs for issue hotlists related to this failure.
 	HotlistIds []string `protobuf:"bytes,16,rep,name=hotlist_ids,json=hotlistIds,proto3" json:"hotlist_ids,omitempty"`
-	// Dynamic email list that will overwite the emails configured in the dashboard
+	// Dynamic email list, route email alerts to these instead of the configured defaults.
 	EmailAddresses       []string `protobuf:"bytes,18,rep,name=email_addresses,json=emailAddresses,proto3" json:"email_addresses,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

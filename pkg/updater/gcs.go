@@ -388,13 +388,17 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		out.Column.Extra = append(out.Column.Extra, val)
 	}
 
-	emailAddresses, ok := result.finished.Finished.Metadata[EmailListKey].([]string)
+	emailAddressesInterface, ok := result.finished.Finished.Metadata[EmailListKey]
 	if ok {
-		out.Column.EmailAddresses = emailAddresses
+		emailAddresses, ok := emailAddressesInterface.([]string)
+		if ok {
+			out.Column.EmailAddresses = emailAddresses
+		} else {
+			out.Column.EmailAddresses = []string{}
+		}
 	} else {
 		out.Column.EmailAddresses = []string{}
 	}
-
 	return out
 }
 
