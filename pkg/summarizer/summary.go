@@ -601,7 +601,7 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 // buildFailLink creates a search link
 // TODO(#134): Build proper url for both internal and external jobs
 func buildFailLink(testID, target string) string {
-	return fmt.Sprintf("%s %s", testID, target)
+	return fmt.Sprintf("%s %s", url.PathEscape(testID), url.PathEscape(target))
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
