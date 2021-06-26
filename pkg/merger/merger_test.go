@@ -415,15 +415,15 @@ type fakeMergeClient struct {
 
 type fakeOpener map[string]fakeObject
 
-func (fo fakeOpener) Open(_ context.Context, path gcs.Path) (io.ReadCloser, error) {
+func (fo fakeOpener) Open(_ context.Context, path gcs.Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
 	o, ok := fo[path.String()]
 	if !ok {
-		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
+		return nil, nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
 	}
 	if o.err != nil {
-		return nil, fmt.Errorf("injected open error: %w", o.err)
+		return nil, nil, fmt.Errorf("injected open error: %w", o.err)
 	}
-	return ioutil.NopCloser(bytes.NewReader(o.buf)), nil
+	return ioutil.NopCloser(bytes.NewReader(o.buf)), nil, nil
 }
 
 type fakeObject struct {

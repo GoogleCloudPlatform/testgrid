@@ -772,23 +772,24 @@ func TestReadJSON(t *testing.T) {
 
 type fakeOpener map[Path]fakeObject
 
-func (fo fakeOpener) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+func (fo fakeOpener) Open(ctx context.Context, path Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
 	o, ok := fo[path]
 	if !ok {
-		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
+		return nil, nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
 	}
 	if o.openErr != nil {
-		return nil, o.openErr
+		return nil, nil, o.openErr
 	}
 	return ioutil.NopCloser(&fakeReader{
 		buf:      bytes.NewBufferString(o.data),
 		readErr:  o.readErr,
 		closeErr: o.closeErr,
-	}), nil
+	}), o.attrs, nil
 }
 
 type fakeObject struct {
 	data     string
+	attrs    *storage.ReaderObjectAttrs
 	openErr  error
 	readErr  error
 	closeErr error

@@ -310,7 +310,7 @@ func parseSuitesMeta(name string) map[string]string {
 
 // readJSON will decode the json object stored in GCS.
 func readJSON(ctx context.Context, opener Opener, p Path, i interface{}) error {
-	reader, err := opener.Open(ctx, p)
+	reader, _, err := opener.Open(ctx, p)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		return err
 	}
@@ -408,7 +408,7 @@ type SuitesMeta struct {
 }
 
 func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, error) {
-	r, err := opener.Open(ctx, p)
+	r, _, err := opener.Open(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}

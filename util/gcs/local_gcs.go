@@ -83,8 +83,9 @@ func (lc localClient) Copy(ctx context.Context, from, to Path) (*storage.ObjectA
 	return lc.Upload(ctx, to, buf, false, "")
 }
 
-func (lc localClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
-	return os.Open(cleanFilepath(path))
+func (lc localClient) Open(ctx context.Context, path Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
+	r, err := os.Open(cleanFilepath(path))
+	return r, &storage.ReaderObjectAttrs{}, err
 }
 
 func (lc localClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {

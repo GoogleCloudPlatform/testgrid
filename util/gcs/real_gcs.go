@@ -60,9 +60,12 @@ func (rgc realGCSClient) Copy(ctx context.Context, from, to Path) (*storage.Obje
 	return rgc.handle(to, rgc.writeCond).CopierFrom(fromH).Run(ctx)
 }
 
-func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
 	r, err := rgc.handle(path, rgc.readCond).NewReader(ctx)
-	return r, err
+	if r == nil {
+		return nil, nil, err
+	}
+	return r, &r.Attrs, err
 }
 
 func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {

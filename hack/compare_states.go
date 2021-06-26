@@ -201,7 +201,7 @@ func main() {
 			errorMsgs = append(errorMsgs, fmt.Sprintf("gcs.NewPath(%q): %v", firstP, err))
 			continue
 		}
-		firstGrid, err := gcs.DownloadGrid(ctx, client, *firstPath)
+		firstGrid, _, err := gcs.DownloadGrid(ctx, client, *firstPath)
 		if err != nil {
 			errorMsgs = append(errorMsgs, fmt.Sprintf("gcs.DownloadGrid(%q): %v", firstP, err))
 			continue
@@ -211,7 +211,7 @@ func main() {
 			errorMsgs = append(errorMsgs, fmt.Sprintf("gcs.NewPath(%q): %v", secondP, err))
 			continue
 		}
-		secondGrid, err := gcs.DownloadGrid(ctx, client, *secondPath)
+		secondGrid, _, err := gcs.DownloadGrid(ctx, client, *secondPath)
 		if err != nil {
 			errorMsgs = append(errorMsgs, fmt.Sprintf("gcs.DownloadGrid(%q): %v", secondP, err))
 			continue

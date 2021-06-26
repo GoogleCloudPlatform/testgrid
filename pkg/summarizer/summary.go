@@ -281,15 +281,14 @@ func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *su
 
 // pathReader returns a reader for the specified path and last modified, generation metadata.
 func pathReader(ctx context.Context, client gcs.Client, path gcs.Path) (io.ReadCloser, time.Time, int64, error) {
-	r, err := client.Open(ctx, path)
+	r, attrs, err := client.Open(ctx, path)
 	if err != nil {
 		return nil, time.Time{}, 0, fmt.Errorf("client.Open(): %w", err)
 	}
-	stat, err := client.Stat(ctx, path)
-	if err != nil {
-		return nil, time.Time{}, 0, fmt.Errorf("client.Stat(): %w", err)
+	if attrs == nil {
+		return r, time.Time{}, 0, nil
 	}
-	return r, stat.Updated, stat.Generation, nil
+	return r, attrs.LastModified, attrs.Generation, nil
 }
 
 // updateDashboard will summarize all the tabs (through errors), returning an error if any fail to summarize.

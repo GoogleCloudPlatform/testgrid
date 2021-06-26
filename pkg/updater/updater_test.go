@@ -1722,12 +1722,12 @@ func TestInflateDropAppend(t *testing.T) {
 				fakeDownloader := fakeOpener{
 					uploadPath: {Data: string(actual[uploadPath].Buf)},
 				}
-				actualGrid, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
+				actualGrid, _, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
 					t.Errorf("actual gcs.DownloadGrid() got unexpected error: %v", err)
 				}
 				fakeDownloader[uploadPath] = fakeObject{Data: string(tc.expected.Buf)}
-				expectedGrid, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
+				expectedGrid, _, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
 					t.Errorf("expected gcs.DownloadGrid() got unexpected error: %v", err)
 				}
