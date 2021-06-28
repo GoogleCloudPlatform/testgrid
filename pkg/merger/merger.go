@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -48,7 +49,7 @@ type Source struct {
 
 // ParseAndCheck parses and checks the configuration file for common errors
 func ParseAndCheck(data []byte) (list MergeList, err error) {
-	err = yaml.Unmarshal(data, &list)
+	err = yaml.UnmarshalStrict(data, &list)
 	if err != nil {
 		return
 	}
@@ -91,33 +92,62 @@ type mergeClient interface {
 func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, skipValidate, confirm bool) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	// Deserialize each proto
-	// TODO: Reading and validating can be done in parallel with a wait group.
+
 	// TODO: Cache the version for each source. Only read if they've changed.
+	type Shard struct {
+		name string
+		cfg  *configpb.Configuration
+		err  error
+	}
+
 	shards := map[string]*configpb.Configuration{}
-	// paths, targetPath
+	var shardsLock sync.Mutex
+	var fatal error
+
+	var wg sync.WaitGroup
 
 	for _, source := range list.Sources {
 		if source.Path == nil {
 			return fmt.Errorf("path at %q is nil", source.Name)
 		}
-		cfg, err := config.ReadGCS(ctx, client, *source.Path)
-		if err != nil {
-			return fmt.Errorf("can't read config %q at %s: %w", source.Name, source.Path, err)
-		}
-		if !skipValidate {
-			if err := config.Validate(cfg); err != nil {
+
+		wg.Add(1)
+		source := source
+		go func() {
+			defer wg.Done()
+			cfg, err := config.ReadGCS(ctx, client, *source.Path)
+			if err != nil {
+				// Log each fatal error, but it's okay to return any fatal error
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"component":   "config-merger",
 					"config-path": source.Location,
 					"contact":     source.Contact,
-				}).Errorf("config %q is invalid; skipping config", source.Name)
-				continue
+				}).Errorf("can't read config %q", source.Name)
+				fatal = fmt.Errorf("can't read config %q at %s: %w", source.Name, source.Path, err)
+				return
 			}
-		}
-		shards[source.Name] = cfg
+			if !skipValidate {
+				if err := config.Validate(cfg); err != nil {
+					logrus.WithError(err).WithFields(logrus.Fields{
+						"component":   "config-merger",
+						"config-path": source.Location,
+						"contact":     source.Contact,
+					}).Errorf("config %q is invalid; skipping config", source.Name)
+					return
+				}
+			}
+
+			shardsLock.Lock()
+			defer shardsLock.Unlock()
+			shards[source.Name] = cfg
+		}()
 	}
 
+	wg.Wait()
+
+	if fatal != nil {
+		return fatal
+	}
 	if len(shards) == 0 {
 		return errors.New("no configs to merge")
 	}
