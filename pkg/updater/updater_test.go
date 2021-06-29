@@ -3150,6 +3150,18 @@ func TestDynamicEmails(t *testing.T) {
 			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil),
 		},
 		{
+			name: "two column with dynamic emails, we get only the first one",
+			row: statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_FAIL), 2,
+				},
+				Messages: []string{"", ""},
+				CellIds:  []string{"", ""},
+			},
+			columns:  []*statepb.Column{&anotherColumnWithEmails, &columnWithEmails},
+			expected: alertInfo(2, "", "", "", &columnWithEmails, &anotherColumnWithEmails, nil),
+		},
+		{
 			name: "first column don't have results, second column emails on the alert",
 			row: statepb.Row{
 				Results: []int32{
