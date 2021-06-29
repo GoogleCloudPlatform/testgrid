@@ -394,6 +394,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		if ok {
 			out.Column.EmailAddresses = emailAddresses
 		} else {
+			log.Error("email addresses type is not list of strings")
 			out.Column.EmailAddresses = []string{}
 		}
 	} else {

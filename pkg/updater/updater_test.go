@@ -3131,7 +3131,6 @@ func TestAppendColumn(t *testing.T) {
 func TestDynamicEmails(t *testing.T) {
 	columnWithEmails := statepb.Column{Build: "columnWithEmail", Started: 100 - float64(0), EmailAddresses: []string{"email1@", "email2@"}}
 	anotherColumnWithEmails := statepb.Column{Build: "anotherColumnWithEmails", Started: 100 - float64(1), EmailAddresses: []string{"email3@", "email2@"}}
-	columnWithoutEmails := statepb.Column{Build: "columnWithoutEmails", Started: 100 - float64(2)}
 	cases := []struct {
 		name     string
 		row      statepb.Row
@@ -3148,19 +3147,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails},
-			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil, &columnWithEmails),
-		},
-		{
-			name: "second column with dynamic emails didn't pass",
-			row: statepb.Row{
-				Results: []int32{
-					int32(statuspb.TestStatus_FAIL), 2,
-				},
-				Messages: []string{"", ""},
-				CellIds:  []string{"", ""},
-			},
-			columns:  []*statepb.Column{&columnWithoutEmails, &columnWithEmails},
-			expected: alertInfo(2, "", "", "", &columnWithEmails, &columnWithoutEmails, nil, &columnWithoutEmails),
+			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil),
 		},
 		{
 			name: "first column don't have results, second column emails on the alert",
@@ -3173,7 +3160,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails, &anotherColumnWithEmails},
-			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil, &anotherColumnWithEmails),
+			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil),
 		},
 	}
 	for _, tc := range cases {
@@ -3248,7 +3235,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3], nil),
+			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3]),
 		},
 		{
 			name: "rows without cell IDs can alert",
@@ -3260,7 +3247,7 @@ func TestAlertRow(t *testing.T) {
 				Messages: []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "", "", columns[2], columns[0], columns[3], nil),
+			expected: alertInfo(3, "no", "", "", columns[2], columns[0], columns[3]),
 		},
 		{
 			name: "too few passes do not close",
@@ -3274,7 +3261,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  1,
 			passClose: 3,
-			expected:  alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, nil),
+			expected:  alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil),
 		},
 		{
 			name: "flakes do not close",
@@ -3287,7 +3274,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "no", "yep", "very wrong", "hi", "hello"},
 			},
 			failOpen: 1,
-			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, nil),
+			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil),
 		},
 		{
 			name: "count failures after flaky passes",
@@ -3304,7 +3291,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[4], nil, nil),
+			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[4], nil),
 		},
 		{
 			name: "close alert",
@@ -3329,7 +3316,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  5,
 			passClose: 2,
-			expected:  alertInfo(5, "yay", "nada", "yay-cell", columns[5], columns[0], nil, nil),
+			expected:  alertInfo(5, "yay", "nada", "yay-cell", columns[5], columns[0], nil),
 		},
 		{
 			name: "track passes through empty results",
@@ -3355,7 +3342,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
 			},
 			failOpen: 1,
-			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil, nil),
+			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil),
 		},
 	}
 
