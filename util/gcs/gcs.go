@@ -196,26 +196,26 @@ func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte,
 }
 
 // DownloadGrid downloads and decompresses a grid from the specified path.
-func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid, error) {
+func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid, *storage.ReaderObjectAttrs, error) {
 	var g statepb.Grid
-	r, err := opener.Open(ctx, path)
+	r, attrs, err := opener.Open(ctx, path)
 	if err != nil && err == storage.ErrObjectNotExist {
-		return &g, nil
+		return &g, nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("open: %w", err)
+		return nil, nil, fmt.Errorf("open: %w", err)
 	}
 	defer r.Close()
 	zr, err := zlib.NewReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("open zlib: %w", err)
+		return nil, nil, fmt.Errorf("open zlib: %w", err)
 	}
 	pbuf, err := ioutil.ReadAll(zr)
 	if err != nil {
-		return nil, fmt.Errorf("decompress: %w", err)
+		return nil, nil, fmt.Errorf("decompress: %w", err)
 	}
 	err = proto.Unmarshal(pbuf, &g)
-	return &g, err
+	return &g, attrs, err
 }
 
 // MarshalGrid serializes a state proto into zlib-compressed bytes.

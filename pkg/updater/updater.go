@@ -417,7 +417,8 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	var oldCols []InflatedColumn
 	var issues map[string][]string
 
-	old, err := gcs.DownloadGrid(ctx, client, gridPath)
+	// TODO(fejta): track metadata
+	old, _, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}

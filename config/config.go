@@ -515,7 +515,7 @@ func MarshalBytes(c *configpb.Configuration) ([]byte, error) {
 
 // ReadGCS opens the config at path and unmarshals it into a Configuration proto.
 func ReadGCS(ctx context.Context, opener gcs.Opener, path gcs.Path) (*configpb.Configuration, error) {
-	r, err := opener.Open(ctx, path)
+	r, _, err := opener.Open(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config: %v", err)
 	}

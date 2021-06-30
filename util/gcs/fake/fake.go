@@ -210,24 +210,25 @@ func (u Upload) Attrs(path gcs.Path) *storage.ObjectAttrs {
 type Opener map[gcs.Path]Object
 
 // Open returns a handle for a given path.
-func (fo Opener) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, error) {
+func (fo Opener) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
 	o, ok := fo[path]
 	if !ok {
-		return nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
+		return nil, nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
 	}
 	if o.OpenErr != nil {
-		return nil, o.OpenErr
+		return nil, nil, o.OpenErr
 	}
 	return &Reader{
 		Buf:      bytes.NewBufferString(o.Data),
 		ReadErr:  o.ReadErr,
 		CloseErr: o.CloseErr,
-	}, nil
+	}, o.Attrs, nil
 }
 
 // Object holds data for an object.
 type Object struct {
 	Data     string
+	Attrs    *storage.ReaderObjectAttrs
 	OpenErr  error
 	ReadErr  error
 	CloseErr error

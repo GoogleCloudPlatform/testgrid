@@ -46,7 +46,7 @@ type Iterator interface {
 
 // An Opener opens a path for reading.
 type Opener interface {
-	Open(ctx context.Context, path Path) (io.ReadCloser, error)
+	Open(ctx context.Context, path Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error)
 }
 
 // A Stater can stat an object and get its attributes.
@@ -110,7 +110,7 @@ func (gc gcsClient) Copy(ctx context.Context, from, to Path) (*storage.ObjectAtt
 }
 
 // Open returns a handle for a given path.
-func (gc gcsClient) Open(ctx context.Context, path Path) (io.ReadCloser, error) {
+func (gc gcsClient) Open(ctx context.Context, path Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
 	client := gc.clientFromPath(path)
 	return client.Open(ctx, path)
 }
