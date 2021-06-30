@@ -895,7 +895,15 @@ func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFai
 		FailureMessage:    msg,
 		PassTime:          stamp(pass),
 		PassBuildId:       buildID(pass),
+		EmailAddresses:    emailAddresses(fail),
 	}
+}
+
+func emailAddresses(col *statepb.Column) []string {
+	if col == nil {
+		return []string{}
+	}
+	return col.GetEmailAddresses()
 }
 
 // buildID extracts the ID from the first extra row or else the Build field.

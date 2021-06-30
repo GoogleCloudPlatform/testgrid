@@ -58,6 +58,9 @@ message FailingTestSummary {
 
   // A list of IDs for issue hotlists related to this failure.
   repeated string hotlist_ids = 16;
+
+  // Dynamic email list, route email alerts to these instead of the configured defaults.
+  repeated string email_addresses = 18;
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.

@@ -3128,6 +3128,61 @@ func TestAppendColumn(t *testing.T) {
 	}
 }
 
+func TestDynamicEmails(t *testing.T) {
+	columnWithEmails := statepb.Column{Build: "columnWithEmail", Started: 100 - float64(0), EmailAddresses: []string{"email1@", "email2@"}}
+	anotherColumnWithEmails := statepb.Column{Build: "anotherColumnWithEmails", Started: 100 - float64(1), EmailAddresses: []string{"email3@", "email2@"}}
+	cases := []struct {
+		name     string
+		row      statepb.Row
+		columns  []*statepb.Column
+		expected *statepb.AlertInfo
+	}{
+		{
+			name: "first column with dynamic emails",
+			row: statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_FAIL), 1,
+				},
+				Messages: []string{""},
+				CellIds:  []string{""},
+			},
+			columns:  []*statepb.Column{&columnWithEmails},
+			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil),
+		},
+		{
+			name: "two column with dynamic emails, we get only the first one",
+			row: statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_FAIL), 2,
+				},
+				Messages: []string{"", ""},
+				CellIds:  []string{"", ""},
+			},
+			columns:  []*statepb.Column{&anotherColumnWithEmails, &columnWithEmails},
+			expected: alertInfo(2, "", "", "", &columnWithEmails, &anotherColumnWithEmails, nil),
+		},
+		{
+			name: "first column don't have results, second column emails on the alert",
+			row: statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_NO_RESULT), 1,
+					int32(statuspb.TestStatus_FAIL), 1,
+				},
+				Messages: []string{"", ""},
+				CellIds:  []string{"", ""},
+			},
+			columns:  []*statepb.Column{&columnWithEmails, &anotherColumnWithEmails},
+			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil),
+		},
+	}
+	for _, tc := range cases {
+		actual := alertRow(tc.columns, &tc.row, 1, 1)
+		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
+		}
+	}
+}
+
 func TestAlertRow(t *testing.T) {
 	var columns []*statepb.Column
 	for i, id := range []string{"a", "b", "c", "d", "e", "f"} {

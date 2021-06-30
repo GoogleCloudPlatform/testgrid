@@ -585,6 +585,7 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 			LatestFailTestLink: buildFailLink(alert.LatestFailTestId, row.Id),
 			Properties:         alert.Properties,
 			HotlistIds:         alert.HotlistIds,
+			EmailAddresses:     alert.EmailAddresses,
 		}
 		if alert.PassTime != nil {
 			sum.PassTimestamp = float64(alert.PassTime.Seconds)
