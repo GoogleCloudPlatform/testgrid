@@ -48,6 +48,7 @@ type gcsResult struct {
 
 const maxDuplicates = 20
 
+// EmailListKey is the expected metadata key for email addresses.
 const EmailListKey = "EmailAddresses"
 
 var overflowCell = Cell{
