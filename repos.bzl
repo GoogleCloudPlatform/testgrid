@@ -949,3 +949,19 @@ def go_repositories():
         sum = "h1:4Z09Hglb792X0kfOBBJUPFEyvVfQWrYT/l8h5EKA6JQ=",
         version = "v0.0.0-20190525122527-15d366b2352e",
     )
+    go_repository(
+        name = "com_github_creachadair_staticfile",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/creachadair/staticfile",
+        sum = "h1:RhyrMgi7IQn3GejgmGtFuCec58vboEMt5CH6N3ulRJk=",
+        version = "v0.1.3",
+    )
+    go_repository(
+        name = "org_bitbucket_creachadair_stringset",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "bitbucket.org/creachadair/stringset",
+        sum = "h1:L4vld9nzPt90UZNrXjNelTshD74ps4P5NGs3Iq6yN3o=",
+        version = "v0.0.9",
+    )

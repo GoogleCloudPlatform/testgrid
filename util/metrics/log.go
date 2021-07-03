@@ -58,7 +58,7 @@ func (m *logInt64) Set(n int64, fields ...string) {
 	for i, field := range fields {
 		log.WithField(m.fields[i], field)
 	}
-	m.val += n
+	m.val = n
 	log.Infof("int64 %q.Set(%d) = %d", m.Name(), n, m.val)
 }
 
