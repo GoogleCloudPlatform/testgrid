@@ -97,7 +97,7 @@ func printFieldNames(b []byte) error {
 	testGroupFields := map[string]int64{}
 	for _, value := range output.TestGroups {
 		for k := range value {
-			testGroupFields[k] += 1
+			testGroupFields[k]++
 		}
 	}
 	fmt.Printf("Test Groups (%d fields):\n", len(testGroupFields))
@@ -109,7 +109,7 @@ func printFieldNames(b []byte) error {
 	for _, dashboard := range output.Dashboards {
 		for _, val := range dashboard.DashboardTabs {
 			for k := range val {
-				tabFields[k] += 1
+				tabFields[k]++
 			}
 		}
 	}

@@ -3133,13 +3133,13 @@ func TestDynamicEmails(t *testing.T) {
 	anotherColumnWithEmails := statepb.Column{Build: "anotherColumnWithEmails", Started: 100 - float64(1), EmailAddresses: []string{"email3@", "email2@"}}
 	cases := []struct {
 		name     string
-		row      statepb.Row
+		row      *statepb.Row
 		columns  []*statepb.Column
 		expected *statepb.AlertInfo
 	}{
 		{
 			name: "first column with dynamic emails",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 1,
 				},
@@ -3151,7 +3151,7 @@ func TestDynamicEmails(t *testing.T) {
 		},
 		{
 			name: "two column with dynamic emails, we get only the first one",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 2,
 				},
@@ -3163,7 +3163,7 @@ func TestDynamicEmails(t *testing.T) {
 		},
 		{
 			name: "first column don't have results, second column emails on the alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_NO_RESULT), 1,
 					int32(statuspb.TestStatus_FAIL), 1,
@@ -3176,7 +3176,7 @@ func TestDynamicEmails(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		actual := alertRow(tc.columns, &tc.row, 1, 1)
+		actual := alertRow(tc.columns, tc.row, 1, 1)
 		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
