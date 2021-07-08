@@ -35,9 +35,10 @@ import (
 // First call must be to Init().
 // Exported methods are safe to call concurrently.
 type TestGroupQueue struct {
-	queue priorityQueue
-	items map[string]*item
-	lock  sync.RWMutex
+	queue  priorityQueue
+	items  map[string]*item
+	lock   sync.RWMutex
+	signal chan struct{}
 }
 
 // Init (or reinit) the queue with the specified groups, which should be updated at frequency.
@@ -47,6 +48,11 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 
 	q.lock.Lock()
 	defer q.lock.Unlock()
+	defer q.rouse()
+
+	if q.signal == nil {
+		q.signal = make(chan struct{})
+	}
 
 	if q.items == nil {
 		q.items = make(map[string]*item, n)
@@ -87,6 +93,8 @@ func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	var missing []string
+	defer q.rouse()
+
 	for name, when := range whens {
 		it, ok := q.items[name]
 		if !ok {
@@ -106,6 +114,7 @@ func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
 func (q *TestGroupQueue) Fix(name string, when time.Time) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
+	defer q.rouse()
 
 	it, ok := q.items[name]
 	if !ok {
@@ -127,6 +136,29 @@ func (q *TestGroupQueue) Status() (int, *configpb.TestGroup, time.Time) {
 		when = it.when
 	}
 	return len(q.queue), tg, when
+}
+
+func (q *TestGroupQueue) rouse() {
+	select {
+	case q.signal <- struct{}{}: // wake up early
+	default: // not sleeping
+	}
+}
+
+func (q *TestGroupQueue) sleep(d time.Duration) {
+	log := logrus.WithFields(logrus.Fields{
+		"seconds": d.Round(100 * time.Millisecond).Seconds(),
+	})
+	log.Info("Sleeping...")
+	sleep := time.NewTimer(d)
+	select {
+	case <-q.signal:
+		if !sleep.Stop() {
+			<-sleep.C
+		}
+		log.Info("Roused")
+	case <-sleep.C:
+	}
 }
 
 // Send test groups to receivers until the context expires.
@@ -170,18 +202,12 @@ func (q *TestGroupQueue) Send(ctx context.Context, receivers chan<- *configpb.Te
 			if frequency == 0 {
 				return nil
 			}
-			time.Sleep(time.Second)
+			q.sleep(time.Second)
 			continue
 		}
 
-		dur := when.Sub(time.Now())
-		if dur > 0 {
-			logrus.WithFields(logrus.Fields{
-				"duration": dur.Round(100 * time.Millisecond),
-				"group":    tg.Name,
-				"when":     when,
-			}).Info("Sleeping...")
-			time.Sleep(dur)
+		if dur := when.Sub(time.Now()); dur > 0 {
+			q.sleep(dur)
 		}
 		select {
 		case receivers <- tg:
