@@ -18,7 +18,6 @@ go_library(
         "//pb/config:go_default_library",
         "//pb/state:go_default_library",
         "//pb/test_status:go_default_library",
-        "//util:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics:go_default_library",
         "@com_github_fvbommel_sortorder//:go_default_library",

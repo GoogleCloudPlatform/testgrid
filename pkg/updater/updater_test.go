@@ -18,7 +18,6 @@ package updater
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -115,6 +114,7 @@ func TestUpdate(t *testing.T) {
 		groupTimeout     *time.Duration
 		buildTimeout     *time.Duration
 		group            string
+		freq             time.Duration
 
 		expected  fakeUploader
 		err       bool
@@ -196,7 +196,7 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			expected: fakeUploader{},
-			errors:   1,
+			err:      true,
 		},
 		// TODO(fejta): more cases
 	}
@@ -258,8 +258,11 @@ func TestUpdate(t *testing.T) {
 
 			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
 			mets := &Metrics{
-				Successes: metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
-				Errors:    metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+				Successes:    metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
+				Errors:       metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+				Skips:        metrics.NewLogCounter("skips", "Number of skips", logrus.New(), "component"),
+				DelaySeconds: metrics.NewLogInt64("delay", "Number of skips", logrus.New(), "component"),
+				CycleSeconds: metrics.NewLogInt64("cycle", "Number of skips", logrus.New(), "component"),
 			}
 			err := Update(
 				ctx,
@@ -271,6 +274,7 @@ func TestUpdate(t *testing.T) {
 				tc.group,
 				groupUpdater,
 				!tc.skipConfirm,
+				tc.freq,
 			)
 			switch {
 			case err != nil:
@@ -403,6 +407,7 @@ func mustGrid(grid *statepb.Grid) []byte {
 	return buf
 }
 
+/*
 func TestSortGroups(t *testing.T) {
 	now := time.Now()
 	times := []time.Time{
@@ -503,6 +508,7 @@ func TestSortGroups(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestTruncateRunning(t *testing.T) {
 	now := float64(time.Now().UTC().Unix() * 1000)

@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -37,7 +36,6 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
-	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/fvbommel/sortorder"
@@ -46,24 +44,65 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+const componentName = "updater"
+
 // Metrics holds metrics relevant to the Updater.
 type Metrics struct {
-	Successes metrics.Counter
-	Errors    metrics.Counter
+	Errors       metrics.Counter
+	Skips        metrics.Counter
+	Successes    metrics.Counter
+	DelaySeconds metrics.Int64
+	CycleSeconds metrics.Int64
 }
 
-// Error increments the counter for failed updates.
-func (mets *Metrics) Error() {
-	if mets.Errors != nil {
-		mets.Errors.Add(1, "updater")
-	}
+type finish struct {
+	m    *Metrics
+	when time.Time
 }
 
-// Success increments the counter for successful updates.
-func (mets *Metrics) Success() {
-	if mets.Successes != nil {
-		mets.Successes.Add(1, "updater")
+func (f finish) done() {
+	seconds := int64(time.Since(f.when).Seconds())
+	f.m.CycleSeconds.Set(seconds, componentName)
+}
+
+func (f *finish) skip() {
+	if f == nil {
+		return
 	}
+	f.done()
+	f.m.Skips.Add(1, componentName)
+}
+
+func (f *finish) fail() {
+	if f == nil {
+		return
+	}
+	f.done()
+	f.m.Errors.Add(1, componentName)
+}
+
+func (f *finish) success() {
+	if f == nil {
+		return
+	}
+	f.done()
+	f.m.Successes.Add(1, componentName)
+}
+
+func (mets *Metrics) start() *finish {
+	if mets == nil {
+		return nil
+	}
+	return &finish{mets, time.Now()}
+}
+
+func (mets *Metrics) delay(dur time.Duration) {
+	if mets == nil {
+		return
+	}
+
+	seconds := int64(dur.Seconds())
+	mets.DelaySeconds.Set(seconds, componentName)
 }
 
 // GroupUpdater will compile the grid state proto for the specified group and upload it.
@@ -88,28 +127,16 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, 
 	}
 }
 
-// sortGroups sorts test groups by last update time, returning the current generation ID for each group.
-func sortGroups(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) (map[string]int64, error) {
-	groupedPaths := make(map[gcs.Path]*configpb.TestGroup, len(groups))
+func gridPaths(configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) ([]gcs.Path, error) {
 	paths := make([]gcs.Path, 0, len(groups))
 	for _, tg := range groups {
 		tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
 		if err != nil {
 			return nil, fmt.Errorf("%s bad group path: %w", tg.Name, err)
 		}
-		groupedPaths[*tgp] = tg
 		paths = append(paths, *tgp)
 	}
-
-	generationPaths := gcs.LeastRecentlyUpdated(ctx, log, client, paths)
-	generations := make(map[string]int64, len(generationPaths))
-	for i, p := range paths {
-		tg := groupedPaths[p]
-		groups[i] = tg
-		generations[tg.Name] = generationPaths[p]
-	}
-
-	return generations, nil
+	return paths, nil
 }
 
 // lockGroup makes a conditional GCS write operation to ensure it has authority to update this object.
@@ -131,29 +158,26 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
-func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldLogger, tg *configpb.TestGroup, configPath gcs.Path, gridPrefix string, updateGroup GroupUpdater, write bool, generations map[string]int64) error {
-	log = log.WithField("group", tg.Name)
-	log.Debug("Starting update")
-	tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
-	if err != nil {
-		log.WithError(err).Error("Bad path")
-		return err
+func isPreconditionFailed(err error) bool {
+	if err == nil {
+		return false
 	}
-	if write && generations != nil {
-		if attrs, err := lockGroup(ctx, client, *tgp, generations[tg.Name]); err != nil {
-			var ok bool
-			switch ee := err.(type) {
-			case *googleapi.Error:
-				if ee.Code == http.StatusPreconditionFailed {
-					ok = true
-					log.Debug("Lost the lock race")
-				}
+	e, ok := err.(*googleapi.Error)
+	if !ok {
+		return false
+	}
+	return e.Code == http.StatusPreconditionFailed
+}
+
+func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldLogger, tg *configpb.TestGroup, tgp gcs.Path, updateGroup GroupUpdater, write bool, gen int64, fin *finish) error {
+	log.Debug("Starting update")
+	if write && gen >= 0 {
+		if attrs, err := lockGroup(ctx, client, tgp, gen); err != nil {
+			if !isPreconditionFailed(err) {
+				fin.fail()
+				return fmt.Errorf("lock: %v", err)
 			}
-			if !ok {
-				// TODO: Add metrics reporting for lost locks
-				log.WithError(err).Warning("Failed to acquire lock")
-				return err
-			}
+			fin.skip()
 			return nil
 		} else if gen := attrs.Generation; gen > 0 {
 			cond := storage.Conditions{GenerationMatch: gen}
@@ -161,67 +185,161 @@ func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldL
 		}
 		log.Debug("Acquired update lock")
 	}
-	if err := updateGroup(ctx, log, client, tg, *tgp); err != nil {
-		log.WithError(err).Error("Error updating group")
+	if err := updateGroup(ctx, log, client, tg, tgp); err != nil {
+		fin.fail()
+		return err
 	}
-	// run the garbage collector after each group to minimize
-	// extraneous memory usage.
-	runtime.GC()
+	fin.success()
 	return nil
 }
 
-// Update performs a single update pass of all all test groups specified by the config.
-func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater, write bool) error {
-	defer growMaxUpdateArea()
-	ctx, cancel := context.WithCancel(parent)
-	defer cancel()
-	log := logrus.WithField("config", configPath)
-	cfg, err := config.ReadGCS(ctx, client, configPath)
+type testGroupClient interface {
+	gcs.Opener
+	gcs.Stater
+}
+
+func updateTestGroups(ctx context.Context, client testGroupClient, q *config.TestGroupQueue, configPath gcs.Path, gridPrefix string, group string, freq time.Duration) (int64, map[string]int64, error) {
+	r, attrs, err := client.Open(ctx, configPath)
 	if err != nil {
-		return fmt.Errorf("read config: %w", err)
+		if !isPreconditionFailed(err) {
+			err = fmt.Errorf("read: %v", err)
+		}
+		return 0, nil, err
 	}
-	log.WithField("groups", len(cfg.TestGroups)).Info("Updating test groups")
-
-	groups := make(chan configpb.TestGroup)
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	defer close(groups)
-
-	var generations map[string]int64
-
-	for i := 0; i < groupConcurrency; i++ {
-		wg.Add(1)
-		go func() {
-			for tg := range groups {
-				if err := update(ctx, client, log, &tg, configPath, gridPrefix, updateGroup, write, generations); err != nil {
-					mets.Error()
-				} else {
-					mets.Success()
-				}
-			}
-			wg.Done()
-		}()
+	cfg, err := config.Unmarshal(r)
+	if err != nil {
+		return 0, nil, fmt.Errorf("unmarshal: %v", err)
+	}
+	var configGen int64
+	if attrs != nil {
+		configGen = attrs.Generation
 	}
 
+	var groups []*configpb.TestGroup
 	if group != "" { // Just a specific group
 		tg := config.FindTestGroup(group, cfg)
 		if tg == nil {
-			return errors.New("group not found")
+			return 0, nil, errors.New("group not found")
 		}
-		groups <- *tg
+		groups = []*configpb.TestGroup{tg}
 	} else { // All groups
-		generations, err = sortGroups(ctx, log, client, configPath, gridPrefix, cfg.TestGroups)
-		if err != nil {
-			log.WithError(err).Warning("Failed to sort groups")
-		}
-		currently := util.Progress(ctx, log, time.Minute, len(cfg.TestGroups), "Update in progress")
-
-		for i, tg := range cfg.TestGroups {
-			currently(i)
-			groups <- *tg
-		}
+		groups = cfg.TestGroups
 	}
-	return nil
+
+	generations := make(map[string]int64, len(groups))
+
+	q.Init(groups, time.Now())
+
+	if len(groups) > 0 {
+		paths, err := gridPaths(configPath, gridPrefix, groups)
+		if err != nil {
+			return configGen, nil, err
+		}
+		attrs := gcs.Stat(ctx, client, 20, paths...)
+		updates := make(map[string]time.Time, len(attrs))
+		now := time.Now()
+		for i, attrs := range attrs {
+			name := groups[i].Name
+			switch {
+			case attrs.Attrs != nil:
+				updates[name] = attrs.Attrs.Updated.Add(freq)
+				generations[name] = attrs.Attrs.Generation
+			case attrs.Err == storage.ErrObjectNotExist:
+				updates[name] = now
+				generations[name] = 0
+			default:
+				// no change
+			}
+		}
+		q.FixAll(updates)
+	}
+	return configGen, generations, nil
+}
+
+// Update test groups with the specified freq.
+//
+// Filters down to a single group when set.
+// Returns after all groups updated once if freq is zero.
+func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater, write bool, freq time.Duration) error {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	log := logrus.WithField("config", configPath)
+
+	var q config.TestGroupQueue
+
+	gen, generations, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, group, freq)
+	if err != nil {
+		return err
+	}
+	var lock sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(groupConcurrency)
+	defer wg.Wait()
+	channel := make(chan *configpb.TestGroup) // TODO(fejta): pass into this function to allow multi-writers
+	defer close(channel)
+	for i := 0; i < groupConcurrency; i++ {
+		go func() {
+			defer wg.Done()
+			for tg := range channel {
+				fin := mets.start()
+				log := log.WithField("group", tg.Name)
+				tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
+				if err != nil {
+					fin.fail()
+					log.WithError(err).Error("Bad path")
+					continue
+				}
+				gen, ok := generations[tg.Name]
+				if !ok {
+					gen = -1
+				}
+				if err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin); err != nil {
+					log.WithError(err).Error("Error updating group")
+					continue
+				}
+				growMaxUpdateArea()
+				if attrs, err := client.Stat(ctx, *tgp); err == nil {
+					lock.Lock()
+					generations[tg.Name] = attrs.Generation
+					lock.Unlock()
+				}
+			}
+		}()
+	}
+
+	go func() {
+		cond := storage.Conditions{GenerationNotMatch: gen}
+		client := client.If(&cond, nil)
+		ticker := time.NewTicker(time.Minute)
+		for {
+			depth, next, when := q.Status()
+			log := log.WithField("depth", depth)
+			if next != nil {
+				log = log.WithField("next", next.Name)
+			}
+			delay := time.Since(when)
+			if delay < 0 {
+				delay = 0
+				log = log.WithField("sleep", -delay)
+			}
+			log = log.WithField("delay", delay.Round(time.Second))
+			mets.delay(delay)
+			log.Info("Updating groups")
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				if gen, _, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, group, freq); err != nil {
+					log.WithError(err).Error("Failed to update configuration")
+				} else {
+					cond.GenerationNotMatch = gen
+				}
+			}
+		}
+	}()
+
+	return q.Send(ctx, channel, freq)
 }
 
 // testGroupPath() returns the path to a test_group proto given this proto

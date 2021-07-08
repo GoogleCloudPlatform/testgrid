@@ -27,44 +27,57 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// StatResult contains the result of calling Stat, including any error
+type StatResult struct {
+	Attrs *storage.ObjectAttrs
+	Err   error
+}
+
+// Stat multiple paths using concurrent workers. Result indexes match paths.
+func Stat(ctx context.Context, client Stater, workers int, paths ...Path) []StatResult {
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	out := make([]StatResult, len(paths))
+	ch := make(chan int)
+	for i := 0; i < workers; i++ {
+		go func() {
+			defer wg.Done()
+			for idx := range ch {
+				out[idx].Attrs, out[idx].Err = client.Stat(ctx, paths[idx])
+			}
+		}()
+	}
+	for idx := range paths {
+		ch <- idx
+	}
+	close(ch)
+	wg.Wait()
+	return out
+}
+
 // LeastRecentlyUpdated sorts paths by their update timestamp, noting generations and any errors.
 func LeastRecentlyUpdated(ctx context.Context, log logrus.FieldLogger, client Stater, paths []Path) map[Path]int64 {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	log.Debug("Sorting groups")
+	const workers = 20
+	attrs := Stat(ctx, client, workers, paths...)
 	updated := make(map[Path]time.Time, len(paths))
 	generations := make(map[Path]int64, len(paths))
-	var wg sync.WaitGroup
-	var lock sync.Mutex
-	ch := make(chan Path)
-	const workers = 20
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func() {
-			defer wg.Done()
-			for path := range ch {
-				log.WithField("path", path).Trace("Stat object...")
-				attrs, err := client.Stat(ctx, path)
-				lock.Lock()
-				switch {
-				case err == storage.ErrObjectNotExist:
-					generations[path] = 0
-				case err != nil:
-					log.WithError(err).WithField("path", path).Warning("Stat failed")
-					generations[path] = -1
-				default:
-					updated[path] = attrs.Updated
-					generations[path] = attrs.Generation
-				}
-				lock.Unlock()
-			}
-		}()
+
+	for i, path := range paths {
+		attrs, err := attrs[i].Attrs, attrs[i].Err
+		switch {
+		case err == storage.ErrObjectNotExist:
+			generations[path] = 0
+		case err != nil:
+			log.WithError(err).WithField("path", path).Warning("Stat failed")
+			generations[path] = -1
+		default:
+			updated[path] = attrs.Updated
+			generations[path] = attrs.Generation
+		}
 	}
-	for _, apath := range paths {
-		ch <- apath
-	}
-	close(ch)
-	wg.Wait()
 
 	sort.SliceStable(paths, func(i, j int) bool {
 		return !updated[paths[i]].After(updated[paths[j]])

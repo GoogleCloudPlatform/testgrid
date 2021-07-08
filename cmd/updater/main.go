@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -135,33 +134,15 @@ func main() {
 	}).Info("Configured concurrency")
 
 	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
-	cycle := metrics.NewLogInt64("cycle_duration", "How long an update cycle took, in seconds.", logrus.New())
 	mets := &updater.Metrics{
-		Successes: metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
-		Errors:    metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
-	}
-	updateOnce := func() {
-		start := time.Now()
-		if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm); err != nil {
-			logrus.WithError(err).Error("Could not update")
-		}
-		cycle.Set(int64(time.Since(start).Seconds()))
-		logrus.Infof("Update completed in %s", time.Since(start))
+		Successes:    metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
+		Errors:       metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+		Skips:        metrics.NewLogCounter("skips", "Number of skipped updated", logrus.New(), "component"),
+		DelaySeconds: metrics.NewLogInt64("delay", "Seconds updater is behind schedule", logrus.New(), "component"),
+		CycleSeconds: metrics.NewLogInt64("cycle", "Seconds updater takes to update a group", logrus.New(), "component"),
 	}
 
-	updateOnce()
-	if opt.wait == 0 {
-		return
-	}
-	timer := time.NewTimer(opt.wait)
-	defer timer.Stop()
-	for range timer.C {
-		until := time.Now().Add(opt.wait).Round(time.Second)
-		timer.Reset(opt.wait)
-		updateOnce()
-		logrus.WithFields(logrus.Fields{
-			"wait":  opt.wait,
-			"until": until,
-		}).Info("Sleeping...")
+	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm, opt.wait); err != nil {
+		logrus.WithError(err).Error("Could not update")
 	}
 }

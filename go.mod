@@ -1,6 +1,7 @@
 module github.com/GoogleCloudPlatform/testgrid
 
 require (
+	bitbucket.org/creachadair/stringset v0.0.9
 	cloud.google.com/go/storage v1.10.1-0.20200805182106-fcd132957b02
 	github.com/client9/misspell v0.3.4
 	github.com/fvbommel/sortorder v1.0.1
