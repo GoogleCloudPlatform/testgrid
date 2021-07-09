@@ -106,9 +106,14 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 
-	cycle := metrics.NewLogInt64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", log, "component")
-	successes := metrics.NewLogCounter("successes", "Number of successful updates", log, "component")
-	errors := metrics.NewLogCounter("errors", "Number of failed updates", log, "component")
+	var reporter metrics.Reporter
+	cycle := reporter.Int64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", log, "component")
+	successes := reporter.Counter("successes", "Number of successful updates", log, "component")
+	errors := reporter.Counter("errors", "Number of failed updates", log, "component")
+
+	go func() {
+		reporter.Report(ctx, nil, time.Minute)
+	}()
 
 	updateOnce := func(ctx context.Context) {
 		start := time.Now()

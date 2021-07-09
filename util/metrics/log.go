@@ -27,30 +27,25 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Valuer extends a metric to include a report on its values.
 type Valuer interface {
 	Metric
 	Values() map[string]map[string]interface{}
 }
 
-type Int64Valuer interface {
-	Valuer
-	Int64
-}
+// Reporter is a collection of metric values to report.
+type Reporter []Valuer
 
-type CounterValuer interface {
-	Valuer
-	Counter
-}
-
-func Report(ctx context.Context, log logrus.FieldLogger, freq time.Duration, metrics ...Valuer) error {
+// Report the status of its metrics every freq until the context expires.
+func (r *Reporter) Report(ctx context.Context, log logrus.FieldLogger, freq time.Duration) error {
 	if log == nil {
 		log = logrus.New()
 	}
 	ticker := time.NewTicker(freq)
 	defer ticker.Stop()
-	names := stringset.NewSize(len(metrics))
-	metricMap := make(map[string]int, len(metrics))
-	for i, m := range metrics {
+	names := stringset.NewSize(len(*r))
+	metricMap := make(map[string]int, len(*r))
+	for i, m := range *r {
 		name := m.Name()
 		names.Add(name)
 		metricMap[name] = i
@@ -64,7 +59,7 @@ func Report(ctx context.Context, log logrus.FieldLogger, freq time.Duration, met
 
 		for _, name := range names.Elements() {
 			i := metricMap[name]
-			metric := metrics[i]
+			metric := (*r)[i]
 			log := log.WithField("metric", metric.Name())
 			for field, values := range metric.Values() {
 				log := log.WithField("field", field)
@@ -77,6 +72,46 @@ func Report(ctx context.Context, log logrus.FieldLogger, freq time.Duration, met
 	}
 }
 
+// Int64 configures a new Int64 metric to report.
+func (r *Reporter) Int64(name, desc string, log logrus.FieldLogger, fields ...string) Int64 {
+	current := make([]map[string][]int64, len(fields))
+	for i := range fields {
+		current[i] = make(map[string][]int64, 1)
+	}
+
+	out := &logInt64{
+		name:    name,
+		desc:    desc,
+		log:     log,
+		fields:  fields,
+		current: current,
+	}
+	*r = append(*r, out)
+	return out
+}
+
+// Counter configures a new Counter metric to report
+func (r *Reporter) Counter(name, desc string, log logrus.FieldLogger, fields ...string) Counter {
+	current := make([]map[string]int64, len(fields))
+	previous := make([]map[string]int64, len(fields))
+	for i := range fields {
+		current[i] = make(map[string]int64, 1)
+		previous[i] = make(map[string]int64, 1)
+	}
+
+	out := &logCounter{
+		name:     name,
+		desc:     desc,
+		log:      log,
+		fields:   fields,
+		current:  current,
+		previous: previous,
+		last:     time.Now(),
+	}
+	*r = append(*r, out)
+	return out
+}
+
 type logInt64 struct {
 	name    string
 	desc    string
@@ -84,21 +119,6 @@ type logInt64 struct {
 	log     logrus.FieldLogger
 	current []map[string][]int64
 	lock    sync.Mutex
-}
-
-// NewLogInt64 creates a new Int64 metric that logs.
-func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) Int64Valuer {
-	current := make([]map[string][]int64, len(fields))
-	for i := range fields {
-		current[i] = make(map[string][]int64, 1)
-	}
-	return &logInt64{
-		name:    name,
-		desc:    desc,
-		log:     log,
-		fields:  fields,
-		current: current,
-	}
 }
 
 // Name returns the metric's name.
@@ -164,25 +184,6 @@ type logCounter struct {
 	previous []map[string]int64
 	last     time.Time
 	lock     sync.Mutex
-}
-
-// NewLogCounter creates a new counter that logs.
-func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) CounterValuer {
-	current := make([]map[string]int64, len(fields))
-	previous := make([]map[string]int64, len(fields))
-	for i := range fields {
-		current[i] = make(map[string]int64, 1)
-		previous[i] = make(map[string]int64, 1)
-	}
-	return &logCounter{
-		name:     name,
-		desc:     desc,
-		log:      log,
-		fields:   fields,
-		current:  current,
-		previous: previous,
-		last:     time.Now(),
-	}
 }
 
 // Name returns the metric's name.
