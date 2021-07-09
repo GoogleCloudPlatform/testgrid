@@ -134,15 +134,28 @@ func main() {
 	}).Info("Configured concurrency")
 
 	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
-	mets := &updater.Metrics{
-		Successes:    metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
-		Errors:       metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
-		Skips:        metrics.NewLogCounter("skips", "Number of skipped updated", logrus.New(), "component"),
-		DelaySeconds: metrics.NewLogInt64("delay", "Seconds updater is behind schedule", logrus.New(), "component"),
-		CycleSeconds: metrics.NewLogInt64("cycle", "Seconds updater takes to update a group", logrus.New(), "component"),
-	}
+
+	mets := setupMetrics(ctx)
 
 	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm, opt.wait); err != nil {
 		logrus.WithError(err).Error("Could not update")
+	}
+}
+
+func setupMetrics(ctx context.Context) *updater.Metrics {
+	successes := metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component")
+	errs := metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component")
+	skips := metrics.NewLogCounter("skips", "Number of skipped updated", logrus.New(), "component")
+	delay := metrics.NewLogInt64("delay", "Seconds updater is behind schedule", logrus.New(), "component")
+	cycle := metrics.NewLogInt64("cycle", "Seconds updater takes to update a group", logrus.New(), "component")
+	go func() {
+		metrics.Report(ctx, nil, 10*time.Second, successes, errs, skips, delay, cycle)
+	}()
+	return &updater.Metrics{
+		Successes:    successes,
+		Errors:       errs,
+		Skips:        skips,
+		DelaySeconds: delay,
+		CycleSeconds: cycle,
 	}
 }

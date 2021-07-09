@@ -17,131 +17,226 @@ limitations under the License.
 package metrics
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
 )
 
 func TestInt64Set(t *testing.T) {
-	metricName := "testMetric"
 	cases := []struct {
-		name       string
-		n          int64
-		fieldNames []string
-		fields     []string
-		want       string
-		err        bool
+		name   string
+		fields []string
+		sets   []map[int64][]string
+		want   map[string]map[string]interface{}
 	}{
 		{
 			name: "zero",
-			want: "int64 \"testMetric\".Set(0) = 0",
+			want: map[string]map[string]interface{}{},
 		},
 		{
-			name: "basic",
-			n:    3,
-			want: "int64 \"testMetric\".Set(3) = 3",
+			name:   "basic",
+			fields: []string{"component"},
+			sets: []map[int64][]string{
+				{64: {"updater"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": mean{[]int64{64}},
+				},
+			},
 		},
 		{
-			name:       "fields",
-			n:          3,
-			fieldNames: []string{"user"},
-			fields:     []string{"someone"},
-			want:       "int64 \"testMetric\".Set(3) = 3",
+			name:   "fields",
+			fields: []string{"component", "source"},
+			sets: []map[int64][]string{
+				{64: {"updater", "prow"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": mean{[]int64{64}},
+				},
+				"source": {
+					"prow": mean{[]int64{64}},
+				},
+			},
 		},
 		{
-			name:       "not enough fields",
-			n:          3,
-			fieldNames: []string{"user"},
-			fields:     []string{},
-			err:        true,
+			name:   "values",
+			fields: []string{"component"},
+			sets: []map[int64][]string{
+				{64: {"updater"}},
+				{32: {"updater"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": mean{[]int64{64, 32}},
+				},
+			},
 		},
 		{
-			name:       "too many fields",
-			n:          3,
-			fieldNames: []string{"user"},
-			fields:     []string{"someone", "ohno"},
-			err:        true,
+			name:   "fields and values",
+			fields: []string{"component", "source"},
+			sets: []map[int64][]string{
+				{64: {"updater", "prow"}},
+				{32: {"updater", "prow"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": mean{[]int64{64, 32}},
+				},
+				"source": {
+					"prow": mean{[]int64{64, 32}},
+				},
+			},
+		},
+		{
+			name:   "complex",
+			fields: []string{"component", "source"},
+			sets: []map[int64][]string{
+				{64: {"updater", "prow"}},
+				{66: {"updater", "google"}},
+				{32: {"summarizer", "google"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater":    mean{[]int64{64, 66}},
+					"summarizer": mean{[]int64{32}},
+				},
+				"source": {
+					"prow":   mean{[]int64{64}},
+					"google": mean{[]int64{66, 32}},
+				},
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			log, hook := test.NewNullLogger()
-			m := NewLogInt64(metricName, "", log, tc.fieldNames...)
-			m.Set(tc.n, tc.fields...)
-			got := hook.LastEntry().Message
-			if tc.err {
-				level := hook.LastEntry().Level
-				if level != logrus.ErrorLevel {
-					t.Errorf("expected an error-level log, got a %s-level log: %v", level, got)
+			m := NewLogInt64("fake metric", "fake desc", logrus.WithField("nane", tc.name), tc.fields...)
+			for _, set := range tc.sets {
+				for n, fields := range set {
+					m.Set(n, fields...)
 				}
-			} else if tc.want != got {
-				t.Errorf("mismatched logs; want %q, got %q", tc.want, got)
+			}
+			got := m.Values()
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(mean{}, gauge{})); diff != "" {
+				t.Errorf("Set() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
 func TestCounterAdd(t *testing.T) {
-	metricName := "testMetric"
+	when := time.Now().Add(-10 * time.Minute)
 	cases := []struct {
-		name       string
-		n          int64
-		fieldNames []string
-		fields     []string
-		want       string
-		err        bool
+		name   string
+		fields []string
+		adds   []map[int64][]string
+		want   map[string]map[string]interface{}
 	}{
 		{
 			name: "zero",
-			want: "counter \"testMetric\".Add(0) = 0",
+			want: map[string]map[string]interface{}{},
 		},
 		{
-			name: "basic",
-			n:    3,
-			want: "counter \"testMetric\".Add(3) = 3",
+			name:   "basic",
+			fields: []string{"component"},
+			adds: []map[int64][]string{
+				{
+					12: {"updater"},
+				},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {"updater": gauge{12, 10 * time.Minute}},
+			},
 		},
 		{
-			name:       "fields",
-			n:          3,
-			fieldNames: []string{"user"},
-			fields:     []string{"someone"},
-			want:       "counter \"testMetric\".Add(3) = 3",
+			name:   "fields",
+			fields: []string{"component", "source"},
+			adds: []map[int64][]string{
+				{64: {"updater", "prow"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": gauge{64, 10 * time.Minute},
+				},
+				"source": {
+					"prow": gauge{64, 10 * time.Minute},
+				},
+			},
 		},
 		{
-			name: "negative",
-			n:    -3,
-			err:  true,
+			name:   "values",
+			fields: []string{"component"},
+			adds: []map[int64][]string{
+				{64: {"updater"}},
+				{32: {"updater"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": gauge{64 + 32, 10 * time.Minute},
+				},
+			},
 		},
 		{
-			name:       "not enough fields",
-			n:          3,
-			fieldNames: []string{"user"},
-			fields:     []string{},
-			err:        true,
+			name:   "fields and values",
+			fields: []string{"component", "source"},
+			adds: []map[int64][]string{
+				{64: {"updater", "prow"}},
+				{32: {"updater", "prow"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater": gauge{64 + 32, 10 * time.Minute},
+				},
+				"source": {
+					"prow": gauge{64 + 32, 10 * time.Minute},
+				},
+			},
 		},
 		{
-			name:       "too many fields",
-			n:          3,
-			fieldNames: []string{"user"},
-			fields:     []string{"someone", "ohno"},
-			err:        true,
+			name:   "complex",
+			fields: []string{"component", "source"},
+			adds: []map[int64][]string{
+				{64: {"updater", "prow"}},
+				{66: {"updater", "google"}},
+				{32: {"summarizer", "google"}},
+			},
+			want: map[string]map[string]interface{}{
+				"component": {
+					"updater":    gauge{64 + 66, 10 * time.Minute},
+					"summarizer": gauge{32, 10 * time.Minute},
+				},
+				"source": {
+					"prow":   gauge{64, 10 * time.Minute},
+					"google": gauge{66 + 32, 10 * time.Minute},
+				},
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			log, hook := test.NewNullLogger()
-			m := NewLogCounter(metricName, "", log, tc.fieldNames...)
-			m.Add(tc.n, tc.fields...)
-			got := hook.LastEntry().Message
-			if tc.err {
-				level := hook.LastEntry().Level
-				if level != logrus.ErrorLevel {
-					t.Errorf("expected an error-level log, got a %s-level log: %v", level, got)
+			m := NewLogCounter("fake metric", "fake desc", logrus.WithField("name", tc.name), tc.fields...)
+			m.(*logCounter).last = when
+			for _, add := range tc.adds {
+				for n, values := range add {
+					m.Add(n, values...)
 				}
-			} else if tc.want != got {
-				t.Errorf("mismatched logs; want %q, got %q", tc.want, got)
+			}
+
+			got := m.Values()
+			for _, got := range got {
+				for key, value := range got {
+					g := value.(gauge)
+					g.dur = g.dur.Round(time.Minute)
+					got[key] = g
+				}
+			}
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(gauge{})); diff != "" {
+				t.Errorf("Add() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}

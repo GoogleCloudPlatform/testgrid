@@ -258,8 +258,8 @@ func TestUpdate(t *testing.T) {
 
 			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
 			mets := &Metrics{
-				Successes:    metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
-				Errors:       metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
+				Successes:    &fakeCounter{},
+				Errors:       &fakeCounter{},
 				Skips:        metrics.NewLogCounter("skips", "Number of skips", logrus.New(), "component"),
 				DelaySeconds: metrics.NewLogInt64("delay", "Number of skips", logrus.New(), "component"),
 				CycleSeconds: metrics.NewLogInt64("cycle", "Number of skips", logrus.New(), "component"),
@@ -293,14 +293,24 @@ func TestUpdate(t *testing.T) {
 			}
 
 			// Check that metrics also report.
-			if int64(tc.successes) != mets.Successes.Val() {
-				t.Errorf("Update() has wrong number of successful updates; want %d, got %d", tc.successes, mets.Successes.Val())
+			if want, got := int64(tc.successes), mets.Successes.(*fakeCounter).total; want != got {
+				t.Errorf("Update() has wrong number of successful updates; want %d, got %d", want, got)
 			}
-			if int64(tc.errors) != mets.Errors.Val() {
-				t.Errorf("Update() has wrong number of failed updates; want %d, got %d", tc.errors, mets.Errors.Val())
+			if want, got := int64(tc.errors), mets.Errors.(*fakeCounter).total; want != got {
+				t.Errorf("Update() has wrong number of failed updates; want %d, got %d", want, got)
 			}
 		})
 	}
+}
+
+type fakeCounter struct {
+	total int64
+}
+
+func (fc *fakeCounter) Name() string { return "fake" }
+
+func (fc *fakeCounter) Add(n int64, _ ...string) {
+	fc.total += n
 }
 
 func TestTestGroupPath(t *testing.T) {

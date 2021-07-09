@@ -105,10 +105,7 @@ func main() {
 	}
 
 	client := gcs.NewClient(storageClient)
-	mets := &summarizer.Metrics{
-		Successes: metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component"),
-		Errors:    metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component"),
-	}
+	mets := setupMetrics(ctx)
 	updateOnce := func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
@@ -129,5 +126,17 @@ func main() {
 			logrus.WithError(err).Error("Failed update")
 		}
 		logrus.WithField("wait", opt.wait).Info("Sleeping")
+	}
+}
+
+func setupMetrics(ctx context.Context) *summarizer.Metrics {
+	successes := metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component")
+	errors := metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component")
+	go func() {
+		metrics.Report(ctx, nil, 10*time.Second, successes, errors)
+	}()
+	return &summarizer.Metrics{
+		Successes: successes,
+		Errors:    errors,
 	}
 }
