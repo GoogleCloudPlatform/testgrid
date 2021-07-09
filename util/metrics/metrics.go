@@ -25,15 +25,11 @@ type Metric interface {
 // Int64 is an int64 metric.
 type Int64 interface {
 	Metric
-
-	Val() int64
 	Set(int64, ...string)
 }
 
 // Counter is a strictly-increasing metric.
 type Counter interface {
 	Metric
-
-	Val() int64
 	Add(int64, ...string)
 }

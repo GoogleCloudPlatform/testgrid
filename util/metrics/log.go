@@ -17,25 +17,87 @@ limitations under the License.
 package metrics
 
 import (
+	"context"
+	"fmt"
+	"strconv"
+	"sync"
+	"time"
+
+	"bitbucket.org/creachadair/stringset"
 	"github.com/sirupsen/logrus"
 )
 
+type Valuer interface {
+	Metric
+	Values() map[string]map[string]interface{}
+}
+
+type Int64Valuer interface {
+	Valuer
+	Int64
+}
+
+type CounterValuer interface {
+	Valuer
+	Counter
+}
+
+func Report(ctx context.Context, log logrus.FieldLogger, freq time.Duration, metrics ...Valuer) error {
+	if log == nil {
+		log = logrus.New()
+	}
+	ticker := time.NewTicker(freq)
+	defer ticker.Stop()
+	names := stringset.NewSize(len(metrics))
+	metricMap := make(map[string]int, len(metrics))
+	for i, m := range metrics {
+		name := m.Name()
+		names.Add(name)
+		metricMap[name] = i
+	}
+	for {
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+
+		for _, name := range names.Elements() {
+			i := metricMap[name]
+			metric := metrics[i]
+			log := log.WithField("metric", metric.Name())
+			for field, values := range metric.Values() {
+				log := log.WithField("field", field)
+				for value, measurement := range values {
+					log = log.WithField(value, measurement)
+				}
+				log.Info("Current status")
+			}
+		}
+	}
+}
+
 type logInt64 struct {
-	name   string
-	desc   string
-	fields []string
-	log    logrus.FieldLogger
-	// TODO: Record different values for different specified fields.
-	val int64
+	name    string
+	desc    string
+	fields  []string
+	log     logrus.FieldLogger
+	current []map[string][]int64
+	lock    sync.Mutex
 }
 
 // NewLogInt64 creates a new Int64 metric that logs.
-func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) Int64 {
+func NewLogInt64(name, desc string, log logrus.FieldLogger, fields ...string) Int64Valuer {
+	current := make([]map[string][]int64, len(fields))
+	for i := range fields {
+		current[i] = make(map[string][]int64, 1)
+	}
 	return &logInt64{
-		name:   name,
-		desc:   desc,
-		log:    log,
-		fields: fields,
+		name:    name,
+		desc:    desc,
+		log:     log,
+		fields:  fields,
+		current: current,
 	}
 }
 
@@ -44,40 +106,82 @@ func (m *logInt64) Name() string {
 	return m.name
 }
 
-func (m *logInt64) Val() int64 {
-	return m.val
-}
-
 // Set the metric's value to the given number.
 func (m *logInt64) Set(n int64, fields ...string) {
-	log := m.log
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	if len(fields) != len(m.fields) {
-		log.Errorf("wrong number of fields; want %d (%v), got %d (%v)", len(m.fields), m.fields, len(fields), fields)
-		return
+		m.log.WithFields(logrus.Fields{
+			"want": m.fields,
+			"got":  fields,
+		}).Fatal("Wrong number of fields")
 	}
-	for i, field := range fields {
-		log.WithField(m.fields[i], field)
+	for i, fieldValue := range fields {
+		m.current[i][fieldValue] = append(m.current[i][fieldValue], n)
 	}
-	m.val = n
-	log.Infof("int64 %q.Set(%d) = %d", m.Name(), n, m.val)
+}
+
+func (m *logInt64) Values() map[string]map[string]interface{} {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	trend := make(map[string]map[string]interface{}, len(m.current))
+	for i, field := range m.fields {
+		current := m.current[i]
+		if len(current) == 0 {
+			continue
+		}
+		trend[field] = make(map[string]interface{}, len(current))
+		for fieldValue, measurements := range current {
+
+			trend[field][fieldValue] = mean{measurements}
+			delete(current, fieldValue)
+		}
+
+	}
+	return trend
+}
+
+type mean struct {
+	values []int64
+}
+
+func (m mean) String() string {
+	n := float64(len(m.values))
+	var val float64
+	for _, v := range m.values {
+		val += (float64(v) / n)
+	}
+	return strconv.FormatFloat(val, 'g', 3, 64)
 }
 
 type logCounter struct {
-	name   string
-	desc   string
-	fields []string
-	log    logrus.FieldLogger
-	// TODO: Record different values for different specified fields.
-	val int64
+	name     string
+	desc     string
+	fields   []string
+	log      logrus.FieldLogger
+	current  []map[string]int64
+	previous []map[string]int64
+	last     time.Time
+	lock     sync.Mutex
 }
 
 // NewLogCounter creates a new counter that logs.
-func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) Counter {
+func NewLogCounter(name, desc string, log logrus.FieldLogger, fields ...string) CounterValuer {
+	current := make([]map[string]int64, len(fields))
+	previous := make([]map[string]int64, len(fields))
+	for i := range fields {
+		current[i] = make(map[string]int64, 1)
+		previous[i] = make(map[string]int64, 1)
+	}
 	return &logCounter{
-		name:   name,
-		desc:   desc,
-		log:    log,
-		fields: fields,
+		name:     name,
+		desc:     desc,
+		log:      log,
+		fields:   fields,
+		current:  current,
+		previous: previous,
+		last:     time.Now(),
 	}
 }
 
@@ -86,24 +190,58 @@ func (m *logCounter) Name() string {
 	return m.name
 }
 
-func (m *logCounter) Val() int64 {
-	return m.val
-}
-
 // Add the given number to the counter.
 func (m *logCounter) Add(n int64, fields ...string) {
-	log := m.log
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	if len(fields) != len(m.fields) {
-		log.Errorf("wrong number of fields; want %d (%v), got %d (%v)", len(m.fields), m.fields, len(fields), fields)
-		return
+		m.log.WithFields(logrus.Fields{
+			"want": m.fields,
+			"got":  fields,
+		}).Fatal("Wrong number of fields")
 	}
 	if n < 0 {
-		log.Errorf("n must be positive, got %d", n)
-		return
+		m.log.WithField("value", n).Fatal("Negative value are invalid")
 	}
-	for i, field := range fields {
-		log.WithField(m.fields[i], field)
+	for i, fieldValue := range fields {
+		m.current[i][fieldValue] += n
 	}
-	m.val += n
-	log.Infof("counter %q.Add(%d) = %d", m.Name(), n, m.val)
+}
+
+func (m *logCounter) Values() map[string]map[string]interface{} {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	dur := time.Since(m.last)
+	m.last = time.Now()
+	rate := make(map[string]map[string]interface{}, len(m.current))
+	for i, field := range m.fields {
+		current := m.current[i]
+		previous := m.previous[i]
+		rate[field] = make(map[string]interface{}, len(current))
+		for fieldValue, now := range current {
+			delta := now - previous[fieldValue]
+			rate[field][fieldValue] = gauge{delta, dur}
+			previous[fieldValue] = now
+		}
+	}
+	return rate
+}
+
+type gauge struct {
+	delta int64
+	dur   time.Duration
+}
+
+func (g gauge) String() string {
+	qps := float64(g.delta) / g.dur.Seconds()
+	if qps == 0 {
+		return "0 per second"
+	}
+	if qps > 0.01 {
+		return fmt.Sprintf("%.2f per second", qps)
+	}
+	seconds := time.Second / time.Duration(qps)
+	seconds = seconds.Round(time.Millisecond)
+	return fmt.Sprintf("once per %s seconds", seconds)
 }
