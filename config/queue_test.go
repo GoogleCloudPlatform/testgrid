@@ -321,7 +321,7 @@ func TestSend(t *testing.T) {
 	cases := []struct {
 		name      string
 		q         *TestGroupQueue
-		receivers func(context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup)
+		receivers func(context.Context, *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup)
 		freq      time.Duration
 
 		want []*configpb.TestGroup
@@ -329,13 +329,14 @@ func TestSend(t *testing.T) {
 		{
 			name: "empty",
 			q:    &TestGroupQueue{},
-			receivers: func(ctx context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
+			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				go func() {
 					for {
 						select {
 						case tg := <-ch:
-							t.Fatalf("Send() receiver got unexpected group: %v", tg)
+							t.Errorf("Send() receiver got unexpected group: %v", tg)
+							return
 						case <-ctx.Done():
 							return
 						}
@@ -348,14 +349,15 @@ func TestSend(t *testing.T) {
 		{
 			name: "empty loop",
 			q:    &TestGroupQueue{},
-			receivers: func(ctx context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
+			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 				go func() {
 					for {
 						select {
 						case tg := <-ch:
-							t.Fatalf("Send() receiver got unexpected group: %v", tg)
+							t.Errorf("Send() receiver got unexpected group: %v", tg)
+							return
 						case <-ctx.Done():
 							cancel()
 							return
@@ -378,7 +380,7 @@ func TestSend(t *testing.T) {
 				}, time.Now())
 				return &q
 			}(),
-			receivers: func(ctx context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
+			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				var wg sync.WaitGroup
 				wg.Add(1)
@@ -420,7 +422,7 @@ func TestSend(t *testing.T) {
 				}, time.Now())
 				return &q
 			}(),
-			receivers: func(ctx context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
+			receivers: func(ctx context.Context, _ *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				var wg sync.WaitGroup
 				wg.Add(1)
@@ -474,7 +476,7 @@ func TestSend(t *testing.T) {
 				}, time.Now())
 				return &q
 			}(),
-			receivers: func(ctx context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
+			receivers: func(ctx context.Context, _ *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				var wg sync.WaitGroup
 				wg.Add(1)
@@ -524,7 +526,7 @@ func TestSend(t *testing.T) {
 				}, time.Now())
 				return &q
 			}(),
-			receivers: func(ctx context.Context) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
+			receivers: func(ctx context.Context, _ *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				var wg sync.WaitGroup
 				wg.Add(1)
@@ -581,7 +583,7 @@ func TestSend(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			ctx, channel, get := tc.receivers(ctx)
+			ctx, channel, get := tc.receivers(ctx, t)
 			if err := tc.q.Send(ctx, channel, tc.freq); err != ctx.Err() {
 				t.Errorf("Send() returned unexpected error: want %v, got %v", ctx.Err(), err)
 			}

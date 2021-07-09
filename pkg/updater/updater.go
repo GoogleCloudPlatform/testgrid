@@ -424,7 +424,7 @@ func truncateRunning(cols []InflatedColumn) []InflatedColumn {
 }
 
 var (
-	maxUpdateArea  int = 20000
+	maxUpdateArea  = 20000
 	updateAreaLock sync.RWMutex
 )
 
