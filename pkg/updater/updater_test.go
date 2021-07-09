@@ -40,7 +40,6 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 )
 
 type fakeUpload = fake.Upload
@@ -260,9 +259,9 @@ func TestUpdate(t *testing.T) {
 			mets := &Metrics{
 				Successes:    &fakeCounter{},
 				Errors:       &fakeCounter{},
-				Skips:        metrics.NewLogCounter("skips", "Number of skips", logrus.New(), "component"),
-				DelaySeconds: metrics.NewLogInt64("delay", "Number of skips", logrus.New(), "component"),
-				CycleSeconds: metrics.NewLogInt64("cycle", "Number of skips", logrus.New(), "component"),
+				Skips:        &fakeCounter{},
+				DelaySeconds: &fakeInt64{},
+				CycleSeconds: &fakeInt64{},
 			}
 			err := Update(
 				ctx,
@@ -303,11 +302,21 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+type fakeInt64 struct {
+	values []int64
+}
+
+func (fc *fakeInt64) Name() string { return "fake-int64" }
+
+func (fi *fakeInt64) Set(n int64, _ ...string) {
+	fi.values = append(fi.values, n)
+}
+
 type fakeCounter struct {
 	total int64
 }
 
-func (fc *fakeCounter) Name() string { return "fake" }
+func (fc *fakeCounter) Name() string { return "fake-counter" }
 
 func (fc *fakeCounter) Add(n int64, _ ...string) {
 	fc.total += n

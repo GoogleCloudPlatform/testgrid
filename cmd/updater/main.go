@@ -143,13 +143,16 @@ func main() {
 }
 
 func setupMetrics(ctx context.Context) *updater.Metrics {
-	successes := metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component")
-	errs := metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component")
-	skips := metrics.NewLogCounter("skips", "Number of skipped updated", logrus.New(), "component")
-	delay := metrics.NewLogInt64("delay", "Seconds updater is behind schedule", logrus.New(), "component")
-	cycle := metrics.NewLogInt64("cycle", "Seconds updater takes to update a group", logrus.New(), "component")
+	var reporter metrics.Reporter
+	log := logrus.New()
+	const field = "component"
+	successes := reporter.Counter("successes", "Number of successful updates", log, field)
+	errs := reporter.Counter("errors", "Number of failed updates", log, field)
+	skips := reporter.Counter("skips", "Number of skipped updated", log, field)
+	delay := reporter.Int64("delay", "Seconds updater is behind schedule", log, field)
+	cycle := reporter.Int64("cycle", "Seconds updater takes to update a group", log, field)
 	go func() {
-		metrics.Report(ctx, nil, 10*time.Second, successes, errs, skips, delay, cycle)
+		reporter.Report(ctx, nil, 30*time.Second)
 	}()
 	return &updater.Metrics{
 		Successes:    successes,

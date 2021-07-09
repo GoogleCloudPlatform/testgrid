@@ -114,13 +114,14 @@ func TestInt64Set(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := NewLogInt64("fake metric", "fake desc", logrus.WithField("nane", tc.name), tc.fields...)
+			var r Reporter
+			m := r.Int64("fake metric", "fake desc", logrus.WithField("name", tc.name), tc.fields...)
 			for _, set := range tc.sets {
 				for n, fields := range set {
 					m.Set(n, fields...)
 				}
 			}
-			got := m.Values()
+			got := m.(Valuer).Values()
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(mean{}, gauge{})); diff != "" {
 				t.Errorf("Set() got unexpected diff (-want +got):\n%s", diff)
 			}
@@ -219,7 +220,8 @@ func TestCounterAdd(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := NewLogCounter("fake metric", "fake desc", logrus.WithField("name", tc.name), tc.fields...)
+			var r Reporter
+			m := r.Counter("fake metric", "fake desc", logrus.WithField("name", tc.name), tc.fields...)
 			m.(*logCounter).last = when
 			for _, add := range tc.adds {
 				for n, values := range add {
@@ -227,7 +229,7 @@ func TestCounterAdd(t *testing.T) {
 				}
 			}
 
-			got := m.Values()
+			got := m.(Valuer).Values()
 			for _, got := range got {
 				for key, value := range got {
 					g := value.(gauge)

@@ -130,10 +130,13 @@ func main() {
 }
 
 func setupMetrics(ctx context.Context) *summarizer.Metrics {
-	successes := metrics.NewLogCounter("successes", "Number of successful updates", logrus.New(), "component")
-	errors := metrics.NewLogCounter("errors", "Number of failed updates", logrus.New(), "component")
+	var reporter metrics.Reporter
+	const field = "component"
+	log := logrus.New()
+	successes := reporter.Counter("successes", "Number of successful updates", log, field)
+	errors := reporter.Counter("errors", "Number of failed updates", log, field)
 	go func() {
-		metrics.Report(ctx, nil, 10*time.Second, successes, errors)
+		reporter.Report(ctx, nil, 30*time.Second)
 	}()
 	return &summarizer.Metrics{
 		Successes: successes,
