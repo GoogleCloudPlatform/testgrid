@@ -306,7 +306,7 @@ type fakeInt64 struct {
 	values []int64
 }
 
-func (fc *fakeInt64) Name() string { return "fake-int64" }
+func (fi *fakeInt64) Name() string { return "fake-int64" }
 
 func (fi *fakeInt64) Set(n int64, _ ...string) {
 	fi.values = append(fi.values, n)
