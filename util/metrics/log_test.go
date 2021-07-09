@@ -150,7 +150,7 @@ func TestCounterAdd(t *testing.T) {
 				},
 			},
 			want: map[string]map[string]interface{}{
-				"component": {"updater": gauge{12, 10 * time.Minute}},
+				"component": {"updater": gauge{12, 12, 10 * time.Minute}},
 			},
 		},
 		{
@@ -161,10 +161,10 @@ func TestCounterAdd(t *testing.T) {
 			},
 			want: map[string]map[string]interface{}{
 				"component": {
-					"updater": gauge{64, 10 * time.Minute},
+					"updater": gauge{64, 64, 10 * time.Minute},
 				},
 				"source": {
-					"prow": gauge{64, 10 * time.Minute},
+					"prow": gauge{64, 64, 10 * time.Minute},
 				},
 			},
 		},
@@ -177,7 +177,7 @@ func TestCounterAdd(t *testing.T) {
 			},
 			want: map[string]map[string]interface{}{
 				"component": {
-					"updater": gauge{64 + 32, 10 * time.Minute},
+					"updater": gauge{64 + 32, 64 + 32, 10 * time.Minute},
 				},
 			},
 		},
@@ -190,10 +190,10 @@ func TestCounterAdd(t *testing.T) {
 			},
 			want: map[string]map[string]interface{}{
 				"component": {
-					"updater": gauge{64 + 32, 10 * time.Minute},
+					"updater": gauge{64 + 32, 64 + 32, 10 * time.Minute},
 				},
 				"source": {
-					"prow": gauge{64 + 32, 10 * time.Minute},
+					"prow": gauge{64 + 32, 64 + 32, 10 * time.Minute},
 				},
 			},
 		},
@@ -207,12 +207,12 @@ func TestCounterAdd(t *testing.T) {
 			},
 			want: map[string]map[string]interface{}{
 				"component": {
-					"updater":    gauge{64 + 66, 10 * time.Minute},
-					"summarizer": gauge{32, 10 * time.Minute},
+					"updater":    gauge{64 + 66, 64 + 66, 10 * time.Minute},
+					"summarizer": gauge{32, 32, 10 * time.Minute},
 				},
 				"source": {
-					"prow":   gauge{64, 10 * time.Minute},
-					"google": gauge{66 + 32, 10 * time.Minute},
+					"prow":   gauge{64, 64, 10 * time.Minute},
+					"google": gauge{66 + 32, 66 + 32, 10 * time.Minute},
 				},
 			},
 		},

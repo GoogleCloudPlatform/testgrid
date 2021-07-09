@@ -167,12 +167,16 @@ type mean struct {
 }
 
 func (m mean) String() string {
-	n := float64(len(m.values))
+	tot := len(m.values)
+	if tot == 0 {
+		return "0 values"
+	}
 	var val float64
+	n := float64(tot)
 	for _, v := range m.values {
 		val += (float64(v) / n)
 	}
-	return strconv.FormatFloat(val, 'g', 3, 64)
+	return fmt.Sprintf("%s average (%d values)", strconv.FormatFloat(val, 'g', 3, 64), tot)
 }
 
 type logCounter struct {
@@ -222,7 +226,7 @@ func (m *logCounter) Values() map[string]map[string]interface{} {
 		rate[field] = make(map[string]interface{}, len(current))
 		for fieldValue, now := range current {
 			delta := now - previous[fieldValue]
-			rate[field][fieldValue] = gauge{delta, dur}
+			rate[field][fieldValue] = gauge{now, delta, dur}
 			previous[fieldValue] = now
 		}
 	}
@@ -230,11 +234,12 @@ func (m *logCounter) Values() map[string]map[string]interface{} {
 }
 
 type gauge struct {
+	total int64
 	delta int64
 	dur   time.Duration
 }
 
-func (g gauge) String() string {
+func (g gauge) qps() string {
 	qps := float64(g.delta) / g.dur.Seconds()
 	if qps == 0 {
 		return "0 per second"
@@ -245,4 +250,8 @@ func (g gauge) String() string {
 	seconds := time.Second / time.Duration(qps)
 	seconds = seconds.Round(time.Millisecond)
 	return fmt.Sprintf("once per %s seconds", seconds)
+}
+
+func (g gauge) String() string {
+	return fmt.Sprintf("%s (%d total)", g.qps(), g.total)
 }
