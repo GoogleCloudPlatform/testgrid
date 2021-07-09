@@ -965,3 +965,11 @@ def go_repositories():
         sum = "h1:L4vld9nzPt90UZNrXjNelTshD74ps4P5NGs3Iq6yN3o=",
         version = "v0.0.9",
     )
+    go_repository(
+        name = "com_github_gorilla_mux",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/gorilla/mux",
+        sum = "h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=",
+        version = "v1.8.0",
+    )

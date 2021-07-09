@@ -12,7 +12,7 @@ message ListDashboardResponse {
   repeated Resource dashboards = 1;
 }
 
-// GET /dashboardgroups
+// GET /dashboard-groups
 // Lists the dashboard group names
 message ListDashboardGroupResponse {
   repeated Resource dashboard_groups = 1;
@@ -44,7 +44,7 @@ message GetDashboardResponse {
   bool highlight_today = 4;
 }
 
-// GET /dashboardgroups/{dashboardgroup}
+// GET /dashboard-groups/{dashboard-group}
 // Lists the dashboard names in that group
 message GetDashboardGroupResponse {
   repeated Resource dashboards = 1;
@@ -54,16 +54,11 @@ message GetDashboardGroupResponse {
 // Returns a tab’s configuration, as stored
 //message GetDashboardTabResponse = config.DashboardTab
 
-// GET /testgroups/{testgroup}
-// Returns a Test Group's configuration, as stored
-//message GetTestGroupResponse = config.TestGroup
-
 // GET /summary/{dashboard}
 // GET /dashboards/{dashboard}/summary
 // Returns a summary of this dashboard, as stored
 //message GetSummaryResponse = summary.DashboardTabSummary
 
-// GET /testgroups/{testgroup}/headers
 // GET /dashboards/{dashboard}/tabs/{tab}/headers
 // Returns the headers for grid results
 message ListHeadersResponse {
@@ -89,7 +84,6 @@ message ListHeadersResponse {
   }
 }
 
-// GET /testgroups/{testgroup}/rows
 // GET /dashboards/{dashboard}/tabs/{tab}/rows
 // Returns information on grid rows, and data within those rows
 message ListRowsResponse {

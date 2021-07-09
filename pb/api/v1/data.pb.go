@@ -80,7 +80,7 @@ func (m *ListDashboardResponse) GetDashboards() []*Resource {
 	return nil
 }
 
-// GET /dashboardgroups
+// GET /dashboard-groups
 // Lists the dashboard group names
 type ListDashboardGroupResponse struct {
 	DashboardGroups      []*Resource `protobuf:"bytes,1,rep,name=dashboard_groups,json=dashboardGroups,proto3" json:"dashboard_groups,omitempty"`
@@ -235,7 +235,7 @@ func (m *GetDashboardResponse) GetHighlightToday() bool {
 	return false
 }
 
-// GET /dashboardgroups/{dashboardgroup}
+// GET /dashboard-groups/{dashboard-group}
 // Lists the dashboard names in that group
 type GetDashboardGroupResponse struct {
 	Dashboards           []*Resource `protobuf:"bytes,1,rep,name=dashboards,proto3" json:"dashboards,omitempty"`
@@ -276,7 +276,6 @@ func (m *GetDashboardGroupResponse) GetDashboards() []*Resource {
 	return nil
 }
 
-// GET /testgroups/{testgroup}/headers
 // GET /dashboards/{dashboard}/tabs/{tab}/headers
 // Returns the headers for grid results
 type ListHeadersResponse struct {
@@ -396,7 +395,6 @@ func (m *ListHeadersResponse_Header) GetHotlistIds() string {
 	return ""
 }
 
-// GET /testgroups/{testgroup}/rows
 // GET /dashboards/{dashboard}/tabs/{tab}/rows
 // Returns information on grid rows, and data within those rows
 type ListRowsResponse struct {

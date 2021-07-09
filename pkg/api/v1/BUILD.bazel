@@ -1,0 +1,42 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "json.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/api/v1",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//config:go_default_library",
+        "//pb/api/v1:go_default_library",
+        "//util/gcs:go_default_library",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["config_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//pb/config:go_default_library",
+        "//util/gcs:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_google_cloud_go_storage//:go_default_library",
+    ],
+)
