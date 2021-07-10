@@ -271,7 +271,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	if err != nil {
 		return err
 	}
-	var lock sync.Mutex
+	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	wg.Add(groupConcurrency)
 	defer wg.Wait()
@@ -289,7 +289,9 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 					log.WithError(err).Error("Bad path")
 					continue
 				}
+				lock.RLock()
 				gen, ok := generations[tg.Name]
+				lock.RUnlock()
 				if !ok {
 					gen = -1
 				}
