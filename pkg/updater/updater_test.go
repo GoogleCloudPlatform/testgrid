@@ -112,7 +112,7 @@ func TestUpdate(t *testing.T) {
 		skipConfirm      bool
 		groupTimeout     *time.Duration
 		buildTimeout     *time.Duration
-		group            string
+		groupNames       []string
 		freq             time.Duration
 
 		expected  fakeUploader
@@ -197,6 +197,67 @@ func TestUpdate(t *testing.T) {
 			expected: fakeUploader{},
 			err:      true,
 		},
+		{
+			name: "update specified",
+			config: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:                "hello",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
+					{
+						Name:                "hiya",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
+					{
+						Name:                "goodbye",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "hello-tab",
+								TestGroupName: "hello",
+							},
+							{
+								Name:          "hiya-tab",
+								TestGroupName: "hiya",
+							},
+							{
+								Name:          "goodbye-tab",
+								TestGroupName: "goodbye",
+							},
+						},
+					},
+				},
+			},
+			groupNames: []string{"hello", "hiya"},
+			expected: fakeUploader{
+				*resolveOrDie(&configPath, "hello"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+				},
+				*resolveOrDie(&configPath, "hiya"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+				},
+			},
+			successes: 2,
+		},
 		// TODO(fejta): more cases
 	}
 
@@ -270,7 +331,7 @@ func TestUpdate(t *testing.T) {
 				configPath,
 				tc.gridPrefix,
 				tc.groupConcurrency,
-				tc.group,
+				tc.groupNames,
 				groupUpdater,
 				!tc.skipConfirm,
 				tc.freq,

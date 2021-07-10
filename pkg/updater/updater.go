@@ -19,7 +19,6 @@ package updater
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -198,7 +197,7 @@ type testGroupClient interface {
 	gcs.Stater
 }
 
-func updateTestGroups(ctx context.Context, client testGroupClient, q *config.TestGroupQueue, configPath gcs.Path, gridPrefix string, group string, freq time.Duration) (int64, map[string]int64, error) {
+func updateTestGroups(ctx context.Context, client testGroupClient, q *config.TestGroupQueue, configPath gcs.Path, gridPrefix string, groupNames []string, freq time.Duration) (int64, map[string]int64, error) {
 	r, attrs, err := client.Open(ctx, configPath)
 	if err != nil {
 		if !isPreconditionFailed(err) {
@@ -216,12 +215,14 @@ func updateTestGroups(ctx context.Context, client testGroupClient, q *config.Tes
 	}
 
 	var groups []*configpb.TestGroup
-	if group != "" { // Just a specific group
-		tg := config.FindTestGroup(group, cfg)
-		if tg == nil {
-			return 0, nil, errors.New("group not found")
+	if len(groupNames) != 0 { // Just specific groups
+		for _, groupName := range groupNames {
+			tg := config.FindTestGroup(groupName, cfg)
+			if tg == nil {
+				return 0, nil, fmt.Errorf("group %q not found", groupName)
+			}
+			groups = append(groups, tg)
 		}
-		groups = []*configpb.TestGroup{tg}
 	} else { // All groups
 		groups = cfg.TestGroups
 	}
@@ -260,14 +261,14 @@ func updateTestGroups(ctx context.Context, client testGroupClient, q *config.Tes
 //
 // Filters down to a single group when set.
 // Returns after all groups updated once if freq is zero.
-func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, group string, updateGroup GroupUpdater, write bool, freq time.Duration) error {
+func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, groupNames []string, updateGroup GroupUpdater, write bool, freq time.Duration) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
 
 	var q config.TestGroupQueue
 
-	gen, generations, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, group, freq)
+	gen, generations, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, groupNames, freq)
 	if err != nil {
 		return err
 	}
@@ -330,7 +331,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				if gen, _, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, group, freq); err != nil {
+				if gen, _, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, groupNames, freq); err != nil {
 					log.WithError(err).Error("Failed to update configuration")
 				} else {
 					cond.GenerationNotMatch = gen

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
@@ -31,12 +32,33 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Strings represents the value of a flag that accept multiple strings.
+type Strings struct {
+	vals []string
+}
+
+// Strings returns the slice of strings set for this value instance.
+func (s *Strings) Strings() []string {
+	return s.vals
+}
+
+// String returns a concatenated string of all the values joined by commas.
+func (s *Strings) String() string {
+	return strings.Join(s.vals, ",")
+}
+
+// Set records the value passed
+func (s *Strings) Set(value string) error {
+	s.vals = append(s.vals, value)
+	return nil
+}
+
 // options configures the updater
 type options struct {
 	config           gcs.Path // gs://path/to/config/proto
 	creds            string
 	confirm          bool
-	group            string
+	groups           Strings
 	groupConcurrency int
 	buildConcurrency int
 	wait             time.Duration
@@ -76,7 +98,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.Var(&o.config, "config", "gs://path/to/config.pb")
 	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	fs.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	fs.StringVar(&o.group, "test-group", "", "Only update named group if set")
+	fs.Var(&o.groups, "test-groups", "Only update named groups if set")
 	fs.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
@@ -137,7 +159,7 @@ func main() {
 
 	mets := setupMetrics(ctx)
 
-	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.group, groupUpdater, opt.confirm, opt.wait); err != nil {
+	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait); err != nil {
 		logrus.WithError(err).Error("Could not update")
 	}
 }
