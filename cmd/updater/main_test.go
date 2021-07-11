@@ -137,7 +137,7 @@ func TestGatherFlagOptions(t *testing.T) {
 			case tc.err:
 				t.Error("validate() failed to return an error")
 			default:
-				if diff := cmp.Diff(expected, actual, cmp.AllowUnexported(options{}, gcs.Path{})); diff != "" {
+				if diff := cmp.Diff(expected, actual, cmp.AllowUnexported(options{}, gcs.Path{}), cmp.AllowUnexported(options{}, Strings{})); diff != "" {
 					t.Fatalf("gatherFlagOptions() got unexpected diff (-want +got):\n%s", diff)
 				}
 
