@@ -480,7 +480,7 @@ func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []InflatedC
 			"to":      nCols,
 			"delayed": n - nCols,
 			"old":     len(cols),
-		}).Info("Trucated update")
+		}).Info("Truncated update")
 		return builds[n-nCols:]
 	}
 	return builds
