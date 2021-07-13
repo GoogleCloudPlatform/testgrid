@@ -24,11 +24,13 @@ spec:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20210712-v0.0.76-15-gb105a47 
         args:
-        - --build-timeout=1m
+        - --build-concurrency=2
+        - --build-timeout=2m
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
+        - --group-concurrency=4
+        - --group-timeout=10m
         - --json-logs
-        - --group-timeout=5m
         - --wait=3h
 ---
 apiVersion: v1
