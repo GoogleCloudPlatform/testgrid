@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -33,6 +34,7 @@ type options struct {
 	configPath    string
 	creds         string
 	printFieldUse bool
+	compressed    bool
 }
 
 func gatherOptions() options {
@@ -43,6 +45,7 @@ func gatherOptions() options {
 	flag.StringVar(&o.configPath, "path", o.configPath, "Local or cloud config to read")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.printFieldUse, "print-field-use", false, "If True, print all config fields and # of uses of each")
+	flag.BoolVar(&o.compressed, "compressed", false, "Disables pretty-printing, removing all whitespace between fields")
 	flag.Parse()
 	return o
 }
@@ -67,7 +70,13 @@ func main() {
 		logrus.WithError(err).Fatal("Can't marshal JSON")
 	}
 
-	fmt.Printf("%s\n", b)
+	if opt.compressed {
+		fmt.Printf("%s\n", b)
+	} else {
+		var out bytes.Buffer
+		json.Indent(&out, b, "", "  ")
+		out.WriteTo(os.Stdout)
+	}
 
 	if opt.printFieldUse {
 		err = printFieldNames(b)
