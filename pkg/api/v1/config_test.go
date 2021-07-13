@@ -119,16 +119,17 @@ func TestPassQueryParameters(t *testing.T) {
 func TestListDashboardGroups(t *testing.T) {
 	tests := []struct {
 		name         string
-		config       pb.Configuration
+		config       *pb.Configuration
 		expectedJSON string
 	}{
 		{
 			name:         "Returns an empty JSON when there's no groups",
+			config:       &pb.Configuration{},
 			expectedJSON: `{}`,
 		},
 		{
 			name: "Returns a Dashboard Group",
-			config: pb.Configuration{
+			config: &pb.Configuration{
 				DashboardGroups: []*pb.DashboardGroup{
 					{
 						Name: "Group1",
@@ -139,7 +140,7 @@ func TestListDashboardGroups(t *testing.T) {
 		},
 		{
 			name: "Returns multiple Dashboard Groups",
-			config: pb.Configuration{
+			config: &pb.Configuration{
 				DashboardGroups: []*pb.DashboardGroup{
 					{
 						Name: "Group1",
@@ -154,21 +155,22 @@ func TestListDashboardGroups(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		server := setupTestServer(t, &test.config)
-		request, err := http.NewRequest("GET", "/api/v1/dashboardgroups", nil)
-		if err != nil {
-			t.Fatalf("Can't form dashboardgroup request")
-		}
-		response := httptest.NewRecorder()
-		server.ListDashboardGroups(response, request)
-		if response.Code != http.StatusOK {
-			t.Errorf("Expected OK status, but got %v", response.Code)
-		}
-		if response.Body.String() != test.expectedJSON {
-			t.Errorf("In Body, Expected %s; got %s", test.expectedJSON, response.Body.String())
-		}
+		t.Run(test.name, func(t *testing.T) {
+			server := setupTestServer(t, test.config)
+			request, err := http.NewRequest("GET", "/api/v1/dashboardgroups", nil)
+			if err != nil {
+				t.Fatalf("Can't form dashboardgroup request")
+			}
+			response := httptest.NewRecorder()
+			server.ListDashboardGroups(response, request)
+			if response.Code != http.StatusOK {
+				t.Errorf("Expected OK status, but got %v", response.Code)
+			}
+			if response.Body.String() != test.expectedJSON {
+				t.Errorf("In Body, Expected %s; got %s", test.expectedJSON, response.Body.String())
+			}
+		})
 	}
-
 }
 
 ///////////////////

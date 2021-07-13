@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// The api utility hosts a web server that serves TestGrid data
 package main
 
 import (
