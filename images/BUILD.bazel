@@ -22,6 +22,7 @@ push_image(
         "{STABLE_TESTGRID_REPO}/updater": "//cmd/updater:image",
         "{STABLE_TESTGRID_REPO}/summarizer": "//cmd/summarizer:image",
         "{STABLE_TESTGRID_REPO}/config_merger": "//cmd/config_merger:image",
+        "{STABLE_TESTGRID_REPO}/api": "//cmd/api:image",
     }),
 )
 
