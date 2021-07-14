@@ -244,7 +244,7 @@ func (g gauge) qps() string {
 	if qps == 0 {
 		return "0 per second"
 	}
-	if qps > 0.01 {
+	if qps < 0.5 {
 		return fmt.Sprintf("%.2f per second", qps)
 	}
 	seconds := time.Second / time.Duration(qps)

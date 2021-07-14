@@ -24,9 +24,11 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -34,9 +36,8 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
-
-	"cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/testing/protocmp"
 	core "k8s.io/api/core/v1"
 )
@@ -104,14 +105,12 @@ func pint64(n int64) *int64 {
 
 func TestHintStarted(t *testing.T) {
 	cases := []struct {
-		name     string
-		cols     []InflatedColumn
-		wantHint string
-		wantWhen time.Time
+		name string
+		cols []InflatedColumn
+		want string
 	}{
 		{
-			name:     "basic",
-			wantWhen: time.Unix(0, 0),
+			name: "basic",
 		},
 		{
 			name: "ordered",
@@ -129,8 +128,7 @@ func TestHintStarted(t *testing.T) {
 					},
 				},
 			},
-			wantHint: "b",
-			wantWhen: time.Unix(1, 200*int64(time.Millisecond)),
+			want: "b",
 		},
 		{
 			name: "reversed",
@@ -148,8 +146,7 @@ func TestHintStarted(t *testing.T) {
 					},
 				},
 			},
-			wantHint: "b",
-			wantWhen: time.Unix(1, 200*int64(time.Millisecond)),
+			want: "b",
 		},
 		{
 			name: "different", // hint and started come from diff cols
@@ -167,8 +164,7 @@ func TestHintStarted(t *testing.T) {
 					},
 				},
 			},
-			wantHint: "b",
-			wantWhen: time.Unix(1, 100*int64(time.Millisecond)),
+			want: "b",
 		},
 		{
 			name: "numerical", // hint10 > hint2
@@ -184,19 +180,15 @@ func TestHintStarted(t *testing.T) {
 					},
 				},
 			},
-			wantHint: "hint10",
-			wantWhen: time.Unix(0, 0),
+			want: "hint10",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotHint, gotWhen := hintStarted(tc.cols)
-			if tc.wantHint != gotHint {
-				t.Errorf("hintStarted() got hint %q, want %q", gotHint, tc.wantHint)
-			}
-			if !gotWhen.Equal(tc.wantWhen) {
-				t.Errorf("hintStarted() got when %v, want %v", gotWhen, tc.wantWhen)
+			got := hintStarted(tc.cols)
+			if tc.want != got {
+				t.Errorf("hintStarted() got hint %q, want %q", got, tc.want)
 			}
 		})
 	}
@@ -211,7 +203,6 @@ func TestReadColumns(t *testing.T) {
 		ctx         context.Context
 		builds      []fakeBuild
 		group       configpb.TestGroup
-		max         int
 		stop        time.Time
 		dur         time.Duration
 		concurrency int
@@ -220,8 +211,7 @@ func TestReadColumns(t *testing.T) {
 		err      bool
 	}{
 		{
-			name:     "basically works",
-			expected: []InflatedColumn{},
+			name: "basically works",
 		},
 		{
 			name: "convert results correctly",
@@ -258,6 +248,22 @@ func TestReadColumns(t *testing.T) {
 			expected: []InflatedColumn{
 				{
 					Column: &statepb.Column{
+						Build:   "10",
+						Hint:    "10",
+						Started: float64(now+10) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 10 / 60.0,
+							},
+						},
+						podInfoRow: podInfoMissingCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
 						Build:   "11",
 						Hint:    "11",
 						Started: float64(now+11) * 1000,
@@ -272,22 +278,6 @@ func TestReadColumns(t *testing.T) {
 							},
 						},
 						podInfoRow: podInfoPassCell,
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "10",
-						Hint:    "10",
-						Started: float64(now+10) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result: statuspb.TestStatus_PASS,
-							Metrics: map[string]float64{
-								"test-duration-minutes": 10 / 60.0,
-							},
-						},
-						podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -343,6 +333,26 @@ func TestReadColumns(t *testing.T) {
 			expected: []InflatedColumn{
 				{
 					Column: &statepb.Column{
+						Build:   "10",
+						Hint:    "10",
+						Started: float64(now+10) * 1000,
+						Extra: []string{
+							"build10",
+							"old information",
+						},
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 10 / 60.0,
+							},
+						},
+						podInfoRow: podInfoMissingCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
 						Build:   "11",
 						Hint:    "11",
 						Started: float64(now+11) * 1000,
@@ -361,26 +371,6 @@ func TestReadColumns(t *testing.T) {
 							},
 						},
 						podInfoRow: podInfoPassCell,
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "10",
-						Hint:    "10",
-						Started: float64(now+10) * 1000,
-						Extra: []string{
-							"build10",
-							"old information",
-						},
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result: statuspb.TestStatus_PASS,
-							Metrics: map[string]float64{
-								"test-duration-minutes": 10 / 60.0,
-							},
-						},
-						podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -463,89 +453,22 @@ func TestReadColumns(t *testing.T) {
 			},
 		},
 		{
-			name: "stop columns at max",
-			max:  2,
+			name: "truncate columns after the newest old result",
+			stop: time.Unix(now+13, 0), // should capture 14 and 13
 			builds: []fakeBuild{
 				{
-					id: "12",
+					id: "14",
 					started: &fakeObject{
-						Data: jsonData(metadata.Started{Timestamp: now + 12}),
+						Data: jsonData(metadata.Started{Timestamp: now + 14}),
 					},
 					finished: &fakeObject{
 						Data: jsonData(metadata.Finished{
-							Timestamp: pint64(now + 24),
-							Passed:    &yes,
-						}),
-					},
-				},
-				{
-					id: "11",
-					started: &fakeObject{
-						Data: jsonData(metadata.Started{Timestamp: now + 11}),
-					},
-					finished: &fakeObject{
-						Data: jsonData(metadata.Finished{
-							Timestamp: pint64(now + 22),
+							Timestamp: pint64(now + 28),
 							Passed:    &yes,
 						}),
 					},
 					podInfo: podInfoSuccess,
 				},
-				{
-					id: "10",
-					started: &fakeObject{
-						Data: jsonData(metadata.Started{Timestamp: now + 10}),
-					},
-					finished: &fakeObject{
-						Data: jsonData(metadata.Finished{
-							Timestamp: pint64(now + 20),
-							Passed:    &yes,
-						}),
-					},
-				},
-			},
-			group: configpb.TestGroup{
-				GcsPrefix: "bucket/path/to/build/",
-			},
-			expected: []InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Build:   "11",
-						Hint:    "11",
-						Started: float64(now+11) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result: statuspb.TestStatus_PASS,
-							Metrics: map[string]float64{
-								"test-duration-minutes": 11 / 60.0,
-							},
-						},
-						podInfoRow: podInfoPassCell,
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "10",
-						Hint:    "10",
-						Started: float64(now+10) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result: statuspb.TestStatus_PASS,
-							Metrics: map[string]float64{
-								"test-duration-minutes": 10 / 60.0,
-							},
-						},
-						podInfoRow: podInfoMissingCell,
-					},
-				},
-			},
-		},
-		{
-			name: "truncate columns after the newest old result",
-			stop: time.Unix(now+13, 0), // should capture 13 and 12
-			builds: []fakeBuild{
 				{
 					id: "13",
 					started: &fakeObject{
@@ -600,6 +523,7 @@ func TestReadColumns(t *testing.T) {
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
+				// drop 10, 11 and 12
 				{
 					Column: &statepb.Column{
 						Build:   "13",
@@ -618,21 +542,20 @@ func TestReadColumns(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Build:   "12",
-						Hint:    "12",
-						Started: float64(now+12) * 1000,
+						Build:   "14",
+						Hint:    "14",
+						Started: float64(now+14) * 1000,
 					},
 					Cells: map[string]cell{
 						overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
-								"test-duration-minutes": 12 / 60.0,
+								"test-duration-minutes": 14 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						podInfoRow: podInfoPassCell,
 					},
 				},
-				// drop 11 and 10
 			},
 		},
 		{
@@ -925,14 +848,56 @@ func TestReadColumns(t *testing.T) {
 			expected: []InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Build:   "14-err",
-						Hint:    "14-err",
-						Started: float64(now+13) * 1000,
+						Build:   "8-err",
+						Hint:    "8-err",
+						Started: .01,
 					},
 					Cells: map[string]cell{
 						overallRow: {
 							Result:  statuspb.TestStatus_TOOL_FAIL,
-							Message: "Failed to download build from GCS: gs://bucket/path/to/build/14-err/: started: read: open: fake open 14-err",
+							Message: "Failed to download gs://bucket/path/to/build/8-err/: started: read: decode: fake read 8-err",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "9",
+						Hint:    "9",
+						Started: float64(now+9) * 1000,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 9 / 60.0,
+							},
+						},
+						podInfoRow: podInfoMissingCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "10-a-err",
+						Hint:    "10-a-err",
+						Started: float64(now+9)*1000 + .01,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_TOOL_FAIL,
+							Message: "Failed to download gs://bucket/path/to/build/10-a-err/: started: read: decode: fake read 10-a-err",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "10-b-err",
+						Hint:    "10-b-err",
+						Started: float64(now+9)*1000 + 0.02,
+					},
+					Cells: map[string]cell{
+						overallRow: {
+							Result:  statuspb.TestStatus_TOOL_FAIL,
+							Message: "Failed to download gs://bucket/path/to/build/10-b-err/: started: read: open: fake open 10-b-err",
 						},
 					},
 				},
@@ -956,56 +921,14 @@ func TestReadColumns(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Build:   "10-b-err",
-						Hint:    "10-b-err",
-						Started: float64(now+13) * 1000,
+						Build:   "14-err",
+						Hint:    "14-err",
+						Started: float64(now+13)*1000 + 0.01,
 					},
 					Cells: map[string]cell{
 						overallRow: {
 							Result:  statuspb.TestStatus_TOOL_FAIL,
-							Message: "Failed to download build from GCS: gs://bucket/path/to/build/10-b-err/: started: read: open: fake open 10-b-err",
-						},
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "10-a-err",
-						Hint:    "10-a-err",
-						Started: float64(now+11) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result:  statuspb.TestStatus_TOOL_FAIL,
-							Message: "Failed to download build from GCS: gs://bucket/path/to/build/10-a-err/: started: read: decode: fake read 10-a-err",
-						},
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "9",
-						Hint:    "9",
-						Started: float64(now+9) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result: statuspb.TestStatus_PASS,
-							Metrics: map[string]float64{
-								"test-duration-minutes": 9 / 60.0,
-							},
-						},
-						podInfoRow: podInfoMissingCell,
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "8-err",
-						Hint:    "8-err",
-						Started: float64(now+9) * 1000,
-					},
-					Cells: map[string]cell{
-						overallRow: {
-							Result:  statuspb.TestStatus_TOOL_FAIL,
-							Message: "Failed to download build from GCS: gs://bucket/path/to/build/8-err/: started: read: decode: fake read 8-err",
+							Message: "Failed to download gs://bucket/path/to/build/14-err/: started: read: open: fake open 14-err",
 						},
 					},
 				},
@@ -1051,17 +974,32 @@ func TestReadColumns(t *testing.T) {
 
 			if tc.concurrency == 0 {
 				tc.concurrency = 1
-			}
-
-			if tc.max == 0 {
-				tc.max = len(builds)
+			} else {
+				t.Skip("TODO(fejta): re-add concurrent build reading")
 			}
 
 			if tc.dur == 0 {
 				tc.dur = 5 * time.Minute
 			}
 
-			actual, err := readColumns(ctx, client, &tc.group, builds, tc.stop, tc.max, tc.dur, tc.concurrency)
+			var actual []InflatedColumn
+
+			ch := make(chan InflatedColumn)
+			var wg sync.WaitGroup
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for col := range ch {
+					actual = append(actual, col)
+				}
+
+			}()
+
+			err := readColumns(ctx, client, logrus.WithField("name", tc.name), &tc.group, builds, tc.stop, tc.dur, ch)
+			close(ch)
+			wg.Wait()
+
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -1070,8 +1008,8 @@ func TestReadColumns(t *testing.T) {
 			case tc.err:
 				t.Error("readColumns(): failed to receive an error")
 			default:
-				if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
-					t.Errorf("readColumns() got unexpected diff (-got +want):\n%s", diff)
+				if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+					t.Errorf("readColumns() got unexpected diff (-want +got):\n%s", diff)
 				}
 			}
 		})
@@ -1301,9 +1239,11 @@ func TestReadResult(t *testing.T) {
 	path := newPathOrDie("gs://bucket/path/to/some/build/")
 	yes := true
 	cases := []struct {
-		name     string
-		ctx      context.Context
-		data     map[string]fakeObject
+		name string
+		ctx  context.Context
+		data map[string]fakeObject
+		stop time.Time
+
 		expected *gcsResult
 	}{
 		{
@@ -1539,7 +1479,7 @@ func TestReadResult(t *testing.T) {
 			build := gcs.Build{
 				Path: path,
 			}
-			actual, err := readResult(ctx, client, build)
+			actual, err := readResult(ctx, client, build, tc.stop)
 			switch {
 			case err != nil:
 				if tc.expected != nil {

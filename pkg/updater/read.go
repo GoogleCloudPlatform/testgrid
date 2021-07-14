@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"path"
 	"sort"
 	"strings"
@@ -32,257 +31,129 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-
 	"github.com/fvbommel/sortorder"
 	"github.com/sirupsen/logrus"
 )
 
-// hintStarted returns the maximum hint and start time
-func hintStarted(cols []InflatedColumn) (string, time.Time) {
+// hintStarted returns the maximum hint
+func hintStarted(cols []InflatedColumn) string {
 	var hint string
-	var started float64
 	for i, col := range cols {
 		if newHint := col.Column.Hint; i == 0 || sortorder.NaturalLess(hint, newHint) {
 			hint = newHint
 		}
-
-		newStarted := col.Column.Started
-		if i == 0 || newStarted > started {
-			started = newStarted
-		}
 	}
-	when := time.Unix(int64(started/1000), int64(math.Remainder(started, 1000))*int64(time.Millisecond/time.Nanosecond))
-	return hint, when
+	return hint
 }
 
 func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency int) ColumnReader {
-	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error) {
+	return func(ctx context.Context, parentLog logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time, receivers chan<- InflatedColumn) error {
 		tgPaths, err := groupPaths(tg)
 		if err != nil {
-			return nil, fmt.Errorf("group path: %w", err)
+			return fmt.Errorf("group path: %w", err)
 		}
 
-		since, newStop := hintStarted(oldCols)
-		if newStop.After(stop) {
-			log.WithFields(logrus.Fields{
-				"old columns": len(oldCols),
-				"previously":  stop,
-				"stop":        newStop,
-				"since":       since,
-			}).Debug("Advanced stop")
-			stop = newStop
-		}
+		since := hintStarted(oldCols)
+		log := parentLog.WithField("since", since)
 
+		log.Trace("Listing builds...")
 		builds, err := listBuilds(ctx, client, since, tgPaths...)
 		if err != nil {
-			return nil, fmt.Errorf("list builds: %w", err)
+			return fmt.Errorf("list builds: %w", err)
 		}
 		log.WithField("total", len(builds)).Debug("Listed builds")
 
-		builds = truncateBuilds(log, builds, oldCols)
-
-		const maxCols = 50
-		return readColumns(ctx, client, tg, builds, stop, maxCols, buildTimeout, concurrency)
+		return readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers)
 	}
 }
 
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(parent context.Context, client gcs.Downloader, group *configpb.TestGroup, builds []gcs.Build, stopTime time.Time, max int, buildTimeout time.Duration, concurrency int) ([]InflatedColumn, error) {
-	// Spawn build readers
-	if concurrency == 0 {
-		return nil, errors.New("zero readers")
+func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn) error {
+	if len(builds) == 0 {
+		return nil
 	}
 
-	// stopWG cannot be part of wg since concurrently calling wg.Add() and wg.Wait() races.
-	var stopWG sync.WaitGroup
-	defer stopWG.Wait()
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	var maxLock sync.Mutex
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel() // do not leak go routines
 
-	log := logrus.WithField("group", group.Name).WithField("prefix", "gs://"+group.GcsPrefix)
-
-	stop := stopTime.Unix() * 1000
-
-	ctx, cancel := context.WithCancel(parent)
-	defer cancel()
-	if lb := len(builds); lb > max {
-		log.WithField("total", lb).WithField("max", max).Debug("Truncating")
-		builds = builds[lb-max:]
-	}
-	maxIdx := len(builds)
-	cols := make([]InflatedColumn, maxIdx)
-	log.WithField("timeout", buildTimeout).Debug("Updating")
-	old := make(chan int)
-
-	// Send build indices to readers
-	indices := make(chan int)
-	wg.Add(1)
-	var indexErr error
-	go func() {
-		defer wg.Done()
-		defer close(indices)
-		for i := range builds {
-			select {
-			case <-ctx.Done():
-				indexErr = ctx.Err()
-				return
-			case <-old:
-				return
-			case indices <- i:
-			}
-		}
-	}()
-
+	nameCfg := makeNameConfig(group)
 	var heads []string
 	for _, h := range group.ColumnHeader {
 		heads = append(heads, h.ConfigurationValue)
 	}
 
-	errs := make([]error, maxIdx)
-
-	// Concurrently receive indices and read builds
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		nameCfg := makeNameConfig(group)
-		go func() {
-			defer wg.Done()
-			for {
-				var idx int
-				var open bool
-				select {
-				case <-ctx.Done():
-					return
-				case idx, open = <-indices:
-				}
-
-				if !open {
-					return
-				}
-
-				b := builds[idx]
-
-				// use ctx so we finish reading, even if buildCtx is done
-				inner, innerCancel := context.WithTimeout(ctx, buildTimeout)
-				result, err := readResult(inner, client, b)
-				innerCancel()
-				if err != nil {
-					errs[idx] = fmt.Errorf("%s: %w", b, err)
-					continue
-				}
-				id := path.Base(b.Path.Object())
-
-				cols[idx] = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
-
-				if int64(cols[idx].Column.Started) < stop {
-					// Multiple go-routines may all read an old result.
-					// So we need to use a mutex to read the current max column
-					// and then truncate it to idx if idx is smaller.
-					stopWG.Add(1)
-					go func() {
-						defer stopWG.Done()
-						maxLock.Lock()
-						defer maxLock.Unlock()
-						if maxIdx == len(builds) {
-							// still vending new indices to download, stop this.
-							select {
-							case <-ctx.Done():
-								// Another thread stopped
-							case old <- idx:
-								log.WithFields(logrus.Fields{
-									"idx":     idx,
-									"id":      id,
-									"path":    b.Path,
-									"started": int64(cols[idx].Column.Started / 1000),
-									"stop":    stopTime,
-								}).Debug("Stopped")
-							}
-						}
-						if maxIdx > idx+1 {
-							maxIdx = idx + 1 // this is the newest old result
-						}
-					}()
-				}
-			}
-		}()
-	}
-
-	wg.Wait() // Wait to process all columns
-	cancel()
-	stopWG.Wait() // Wait for maxIdx to become the correct value
-	if indexErr != nil {
-		return nil, indexErr
-	}
-	errs = errs[:maxIdx]
-	cols = cols[:maxIdx]
-	// did we find anything?
 	var good bool
-	for _, e := range errs {
-		if e == nil {
-			good = true
-			break
-		}
-	}
-	if !good && maxIdx > 0 { // nope, just errors
-		return nil, errs[0]
-	}
+	bad := make([]string, 0, 11)
 
-	// Create fake data for errored columns
-	prev := -1
-	var bad []int
-	for i := range cols {
-		err := errs[i]
-		if err == nil {
-			cur := i
-			if prev == -1 {
-				prev = cur
-			}
-			failedColumns(cols, builds, errs, prev, cur, bad...)
-			bad = nil
-			prev = cur
+	// TODO(fejta): restore inter-build concurrency
+	var failures int // since last good column
+	var extra []string
+	var started float64
+	for i := len(builds) - 1; i >= 0; i-- {
+		b := builds[i]
+		log := log.WithField("build", b)
+		buildCtx, cancelBuild := context.WithTimeout(ctx, buildTimeout)
+		log.Trace("Reading result")
+		result, err := readResult(buildCtx, client, b, stop)
+		cancelBuild()
+		if err == errAncient {
+			log.Trace("Skipping ancient build")
 			continue
 		}
-		bad = append(bad, i)
-	}
-	if len(bad) > 0 && prev != -1 {
-		failedColumns(cols, builds, errs, prev, prev, bad...)
-	}
-
-	return cols[0:maxIdx], nil
-}
-
-// failedColumns fills info for bad column indices using left and right indices as a reference
-func failedColumns(cols []InflatedColumn, builds []gcs.Build, errs []error, left, right int, bad ...int) {
-	if len(bad) == 0 {
-		return
-	}
-
-	l, r := &cols[left], &cols[right]
-
-	lstart, rstart := l.Column.Started, r.Column.Started
-	if lstart < rstart {
-		lstart, rstart = rstart, lstart
-	}
-	max, step := lstart, (lstart-rstart)/float64(len(bad))
-	extra := l.Column.Extra
-
-	for i, b := range bad {
-		id := path.Base(builds[b].Path.Object())
-		cols[b] = InflatedColumn{
-			Column: &statepb.Column{
-				Build:   id,
-				Hint:    id,
-				Started: max - float64(i)*step, //
-				Extra:   extra,
-			},
-			Cells: map[string]Cell{
-				overallRow: {
-					Message: "Failed to download build from GCS: " + errs[b].Error(),
-					Result:  statuspb.TestStatus_TOOL_FAIL,
+		id := path.Base(b.Path.Object())
+		var col InflatedColumn
+		if err != nil {
+			switch len(bad) {
+			case 10:
+				bad[9] = "..."
+				bad = append(bad, id)
+			case 11:
+				bad[10] = id
+			default:
+				bad = append(bad, id)
+			}
+			failures++
+			log.WithError(err).Trace("Failed to read build")
+			if extra == nil {
+				extra = make([]string, len(heads))
+			}
+			col = InflatedColumn{
+				Column: &statepb.Column{
+					Build:   id,
+					Hint:    id,
+					Started: started + 0.01*float64(failures),
+					Extra:   extra,
 				},
-			},
+				Cells: map[string]Cell{
+					overallRow: {
+						Message: fmt.Sprintf("Failed to download %s: %s", b, err.Error()),
+						Result:  statuspb.TestStatus_TOOL_FAIL,
+					},
+				},
+			}
+		} else {
+			col = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
+			log.WithField("rows", len(col.Cells)).Debug("Read result")
+			failures = 0
+			good = true
+			extra = col.Column.Extra
+			started = col.Column.Started
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case receivers <- col:
 		}
 	}
+
+	switch {
+	case !good && len(bad) == 0:
+		log.WithField("prefix", "gs://"+group.GcsPrefix).Trace("No recent builds")
+	case !good:
+		return fmt.Errorf("%d builds failed: %v", len(bad), bad)
+	}
+	return nil
 }
 
 type groupOptions struct {
@@ -387,13 +258,17 @@ func ensureJobName(nc *nameConfig) {
 	nc.parts = append([]string{jobName}, nc.parts...)
 }
 
+var (
+	errAncient = errors.New("build is too old")
+)
+
 // readResult will download all GCS artifacts in parallel.
 //
 // Specifically download the following files:
 // * started.json
 // * finished.json
 // * any junit.xml files under the artifacts directory.
-func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) (*gcsResult, error) {
+func readResult(parent context.Context, client gcs.Downloader, build gcs.Build, stop time.Time) (*gcsResult, error) {
 	ctx, cancel := context.WithCancel(parent) // Allows aborting after first error
 	defer cancel()
 	result := gcsResult{
@@ -440,6 +315,8 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build) 
 			err = nil
 		case err != nil:
 			err = fmt.Errorf("started: %w", err)
+		case time.Unix(s.Timestamp, 0).Before(stop):
+			err = errAncient
 		default:
 			result.started = *s
 		}
