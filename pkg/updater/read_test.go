@@ -523,7 +523,9 @@ func TestReadColumns(t *testing.T) {
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
-				// drop 10, 11 and 12
+				ancientColumn("10", .01, nil),
+				ancientColumn("11", .02, nil),
+				ancientColumn("12", .03, nil),
 				{
 					Column: &statepb.Column{
 						Build:   "13",
