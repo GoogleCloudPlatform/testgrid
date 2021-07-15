@@ -109,14 +109,16 @@ func (mets *Metrics) delay(dur time.Duration) {
 // This typically involves downloading the existing state, dropping old columns,
 // compiling any new columns and inserting them into the front and then uploading
 // the proto to GCS.
-type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error
+//
+// Return true if there are more results to process.
+type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
 func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
-	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) error {
+	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
 		if !tg.UseKubernetesClient {
 			log.Debug("Skipping non-kubernetes client group")
-			return nil
+			return false, nil
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
@@ -168,28 +170,29 @@ func isPreconditionFailed(err error) bool {
 	return e.Code == http.StatusPreconditionFailed
 }
 
-func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldLogger, tg *configpb.TestGroup, tgp gcs.Path, updateGroup GroupUpdater, write bool, gen int64, fin *finish) error {
+func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldLogger, tg *configpb.TestGroup, tgp gcs.Path, updateGroup GroupUpdater, write bool, gen int64, fin *finish) (bool, error) {
 	log.Debug("Starting update")
 	if write && gen >= 0 {
 		if attrs, err := lockGroup(ctx, client, tgp, gen); err != nil {
 			if !isPreconditionFailed(err) {
 				fin.fail()
-				return fmt.Errorf("lock: %v", err)
+				return false, fmt.Errorf("lock: %v", err)
 			}
 			fin.skip()
-			return nil
+			return false, nil
 		} else if gen := attrs.Generation; gen > 0 {
 			cond := storage.Conditions{GenerationMatch: gen}
 			client = client.If(&cond, &cond)
 		}
 		log.Debug("Acquired update lock")
 	}
-	if err := updateGroup(ctx, log, client, tg, tgp); err != nil {
+	more, err := updateGroup(ctx, log, client, tg, tgp)
+	if err != nil {
 		fin.fail()
-		return err
+		return false, err
 	}
 	fin.success()
-	return nil
+	return more, nil
 }
 
 type testGroupClient interface {
@@ -259,6 +262,8 @@ func updateTestGroups(ctx context.Context, client testGroupClient, q *config.Tes
 
 // Update test groups with the specified freq.
 //
+// Retries errors at double and unfinished groups as soon as possible.
+//
 // Filters down to a single group when set.
 // Returns after all groups updated once if freq is zero.
 func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, groupNames []string, updateGroup GroupUpdater, write bool, freq time.Duration) error {
@@ -268,10 +273,12 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 
 	var q config.TestGroupQueue
 
+	log.Debug("Fetching testgroup metadata state...")
 	gen, generations, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, groupNames, freq)
 	if err != nil {
 		return err
 	}
+	log.Info("Fetched testgroup metadata state")
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	wg.Add(groupConcurrency)
@@ -296,11 +303,15 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				if !ok {
 					gen = -1
 				}
-				if err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin); err != nil {
+				unprocessed, err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin)
+				if err != nil {
 					log.WithError(err).Error("Error updating group")
+					q.Fix(tg.Name, time.Now().Add(freq/2))
 					continue
 				}
-				growMaxUpdateArea()
+				if unprocessed { // process another chunk ASAP
+					q.Fix(tg.Name, time.Now())
+				}
 				if attrs, err := client.Stat(ctx, *tgp); err == nil {
 					lock.Lock()
 					generations[tg.Name] = attrs.Generation
@@ -426,66 +437,6 @@ func truncateRunning(cols []InflatedColumn) []InflatedColumn {
 	return cols
 }
 
-var (
-	maxUpdateArea  = 20000
-	updateAreaLock sync.RWMutex
-)
-
-const maxMaxUpdateArea = 1000000
-const initialCols = 5
-
-// growMaxUpdateArea allows testgrid to increase the update area size over time.
-//
-// This allows the potential for larger, faster updates when the system is stable
-// While also falling back to a slower, more stable mode after a crash (potentially
-// caused by too large an update)
-func growMaxUpdateArea() {
-	updateAreaLock.RLock()
-	cur := maxUpdateArea
-	updateAreaLock.RUnlock()
-	if cur >= maxMaxUpdateArea {
-		return
-	}
-	updateAreaLock.Lock()
-	maxUpdateArea *= 2
-	updateAreaLock.Unlock()
-}
-
-func truncateBuilds(log logrus.FieldLogger, builds []gcs.Build, cols []InflatedColumn) []gcs.Build {
-	// determine the average number of rows per column
-	var rows int
-	for _, c := range cols {
-		rows += len(c.Cells)
-	}
-
-	nc := len(cols)
-	if nc == 0 {
-		nc = 1
-	}
-	rows /= nc
-	updateAreaLock.RLock()
-	updateArea := maxUpdateArea
-	updateAreaLock.RUnlock()
-	if rows == 0 {
-		rows = updateArea / initialCols
-	}
-
-	nCols := updateArea / rows
-	if nCols == 0 {
-		nCols = 1 // At least one column
-	}
-	if n := len(builds); n > nCols {
-		log.WithFields(logrus.Fields{
-			"from":    n,
-			"to":      nCols,
-			"delayed": n - nCols,
-			"old":     len(cols),
-		}).Info("Truncated update")
-		return builds[n-nCols:]
-	}
-	return builds
-}
-
 func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...gcs.Path) ([]gcs.Build, error) {
 	var out []gcs.Build
 
@@ -511,8 +462,15 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 	return out, nil
 }
 
-// A ColumnReader will find, process and return new columns to insert into the front of grid state.
-type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time) ([]InflatedColumn, error)
+// ColumnReader finds, processes and new columns to send to the receivers.
+//
+// * Columns with the same Name and Build will get merged together.
+// * Readers must be reentrant.
+//   - Processing must expect every sent column to be the final column this cycle.
+//     AKA calling this method once and reading two columns should be equivalent to
+//     calling the method once, reading one column and then calling it a second time
+//     and reading a second column.
+type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time, receivers chan<- InflatedColumn) error
 
 // A ColumnSorter sort InflatedColumns as desired.
 type ColumnSorter func(*configpb.TestGroup, []InflatedColumn)
@@ -525,7 +483,10 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 }
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) error {
+func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -550,12 +511,67 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		oldCols = truncateRunning(cols)
 	}
 
-	cols, err := readCols(ctx, log, tg, oldCols, stop)
-	if err != nil {
-		return fmt.Errorf("read columns: %w", err)
+	newCols := make(chan InflatedColumn, 1)
+	ec := make(chan error)
+
+	go func() {
+		err := readCols(ctx, log, tg, oldCols, stop, newCols)
+		select {
+		case <-ctx.Done():
+		case ec <- err:
+		}
+	}()
+
+	var cols []InflatedColumn
+
+	// Must read at least one column every cycle to ensure we make forward progress.
+	more := true
+	select {
+	case <-ctx.Done():
+		return false, fmt.Errorf("first column: %w", ctx.Err())
+	case col := <-newCols:
+		cols = append(cols, col)
+	case err := <-ec:
+		if err != nil {
+			return false, fmt.Errorf("read first column: %w", err)
+		}
+		more = false
 	}
 
-	overrideBuild(tg, cols)
+	var unreadColumns bool
+	if more {
+		// Read as many additional columns as we can within the allocated time.
+		var grace context.Context
+		if deadline, present := ctx.Deadline(); present {
+			var cancel context.CancelFunc
+			dur := time.Until(deadline) / 2
+			grace, cancel = context.WithTimeout(context.Background(), dur)
+			defer cancel()
+		} else {
+			grace = context.Background()
+		}
+
+		for more {
+			select {
+			case <-grace.Done():
+				unreadColumns = true
+				more = false
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case col := <-newCols:
+				cols = append(cols, col)
+			case err := <-ec:
+				if err != nil {
+					return false, fmt.Errorf("read columns: %w", err)
+				}
+				more = false
+			}
+		}
+	}
+
+	added := len(cols)
+
+	overrideBuild(tg, cols) // so we group correctly
 	cols = append(cols, oldCols...)
 	cols = groupColumns(tg, cols)
 
@@ -564,23 +580,24 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	grid := ConstructGrid(log, tg, cols, issues)
 	buf, err := gcs.MarshalGrid(grid)
 	if err != nil {
-		return fmt.Errorf("marshal grid: %w", err)
+		return false, fmt.Errorf("marshal grid: %w", err)
 	}
 	log = log.WithField("url", gridPath).WithField("bytes", len(buf))
 	if !write {
-		log.Debug("Skipping write")
+		log = log.WithField("dryrun", true)
 	} else {
-		log.Debug("Writing")
+		log.Debug("Writing grid...")
 		// TODO(fejta): configurable cache value
 		if _, err := client.Upload(ctx, gridPath, buf, gcs.DefaultACL, "no-cache"); err != nil {
-			return fmt.Errorf("upload: %w", err)
+			return false, fmt.Errorf("upload: %w", err)
 		}
 	}
 	log.WithFields(logrus.Fields{
-		"cols": len(grid.Columns),
-		"rows": len(grid.Rows),
+		"cols":     len(grid.Columns),
+		"rows":     len(grid.Rows),
+		"appended": added,
 	}).Info("Wrote grid")
-	return nil
+	return unreadColumns, nil
 }
 
 // formatStrftime replaces python codes with what go expects.

@@ -84,7 +84,7 @@ func TestGCS(t *testing.T) {
 					}
 				}
 			}()
-			err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
+			_, err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
 			switch {
 			case err != nil:
 				if !tc.fail {
@@ -815,84 +815,6 @@ func TestTruncateRunning(t *testing.T) {
 			}
 			if diff := cmp.Diff(actual, expected, protocmp.Transform()); diff != "" {
 				t.Errorf("truncateRunning() got unexpected diff:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestTruncateBuilds(t *testing.T) {
-	cases := []struct {
-		name   string
-		builds int
-		rows   []int
-		start  int
-		end    int
-	}{
-		{
-			name: "basically works",
-		},
-		{
-			name:   "usually include everything",
-			builds: 5,
-			rows:   []int{100},
-			start:  0,
-			end:    5,
-		},
-		{
-			name:   "many rows truncates columns",
-			builds: 10,
-			rows:   []int{maxUpdateArea / 4, maxUpdateArea / 4, maxUpdateArea / 4, maxUpdateArea / 4},
-			start:  6,
-			end:    10,
-		},
-		{
-			name:   "many new columns truncates",
-			builds: maxUpdateArea,
-			rows:   []int{1000},
-			start:  maxUpdateArea - (maxUpdateArea / 1000),
-			end:    maxUpdateArea,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var builds []gcs.Build
-			var cols []inflatedColumn
-			var expected []gcs.Build
-
-			for i := 0; i < tc.builds; i++ {
-				p, err := gcs.NewPath(fmt.Sprintf("gs://fake/job/%d", i))
-				if err != nil {
-					t.Fatalf("bad path: %v", err)
-				}
-				b := gcs.Build{Path: *p}
-				builds = append(builds, b)
-				if i >= tc.start && i < tc.end {
-					expected = append(expected, b)
-				}
-			}
-
-			for _, r := range tc.rows {
-				col := inflatedColumn{
-					Cells: map[string]cell{},
-				}
-				for i := 0; i < r; i++ {
-					id := fmt.Sprintf("cell %d", i)
-					c := cell{CellID: id}
-					col.Cells[id] = c
-				}
-				cols = append(cols, col)
-			}
-
-			actual := truncateBuilds(logrus.WithField("name", tc.name), builds, cols)
-			diff := cmp.Diff(actual, expected, cmp.AllowUnexported(gcs.Build{}, gcs.Path{}, cell{}, inflatedColumn{}), protocmp.Transform())
-			if diff == "" {
-				return
-			}
-			if have, want := len(actual), len(expected); have != want {
-				t.Errorf("truncateRunning() got %d columns, want %d", have, want)
-			} else {
-				t.Errorf("truncateRunning() got unexpected diff (-have, +want):\n%s", diff)
 			}
 		})
 	}
@@ -1776,7 +1698,7 @@ func TestInflateDropAppend(t *testing.T) {
 			if tc.colSorter == nil {
 				tc.colSorter = SortStarted
 			}
-			err := InflateDropAppend(
+			_, err := InflateDropAppend(
 				ctx,
 				logrus.WithField("test", tc.name),
 				client,
@@ -3525,66 +3447,6 @@ func TestStamp(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if actual := stamp(tc.col); !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("stamp %s != expected stamp %s", actual, tc.expected)
-			}
-		})
-	}
-}
-
-func TestBumpMaxUpdateArea(t *testing.T) {
-	updateAreaLock.RLock()
-	orig := maxUpdateArea
-	updateAreaLock.RUnlock()
-	defer func(orig int) {
-		updateAreaLock.Lock()
-		maxUpdateArea = orig
-		updateAreaLock.Unlock()
-	}(orig)
-
-	cases := []struct {
-		name    string
-		start   int
-		floor   int
-		ceiling int
-	}{
-		{
-			name:    "bump grows update area",
-			start:   1,
-			floor:   2,
-			ceiling: maxMaxUpdateArea,
-		},
-		{
-			name:    "original update area smaller than final",
-			start:   orig,
-			floor:   orig + 1,
-			ceiling: maxMaxUpdateArea - 1,
-		},
-		{
-			name:  "grow to limit",
-			start: maxMaxUpdateArea - 1,
-			floor: maxMaxUpdateArea,
-		},
-		{
-			name:    "do not grow past limt",
-			start:   maxMaxUpdateArea + 1,
-			floor:   maxMaxUpdateArea + 1,
-			ceiling: maxMaxUpdateArea + 1,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			updateAreaLock.Lock()
-			maxUpdateArea = tc.start
-			updateAreaLock.Unlock()
-			growMaxUpdateArea()
-			updateAreaLock.RLock()
-			actual := maxUpdateArea
-			updateAreaLock.RUnlock()
-			if tc.floor != 0 && actual < tc.floor {
-				t.Errorf("maxUpdateArea=%d growMaxUpdateArea() got %d < %d", tc.start, actual, tc.floor)
-			}
-			if tc.ceiling != 0 && actual > tc.ceiling {
-				t.Errorf("maxUpdateArea=%d growMaxUpdateArea() got %d > %d", tc.start, actual, tc.ceiling)
 			}
 		})
 	}

@@ -98,7 +98,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.Var(&o.config, "config", "gs://path/to/config.pb")
 	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	fs.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	fs.Var(&o.groups, "test-groups", "Only update named groups if set")
+	fs.Var(&o.groups, "test-group", "Only update named groups if set (repeatable)")
 	fs.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
