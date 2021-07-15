@@ -96,10 +96,6 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 		log.Trace("Reading result")
 		result, err := readResult(buildCtx, client, b, stop)
 		cancelBuild()
-		if err == errAncient {
-			log.Trace("Skipping ancient build")
-			continue
-		}
 		id := path.Base(b.Path.Object())
 		var col InflatedColumn
 		if err != nil {
@@ -117,19 +113,12 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 			if extra == nil {
 				extra = make([]string, len(heads))
 			}
-			col = InflatedColumn{
-				Column: &statepb.Column{
-					Build:   id,
-					Hint:    id,
-					Started: started + 0.01*float64(failures),
-					Extra:   extra,
-				},
-				Cells: map[string]Cell{
-					overallRow: {
-						Message: fmt.Sprintf("Failed to download %s: %s", b, err.Error()),
-						Result:  statuspb.TestStatus_TOOL_FAIL,
-					},
-				},
+			when := started + 0.01*float64(failures)
+			if err == errAncient {
+				col = ancientColumn(id, when, extra)
+			} else {
+				msg := fmt.Sprintf("Failed to download %s: %s", b, err.Error())
+				col = erroredColumn(id, when, extra, msg)
 			}
 		} else {
 			col = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
@@ -154,6 +143,40 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 		return fmt.Errorf("%d builds failed: %v", len(bad), bad)
 	}
 	return nil
+}
+
+func ancientColumn(id string, when float64, extra []string) InflatedColumn {
+	return InflatedColumn{
+		Column: &statepb.Column{
+			Build:   id,
+			Hint:    id,
+			Started: when,
+			Extra:   extra,
+		},
+		Cells: map[string]Cell{
+			overallRow: {
+				Message: "Build is too old to process",
+				Result:  statuspb.TestStatus_UNKNOWN,
+			},
+		},
+	}
+}
+
+func erroredColumn(id string, when float64, extra []string, msg string) InflatedColumn {
+	return InflatedColumn{
+		Column: &statepb.Column{
+			Build:   id,
+			Hint:    id,
+			Started: when,
+			Extra:   extra,
+		},
+		Cells: map[string]Cell{
+			overallRow: {
+				Message: msg,
+				Result:  statuspb.TestStatus_TOOL_FAIL,
+			},
+		},
+	}
 }
 
 type groupOptions struct {
