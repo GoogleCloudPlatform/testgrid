@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package v1 (api/v1) is the first versioned implementation of the API
 package v1
 
 import (
@@ -76,5 +77,5 @@ func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
 		groups.DashboardGroups = append(groups.DashboardGroups, &rsc)
 	}
 
-	writeJSON(w, groups)
+	writeJSON(w, &groups)
 }

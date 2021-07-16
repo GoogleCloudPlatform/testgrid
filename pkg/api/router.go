@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package api provides code to host an API displaying TestGrid data
 package api
 
 import (
