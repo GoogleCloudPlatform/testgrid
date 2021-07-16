@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-api
+  namespace: testgrid-canary
+  labels:
+    app: testgrid
+    channel: stable
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      channel: stable
+      component: api
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        channel: stable
+        component: api
+    spec:
+      serviceAccountName: api
+      containers:
+      - name: api
+        image: gcr.io/k8s-testgrid/api:latest # TODO(chases2): tag to version
+        args:
+        - --scope=gs://testgrid-canary
+        - --port=8080
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: testgrid-canary-api@k8s-testgrid.iam.gserviceaccount.com
+  name: api
+  namespace: testgrid-canary
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: api
+spec:
+  selector:
+    app: api
+  ports:
+  - protocol: TCP
+    targetPort: 8080
+    port: 80
+    name: http
+  type: LoadBalancer

@@ -38,11 +38,13 @@ func TestConfigPath(t *testing.T) {
 		defaultBucket string
 		url           string
 		expected      *gcs.Path
+		expectDefault bool
 	}{
 		{
 			name:          "Defaults to default",
 			defaultBucket: "gs://example",
 			expected:      getPathOrDie(t, "gs://example/config"),
+			expectDefault: true,
 		},
 		{
 			name:          "Use config if specified",
@@ -70,9 +72,13 @@ func TestConfigPath(t *testing.T) {
 				t.Fatalf("Can't form request")
 			}
 
-			result, err := s.configPath(request)
+			result, isDefault, err := s.configPath(request)
 			if test.expected == nil && err == nil {
 				t.Fatalf("Expected an error, but got none")
+			}
+
+			if test.expectDefault != isDefault {
+				t.Errorf("Default Flag: Want %t, got %t", test.expectDefault, isDefault)
 			}
 
 			if test.expected != nil && result.String() != test.expected.String() {

@@ -19,6 +19,7 @@ k8s_objects(
     name = "canary",
     objects = [
         ":namespace",  # Must be first
+        ":api",
         ":summarizer",
         ":updater",
         ":config_merger",
@@ -28,6 +29,13 @@ k8s_objects(
 CLUSTER = "{STABLE_TESTGRID_CLUSTER}"
 
 MULTI_KIND = None
+
+k8s_object(
+    name = "api",
+    cluster = CLUSTER,
+    kind = MULTI_KIND,
+    template = "api.yaml",
+)
 
 k8s_object(
     name = "updater",
