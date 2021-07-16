@@ -118,56 +118,88 @@ func TestPassQueryParameters(t *testing.T) {
 
 func TestListDashboardGroups(t *testing.T) {
 	tests := []struct {
-		name         string
-		config       *pb.Configuration
-		expectedJSON string
+		name             string
+		config           map[string]*pb.Configuration
+		endpoint         string
+		expectedResponse string
+		expectedCode     int
 	}{
 		{
-			name:         "Returns an empty JSON when there's no groups",
-			config:       &pb.Configuration{},
-			expectedJSON: `{}`,
+			name: "Returns an empty JSON when there's no groups",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {},
+			},
+			expectedResponse: `{}`,
+			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns a Dashboard Group",
-			config: &pb.Configuration{
-				DashboardGroups: []*pb.DashboardGroup{
-					{
-						Name: "Group1",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name: "Group1",
+						},
 					},
 				},
 			},
-			expectedJSON: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1"}]}`,
+			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns multiple Dashboard Groups",
-			config: &pb.Configuration{
-				DashboardGroups: []*pb.DashboardGroup{
-					{
-						Name: "Group1",
-					},
-					{
-						Name: "Second Group",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name: "Group1",
+						},
+						{
+							Name: "Second Group",
+						},
 					},
 				},
 			},
-			expectedJSON: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1"},{"name":"Second Group","link":"host/dashboard-groups/secondgroup"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1"},{"name":"Second Group","link":"host/dashboard-groups/secondgroup"}]}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name: "Reads specified configs",
+			config: map[string]*pb.Configuration{
+				"gs://example/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name: "Group1",
+						},
+					},
+				},
+			},
+			endpoint:         "/endpoint?scope=gs://example",
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1?scope=gs://example"}]}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name:             "Server error with unreadable config",
+			expectedCode:     http.StatusInternalServerError,
+			endpoint:         "/endpoint?scope=gs://bad-path",
+			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			server := setupTestServer(t, test.config)
-			request, err := http.NewRequest("GET", "/api/v1/dashboardgroups", nil)
+			request, err := http.NewRequest("GET", test.endpoint, nil)
 			if err != nil {
-				t.Fatalf("Can't form dashboardgroup request")
+				t.Fatalf("Can't form request: %v", err)
 			}
 			response := httptest.NewRecorder()
 			server.ListDashboardGroups(response, request)
-			if response.Code != http.StatusOK {
-				t.Errorf("Expected OK status, but got %v", response.Code)
+			if response.Code != test.expectedCode {
+				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
 			}
-			if response.Body.String() != test.expectedJSON {
-				t.Errorf("In Body, Expected %s; got %s", test.expectedJSON, response.Body.String())
+			if response.Body.String() != test.expectedResponse {
+				t.Errorf("In Body, Expected %q; got %q", test.expectedResponse, response.Body.String())
 			}
 		})
 	}
@@ -177,25 +209,28 @@ func TestListDashboardGroups(t *testing.T) {
 // Helper Functions
 ///////////////////
 
-func setupTestServer(t *testing.T, configuration *pb.Configuration) Server {
+func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration) Server {
 	t.Helper()
+
 	var fc fakeClient
 	fc.Datastore = map[gcs.Path][]byte{}
 
-	path, err := gcs.NewPath("gs://tg-example/config")
-	if err != nil {
-		t.Fatalf("setupTestServer() can't generate path: %v", err)
-	}
+	for p, cfg := range configurations {
+		path, err := gcs.NewPath(p)
+		if err != nil {
+			t.Fatalf("setupTestServer() can't generate path: %v", err)
+		}
 
-	fc.Datastore[*path], err = proto.Marshal(configuration)
-	if err != nil {
-		t.Fatalf("Could not serialize proto: %v\n\nProto:\n%s", err, configuration.String())
+		fc.Datastore[*path], err = proto.Marshal(cfg)
+		if err != nil {
+			t.Fatalf("Could not serialize proto: %v\n\nProto:\n%s", err, cfg.String())
+		}
 	}
 
 	return Server{
 		Client:        fc,
 		Host:          "host",
-		DefaultBucket: "gs://tg-example",
+		DefaultBucket: "gs://default",
 	}
 }
 
