@@ -27,9 +27,10 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/protobuf/proto"
+
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/golang/protobuf/proto"
 )
 
 func TestConfigPath(t *testing.T) {
@@ -126,7 +127,7 @@ func TestListDashboardGroups(t *testing.T) {
 	tests := []struct {
 		name             string
 		config           map[string]*pb.Configuration
-		endpoint         string
+		params           string
 		expectedResponse string
 		expectedCode     int
 	}{
@@ -180,27 +181,149 @@ func TestListDashboardGroups(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "/endpoint?scope=gs://example",
+			params:           "?scope=gs://example",
 			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
 			name:             "Server error with unreadable config",
 			expectedCode:     http.StatusInternalServerError,
-			endpoint:         "/endpoint?scope=gs://bad-path",
+			params:           "?scope=gs://bad-path",
 			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server := setupTestServer(t, test.config)
+			router := Route(nil, setupTestServer(t, test.config))
+			request, err := http.NewRequest("GET", "/dashboard-groups"+test.params, nil)
+			if err != nil {
+				t.Fatalf("Can't form request: %v", err)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != test.expectedCode {
+				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
+			}
+			if response.Body.String() != test.expectedResponse {
+				t.Errorf("In Body, Expected %q; got %q", test.expectedResponse, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestGetDashboardGroup(t *testing.T) {
+	tests := []struct {
+		name             string
+		config           map[string]*pb.Configuration
+		endpoint         string
+		expectedResponse string
+		expectedCode     int
+	}{
+		{
+			name: "Returns an error when there's no resource",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {},
+			},
+			endpoint:         "/dashboard-groups/missing",
+			expectedCode:     http.StatusNotFound,
+			expectedResponse: "Dashboard group \"missing\" not found\n",
+		},
+		{
+			name: "Returns empty JSON from an empty Dashboard Group",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name: "Group1",
+						},
+					},
+				},
+			},
+			endpoint:         "/dashboard-groups/Group1",
+			expectedResponse: `{}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name: "Returns dashboards from group",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name:           "stooges",
+							DashboardNames: []string{"larry", "curly", "moe"},
+						},
+					},
+				},
+			},
+			endpoint:         "/dashboard-groups/stooges",
+			expectedResponse: `{"dashboards":[{"name":"larry","link":"host/dashboards/larry"},{"name":"curly","link":"host/dashboards/curly"},{"name":"moe","link":"host/dashboards/moe"}]}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name: "Reads specified configs",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name:           "wrong-group",
+							DashboardNames: []string{"no"},
+						},
+					},
+				},
+				"gs://example/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name:           "right-group",
+							DashboardNames: []string{"yes"},
+						},
+					},
+				},
+			},
+			endpoint:         "/dashboard-groups/right-group?scope=gs://example",
+			expectedResponse: `{"dashboards":[{"name":"yes","link":"host/dashboards/yes?scope=gs://example"}]}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name: "Specified configs never reads default config",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name:           "wrong-group",
+							DashboardNames: []string{"no"},
+						},
+					},
+				},
+				"gs://example/config": {
+					DashboardGroups: []*pb.DashboardGroup{
+						{
+							Name:           "right-group",
+							DashboardNames: []string{"yes"},
+						},
+					},
+				},
+			},
+			endpoint:         "/dashboard-groups/wrong-group?scope=gs://example",
+			expectedResponse: "Dashboard group \"wrong-group\" not found\n",
+			expectedCode:     http.StatusNotFound,
+		},
+		{
+			name:             "Server error with unreadable config",
+			expectedCode:     http.StatusInternalServerError,
+			endpoint:         "/dashboard-groups/group?scope=gs://bad-path",
+			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := Route(nil, setupTestServer(t, test.config))
 			request, err := http.NewRequest("GET", test.endpoint, nil)
 			if err != nil {
 				t.Fatalf("Can't form request: %v", err)
 			}
 			response := httptest.NewRecorder()
-			server.ListDashboardGroups(response, request)
+			router.ServeHTTP(response, request)
 			if response.Code != test.expectedCode {
 				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
 			}

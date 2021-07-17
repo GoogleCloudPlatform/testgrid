@@ -22,18 +22,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
+
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/sirupsen/logrus"
 )
-
-// Server contains the necessary settings and i/o objects needed to serve this api
-type Server struct {
-	Client        gcs.Client
-	Host          string
-	DefaultBucket string
-}
 
 func (s Server) configPath(r *http.Request) (path *gcs.Path, isDefault bool, err error) {
 	scope := r.URL.Query().Get("scope")
@@ -58,13 +54,13 @@ func passQueryParameters(r *http.Request) string {
 	return ""
 }
 
-// ListDashboardGroups returns every dashboard group in TestGrid
-// Response Proto: ListDashboardGroupResponse
-func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
+// getConfig will return a config file or will send an error to the http writer
+// If this function returns nil, no further writes should be made to 'w'
+func (s Server) getConfig(w http.ResponseWriter, r *http.Request) *configpb.Configuration {
 	configPath, isDefault, err := s.configPath(r)
 	if err != nil || configPath == nil {
 		http.Error(w, "Scope not specified", http.StatusBadRequest)
-		return
+		return nil
 	}
 
 	cfg, err := config.ReadGCS(r.Context(), s.Client, *configPath)
@@ -76,6 +72,16 @@ func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
 			// TODO(chases2): Pass a logrus logger through the server object
 			logrus.WithError(err).Errorf("Can't read default config at %q; check permissions", configPath.String())
 		}
+		return nil
+	}
+	return cfg
+}
+
+// ListDashboardGroups returns every dashboard group in TestGrid
+// Response Proto: ListDashboardGroupResponse
+func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
+	cfg := s.getConfig(w, r)
+	if cfg == nil {
 		return
 	}
 
@@ -89,4 +95,30 @@ func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, &groups)
+}
+
+// GetDashboardGroup returns a given dashboard group
+// Response Proto: GetDashboardGroupResponse
+func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cfg := s.getConfig(w, r)
+	if cfg == nil {
+		return
+	}
+
+	for _, group := range cfg.DashboardGroups {
+		if group.Name == vars["dashboard-group"] {
+			result := apipb.GetDashboardGroupResponse{}
+			for _, dash := range group.DashboardNames {
+				rsc := apipb.Resource{
+					Name: dash,
+					Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host, config.Normalize(dash), passQueryParameters(r)),
+				}
+				result.Dashboards = append(result.Dashboards, &rsc)
+			}
+			writeJSON(w, &result)
+			return
+		}
+	}
+	http.Error(w, fmt.Sprintf("Dashboard group %q not found", vars["dashboard-group"]), http.StatusNotFound)
 }
