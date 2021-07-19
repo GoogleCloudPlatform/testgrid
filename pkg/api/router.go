@@ -21,9 +21,10 @@ import (
 	"context"
 	"path"
 
+	"github.com/gorilla/mux"
+
 	v1 "github.com/GoogleCloudPlatform/testgrid/pkg/api/v1"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/gorilla/mux"
 )
 
 // RouterOptions are the options needed to GetRouter
@@ -50,7 +51,7 @@ func GetRouter(options RouterOptions) (*mux.Router, error) {
 		Host:          path.Join(options.Hostname, v1Infix),
 		DefaultBucket: options.HomeBucket,
 	}
-	sub1.HandleFunc("/dashboard-groups", s.ListDashboardGroups).Methods("GET")
+	v1.Route(sub1, s)
 
 	return sub1, nil
 }
