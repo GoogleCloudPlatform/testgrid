@@ -19,9 +19,11 @@ package gcs
 import (
 	"context"
 	"io"
+	"net/http"
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/googleapi"
 )
 
 var (
@@ -65,7 +67,26 @@ func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, *s
 	if r == nil {
 		return nil, nil, err
 	}
+	if err == nil && rgc.readCond != nil {
+		err = checkPreconditions(r.Attrs, rgc.readCond)
+	}
 	return r, &r.Attrs, err
+}
+
+var (
+	errPreconditions = googleapi.Error{
+		Code: http.StatusPreconditionFailed,
+	}
+)
+
+func checkPreconditions(attrs storage.ReaderObjectAttrs, cond *storage.Conditions) error {
+	if g := cond.GenerationMatch; g > 0 && g != attrs.Generation {
+		return &errPreconditions
+	}
+	if g := cond.GenerationNotMatch; g > 0 && g == attrs.Generation {
+		return &errPreconditions
+	}
+	return nil
 }
 
 func (rgc realGCSClient) Objects(ctx context.Context, path Path, delimiter, startOffset string) Iterator {

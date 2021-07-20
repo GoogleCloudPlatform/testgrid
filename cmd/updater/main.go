@@ -155,7 +155,7 @@ func main() {
 		"build": opt.buildConcurrency,
 	}).Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
+	groupUpdater := updater.GCS(client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 
 	mets := setupMetrics(ctx)
 

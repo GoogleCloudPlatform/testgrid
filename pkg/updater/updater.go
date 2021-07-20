@@ -114,7 +114,7 @@ func (mets *Metrics) delay(dur time.Duration) {
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
+func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
 		if !tg.UseKubernetesClient {
 			log.Debug("Skipping non-kubernetes client group")
@@ -122,7 +122,7 @@ func GCS(groupTimeout, buildTimeout time.Duration, concurrency int, write bool, 
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
-		gcsColReader := gcsColumnReader(client, buildTimeout, concurrency)
+		gcsColReader := gcsColumnReader(colClient, buildTimeout, concurrency)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
 		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess)
 	}
@@ -195,13 +195,8 @@ func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldL
 	return more, nil
 }
 
-type testGroupClient interface {
-	gcs.Opener
-	gcs.Stater
-}
-
-func updateTestGroups(ctx context.Context, client testGroupClient, q *config.TestGroupQueue, configPath gcs.Path, gridPrefix string, groupNames []string, freq time.Duration) (int64, map[string]int64, error) {
-	r, attrs, err := client.Open(ctx, configPath)
+func updateTestGroups(ctx context.Context, opener gcs.Opener, stater gcs.Stater, q *config.TestGroupQueue, configPath gcs.Path, gridPrefix string, groupNames []string, freq time.Duration) (int64, map[string]int64, error) {
+	r, attrs, err := opener.Open(ctx, configPath)
 	if err != nil {
 		if !isPreconditionFailed(err) {
 			err = fmt.Errorf("read: %v", err)
@@ -239,9 +234,8 @@ func updateTestGroups(ctx context.Context, client testGroupClient, q *config.Tes
 		if err != nil {
 			return configGen, nil, err
 		}
-		attrs := gcs.Stat(ctx, client, 20, paths...)
+		attrs := gcs.Stat(ctx, stater, 20, paths...)
 		updates := make(map[string]time.Time, len(attrs))
-		now := time.Now()
 		for i, attrs := range attrs {
 			name := groups[i].Name
 			switch {
@@ -249,7 +243,6 @@ func updateTestGroups(ctx context.Context, client testGroupClient, q *config.Tes
 				updates[name] = attrs.Attrs.Updated.Add(freq)
 				generations[name] = attrs.Attrs.Generation
 			case attrs.Err == storage.ErrObjectNotExist:
-				updates[name] = now
 				generations[name] = 0
 			default:
 				// no change
@@ -274,7 +267,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	var q config.TestGroupQueue
 
 	log.Debug("Fetching testgroup metadata state...")
-	gen, generations, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, groupNames, freq)
+	gen, generations, err := updateTestGroups(ctx, client, client, &q, configPath, gridPrefix, groupNames, freq)
 	if err != nil {
 		return err
 	}
@@ -323,7 +316,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 
 	go func() {
 		cond := storage.Conditions{GenerationNotMatch: gen}
-		client := client.If(&cond, nil)
+		opener := client.If(&cond, &cond)
 		ticker := time.NewTicker(time.Minute)
 		for {
 			depth, next, when := q.Status()
@@ -344,10 +337,12 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				if gen, _, err := updateTestGroups(ctx, client, &q, configPath, gridPrefix, groupNames, freq); err != nil {
-					log.WithError(err).Error("Failed to update configuration")
-				} else {
+				gen, _, err := updateTestGroups(ctx, opener, client, &q, configPath, gridPrefix, groupNames, freq)
+				switch {
+				case err == nil:
 					cond.GenerationNotMatch = gen
+				case !isPreconditionFailed(err):
+					log.WithError(err).Error("Failed to update configuration")
 				}
 			}
 		}
