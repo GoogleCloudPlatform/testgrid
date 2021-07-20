@@ -22,7 +22,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"net/url"
-	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -1291,7 +1290,7 @@ func TestReadResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									XMLName: xml.Name{Local: "testsuite"},
@@ -1341,7 +1340,7 @@ func TestReadResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									XMLName: xml.Name{Local: "testsuite"},
@@ -1376,7 +1375,7 @@ func TestReadResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									XMLName: xml.Name{Local: "testsuite"},
@@ -1444,7 +1443,7 @@ func TestReadResult(t *testing.T) {
 				finished: gcs.Finished{
 					Finished: metadata.Finished{Passed: &yes},
 				},
-				malformed: []string{"junit_super_88.xml"},
+				malformed: []string{"junit_super_88.xml: open: injected open error"},
 			},
 		},
 	}
@@ -1540,7 +1539,7 @@ func TestReadSuites(t *testing.T) {
 			},
 			expected: []gcs.SuitesMeta{
 				{
-					Suites: junit.Suites{
+					Suites: &junit.Suites{
 						Suites: []junit.Suite{
 							{
 								XMLName: xml.Name{Local: "testsuite"},
@@ -1558,7 +1557,7 @@ func TestReadSuites(t *testing.T) {
 					Path: "gs://bucket/path/to/build/junit.xml",
 				},
 				{
-					Suites: junit.Suites{
+					Suites: &junit.Suites{
 						XMLName: xml.Name{Local: "testsuites"},
 						Suites: []junit.Suite{
 							{
@@ -1617,11 +1616,21 @@ func TestReadSuites(t *testing.T) {
 			err: true,
 		},
 		{
-			name: "suites error returns error",
+			name: "suites error contains error",
 			data: map[string]fakeObject{
 				"junit.xml": {Data: "<invalid></xml>"},
 			},
-			err: true,
+			expected: []gcs.SuitesMeta{
+				{
+					Metadata: map[string]string{
+						"Context":   "",
+						"Thread":    "",
+						"Timestamp": "",
+					},
+					Path: "gs://bucket/path/to/build/junit.xml",
+					Err:  errors.New("foo"),
+				},
+			},
 		},
 	}
 
@@ -1670,8 +1679,11 @@ func TestReadSuites(t *testing.T) {
 			case tc.err:
 				t.Error("readSuites(): failed to receive an error")
 			default:
-				if !reflect.DeepEqual(actual, tc.expected) {
-					t.Errorf("readSuites():\nhave %+v,\nwant %+v", actual, tc.expected)
+				cmpErrs := func(x, y error) bool {
+					return (x == nil) == (y == nil)
+				}
+				if diff := cmp.Diff(tc.expected, actual, cmp.Comparer(cmpErrs)); diff != "" {
+					t.Errorf("readSuites() got unexpected diff (-want +got):\n%s", diff)
 				}
 			}
 		})

@@ -26,7 +26,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/fvbommel/sortorder"
@@ -145,9 +144,8 @@ type Finished struct {
 
 // Build points to a build stored under a particular gcs prefix.
 type Build struct {
-	Path              Path
-	baseName          string
-	suitesConcurrency int // override the max number of concurrent suite downloads
+	Path     Path
+	baseName string
 }
 
 func (build Build) object() string {
@@ -402,17 +400,25 @@ func (build Build) Artifacts(ctx context.Context, lister Lister, artifacts chan<
 
 // SuitesMeta holds testsuites xml and metadata from the filename
 type SuitesMeta struct {
-	Suites   junit.Suites      // suites data extracted from file contents
+	Suites   *junit.Suites     // suites data extracted from file contents
 	Metadata map[string]string // metadata extracted from path name
 	Path     string
+	Err      error
 }
 
+const (
+	maxSize int64 = 100e6 // 100 million, coarce to int not float
+)
+
 func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, error) {
-	r, _, err := opener.Open(ctx, p)
+	r, attrs, err := opener.Open(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("open: %w", err)
 	}
 	defer r.Close()
+	if attrs != nil && attrs.Size > maxSize {
+		return nil, fmt.Errorf("too large: %d bytes > %d bytes max", attrs.Size, maxSize)
+	}
 	suitesMeta, err := junit.ParseStream(r)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
@@ -420,102 +426,46 @@ func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, erro
 	return suitesMeta, nil
 }
 
-// Error wraps an error in an associated Path.
-type Error struct {
-	Path
-	err error
-}
-
-// Unwrap the underlying error
-func (e Error) Unwrap() error {
-	return e.err
-}
-
-// Error satisfies the error interface type.
-func (e Error) Error() string {
-	return fmt.Sprintf("%s: %s", e.Path, e.err)
-}
-
-// Suites takes a channel of artifact names, parses those representing junit suites, writing the result to the suites channel.
+// Suites takes a channel of artifact names, parses those representing junit suites, sending the result to the suites channel.
 //
-// Note that junit suites are parsed in parallel, so there are no guarantees about suites ordering.
-func (build Build) Suites(parent context.Context, opener Opener, artifacts <-chan string, suites chan<- SuitesMeta) error {
-	var wg sync.WaitGroup
-	var work int
-
-	ec := make(chan error)
-	ctx, cancel := context.WithCancel(parent)
-
-	// semaphore sets a ceiling of size go-routines slots
-	size := build.suitesConcurrency
-	if size == 0 {
-		size = 5
-	}
-	semaphore := make(chan int, size)
-	defer close(semaphore) // close after all goroutines are done
-	defer wg.Wait()        // ensure all goroutines exit before returning
-	defer cancel()
-
-	for art := range artifacts {
+// Truncates xml results when set to a positive number of max bytes.
+func (build Build) Suites(ctx context.Context, opener Opener, artifacts <-chan string, suites chan<- SuitesMeta, max int) error {
+	for {
+		var art string
+		var more bool
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case art, more = <-artifacts:
+			if !more {
+				return nil
+			}
+		}
 		meta := parseSuitesMeta(art)
 		if meta == nil {
 			continue // not a junit file ignore it, ignore it
 		}
-		// concurrently parse each file because there may be a lot of them, and
-		// each takes a non-trivial amount of time waiting for the network.
-		work++
-		wg.Add(1)
-
-		go func(art string, meta map[string]string) {
-			semaphore <- 1 // wait for free slot
-			defer wg.Done()
-			defer func() { <-semaphore }() // free up slot
-			if art != "" && art[0] != '/' {
-				art = "/" + art
-			}
-			path, err := build.Path.ResolveReference(&url.URL{Path: art})
-			if err != nil {
-				select {
-				case <-ctx.Done():
-				case ec <- fmt.Errorf("resolve %q: %w", art, err):
-				}
-				return
-			}
-			out := SuitesMeta{
-				Metadata: meta,
-				Path:     path.String(),
-			}
-			s, err := readSuites(ctx, opener, *path)
-			if err != nil {
-				select {
-				case <-ctx.Done():
-				case ec <- fmt.Errorf("read %w", Error{*path, err}):
-				}
-				return
-			}
-			out.Suites = *s
-			select {
-			case <-ctx.Done():
-				return
-			case suites <- out:
-			}
-
-			select {
-			case <-ctx.Done():
-			case ec <- nil:
-			}
-		}(art, meta)
-	}
-
-	for ; work > 0; work-- {
+		if art != "" && art[0] != '/' {
+			art = "/" + art
+		}
+		path, err := build.Path.ResolveReference(&url.URL{Path: art})
+		if err != nil {
+			return fmt.Errorf("resolve %q: %v", art, err)
+		}
+		out := SuitesMeta{
+			Metadata: meta,
+			Path:     path.String(),
+		}
+		out.Suites, err = readSuites(ctx, opener, *path)
+		if err != nil {
+			out.Err = err
+		} else {
+			out.Suites.Truncate(max)
+		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout: %w", ctx.Err())
-		case err := <-ec:
-			if err != nil {
-				return err
-			}
+			return ctx.Err()
+		case suites <- out:
 		}
 	}
-	return nil
 }

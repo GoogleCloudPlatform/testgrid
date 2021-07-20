@@ -510,7 +510,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Name: "this",
@@ -573,7 +573,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Name: "this",
@@ -625,7 +625,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Name: "this",
@@ -676,7 +676,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -801,7 +801,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -972,7 +972,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1057,7 +1057,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1080,7 +1080,7 @@ func TestConvertResult(t *testing.T) {
 						},
 					},
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1145,7 +1145,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1166,7 +1166,7 @@ func TestConvertResult(t *testing.T) {
 						},
 					},
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1223,7 +1223,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1244,7 +1244,7 @@ func TestConvertResult(t *testing.T) {
 						},
 					},
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: []junit.Result{
@@ -1306,7 +1306,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Results: func() []junit.Result {
@@ -1515,7 +1515,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				suites: []gcs.SuitesMeta{
 					{
-						Suites: junit.Suites{
+						Suites: &junit.Suites{
 							Suites: []junit.Suite{
 								{
 									Name: "this",
