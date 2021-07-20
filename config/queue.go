@@ -74,6 +74,10 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 			}
 			heap.Push(&q.queue, it)
 			items[name] = it
+			logrus.WithFields(logrus.Fields{
+				"when":  when,
+				"group": name,
+			}).Info("Adding group to queue")
 		} else {
 			it.tg = tg
 		}
@@ -83,6 +87,7 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 		if found.Contains(name) {
 			continue
 		}
+		logrus.WithField("group", name).Info("Removing group from queue")
 		heap.Remove(&q.queue, it.index)
 		delete(q.items, name)
 	}
@@ -101,6 +106,10 @@ func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
 			missing = append(missing, name)
 			continue
 		}
+		logrus.WithFields(logrus.Fields{
+			"group": name,
+			"when":  when,
+		}).Info("Fixed group")
 		it.when = when
 	}
 	heap.Init(&q.queue)
@@ -122,6 +131,10 @@ func (q *TestGroupQueue) Fix(name string, when time.Time) error {
 	}
 	it.when = when
 	heap.Fix(&q.queue, it.index)
+	logrus.WithFields(logrus.Fields{
+		"group": name,
+		"when":  when,
+	}).Info("Fixed group")
 	return nil
 }
 
