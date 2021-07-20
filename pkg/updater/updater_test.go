@@ -76,7 +76,7 @@ func TestGCS(t *testing.T) {
 			// either because the context is canceled or things like client are unset)
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			updater := GCS(0, 0, 0, false, SortStarted)
+			updater := GCS(nil, 0, 0, 0, false, SortStarted)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tc.fail {
@@ -316,7 +316,7 @@ func TestUpdate(t *testing.T) {
 				client.Lister[buildsPath] = fi
 			}
 
-			groupUpdater := GCS(*tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
+			groupUpdater := GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
 			mets := &Metrics{
 				Successes:    &fakeCounter{},
 				Errors:       &fakeCounter{},

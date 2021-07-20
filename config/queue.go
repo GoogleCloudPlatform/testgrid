@@ -111,8 +111,8 @@ func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
 				"group": name,
 				"when":  when,
 			}).Info("Fixing groups")
+			it.when = when
 		}
-		it.when = when
 	}
 	heap.Init(&q.queue)
 	if len(missing) > 0 {
@@ -136,9 +136,9 @@ func (q *TestGroupQueue) Fix(name string, when time.Time) error {
 			"group": name,
 			"when":  when,
 		}).Info("Fixed group")
+		it.when = when
+		heap.Fix(&q.queue, it.index)
 	}
-	it.when = when
-	heap.Fix(&q.queue, it.index)
 	return nil
 }
 
