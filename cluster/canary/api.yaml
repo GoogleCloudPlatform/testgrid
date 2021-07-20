@@ -42,6 +42,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: api
+  namespace: testgrid-canary
 spec:
   selector:
     app: api
