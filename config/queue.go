@@ -106,10 +106,12 @@ func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
 			missing = append(missing, name)
 			continue
 		}
-		logrus.WithFields(logrus.Fields{
-			"group": name,
-			"when":  when,
-		}).Info("Fixed group")
+		if !when.Equal(it.when) {
+			logrus.WithFields(logrus.Fields{
+				"group": name,
+				"when":  when,
+			}).Info("Fixing groups")
+		}
 		it.when = when
 	}
 	heap.Init(&q.queue)
@@ -129,12 +131,14 @@ func (q *TestGroupQueue) Fix(name string, when time.Time) error {
 	if !ok {
 		return errors.New("not found")
 	}
+	if !when.Equal(it.when) {
+		logrus.WithFields(logrus.Fields{
+			"group": name,
+			"when":  when,
+		}).Info("Fixed group")
+	}
 	it.when = when
 	heap.Fix(&q.queue, it.index)
-	logrus.WithFields(logrus.Fields{
-		"group": name,
-		"when":  when,
-	}).Info("Fixed group")
 	return nil
 }
 
