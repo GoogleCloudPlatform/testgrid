@@ -17,6 +17,7 @@ limitations under the License.
 package gcs
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -51,32 +52,32 @@ func TestSort(t *testing.T) {
 			name: "stable", // already sorted elements do not move
 			builds: []Build{
 				{
-					baseName:          "c",
-					suitesConcurrency: 7,
+					Path:     Path{url: url.URL{Host: "foo"}},
+					baseName: "c",
 				},
 				{
-					baseName:          "c",
-					suitesConcurrency: 1,
+					Path:     Path{url: url.URL{Host: "bar"}},
+					baseName: "c",
 				},
 				{
-					baseName:          "c",
-					suitesConcurrency: 5,
+					Path:     Path{url: url.URL{Path: "other"}},
+					baseName: "c",
 				},
 				{baseName: "a"},
 				{baseName: "b"},
 			},
 			want: []Build{
 				{
-					baseName:          "c",
-					suitesConcurrency: 7,
+					Path:     Path{url: url.URL{Host: "foo"}},
+					baseName: "c",
 				},
 				{
-					baseName:          "c",
-					suitesConcurrency: 1,
+					Path:     Path{url: url.URL{Host: "bar"}},
+					baseName: "c",
 				},
 				{
-					baseName:          "c",
-					suitesConcurrency: 5,
+					Path:     Path{url: url.URL{Path: "other"}},
+					baseName: "c",
 				},
 				{baseName: "b"},
 				{baseName: "a"},

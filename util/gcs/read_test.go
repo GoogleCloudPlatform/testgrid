@@ -1114,6 +1114,37 @@ func TestReadSuites(t *testing.T) {
 			},
 		},
 		{
+			name: "reject large artifacts",
+			opener: fakeOpener{
+				path: {
+					data:  `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`,
+					attrs: &storage.ReaderObjectAttrs{Size: maxSize + 1},
+				},
+			},
+		},
+		{
+			name: "read max size",
+			opener: fakeOpener{
+				path: {
+					data:  `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`,
+					attrs: &storage.ReaderObjectAttrs{Size: maxSize},
+				},
+			},
+			expected: &junit.Suites{
+				XMLName: xml.Name{Local: "testsuites"},
+				Suites: []junit.Suite{
+					{
+						XMLName: xml.Name{Local: "testsuite"},
+						Results: []junit.Result{
+							{
+								Name: "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "read error returns error",
 			opener: fakeOpener{
 				path: {
@@ -1235,15 +1266,14 @@ func TestArtifacts(t *testing.T) {
 
 func TestSuites(t *testing.T) {
 	cases := []struct {
-		name        string
-		ctx         context.Context
-		path        Path
-		artifacts   map[string]string
-		concurrency int
+		name      string
+		ctx       context.Context
+		path      Path
+		artifacts map[string]string
+		max       int
 
-		expected      []SuitesMeta
-		err           bool
-		expectedError *Error
+		expected []SuitesMeta
+		err      bool
 	}{
 		{
 			name: "basically works",
@@ -1264,7 +1294,7 @@ func TestSuites(t *testing.T) {
 			},
 			expected: []SuitesMeta{
 				{
-					Suites: junit.Suites{
+					Suites: &junit.Suites{
 						XMLName: xml.Name{Local: "testsuites"},
 						Suites: []junit.Suite{
 							{
@@ -1283,45 +1313,6 @@ func TestSuites(t *testing.T) {
 			},
 		},
 		{
-			name:        "support testsuite with minimal concurrency",
-			concurrency: 1,
-			path:        newPathOrDie("gs://where/whatever"),
-			artifacts: func() map[string]string {
-				out := map[string]string{}
-				for i := 0; i < 3; i++ {
-					out[fmt.Sprintf("/something/junit_%d.xml", i)] = `<testsuites><testsuite><testcase name="foo"/></testsuite></testsuites>`
-				}
-				return out
-			}(),
-			expected: func() []SuitesMeta {
-				templ := SuitesMeta{
-					Suites: junit.Suites{
-						XMLName: xml.Name{Local: "testsuites"},
-						Suites: []junit.Suite{
-							{
-								XMLName: xml.Name{Local: "testsuite"},
-								Results: []junit.Result{
-									{
-										Name: "foo",
-									},
-								},
-							},
-						},
-					},
-					Metadata: parseSuitesMeta("/something/junit.xml"),
-					Path:     "gs://where/something/junit.xml",
-				}
-				var out []SuitesMeta
-				for i := 0; i < 3; i++ {
-					name := fmt.Sprintf("/something/junit_%d.xml", i)
-					templ.Metadata = parseSuitesMeta(name)
-					templ.Path = "gs://where" + name
-					out = append(out, templ)
-				}
-				return out
-			}(),
-		},
-		{
 			name: "support testsuites",
 			path: newPathOrDie("gs://where/whatever"),
 			artifacts: map[string]string{
@@ -1329,7 +1320,7 @@ func TestSuites(t *testing.T) {
 			},
 			expected: []SuitesMeta{
 				{
-					Suites: junit.Suites{
+					Suites: &junit.Suites{
 						Suites: []junit.Suite{
 							{
 								XMLName: xml.Name{Local: "testsuite"},
@@ -1355,7 +1346,7 @@ func TestSuites(t *testing.T) {
 			},
 			expected: []SuitesMeta{
 				{
-					Suites: junit.Suites{
+					Suites: &junit.Suites{
 						Suites: []junit.Suite{
 							{
 								XMLName: xml.Name{Local: "testsuite"},
@@ -1371,7 +1362,7 @@ func TestSuites(t *testing.T) {
 					Path:     "gs://where/something/junit_foo-context_20200708-1234_88.xml",
 				},
 				{
-					Suites: junit.Suites{
+					Suites: &junit.Suites{
 						Suites: []junit.Suite{
 							{
 								XMLName: xml.Name{Local: "testsuite"},
@@ -1389,13 +1380,18 @@ func TestSuites(t *testing.T) {
 			},
 		},
 		{
-			name: "read suites error returns errors",
+			name: "read suites error contains error",
 			path: newPathOrDie("gs://where/whatever"),
 			artifacts: map[string]string{
 				"something/junit.xml": `<this is invalid json`,
 			},
-			err:           true,
-			expectedError: &Error{Path: newPathOrDie("gs://where/something/junit.xml")},
+			expected: []SuitesMeta{
+				{
+					Metadata: parseSuitesMeta("something/junit.xml"),
+					Err:      errors.New("boom"),
+					Path:     "gs://where/something/junit.xml",
+				},
+			},
 		},
 		{
 			name: "interrupted context returns error",
@@ -1415,10 +1411,7 @@ func TestSuites(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fo := fakeOpener{}
-			b := Build{
-				Path:              tc.path,
-				suitesConcurrency: tc.concurrency,
-			}
+			b := Build{Path: tc.path}
 			for s, data := range tc.artifacts {
 				fo[resolveOrDie(b.Path, s)] = fakeObject{data: data}
 			}
@@ -1451,7 +1444,7 @@ func TestSuites(t *testing.T) {
 				}
 			}()
 
-			err := b.Suites(tc.ctx, fo, arts, suites)
+			err := b.Suites(tc.ctx, fo, arts, suites, tc.max)
 			close(suites)
 			lock.Lock() // ensure actual is up to date
 			defer lock.Unlock()
@@ -1467,20 +1460,14 @@ func TestSuites(t *testing.T) {
 				if !tc.err {
 					t.Errorf("Suites() unexpected error: %v", err)
 				}
-				if tc.expectedError != nil {
-					var e Error
-					if !errors.As(err, &e) {
-						t.Fatalf("Suites() failed to return an Error, got %v", err)
-					}
-					if actual, expected := e.Path, tc.expectedError.Path; !reflect.DeepEqual(actual, expected) {
-						t.Errorf("Suites() Error paths do not match expected %v, got %v", expected, actual)
-					}
-				}
 			case tc.err:
 				t.Errorf("Suites() failed to receive expected error")
 			default:
-				if !reflect.DeepEqual(actual, tc.expected) {
-					t.Errorf("Suites() got %#v, want %#v", actual, tc.expected)
+				cmpErrs := func(x, y error) bool {
+					return (x == nil) == (y == nil)
+				}
+				if diff := cmp.Diff(tc.expected, actual, cmp.Comparer(cmpErrs)); diff != "" {
+					t.Errorf("Suites() got unexpectec diff (-want +got):\n%s", diff)
 				}
 			}
 		})

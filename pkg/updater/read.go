@@ -301,10 +301,10 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build, 
 	ec := make(chan error) // Receives errors from anyone
 
 	var lock sync.Mutex
-	addMalformed := func(s string) {
+	addMalformed := func(s ...string) {
 		lock.Lock()
 		defer lock.Unlock()
-		result.malformed = append(result.malformed, s)
+		result.malformed = append(result.malformed, s...)
 	}
 
 	var work int
@@ -371,16 +371,21 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build, 
 	// Download suites
 	work++
 	go func() {
-		var err error
-		result.suites, err = readSuites(ctx, client, build)
-		var gcsError gcs.Error
-		switch {
-		case errors.As(err, &gcsError):
-			s := strings.TrimPrefix(gcsError.Path.String(), build.Path.String())
-			addMalformed(s)
-			err = nil
-		case err != nil:
+		suites, err := readSuites(ctx, client, build)
+		if err != nil {
 			err = fmt.Errorf("suites: %w", err)
+		}
+		var problems []string
+		for _, s := range suites {
+			if s.Err != nil {
+				p := strings.TrimPrefix(s.Path, build.Path.String())
+				problems = append(problems, fmt.Sprintf("%s: %s", p, s.Err))
+			} else {
+				result.suites = append(result.suites, s)
+			}
+		}
+		if len(problems) > 0 {
+			addMalformed(problems...)
 		}
 
 		select {
@@ -407,68 +412,53 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build, 
 
 // readSuites asynchrounously lists and downloads junit.xml files
 func readSuites(parent context.Context, client gcs.Downloader, build gcs.Build) ([]gcs.SuitesMeta, error) {
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	var work int
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	ec := make(chan error)
-	// List artifacts to the artifacts channel
-	artifacts := make(chan string) // Receives names of arifacts
-	work++
-	wg.Add(1)
+
+	// List
+	artifacts := make(chan string, 1)
 	go func() {
-		defer wg.Done()
 		defer close(artifacts) // No more artifacts
-		err := build.Artifacts(ctx, client, artifacts)
-		if err != nil {
-			err = fmt.Errorf("list: %w", err)
-		}
-		select {
-		case ec <- err:
-		case <-ctx.Done():
+		if err := build.Artifacts(ctx, client, artifacts); err != nil {
+			select {
+			case <-ctx.Done():
+			case ec <- fmt.Errorf("list: %w", err):
+			}
 		}
 	}()
 
-	// Download each artifact
-	// With parallelism: 60s without: 220s
-	suitesChan := make(chan gcs.SuitesMeta)
-	work++
-	wg.Add(1)
+	// Download
+	suitesChan := make(chan gcs.SuitesMeta, 1)
 	go func() {
-		defer wg.Done()
 		defer close(suitesChan) // No more rows
-		err := build.Suites(ctx, client, artifacts, suitesChan)
-		if err != nil {
-			err = fmt.Errorf("download: %w", err)
-		}
-
-		select {
-		case ec <- err:
-		case <-ctx.Done():
+		const max = 1000
+		if err := build.Suites(ctx, client, artifacts, suitesChan, max); err != nil {
+			select {
+			case <-ctx.Done():
+			case ec <- fmt.Errorf("download: %w", err):
+			}
 		}
 	}()
 
+	// Append
 	var suites []gcs.SuitesMeta
-	for work > 0 {
-		// Add each downloaded artifact to the returned list.
-
-		// Abort if we get an expired context and/or an error.
-		// Otherwise keep going until the channel closes
+	go func() {
+		for suite := range suitesChan {
+			suites = append(suites, suite)
+		}
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout: %w", ctx.Err())
-		case err := <-ec:
-			if err != nil {
-				return nil, err // already wrapped.
-			}
-			work--
-		case suite, more := <-suitesChan:
-			if !more {
-				return suites, nil
-			}
-			suite.Suites.Truncate(1000)
-			suites = append(suites, suite)
+		case ec <- nil:
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case err := <-ec:
+		if err != nil {
+			return nil, err
 		}
 	}
 	return suites, nil
