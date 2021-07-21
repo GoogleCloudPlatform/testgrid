@@ -63,14 +63,15 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 		}
 		log.WithField("total", len(builds)).Debug("Listed builds")
 
-		return readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers)
+		readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers)
+		return nil
 	}
 }
 
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn) error {
+func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn) {
 	if len(builds) == 0 {
-		return nil
+		return
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -81,9 +82,6 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 	for _, h := range group.ColumnHeader {
 		heads = append(heads, h.ConfigurationValue)
 	}
-
-	var good bool
-	bad := make([]string, 0, 11)
 
 	// TODO(fejta): restore inter-build concurrency
 	var failures int // since last good column
@@ -99,15 +97,6 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 		id := path.Base(b.Path.Object())
 		var col InflatedColumn
 		if err != nil {
-			switch len(bad) {
-			case 10:
-				bad[9] = "..."
-				bad = append(bad, id)
-			case 11:
-				bad[10] = id
-			default:
-				bad = append(bad, id)
-			}
 			failures++
 			log.WithError(err).Trace("Failed to read build")
 			if extra == nil {
@@ -124,25 +113,16 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 			col = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
 			log.WithField("rows", len(col.Cells)).Debug("Read result")
 			failures = 0
-			good = true
 			extra = col.Column.Extra
 			started = col.Column.Started
 		}
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		case receivers <- col:
 		}
 	}
-
-	switch {
-	case !good && len(bad) == 0:
-		log.WithField("prefix", "gs://"+group.GcsPrefix).Trace("No recent builds")
-	case !good:
-		return fmt.Errorf("%d builds failed: %v", len(bad), bad)
-	}
-	return nil
 }
 
 func ancientColumn(id string, when float64, extra []string) InflatedColumn {

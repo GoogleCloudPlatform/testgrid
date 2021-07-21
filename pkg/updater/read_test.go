@@ -788,7 +788,6 @@ func TestReadColumns(t *testing.T) {
 				cancel()
 				return ctx
 			}(),
-			err: true,
 		},
 		{
 			name: "some errors",
@@ -954,7 +953,10 @@ func TestReadColumns(t *testing.T) {
 			group: configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
-			err: true,
+			expected: []InflatedColumn{
+				erroredColumn("10-a-err", 0.01, nil, "Failed to download gs://bucket/path/to/build/10-a-err/: started: read: decode: fake read 10-a-err"),
+				erroredColumn("10-b-err", 0.02, nil, "Failed to download gs://bucket/path/to/build/10-b-err/: started: read: open: fake open 10-b-err"),
+			},
 		},
 	}
 
@@ -997,21 +999,12 @@ func TestReadColumns(t *testing.T) {
 
 			}()
 
-			err := readColumns(ctx, client, logrus.WithField("name", tc.name), &tc.group, builds, tc.stop, tc.dur, ch)
+			readColumns(ctx, client, logrus.WithField("name", tc.name), &tc.group, builds, tc.stop, tc.dur, ch)
 			close(ch)
 			wg.Wait()
 
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("readColumns(): unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Error("readColumns(): failed to receive an error")
-			default:
-				if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
-					t.Errorf("readColumns() got unexpected diff (-want +got):\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("readColumns() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
