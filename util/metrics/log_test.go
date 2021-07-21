@@ -243,3 +243,81 @@ func TestCounterAdd(t *testing.T) {
 		})
 	}
 }
+
+func TestMean(t *testing.T) {
+	cases := []struct {
+		name string
+		m    mean
+		want string
+	}{
+		{
+			name: "basic",
+			want: "0 values",
+		},
+		{
+			name: "single",
+			m:    mean{values: []int64{7}},
+			want: "7",
+		},
+		{
+			name: "average",
+			m:    mean{values: []int64{7, 8, 9}},
+			want: "8 average (3 values)",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.m.String(); got != tc.want {
+				t.Errorf("mean.String() got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestQPS(t *testing.T) {
+	cases := []struct {
+		name string
+		g    gauge
+		want string
+	}{
+		{
+			name: "instant",
+			g: gauge{
+				delta: 100,
+			},
+			want: "0 per second",
+		},
+		{
+			name: "constant",
+			g: gauge{
+				dur: 5 * time.Second,
+			},
+			want: "0 per second",
+		},
+		{
+			name: "slow",
+			g: gauge{
+				delta: 1,
+				dur:   5*time.Second + 200*time.Millisecond,
+			},
+			want: "once per 5.2s",
+		},
+		{
+			name: "fast",
+			g: gauge{
+				delta: 100,
+				dur:   5 * time.Second,
+			},
+			want: "20.00 per second",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.g.qps(); got != tc.want {
+				t.Errorf("gauge.qps() got %q want %q", got, tc.want)
+			}
+		})
+	}
+}

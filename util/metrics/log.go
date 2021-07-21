@@ -168,8 +168,11 @@ type mean struct {
 
 func (m mean) String() string {
 	tot := len(m.values)
-	if tot == 0 {
+	switch tot {
+	case 0:
 		return "0 values"
+	case 1:
+		return strconv.FormatInt(m.values[0], 10)
 	}
 	var val float64
 	n := float64(tot)
@@ -240,16 +243,20 @@ type gauge struct {
 }
 
 func (g gauge) qps() string {
-	qps := float64(g.delta) / g.dur.Seconds()
+	s := g.dur.Seconds()
+	if s == 0 {
+		return "0 per second"
+	}
+	qps := float64(g.delta) / s
 	if qps == 0 {
 		return "0 per second"
 	}
-	if qps < 0.5 {
+	if qps > 0.5 {
 		return fmt.Sprintf("%.2f per second", qps)
 	}
-	seconds := time.Second / time.Duration(qps)
+	seconds := time.Duration(1 / qps * float64(time.Second))
 	seconds = seconds.Round(time.Millisecond)
-	return fmt.Sprintf("once per %s seconds", seconds)
+	return fmt.Sprintf("once per %s", seconds)
 }
 
 func (g gauge) String() string {
