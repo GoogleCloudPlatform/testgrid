@@ -368,18 +368,9 @@ func testGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) 
 	return np, nil
 }
 
-// AllowMultiplePaths enables combining multiple jobs together using a comma.
-//
-// This feature is undocumented and poorly tested, so restrict to specific groups.
-// TODO(fejta): redesign this feature (using symlinks?), ensure it works correctly.
-var AllowMultiplePaths = map[string]bool{}
-
 func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 	var out []gcs.Path
 	prefixes := strings.Split(tg.GcsPrefix, ",")
-	if len(prefixes) > 1 && !AllowMultiplePaths[tg.Name] {
-		return nil, fmt.Errorf("Maximum of one GCS path allowed")
-	}
 	for idx, prefix := range prefixes {
 		prefix := strings.TrimSpace(prefix)
 		if prefix == "" {
