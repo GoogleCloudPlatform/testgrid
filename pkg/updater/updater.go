@@ -575,7 +575,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		log.Debug("Writing grid...")
 		// TODO(fejta): configurable cache value
 		if _, err := client.Upload(ctx, gridPath, buf, gcs.DefaultACL, "no-cache"); err != nil {
-			return false, fmt.Errorf("upload: %w", err)
+			return false, fmt.Errorf("upload %d bytes: %w", len(buf), err)
 		}
 	}
 	log.WithFields(logrus.Fields{
