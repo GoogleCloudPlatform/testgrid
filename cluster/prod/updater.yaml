@@ -22,7 +22,7 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20210721-v0.0.80-4-g6e00166
+        image: gcr.io/k8s-testgrid/updater:v20210723-v0.0.82-2-g1da93b3
         args:
         - --build-timeout=2m
         - --build-concurrency=2
