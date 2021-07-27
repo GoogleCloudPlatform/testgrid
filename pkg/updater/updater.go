@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
@@ -298,8 +299,9 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				}
 				unprocessed, err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin)
 				if err != nil {
-					log.WithError(err).Error("Error updating group")
-					q.Fix(tg.Name, time.Now().Add(freq/2))
+					delay := freq/4 + time.Duration(rand.Int63n(int64(freq/4)))
+					log.WithError(err).WithField("delay", delay).Error("Error updating group")
+					q.Fix(tg.Name, time.Now().Add(delay))
 					continue
 				}
 				if unprocessed { // process another chunk ASAP
@@ -469,7 +471,8 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 }
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
+func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
+	log := alog.(logrus.Ext1FieldLogger) // Add trace method
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -485,6 +488,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	var oldCols []InflatedColumn
 	var issues map[string][]string
 
+	log.Trace("Downloading existing grid...")
 	// TODO(fejta): track metadata
 	old, _, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
@@ -492,6 +496,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	}
 	if old != nil {
 		var cols []InflatedColumn
+		log.Trace("Inflating grid...")
 		cols, issues = InflateGrid(old, stop, time.Now().Add(-reprocess))
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
@@ -500,6 +505,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 	newCols := make(chan InflatedColumn, 1)
 	ec := make(chan error)
 
+	log.Trace("Reading first column...")
 	go func() {
 		err := readCols(ctx, log, tg, oldCols, stop, newCols)
 		select {
@@ -524,6 +530,7 @@ func InflateDropAppend(ctx context.Context, log logrus.FieldLogger, client gcs.C
 		more = false
 	}
 
+	log.Trace("Reading additional columns...")
 	var unreadColumns bool
 	if more {
 		// Read as many additional columns as we can within the allocated time.
