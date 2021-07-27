@@ -1451,9 +1451,9 @@ func TestInflateDropAppend(t *testing.T) {
 							Extra:   []string{""},
 						},
 						{
-							Build:   "at boundary",
+							Build:   "near boundary",
 							Hint:    "1 should disappear",
-							Started: float64(now-9) * 1000,
+							Started: float64(now-7) * 1000, // allow for 2s of clock drift
 							Extra:   []string{""},
 						},
 						{
