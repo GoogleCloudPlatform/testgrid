@@ -993,6 +993,7 @@ func TestReadColumns(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				time.Sleep(10 * time.Millisecond) // Give time for context to expire
 				for col := range ch {
 					actual = append(actual, col)
 				}

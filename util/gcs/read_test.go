@@ -29,14 +29,14 @@ import (
 	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/testgrid/metadata"
+	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/iterator"
 	core "k8s.io/api/core/v1"
-
-	"github.com/GoogleCloudPlatform/testgrid/metadata"
-	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
 )
 
 func podCondition(who core.PodConditionType, what core.ConditionStatus, why string) core.PodCondition {
@@ -1439,6 +1439,7 @@ func TestSuites(t *testing.T) {
 			lock.Lock()
 			go func() {
 				defer lock.Unlock()
+				time.Sleep(10 * time.Millisecond) // Allow time for ctx to expire
 				for sm := range suites {
 					actual = append(actual, sm)
 				}

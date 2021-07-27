@@ -213,7 +213,7 @@ type Opener map[gcs.Path]Object
 func (fo Opener) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
 	o, ok := fo[path]
 	if !ok {
-		return nil, nil, fmt.Errorf("wrap not exist: %w", storage.ErrObjectNotExist)
+		return nil, nil, storage.ErrObjectNotExist
 	}
 	if o.OpenErr != nil {
 		return nil, nil, o.OpenErr
