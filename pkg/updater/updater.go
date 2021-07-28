@@ -476,6 +476,17 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// Grace period to read additional column.
+	var grace context.Context
+	if deadline, present := ctx.Deadline(); present {
+		var cancel context.CancelFunc
+		dur := time.Until(deadline) / 2
+		grace, cancel = context.WithTimeout(context.Background(), dur)
+		defer cancel()
+	} else {
+		grace = context.Background()
+	}
+
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -530,20 +541,10 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		more = false
 	}
 
+	// Read as many additional columns as we can within the allocated time.
 	log.Trace("Reading additional columns...")
 	var unreadColumns bool
 	if more {
-		// Read as many additional columns as we can within the allocated time.
-		var grace context.Context
-		if deadline, present := ctx.Deadline(); present {
-			var cancel context.CancelFunc
-			dur := time.Until(deadline) / 2
-			grace, cancel = context.WithTimeout(context.Background(), dur)
-			defer cancel()
-		} else {
-			grace = context.Background()
-		}
-
 		for more {
 			select {
 			case <-grace.Done():
