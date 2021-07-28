@@ -25,6 +25,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
@@ -258,8 +259,8 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 		return multierror.Append(mErr, errors.New("got an empty TestGroup"))
 	}
 	// Check that required fields are a non-zero-value.
-	if tg.GetGcsPrefix() == "" {
-		mErr = multierror.Append(mErr, errors.New("gcs_prefix can't be empty"))
+	if tg.GetGcsPrefix() == "" && tg.GetResultSource() == nil {
+		mErr = multierror.Append(mErr, errors.New("require one of gcs_prefix or result_source"))
 	}
 	if tg.GetDaysOfResults() <= 0 {
 		mErr = multierror.Append(mErr, errors.New("days_of_results should be positive"))
@@ -308,7 +309,7 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 		if annotation.GetPropertyName() == "" {
 			mErr = multierror.Append(mErr, errors.New("property_name is required"))
 		}
-		if annotation.GetShortText() == "" || len(annotation.GetShortText()) >= 5 {
+		if annotation.GetShortText() == "" || utf8.RuneCountInString(annotation.GetShortText()) > 5 {
 			mErr = multierror.Append(mErr, errors.New("short_text must be 1-5 characters long"))
 		}
 	}
@@ -391,10 +392,16 @@ func validateDashboardTab(dt *configpb.DashboardTab) error {
 				mErr,
 				fmt.Errorf("invalid regex %s: %v", dt.GetTabularNamesRegex(), err))
 		} else {
-			if regex.NumSubexp() != len(regex.SubexpNames()) {
-				mErr = multierror.Append(mErr, errors.New("all tabular_name_regex capture groups must be named"))
+			var names []string
+			for _, subexpName := range regex.SubexpNames() {
+				if subexpName != "" {
+					names = append(names, subexpName)
+				}
 			}
-			if len(regex.SubexpNames()) < 1 {
+			if regex.NumSubexp() != len(names) {
+				mErr = multierror.Append(mErr, fmt.Errorf("all tabular_name_regex capture groups must be named"))
+			}
+			if len(names) < 1 {
 				mErr = multierror.Append(mErr, errors.New("tabular_name_regex requires at least one capture group"))
 			}
 		}

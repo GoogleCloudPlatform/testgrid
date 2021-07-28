@@ -821,49 +821,71 @@ func TestValidateDashboardTab(t *testing.T) {
 	tests := []struct {
 		name string
 		tab  *configpb.DashboardTab
-		pass bool
+		err  bool
 	}{
 		{
 			name: "nil DashboardTab fails",
 			tab:  nil,
-			pass: false,
+			err:  true,
 		},
 		{
-			name: "Dashboard Tabs must specify a Test Group Name",
+			name: "tab, missing test group",
 			tab: &configpb.DashboardTab{
 				Name: "tabby",
 			},
+			err: true,
 		},
 		{
-			name: "Dashboard Tabs must specify a Test Group Name",
+			name: "tab, has test group",
 			tab: &configpb.DashboardTab{
-				Name:          "Summary",
+				Name:          "tabby",
 				TestGroupName: "test_group_1",
 			},
 		},
 		{
-			name: "Tabular Names Regex must compile",
+			name: "tabular names basically works",
 			tab: &configpb.DashboardTab{
 				Name:              "tabby",
 				TestGroupName:     "test_group_1",
-				TabularNamesRegex: "([1!]",
+				TabularNamesRegex: `(?P<hello>\d+).*(?P<hi>\d+)`,
 			},
 		},
 		{
-			name: "Tabular Names Regex must have at least one capture group",
+			name: "tabular names, invalid compile",
 			tab: &configpb.DashboardTab{
 				Name:              "tabby",
 				TestGroupName:     "test_group_1",
-				TabularNamesRegex: ".*",
+				TabularNamesRegex: `([1!]`,
 			},
+			err: true,
+		},
+		{
+			name: "tabular names, 0 capture groups",
+			tab: &configpb.DashboardTab{
+				Name:              "tabby",
+				TestGroupName:     "test_group_1",
+				TabularNamesRegex: `.*`,
+			},
+			err: true,
+		},
+		{
+			name: "tabular names, unnamed capture groups",
+			tab: &configpb.DashboardTab{
+				Name:              "tabby",
+				TestGroupName:     "test_group_1",
+				TabularNamesRegex: `(\d+).*(\d+)`,
+			},
+			err: true,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := validateDashboardTab(test.tab)
-			pass := err == nil
-			if pass != test.pass {
-				t.Fatalf("Invalid dashboard tab config: %v", err)
+			if err == nil && test.err {
+				t.Fatalf("Did not get expected error")
+			}
+			if err != nil && !test.err {
+				t.Fatalf("Got unexpected error: %v", err)
 			}
 		})
 	}
