@@ -43,6 +43,8 @@ case "${1:-}" in
   exit 1
 esac
 
+bazel=$(command -v bazelisk 2>/dev/null || command -v bazel)
+
 # See https://misc.flogisoft.com/bash/tip_colors_and_formatting
 
 color-green() { # Green
@@ -78,6 +80,7 @@ restore-context() {
   fi
 }
 trap restore-context EXIT
+ensure-context k8s-testgrid us-central1 auto
 ensure-context k8s-testgrid us-central1-a k8s-testgrid
 echo " $(color-green done), Deploying testgrid..."
 for s in {5..1}; do
@@ -89,5 +92,5 @@ if [[ "$#" == 0 ]]; then
 else
   WHAT=("$@")
 fi
-bazel run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 "${WHAT[@]}"
+"$bazel" run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 "${WHAT[@]}"
 echo "$(color-green SUCCESS)"
