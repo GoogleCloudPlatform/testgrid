@@ -786,6 +786,7 @@ func TestReadColumns(t *testing.T) {
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
+				ctx.Err()
 				return ctx
 			}(),
 		},
@@ -967,6 +968,7 @@ func TestReadColumns(t *testing.T) {
 				tc.ctx = context.Background()
 			}
 			ctx, cancel := context.WithCancel(tc.ctx)
+			ctx.Err()
 			defer cancel()
 			client := fakeClient{
 				Lister: fake.Lister{},

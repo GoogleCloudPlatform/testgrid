@@ -74,9 +74,6 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 		return
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel() // do not leak go routines
-
 	nameCfg := makeNameConfig(group)
 	var heads []string
 	for _, h := range group.ColumnHeader {
