@@ -23,6 +23,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"cloud.google.com/go/storage"
 	v1 "github.com/GoogleCloudPlatform/testgrid/pkg/api/v1"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
@@ -36,11 +37,14 @@ type RouterOptions struct {
 
 // GetRouter returns an http router that serves TestGrid's API
 // It also instantiates necessary caching and i/o objects
-func GetRouter(options RouterOptions) (*mux.Router, error) {
+func GetRouter(options RouterOptions, storageClient *storage.Client) (*mux.Router, error) {
 	r := mux.NewRouter()
-	storageClient, err := gcs.ClientWithCreds(context.Background(), options.GcsCredentials)
-	if err != nil {
-		return nil, err
+	if storageClient == nil {
+		sc, err := gcs.ClientWithCreds(context.Background(), options.GcsCredentials)
+		if err != nil {
+			return nil, err
+		}
+		storageClient = sc
 	}
 
 	const v1Infix = "/api/v1"
