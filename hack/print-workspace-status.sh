@@ -24,6 +24,7 @@ docker_tag="v${build_date}-${git_commit}"
 cat <<EOF
 STABLE_TESTGRID_REPO ${TESTGRID_REPO_OVERRIDE:-gcr.io/k8s-testgrid}
 STABLE_TESTGRID_CLUSTER ${TESTGRID_CLUSTER_OVERRIDE:-gke_k8s-testgrid_us-central1-a_k8s-testgrid}
+STABLE_TESTGRID_AUTO_CLUSTER ${TESTGRID_AUTO_CLUSTER_OVERRIDE:-gke_k8s-testgrid_us-central1_auto}
 STABLE_BUILD_GIT_COMMIT ${git_commit}
 DOCKER_TAG ${docker_tag}
 EOF
