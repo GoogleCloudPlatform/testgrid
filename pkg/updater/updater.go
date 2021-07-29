@@ -513,7 +513,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		oldCols = truncateRunning(cols)
 	}
 
-	newCols := make(chan InflatedColumn, 1)
+	newCols := make(chan InflatedColumn)
 	ec := make(chan error)
 
 	log.Trace("Reading first column...")
