@@ -50,7 +50,7 @@ func main() {
 	opt := gatherOptions()
 
 	log.WithField("port", opt.port).Info("Listening...")
-	router, err := api.GetRouter(opt.router)
+	router, err := api.GetRouter(opt.router, nil)
 	if err != nil {
 		log.WithError(err).WithField("router-options", opt.router).Fatal("Can't create router")
 	}

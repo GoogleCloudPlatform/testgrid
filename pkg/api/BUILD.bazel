@@ -9,6 +9,7 @@ go_library(
         "//pkg/api/v1:go_default_library",
         "//util/gcs:go_default_library",
         "@com_github_gorilla_mux//:go_default_library",
+        "@com_google_cloud_go_storage//:go_default_library",
     ],
 )
 
