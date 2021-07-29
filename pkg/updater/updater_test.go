@@ -18,6 +18,7 @@ package updater
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1065,6 +1066,7 @@ func TestInflateDropAppend(t *testing.T) {
 		group        configpb.TestGroup
 		concurrency  int
 		skipWrite    bool
+		colReader    func(builds []fakeBuild) ColumnReader
 		colSorter    ColumnSorter
 		reprocess    time.Duration
 		groupTimeout *time.Duration
@@ -1653,6 +1655,248 @@ func TestInflateDropAppend(t *testing.T) {
 				WorldRead:    gcs.DefaultACL,
 			},
 		},
+		{
+			name: "ignore empty", // ignore builds with no results.
+			group: configpb.TestGroup{
+				GcsPrefix:              "bucket/path/to/build/",
+				DisableProwjobAnalysis: true,
+			},
+			reprocess: 10 * time.Second,
+			// a simple ColumnReader that parses fakeBuilds
+			colReader: func(builds []fakeBuild) ColumnReader {
+				return func(ctx context.Context, _ logrus.FieldLogger, _ *configpb.TestGroup, _ []InflatedColumn, _ time.Time, receivers chan<- InflatedColumn) error {
+					ctx, cancel := context.WithCancel(ctx)
+					defer cancel() // do not leak go routines
+					for i := len(builds) - 1; i >= 0; i-- {
+						b := builds[i]
+						started := metadata.Started{}
+						if err := json.Unmarshal([]byte(b.started.Data), &started); err != nil {
+							return err
+						}
+						col := InflatedColumn{
+							Column: &statepb.Column{
+								Build:   b.id,
+								Started: float64(started.Timestamp * 1000),
+								Hint:    b.id,
+							},
+							Cells: map[string]Cell{},
+						}
+						for _, cell := range b.passed {
+							col.Cells[cell] = Cell{Result: statuspb.TestStatus_PASS}
+						}
+						for _, cell := range b.failed {
+							col.Cells[cell] = Cell{Result: statuspb.TestStatus_FAIL}
+						}
+						receivers <- col
+					}
+					return nil
+				}
+			},
+			builds: []fakeBuild{
+				{
+					id:       "cool5",
+					started:  jsonStarted(now - 10),
+					finished: jsonFinished(now-9, true, metadata.Metadata{}),
+					passed:   []string{"a-test"},
+				},
+				{
+					id:       "empty4",
+					started:  jsonStarted(now - 20),
+					finished: jsonFinished(now-19, true, metadata.Metadata{}),
+				},
+				{
+					id:       "empty3",
+					started:  jsonStarted(now - 30),
+					finished: jsonFinished(now-29, true, metadata.Metadata{}),
+				},
+				{
+					id:       "rad2",
+					started:  jsonStarted(now - 40),
+					finished: jsonFinished(now-39, true, metadata.Metadata{}),
+					passed:   []string{"a-test"},
+				},
+				{
+					id:       "empty1",
+					started:  jsonStarted(now - 50),
+					finished: jsonFinished(now-49, true, metadata.Metadata{}),
+				},
+			},
+			current: &fake.Object{
+				Data: string(mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{},
+					Rows:    []*statepb.Row{},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "cool5",
+							Hint:    "cool5",
+							Started: float64((now - 10) * 1000),
+						},
+						{
+							Build:   "rad2",
+							Hint:    "rad2",
+							Started: float64((now - 40) * 1000),
+						},
+						{
+							Build:   "",
+							Hint:    "empty4",
+							Started: float64((now - 50) * 1000),
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "a-test",
+								Id:   "a-test",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+			},
+		},
+		{
+			name: "ignore empty with old columns", // correctly group old and new empty columns
+			group: configpb.TestGroup{
+				GcsPrefix:              "bucket/path/to/build/",
+				DisableProwjobAnalysis: true,
+			},
+			reprocess: 10 * time.Second,
+			// a simple ColumnReader that parses fakeBuilds
+			colReader: func(builds []fakeBuild) ColumnReader {
+				return func(ctx context.Context, _ logrus.FieldLogger, _ *configpb.TestGroup, _ []InflatedColumn, _ time.Time, receivers chan<- InflatedColumn) error {
+					ctx, cancel := context.WithCancel(ctx)
+					defer cancel() // do not leak go routines
+					for i := len(builds) - 1; i >= 0; i-- {
+						b := builds[i]
+						started := metadata.Started{}
+						if err := json.Unmarshal([]byte(b.started.Data), &started); err != nil {
+							return err
+						}
+						col := InflatedColumn{
+							Column: &statepb.Column{
+								Build:   b.id,
+								Started: float64(started.Timestamp * 1000),
+								Hint:    b.id,
+							},
+							Cells: map[string]Cell{},
+						}
+						for _, cell := range b.passed {
+							col.Cells[cell] = Cell{Result: statuspb.TestStatus_PASS}
+						}
+						for _, cell := range b.failed {
+							col.Cells[cell] = Cell{Result: statuspb.TestStatus_FAIL}
+						}
+						receivers <- col
+					}
+					return nil
+				}
+			},
+			builds: []fakeBuild{
+				{
+					id:       "empty9",
+					started:  jsonStarted(now - 10),
+					finished: jsonFinished(now-9, true, metadata.Metadata{}),
+				},
+				{
+					id:       "empty8",
+					started:  jsonStarted(now - 20),
+					finished: jsonFinished(now-19, true, metadata.Metadata{}),
+				},
+				{
+					id:       "wicked7",
+					started:  jsonStarted(now - 30),
+					finished: jsonFinished(now-29, true, metadata.Metadata{}),
+					passed:   []string{"a-test"},
+				},
+				{
+					id:       "empty6",
+					started:  jsonStarted(now - 40),
+					finished: jsonFinished(now-39, true, metadata.Metadata{}),
+				},
+			},
+			current: &fake.Object{
+				Data: string(mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "cool5",
+							Hint:    "cool5",
+							Started: float64((now - 50) * 1000),
+						},
+						{
+							Build:   "rad2",
+							Hint:    "rad2",
+							Started: float64((now - 80) * 1000),
+						},
+						{
+							Build:   "",
+							Name:    "",
+							Hint:    "empty4",
+							Started: float64((now - 90) * 1000),
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "a-test",
+								Id:   "a-test",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+					},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "wicked7",
+							Hint:    "wicked7",
+							Started: float64((now - 30) * 1000),
+						},
+						{
+							Build:   "cool5",
+							Hint:    "cool5",
+							Started: float64((now - 50) * 1000),
+						},
+						{
+							Build:   "rad2",
+							Hint:    "rad2",
+							Started: float64((now - 80) * 1000),
+						},
+						{
+							Build:   "",
+							Name:    "",
+							Hint:    "empty9",
+							Started: float64((now - 90) * 1000),
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "a-test",
+								Id:   "a-test",
+							},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_PASS},
+							cell{Result: statuspb.TestStatus_NO_RESULT},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1695,6 +1939,9 @@ func TestInflateDropAppend(t *testing.T) {
 			client.Lister[buildsPath] = fi
 
 			colReader := gcsColumnReader(client, *tc.buildTimeout, tc.concurrency)
+			if tc.colReader != nil {
+				colReader = tc.colReader(tc.builds)
+			}
 			if tc.colSorter == nil {
 				tc.colSorter = SortStarted
 			}
