@@ -1,5 +1,10 @@
 # See the OWNERS docs at https://go.k8s.io/owners
 
+reviewers:
+- chases2
+- fejta
+- michelle192837
+
 approvers:
 - chases2
 - e-blackwelder
