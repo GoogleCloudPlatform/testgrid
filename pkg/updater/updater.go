@@ -533,6 +533,11 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	case <-ctx.Done():
 		return false, fmt.Errorf("first column: %w", ctx.Err())
 	case col := <-newCols:
+		if len(col.Cells) == 0 {
+			// Group all empty columns together by setting build/name empty.
+			col.Column.Build = ""
+			col.Column.Name = ""
+		}
 		cols = append(cols, col)
 	case err := <-ec:
 		if err != nil {
@@ -553,6 +558,11 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 			case <-ctx.Done():
 				return false, ctx.Err()
 			case col := <-newCols:
+				if len(col.Cells) == 0 {
+					// Group all empty columns together by setting build/name empty.
+					col.Column.Build = ""
+					col.Column.Name = ""
+				}
 				cols = append(cols, col)
 			case err := <-ec:
 				if err != nil {
