@@ -2143,8 +2143,8 @@ func TestShrinkGrid(t *testing.T) {
 				},
 			},
 			ceiling: 1000,
-			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
-				cols = []InflatedColumn{
+			want: func(tg *configpb.TestGroup, _ []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				cols := []InflatedColumn{
 					{
 						Column: &statepb.Column{
 							Name:  "hi",
@@ -2231,8 +2231,8 @@ func TestShrinkGrid(t *testing.T) {
 				},
 			},
 			ceiling: 100,
-			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
-				cols = []InflatedColumn{
+			want: func(tg *configpb.TestGroup, _ []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				cols := []InflatedColumn{
 					{
 						Column: &statepb.Column{
 							Name:  "hi",
