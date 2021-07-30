@@ -1,4 +1,12 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+  name: updater
+  namespace: testgrid
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,11 +40,11 @@ spec:
         - --json-logs
         - --group-timeout=10m
         - --wait=10m
+        resources:
+          requests:
+            cpu: "1"
+            memory: "50G"
+          limits:
+            cpu: "2"
+            memory: "100G"
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  annotations:
-    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
-  name: updater
-  namespace: testgrid
