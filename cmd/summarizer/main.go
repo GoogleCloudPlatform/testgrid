@@ -64,8 +64,8 @@ func gatherOptions() options {
 	flag.StringVar(&o.dashboard, "dashboard", "", "Only update named dashboard if set")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
-	flag.StringVar(&o.gridPathPrefix, "grid-path", "", "Read grid states under this GCS path.")
-	flag.StringVar(&o.summaryPathPrefix, "summary-path", "", "Write summaries under this GCS path.")
+	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Read grid states under this GCS path.")
+	flag.StringVar(&o.summaryPathPrefix, "summary-path", "summary", "Write summaries under this GCS path.")
 
 	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
