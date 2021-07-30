@@ -81,7 +81,6 @@ restore-context() {
 }
 trap restore-context EXIT
 ensure-context k8s-testgrid us-central1 auto
-ensure-context k8s-testgrid us-central1-a k8s-testgrid
 echo " $(color-green done), Deploying testgrid..."
 for s in {5..1}; do
     echo -n $'\r'"in $s..."
