@@ -41,7 +41,10 @@ func Progress(ctx context.Context, log logrus.FieldLogger, every time.Duration, 
 				// updated index
 			case now := <-timer.C:
 				elapsed := now.Sub(start)
-				rate := elapsed / time.Duration(current)
+				var rate time.Duration
+				if current > 0 {
+					rate = elapsed / time.Duration(current)
+				}
 				eta := time.Duration(total-current) * rate
 
 				log.WithFields(logrus.Fields{
