@@ -581,11 +581,12 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 
 	sortCols(tg, cols)
 
-	grid := ConstructGrid(log, tg, cols, issues)
-	buf, err := gcs.MarshalGrid(grid)
+	const byteCeiling = 10e6 // 10mb
+	grid, buf, err := shrinkGrid(log, tg, cols, issues, byteCeiling)
 	if err != nil {
-		return false, fmt.Errorf("marshal grid: %w", err)
+		return false, fmt.Errorf("shrink grid: %v", err)
 	}
+
 	log = log.WithField("url", gridPath).WithField("bytes", len(buf))
 	if !write {
 		log = log.WithField("dryrun", true)
@@ -602,6 +603,79 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		"appended": added,
 	}).Info("Wrote grid")
 	return unreadColumns, nil
+}
+
+func shrinkGrid(log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
+	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
+		// Hopefully it is the right size...
+		grid := ConstructGrid(log, tg, cols, issues)
+		buf, err := gcs.MarshalGrid(grid)
+		if err != nil {
+			return nil, nil, fmt.Errorf("marshal grid: %w", err)
+		}
+
+		orig := len(buf)
+		if byteCeiling == 0 || orig < byteCeiling {
+			return grid, buf, nil
+		}
+
+		// Nope, let's drop old row data...
+		log.WithField("bytes", orig).Info("Shrinking row data")
+
+		for j := i; j < len(cols); j++ {
+			nc := len(cols[j].Cells)
+			if nc < 2 {
+				continue
+			}
+			cols[j].Cells = truncatedCells(orig, byteCeiling, nc)
+		}
+	}
+
+	// Not enough, let's try merging columns
+	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
+		// Hopefully it is the right size...
+		grid := ConstructGrid(log, tg, cols, issues)
+		buf, err := gcs.MarshalGrid(grid)
+		if err != nil {
+			return nil, nil, fmt.Errorf("marshal grid: %w", err)
+		}
+
+		orig := len(buf)
+		if byteCeiling == 0 || orig < byteCeiling {
+			return grid, buf, nil
+		}
+
+		if len(buf) < byteCeiling {
+			return grid, buf, nil
+		}
+
+		log.WithField("bytes", orig).Info("Shrinking column data")
+
+		// Nope, let's drop old row data...
+
+		for j := i; j < len(cols); j++ {
+			cols[j].Column.Name = ""
+			cols[j].Column.Build = ""
+		}
+		cols = groupColumns(tg, cols)
+	}
+	grid := ConstructGrid(log, tg, cols, issues)
+	buf, err := gcs.MarshalGrid(grid)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal grid: %w", err)
+	}
+
+	return grid, buf, err
+}
+
+func truncatedCells(orig, max, dropped int) map[string]Cell {
+	return map[string]Cell{
+		"Truncated": {
+			Result:  statuspb.TestStatus_UNKNOWN,
+			ID:      "Truncated",
+			Message: fmt.Sprintf("%d byte grid exceeds maximum size of %d bytes, removed %d rows", orig, max, dropped),
+		},
+	}
 }
 
 // formatStrftime replaces python codes with what go expects.
