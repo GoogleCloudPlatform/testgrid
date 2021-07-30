@@ -166,7 +166,11 @@ func (q *TestGroupQueue) sleep(d time.Duration) {
 	log := logrus.WithFields(logrus.Fields{
 		"seconds": d.Round(100 * time.Millisecond).Seconds(),
 	})
-	log.Info("Sleeping...")
+	if d > 5*time.Second {
+		log.Info("Sleeping...")
+	} else {
+		log.Debug("Sleeping...")
+	}
 	sleep := time.NewTimer(d)
 	select {
 	case <-q.signal:
