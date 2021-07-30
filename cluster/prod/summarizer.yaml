@@ -1,4 +1,13 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    # Uses same as updater
+    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
+  name: summarizer
+  namespace: testgrid
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,46 +35,14 @@ spec:
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --json-logs
-        - --wait=5m
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: beta-summarizer
-  namespace: testgrid
-  labels:
-    component: summarizer-beta
-    app: testgrid
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: testgrid
-      component: summarizer-beta
-  template:
-    metadata:
-      labels:
-        component: summarizer-beta
-        app: testgrid
-    spec:
-      serviceAccountName: summarizer
-      containers:
-      - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20210730-v0.0.84-16-gd05e790
-        args:
-        - --config=gs://k8s-testgrid/config
-        - --confirm
         - --grid-path=grid
         - --json-logs
         - --summary-path=summary
         - --wait=5m
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  annotations:
-    # Uses same as updater
-    iam.gke.io/gcp-service-account: updater@k8s-testgrid.iam.gserviceaccount.com
-  name: summarizer
-  namespace: testgrid
+        resources:
+          requests:
+            cpu: "1"
+            memory: "50G"
+          limits:
+            cpu: "2"
+            memory: "100G"
