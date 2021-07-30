@@ -2053,6 +2053,273 @@ func TestFormatStrftime(t *testing.T) {
 
 }
 
+func TestShrinkGrid(t *testing.T) {
+	cases := []struct {
+		name    string
+		tg      *configpb.TestGroup
+		cols    []InflatedColumn
+		issues  map[string][]string
+		ceiling int
+
+		want func(*configpb.TestGroup, []InflatedColumn, map[string][]string) *statepb.Grid
+		err  bool
+	}{
+		{
+			name: "basically works",
+			tg:   &configpb.TestGroup{},
+			want: func(*configpb.TestGroup, []InflatedColumn, map[string][]string) *statepb.Grid {
+				return &statepb.Grid{}
+			},
+		},
+		{
+			name: "unchanged",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+						"two": {
+							Result: statuspb.TestStatus_PASS,
+							Icon:   "S",
+						},
+					},
+				},
+			},
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				return ConstructGrid(logrus.New(), tg, cols, issues)
+			},
+		},
+		{
+			name: "truncate row data",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 100000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+			},
+			ceiling: 1000,
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				cols = []InflatedColumn{
+					{
+						Column: &statepb.Column{
+							Name:  "hi",
+							Build: "there",
+						},
+						Cells: map[string]Cell{
+							"cell": {
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							},
+						},
+					},
+					{
+						Column: &statepb.Column{
+							Name:  "two-name",
+							Build: "two-build",
+						},
+						Cells: func() map[string]Cell {
+							cells := map[string]Cell{}
+
+							for i := 0; i < 100000; i++ {
+								cells[fmt.Sprintf("cell-%d", i)] = Cell{
+									Result:  statuspb.TestStatus_FAIL,
+									Message: "yo",
+								}
+							}
+							return cells
+						}(),
+					},
+				}
+				logger := logrus.New()
+				grid := ConstructGrid(logger, tg, cols, issues)
+				buf, _ := gcs.MarshalGrid(grid)
+				orig := len(buf)
+				cols[1].Cells = truncatedCells(orig, 1000, len(cols[1].Cells))
+
+				return ConstructGrid(logger, tg, cols, issues)
+			},
+		},
+		{
+			name: "truncate col and row data",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 1000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three-name",
+						Build: "three-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			ceiling: 100,
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				cols = []InflatedColumn{
+					{
+						Column: &statepb.Column{
+							Name:  "hi",
+							Build: "there",
+						},
+						Cells: map[string]Cell{
+							"cell": {
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							},
+						},
+					},
+					{
+						Column: &statepb.Column{
+							Name:  "two-name",
+							Build: "two-build",
+						},
+						Cells: func() map[string]Cell {
+							cells := map[string]Cell{}
+
+							for i := 0; i < 1000; i++ {
+								cells[fmt.Sprintf("cell-%d", i)] = Cell{
+									Result:  statuspb.TestStatus_FAIL,
+									Message: "yo",
+								}
+							}
+							return cells
+						}(),
+					},
+					{
+						Column: &statepb.Column{
+							Name:  "three-name",
+							Build: "three-build",
+						},
+						Cells: map[string]Cell{
+							"cell": {
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							},
+						},
+					},
+				}
+				logger := logrus.New()
+				grid := ConstructGrid(logger, tg, cols, issues)
+				buf, _ := gcs.MarshalGrid(grid)
+				orig := len(buf)
+				// Shrink row data for second column
+				cols[1].Cells = truncatedCells(orig, 100, len(cols[1].Cells))
+
+				// Merge column 3 into column 2
+				cols[1].Column = &statepb.Column{}
+				cols[1].Cells["cell"] = cols[2].Cells["cell"]
+				cols = cols[:2]
+
+				return ConstructGrid(logger, tg, cols, issues)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, buf, err := shrinkGrid(logrus.WithField("name", tc.name), tc.tg, tc.cols, tc.issues, tc.ceiling)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("shrinkGrid() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("shrinkGrid() failed to get an error, got %v", got)
+			default:
+				want := tc.want(tc.tg, tc.cols, tc.issues)
+				if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("shrinkGrid() got unexpected grid diff (-want +got):\n%s", diff)
+					return
+				}
+				wantBuf, err := gcs.MarshalGrid(want)
+				if err != nil {
+					t.Fatalf("Failed to marshal grid: %v", err)
+				}
+				if diff := cmp.Diff(wantBuf, buf); diff != "" {
+					t.Errorf("shrinkGrid() got unexpected buf diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestOverrideBuild(t *testing.T) {
 	cases := []struct {
 		name string
