@@ -834,6 +834,52 @@ func TestListBuilds(t *testing.T) {
 			name: "basically works",
 		},
 		{
+			name: "list err",
+			client: fakeLister{
+				newPathOrDie("gs://prefix/job/"): fakeIterator{
+					Objects: []storage.ObjectAttrs{
+						{
+							Prefix: "job/1/",
+						},
+						{
+							Prefix: "job/10/",
+						},
+						{
+							Prefix: "job/2/",
+						},
+					},
+					Err: 1,
+				},
+			},
+			paths: []gcs.Path{
+				newPathOrDie("gs://prefix/job/"),
+			},
+			err: true,
+		},
+		{
+			name: "bucket err",
+			client: fakeLister{
+				newPathOrDie("gs://prefix/job/"): fakeIterator{
+					Objects: []storage.ObjectAttrs{
+						{
+							Prefix: "job/1/",
+						},
+						{
+							Prefix: "job/10/",
+						},
+						{
+							Prefix: "job/2/",
+						},
+					},
+					ErrOpen: storage.ErrBucketNotExist,
+				},
+			},
+			paths: []gcs.Path{
+				newPathOrDie("gs://prefix/job/"),
+			},
+			err: true,
+		},
+		{
 			name: "list stuff correctly",
 			client: fakeLister{
 				newPathOrDie("gs://prefix/job/"): fakeIterator{
@@ -848,9 +894,6 @@ func TestListBuilds(t *testing.T) {
 							Prefix: "job/2/",
 						},
 					},
-					Idx:    0,
-					Err:    0,
-					Offset: "",
 				},
 			},
 			paths: []gcs.Path{
@@ -890,9 +933,6 @@ func TestListBuilds(t *testing.T) {
 							Prefix: "job/4/",
 						},
 					},
-					Idx:    0,
-					Err:    0,
-					Offset: "",
 				},
 			},
 			paths: []gcs.Path{

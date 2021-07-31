@@ -276,6 +276,7 @@ type Iterator struct {
 	Err     int // must be > 0
 	ctx     context.Context
 	Offset  string
+	ErrOpen error
 }
 
 // A Client can list files and open them for reading.
@@ -288,6 +289,9 @@ type Client struct {
 func (fi *Iterator) Next() (*storage.ObjectAttrs, error) {
 	if fi.ctx.Err() != nil {
 		return nil, fi.ctx.Err()
+	}
+	if fi.ErrOpen != nil {
+		return nil, fi.ErrOpen
 	}
 	for fi.Idx < len(fi.Objects) {
 		if fi.Offset == "" {
