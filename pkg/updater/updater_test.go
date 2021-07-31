@@ -1059,6 +1059,40 @@ func TestInflateDropAppend(t *testing.T) {
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
+	// a simple ColumnReader that parses fakeBuilds
+	fakeColReader := func(builds []fakeBuild) ColumnReader {
+		return func(ctx context.Context, _ logrus.FieldLogger, _ *configpb.TestGroup, _ []InflatedColumn, _ time.Time, receivers chan<- InflatedColumn) error {
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel() // do not leak go routines
+			for i := len(builds) - 1; i >= 0; i-- {
+				b := builds[i]
+				started := metadata.Started{}
+				if err := json.Unmarshal([]byte(b.started.Data), &started); err != nil {
+					return err
+				}
+				col := InflatedColumn{
+					Column: &statepb.Column{
+						Build:   b.id,
+						Started: float64(started.Timestamp * 1000),
+						Hint:    b.id,
+					},
+					Cells: map[string]Cell{},
+				}
+				for _, cell := range b.passed {
+					col.Cells[cell] = Cell{Result: statuspb.TestStatus_PASS}
+				}
+				for _, cell := range b.failed {
+					col.Cells[cell] = Cell{Result: statuspb.TestStatus_FAIL}
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case receivers <- col:
+				}
+			}
+			return nil
+		}
+	}
 	cases := []struct {
 		name         string
 		ctx          context.Context
@@ -1662,36 +1696,7 @@ func TestInflateDropAppend(t *testing.T) {
 				DisableProwjobAnalysis: true,
 			},
 			reprocess: 10 * time.Second,
-			// a simple ColumnReader that parses fakeBuilds
-			colReader: func(builds []fakeBuild) ColumnReader {
-				return func(ctx context.Context, _ logrus.FieldLogger, _ *configpb.TestGroup, _ []InflatedColumn, _ time.Time, receivers chan<- InflatedColumn) error {
-					ctx, cancel := context.WithCancel(ctx)
-					defer cancel() // do not leak go routines
-					for i := len(builds) - 1; i >= 0; i-- {
-						b := builds[i]
-						started := metadata.Started{}
-						if err := json.Unmarshal([]byte(b.started.Data), &started); err != nil {
-							return err
-						}
-						col := InflatedColumn{
-							Column: &statepb.Column{
-								Build:   b.id,
-								Started: float64(started.Timestamp * 1000),
-								Hint:    b.id,
-							},
-							Cells: map[string]Cell{},
-						}
-						for _, cell := range b.passed {
-							col.Cells[cell] = Cell{Result: statuspb.TestStatus_PASS}
-						}
-						for _, cell := range b.failed {
-							col.Cells[cell] = Cell{Result: statuspb.TestStatus_FAIL}
-						}
-						receivers <- col
-					}
-					return nil
-				}
-			},
+			colReader: fakeColReader,
 			builds: []fakeBuild{
 				{
 					id:       "cool5",
@@ -1769,36 +1774,7 @@ func TestInflateDropAppend(t *testing.T) {
 				DisableProwjobAnalysis: true,
 			},
 			reprocess: 10 * time.Second,
-			// a simple ColumnReader that parses fakeBuilds
-			colReader: func(builds []fakeBuild) ColumnReader {
-				return func(ctx context.Context, _ logrus.FieldLogger, _ *configpb.TestGroup, _ []InflatedColumn, _ time.Time, receivers chan<- InflatedColumn) error {
-					ctx, cancel := context.WithCancel(ctx)
-					defer cancel() // do not leak go routines
-					for i := len(builds) - 1; i >= 0; i-- {
-						b := builds[i]
-						started := metadata.Started{}
-						if err := json.Unmarshal([]byte(b.started.Data), &started); err != nil {
-							return err
-						}
-						col := InflatedColumn{
-							Column: &statepb.Column{
-								Build:   b.id,
-								Started: float64(started.Timestamp * 1000),
-								Hint:    b.id,
-							},
-							Cells: map[string]Cell{},
-						}
-						for _, cell := range b.passed {
-							col.Cells[cell] = Cell{Result: statuspb.TestStatus_PASS}
-						}
-						for _, cell := range b.failed {
-							col.Cells[cell] = Cell{Result: statuspb.TestStatus_FAIL}
-						}
-						receivers <- col
-					}
-					return nil
-				}
-			},
+			colReader: fakeColReader,
 			builds: []fakeBuild{
 				{
 					id:       "empty9",
