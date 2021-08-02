@@ -131,7 +131,9 @@ func (m Metadata) Strings() map[string]string {
 	return bm
 }
 
-// GetListOfStrings get list of strings if exist, and true if they key is present.
+/* GetListOfStrings get list of strings if exist, and true if they key is present.
+If value is list of strings we return it as is.
+If value is list of interfaces, we try convert it into list of strings, if fail we return an empty list */
 func (m Metadata) GetListOfStrings(name string) ([]string, bool) {
 	if v, ok := m[name]; !ok {
 		return []string{}, false
