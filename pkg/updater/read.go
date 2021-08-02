@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
@@ -58,6 +59,10 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 
 		log.Trace("Listing builds...")
 		builds, err := listBuilds(ctx, client, since, tgPaths...)
+		if errors.Is(err, storage.ErrBucketNotExist) {
+			log.WithError(err).Info("Bucket does not exist")
+			return nil
+		}
 		if err != nil {
 			return fmt.Errorf("list builds: %w", err)
 		}
