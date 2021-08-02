@@ -418,13 +418,13 @@ func convertToListOfStrings(rawInterface interface{}) ([]string, error) {
 				break
 			default:
 				return []string{}, fmt.Errorf("one of the items in the list of the"+
-					" interfaces is not a string: %v of type %T", tt, tt)
+					" interfaces is not a string. value: '%v' type: %T", tt, tt)
 			}
 		}
 		return emails, nil
 	default:
 		return []string{}, fmt.Errorf("rawInterface type is not list of "+
-			"strings or interfaces: %v of type %T", t, t)
+			"strings or interfaces. value: '%v' type: %T", t, t)
 	}
 }
 

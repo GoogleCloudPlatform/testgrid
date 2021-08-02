@@ -408,12 +408,36 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid email list",
+			name: "not a list",
 			result: gcsResult{
 				finished: gcs.Finished{
 					Finished: metadata.Finished{
 						Metadata: metadata.Metadata{
 							EmailListKey: "olam",
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					EmailAddresses: []string{},
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "T",
+						Message: "Build did not complete within 24 hours",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid email list",
+			result: gcsResult{
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Metadata: metadata.Metadata{
+							EmailListKey: []interface{}{1},
 						},
 					},
 				},
