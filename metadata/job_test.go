@@ -24,6 +24,7 @@ import (
 
 func TestMeta(t *testing.T) {
 	world := "world"
+	olam := "olam"
 	const key = "target-key"
 	cases := []struct {
 		name    string
@@ -101,6 +102,71 @@ func TestMeta(t *testing.T) {
 				return actual.Meta(key)
 			},
 			val: (*Metadata)(nil),
+		},
+		{
+			name: "get list of strings",
+			in: Metadata{
+				key: []string{world, olam},
+			},
+			call: func(actual Metadata) (interface{}, bool) {
+				return actual.GetListOfStrings(key)
+			},
+			val:     []string{world, olam},
+			present: true,
+		},
+		{
+			name: "get list of strings from list of interfaces",
+			in: Metadata{
+				key: []interface{}{world, olam},
+			},
+			call: func(actual Metadata) (interface{}, bool) {
+				return actual.GetListOfStrings(key)
+			},
+			val:     []string{world, olam},
+			present: true,
+		},
+		{
+			name: "non string in list of interfaces",
+			in: Metadata{
+				key: []interface{}{world, 1337},
+			},
+			call: func(actual Metadata) (interface{}, bool) {
+				return actual.GetListOfStrings(key)
+			},
+			val:     []string{},
+			present: true,
+		},
+		{
+			name: "not list of strings",
+			in: Metadata{
+				key: []int{42, 1337},
+			},
+			call: func(actual Metadata) (interface{}, bool) {
+				return actual.GetListOfStrings(key)
+			},
+			val:     []string{},
+			present: true,
+		},
+		{
+			name: "given empty list",
+			in: Metadata{
+				key: []interface{}{},
+			},
+			call: func(actual Metadata) (interface{}, bool) {
+				return actual.GetListOfStrings(key)
+			},
+			val:     []string{},
+			present: true,
+		},
+		{
+			name: "return empty list if key absence",
+			in: Metadata{
+				"random-key": []string{world},
+			},
+			call: func(actual Metadata) (interface{}, bool) {
+				return actual.GetListOfStrings(key)
+			},
+			val: []string{},
 		},
 	}
 

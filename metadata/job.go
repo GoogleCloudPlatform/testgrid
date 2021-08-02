@@ -17,7 +17,6 @@ limitations under the License.
 package metadata
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -132,29 +131,24 @@ func (m Metadata) Strings() map[string]string {
 	return bm
 }
 
-// ConvertToListOfStrings convert an interface to list of strings, support if the type of the interface
-// is list of strings or list of interfaces, where each interface in the list is a string.
-func ConvertToListOfStrings(rawInterface interface{}) ([]string, error) {
-	switch t := rawInterface.(type) {
-	case []string:
-		return t, nil
-	case []interface{}:
-		emails := []string{}
-		for _, item := range t {
-			switch tt := item.(type) {
-			case string:
-				emails = append(emails, tt)
-				break
-			default:
-				return []string{}, fmt.Errorf("one of the items in the list of the"+
-					" interfaces is not a string. value: '%v' type: %T", tt, tt)
+// GetListOfStrings get list of strings if exist, and true if they key is present.
+func (m Metadata) GetListOfStrings(name string) ([]string, bool) {
+	if v, ok := m[name]; !ok {
+		return []string{}, false
+	} else if lstStr, good := v.([]string); good {
+		return lstStr, true
+	} else if lstInter, good := v.([]interface{}); good {
+		convertedStrings := []string{}
+		for _, inter := range lstInter {
+			if s, good := inter.(string); !good {
+				return []string{}, true
+			} else {
+				convertedStrings = append(convertedStrings, s)
 			}
 		}
-		return emails, nil
-	default:
-		return []string{}, fmt.Errorf("rawInterface type is not list of "+
-			"strings or interfaces. value: '%v' type: %T", t, t)
+		return convertedStrings, true
 	}
+	return []string{}, true
 }
 
 // firstFilled returns the first non-empty option or else def.
