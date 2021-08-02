@@ -388,7 +388,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		out.Column.Extra = append(out.Column.Extra, val)
 	}
 
-	emails, found := result.finished.Finished.Metadata.GetListOfStrings(EmailListKey)
+	emails, found := result.finished.Finished.Metadata.MultiString(EmailListKey)
 	if len(emails) == 0 && found {
 		log.Error("failed to extract dynamic email list, the list is empty or cannot convert to []string")
 	}

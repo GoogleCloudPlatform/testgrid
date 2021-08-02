@@ -109,7 +109,7 @@ func TestMeta(t *testing.T) {
 				key: []string{world, olam},
 			},
 			call: func(actual Metadata) (interface{}, bool) {
-				return actual.GetListOfStrings(key)
+				return actual.MultiString(key)
 			},
 			val:     []string{world, olam},
 			present: true,
@@ -120,7 +120,7 @@ func TestMeta(t *testing.T) {
 				key: []interface{}{world, olam},
 			},
 			call: func(actual Metadata) (interface{}, bool) {
-				return actual.GetListOfStrings(key)
+				return actual.MultiString(key)
 			},
 			val:     []string{world, olam},
 			present: true,
@@ -131,7 +131,7 @@ func TestMeta(t *testing.T) {
 				key: []interface{}{world, 1337},
 			},
 			call: func(actual Metadata) (interface{}, bool) {
-				return actual.GetListOfStrings(key)
+				return actual.MultiString(key)
 			},
 			val:     []string{},
 			present: true,
@@ -142,7 +142,7 @@ func TestMeta(t *testing.T) {
 				key: []int{42, 1337},
 			},
 			call: func(actual Metadata) (interface{}, bool) {
-				return actual.GetListOfStrings(key)
+				return actual.MultiString(key)
 			},
 			val:     []string{},
 			present: true,
@@ -153,7 +153,7 @@ func TestMeta(t *testing.T) {
 				key: []interface{}{},
 			},
 			call: func(actual Metadata) (interface{}, bool) {
-				return actual.GetListOfStrings(key)
+				return actual.MultiString(key)
 			},
 			val:     []string{},
 			present: true,
@@ -164,7 +164,7 @@ func TestMeta(t *testing.T) {
 				"random-key": []string{world},
 			},
 			call: func(actual Metadata) (interface{}, bool) {
-				return actual.GetListOfStrings(key)
+				return actual.MultiString(key)
 			},
 			val: []string{},
 		},
