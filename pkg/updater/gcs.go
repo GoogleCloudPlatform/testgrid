@@ -17,6 +17,7 @@ limitations under the License.
 package updater
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -390,9 +391,14 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 
 	emailAddressesInterface, ok := result.finished.Finished.Metadata[EmailListKey]
 	if ok {
-		emailAddresses, err := convertToListOfStrings(emailAddressesInterface)
+		// we do marshal and unmarshal to json to convert the result from []interface{} to []string
+		var emailAddresses []string
+		emailAddressesData, err := json.Marshal(emailAddressesInterface)
 		if err != nil {
-			log.Error(err)
+			log.WithError(err).Error("failed to marshal email addresses")
+			out.Column.EmailAddresses = []string{}
+		} else if err := json.Unmarshal(emailAddressesData, &emailAddresses); err != nil {
+			log.WithError(err).Error("failed to unmarshal email addresses")
 			out.Column.EmailAddresses = []string{}
 		} else {
 			out.Column.EmailAddresses = emailAddresses
@@ -401,31 +407,6 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		out.Column.EmailAddresses = []string{}
 	}
 	return out
-}
-
-// convertToListOfStrings convert an interface to list of strings, support if the type of the interface
-// is list of strings or list of interfaces, where each interface in the list is a string.
-func convertToListOfStrings(rawInterface interface{}) ([]string, error) {
-	switch t := rawInterface.(type) {
-	case []string:
-		return t, nil
-	case []interface{}:
-		emails := []string{}
-		for _, item := range t {
-			switch tt := item.(type) {
-			case string:
-				emails = append(emails, tt)
-				break
-			default:
-				return []string{}, fmt.Errorf("one of the items in the list of the"+
-					" interfaces is not a string. value: '%v' type: %T", tt, tt)
-			}
-		}
-		return emails, nil
-	default:
-		return []string{}, fmt.Errorf("rawInterface type is not list of "+
-			"strings or interfaces. value: '%v' type: %T", t, t)
-	}
 }
 
 func podInfoCell(podInfo gcs.PodInfo) Cell {
