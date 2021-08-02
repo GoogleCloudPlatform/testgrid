@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -312,6 +313,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 					generations[tg.Name] = attrs.Generation
 					lock.Unlock()
 				}
+				runtime.GC()
 			}
 		}()
 	}
