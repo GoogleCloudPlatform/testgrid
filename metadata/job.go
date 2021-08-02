@@ -131,9 +131,9 @@ func (m Metadata) Strings() map[string]string {
 	return bm
 }
 
-/* MultiString get list of strings if exist, and true if they key is present.
-If value is list of strings we return it as is.
-If value is list of interfaces, we try convert it into list of strings, if fail we return an empty list */
+// MultiString get list of strings if exist, and true if they key is present.
+// If value is list of strings we return it as is.
+// If value is list of interfaces, we try convert it into list of strings, if fail we return an empty list
 func (m Metadata) MultiString(name string) ([]string, bool) {
 	if v, ok := m[name]; !ok {
 		return []string{}, false
@@ -142,11 +142,11 @@ func (m Metadata) MultiString(name string) ([]string, bool) {
 	} else if lstInter, good := v.([]interface{}); good {
 		convertedStrings := []string{}
 		for _, inter := range lstInter {
-			if s, good := inter.(string); !good {
+			s, good := inter.(string)
+			if !good {
 				return []string{}, true
-			} else {
-				convertedStrings = append(convertedStrings, s)
 			}
+			convertedStrings = append(convertedStrings, s)
 		}
 		return convertedStrings, true
 	}
