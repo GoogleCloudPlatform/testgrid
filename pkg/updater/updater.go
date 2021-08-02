@@ -339,10 +339,13 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				gen, _, err := updateTestGroups(ctx, opener, client, &q, configPath, gridPrefix, groupNames, freq)
+				gen, newGenerations, err := updateTestGroups(ctx, opener, client, &q, configPath, gridPrefix, groupNames, freq)
 				switch {
 				case err == nil:
 					cond.GenerationNotMatch = gen
+					lock.Lock()
+					generations = newGenerations
+					lock.Unlock()
 				case !isPreconditionFailed(err):
 					log.WithError(err).Error("Failed to update configuration")
 				}
