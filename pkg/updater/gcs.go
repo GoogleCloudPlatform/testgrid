@@ -390,17 +390,42 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 
 	emailAddressesInterface, ok := result.finished.Finished.Metadata[EmailListKey]
 	if ok {
-		emailAddresses, ok := emailAddressesInterface.([]string)
-		if ok {
-			out.Column.EmailAddresses = emailAddresses
-		} else {
-			log.Error("email addresses type is not list of strings")
+		emailAddresses, err := convertToListOfStrings(emailAddressesInterface)
+		if err != nil {
+			log.Error(err)
 			out.Column.EmailAddresses = []string{}
+		} else {
+			out.Column.EmailAddresses = emailAddresses
 		}
 	} else {
 		out.Column.EmailAddresses = []string{}
 	}
 	return out
+}
+
+// convertToListOfStrings convert an interface to list of strings, support if the type of the interface
+// is list of strings or list of interfaces, where each interface in the list is a string.
+func convertToListOfStrings(rawInterface interface{}) ([]string, error) {
+	switch t := rawInterface.(type) {
+	case []string:
+		return t, nil
+	case []interface{}:
+		emails := []string{}
+		for _, item := range t {
+			switch tt := item.(type) {
+			case string:
+				emails = append(emails, tt)
+				break
+			default:
+				return []string{}, fmt.Errorf("one of the items in the list of the"+
+					" interfaces is not a string: %v of type %T", tt, tt)
+			}
+		}
+		return emails, nil
+	default:
+		return []string{}, fmt.Errorf("rawInterface type is not list of "+
+			"strings or interfaces: %v of type %T", t, t)
+	}
 }
 
 func podInfoCell(podInfo gcs.PodInfo) Cell {
