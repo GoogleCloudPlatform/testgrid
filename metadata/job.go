@@ -17,6 +17,7 @@ limitations under the License.
 package metadata
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -129,6 +130,31 @@ func (m Metadata) Strings() map[string]string {
 		// TODO(fejta): handle sub items
 	}
 	return bm
+}
+
+// ConvertToListOfStrings convert an interface to list of strings, support if the type of the interface
+// is list of strings or list of interfaces, where each interface in the list is a string.
+func ConvertToListOfStrings(rawInterface interface{}) ([]string, error) {
+	switch t := rawInterface.(type) {
+	case []string:
+		return t, nil
+	case []interface{}:
+		emails := []string{}
+		for _, item := range t {
+			switch tt := item.(type) {
+			case string:
+				emails = append(emails, tt)
+				break
+			default:
+				return []string{}, fmt.Errorf("one of the items in the list of the"+
+					" interfaces is not a string. value: '%v' type: %T", tt, tt)
+			}
+		}
+		return emails, nil
+	default:
+		return []string{}, fmt.Errorf("rawInterface type is not list of "+
+			"strings or interfaces. value: '%v' type: %T", t, t)
+	}
 }
 
 // firstFilled returns the first non-empty option or else def.

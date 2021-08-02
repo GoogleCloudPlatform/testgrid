@@ -17,7 +17,6 @@ limitations under the License.
 package updater
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -391,14 +390,9 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 
 	emailAddressesInterface, ok := result.finished.Finished.Metadata[EmailListKey]
 	if ok {
-		// we do marshal and unmarshal to json to convert the result from []interface{} to []string
-		var emailAddresses []string
-		emailAddressesData, err := json.Marshal(emailAddressesInterface)
+		emailAddresses, err := metadata.ConvertToListOfStrings(emailAddressesInterface)
 		if err != nil {
-			log.WithError(err).Error("failed to marshal email addresses")
-			out.Column.EmailAddresses = []string{}
-		} else if err := json.Unmarshal(emailAddressesData, &emailAddresses); err != nil {
-			log.WithError(err).Error("failed to unmarshal email addresses")
+			log.Error(err)
 			out.Column.EmailAddresses = []string{}
 		} else {
 			out.Column.EmailAddresses = emailAddresses
