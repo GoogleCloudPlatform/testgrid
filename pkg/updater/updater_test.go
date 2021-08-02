@@ -2072,6 +2072,7 @@ func TestFormatStrftime(t *testing.T) {
 func TestShrinkGrid(t *testing.T) {
 	cases := []struct {
 		name    string
+		ctx     context.Context
 		tg      *configpb.TestGroup
 		cols    []InflatedColumn
 		issues  map[string][]string
@@ -2148,7 +2149,7 @@ func TestShrinkGrid(t *testing.T) {
 					Cells: func() map[string]Cell {
 						cells := map[string]Cell{}
 
-						for i := 0; i < 100000; i++ {
+						for i := 0; i < 1000; i++ {
 							cells[fmt.Sprintf("cell-%d", i)] = Cell{
 								Result:  statuspb.TestStatus_FAIL,
 								Message: "yo",
@@ -2158,7 +2159,7 @@ func TestShrinkGrid(t *testing.T) {
 					}(),
 				},
 			},
-			ceiling: 1000,
+			ceiling: 2000,
 			want: func(tg *configpb.TestGroup, _ []InflatedColumn, issues map[string][]string) *statepb.Grid {
 				cols := []InflatedColumn{
 					{
@@ -2181,7 +2182,7 @@ func TestShrinkGrid(t *testing.T) {
 						Cells: func() map[string]Cell {
 							cells := map[string]Cell{}
 
-							for i := 0; i < 100000; i++ {
+							for i := 0; i < 1000; i++ {
 								cells[fmt.Sprintf("cell-%d", i)] = Cell{
 									Result:  statuspb.TestStatus_FAIL,
 									Message: "yo",
@@ -2246,7 +2247,7 @@ func TestShrinkGrid(t *testing.T) {
 					},
 				},
 			},
-			ceiling: 100,
+			ceiling: 200,
 			want: func(tg *configpb.TestGroup, _ []InflatedColumn, issues map[string][]string) *statepb.Grid {
 				cols := []InflatedColumn{
 					{
@@ -2306,11 +2307,123 @@ func TestShrinkGrid(t *testing.T) {
 				return ConstructGrid(logger, tg, cols, issues)
 			},
 		},
+		{
+			name: "cancelled context",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				ctx.Err()
+				return ctx
+			}(),
+			tg: &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 1000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three-name",
+						Build: "three-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			ceiling: 100,
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				logger := logrus.New()
+				return ConstructGrid(logger, tg, cols, issues)
+			},
+		},
+		{
+			name: "no ceiling",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 1000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three-name",
+						Build: "three-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				logger := logrus.New()
+				return ConstructGrid(logger, tg, cols, issues)
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, buf, err := shrinkGrid(logrus.WithField("name", tc.name), tc.tg, tc.cols, tc.issues, tc.ceiling)
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			got, buf, err := shrinkGrid(tc.ctx, logrus.WithField("name", tc.name), tc.tg, tc.cols, tc.issues, tc.ceiling)
 			switch {
 			case err != nil:
 				if !tc.err {
