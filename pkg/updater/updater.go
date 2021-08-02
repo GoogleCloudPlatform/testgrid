@@ -492,6 +492,16 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		grace = context.Background()
 	}
 
+	var shrinkGrace context.Context
+	if deadline, present := ctx.Deadline(); present {
+		var cancel context.CancelFunc
+		dur := 3 * time.Until(deadline) / 4
+		shrinkGrace, cancel = context.WithTimeout(context.Background(), dur)
+		defer cancel()
+	} else {
+		shrinkGrace = context.Background()
+	}
+
 	var dur time.Duration
 	if tg.DaysOfResults > 0 {
 		dur = days(float64(tg.DaysOfResults))
@@ -587,7 +597,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	sortCols(tg, cols)
 
 	const byteCeiling = 10e6 // 10mb
-	grid, buf, err := shrinkGrid(log, tg, cols, issues, byteCeiling)
+	grid, buf, err := shrinkGrid(shrinkGrace, log, tg, cols, issues, byteCeiling)
 	if err != nil {
 		return false, fmt.Errorf("shrink grid: %v", err)
 	}
@@ -610,22 +620,31 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	return unreadColumns, nil
 }
 
-func shrinkGrid(log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
+func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
+	// Hopefully the grid is small enough...
+	grid := ConstructGrid(log, tg, cols, issues)
+	buf, err := gcs.MarshalGrid(grid)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal grid: %w", err)
+	}
+	orig := len(buf)
+	if byteCeiling == 0 || orig < byteCeiling {
+		return grid, buf, nil
+	}
+
+	// Nope, let's drop old row data...
+	byteCeiling /= 2
+
+	log = log.WithField("originally", orig)
 	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
-		// Hopefully it is the right size...
-		grid := ConstructGrid(log, tg, cols, issues)
-		buf, err := gcs.MarshalGrid(grid)
-		if err != nil {
-			return nil, nil, fmt.Errorf("marshal grid: %w", err)
-		}
-
-		orig := len(buf)
-		if byteCeiling == 0 || orig < byteCeiling {
+		select {
+		case <-ctx.Done():
+			log.WithField("finally", orig).Info("Timeout shrinking row data")
 			return grid, buf, nil
+		default:
 		}
 
-		// Nope, let's drop old row data...
-		log.WithField("bytes", orig).Info("Shrinking row data")
+		log.WithField("currently", orig).Debug("Shrinking row data")
 
 		for j := i; j < len(cols); j++ {
 			nc := len(cols[j].Cells)
@@ -634,24 +653,25 @@ func shrinkGrid(log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedC
 			}
 			cols[j].Cells = truncatedCells(orig, byteCeiling, nc)
 		}
-	}
-
-	// Not enough, let's try merging columns
-	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
-		// Hopefully it is the right size...
-		grid := ConstructGrid(log, tg, cols, issues)
-		buf, err := gcs.MarshalGrid(grid)
+		grid = ConstructGrid(log, tg, cols, issues)
+		buf, err = gcs.MarshalGrid(grid)
 		if err != nil {
 			return nil, nil, fmt.Errorf("marshal grid: %w", err)
 		}
 
-		orig := len(buf)
-		if byteCeiling == 0 || orig < byteCeiling {
+		orig = len(buf)
+		if orig < byteCeiling {
 			return grid, buf, nil
 		}
+	}
 
-		if len(buf) < byteCeiling {
+	// Not enough, let's try merging columns
+	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
+		select {
+		case <-ctx.Done():
+			log.WithField("finally", orig).Info("Timeout shrinking column data")
 			return grid, buf, nil
+		default:
 		}
 
 		log.WithField("bytes", orig).Info("Shrinking column data")
@@ -663,13 +683,19 @@ func shrinkGrid(log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedC
 			cols[j].Column.Build = ""
 		}
 		cols = groupColumns(tg, cols)
-	}
-	grid := ConstructGrid(log, tg, cols, issues)
-	buf, err := gcs.MarshalGrid(grid)
-	if err != nil {
-		return nil, nil, fmt.Errorf("marshal grid: %w", err)
-	}
 
+		// Hopefully it is the right size...
+		grid = ConstructGrid(log, tg, cols, issues)
+		buf, err = gcs.MarshalGrid(grid)
+		if err != nil {
+			return nil, nil, fmt.Errorf("marshal grid: %w", err)
+		}
+
+		orig := len(buf)
+		if orig < byteCeiling {
+			return grid, buf, nil
+		}
+	}
 	return grid, buf, err
 }
 
