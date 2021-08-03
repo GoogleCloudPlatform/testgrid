@@ -106,8 +106,9 @@ func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dashboardGroupKey := vars["dashboard-group"]
 	for _, group := range cfg.DashboardGroups {
-		if group.Name == vars["dashboard-group"] {
+		if config.Normalize(group.Name) == dashboardGroupKey {
 			result := apipb.GetDashboardGroupResponse{}
 			for _, dash := range group.DashboardNames {
 				rsc := apipb.Resource{
@@ -121,4 +122,76 @@ func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Error(w, fmt.Sprintf("Dashboard group %q not found", vars["dashboard-group"]), http.StatusNotFound)
+}
+
+// ListDashboards returns every dashboard in TestGrid
+// Response Proto: ListDashboardResponse
+func (s Server) ListDashboards(w http.ResponseWriter, r *http.Request) {
+	cfg := s.getConfig(w, r)
+	if cfg == nil {
+		return
+	}
+
+	var dashboardResponse apipb.ListDashboardResponse
+	for _, dashboard := range cfg.Dashboards {
+		rsc := apipb.Resource{
+			Name: dashboard.Name,
+			Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host, config.Normalize(dashboard.Name), passQueryParameters(r)),
+		}
+		dashboardResponse.Dashboards = append(dashboardResponse.Dashboards, &rsc)
+	}
+
+	writeJSON(w, &dashboardResponse)
+}
+
+// GetDashboard returns a given dashboard
+// Response Proto: GetDashboardResponse
+func (s Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cfg := s.getConfig(w, r)
+	if cfg == nil {
+		return
+	}
+
+	dashboardKey := vars["dashboard"]
+	for _, dashboard := range cfg.Dashboards {
+		if config.Normalize(dashboard.Name) == dashboardKey {
+			result := apipb.GetDashboardResponse{
+				DefaultTab:          dashboard.DefaultTab,
+				HighlightToday:      dashboard.HighlightToday,
+				SuppressFailingTabs: dashboard.DownplayFailingTabs,
+				Notifications:       dashboard.Notifications,
+			}
+			writeJSON(w, &result)
+			return
+		}
+	}
+	http.Error(w, fmt.Sprintf("Dashboard %q not found", vars["dashboard"]), http.StatusNotFound)
+}
+
+// ListDashboardTabs returns a given dashboard tabs
+// Response Proto: ListDashboardTabsResponse
+func (s Server) ListDashboardTabs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cfg := s.getConfig(w, r)
+	if cfg == nil {
+		return
+	}
+
+	dashboardKey := vars["dashboard"]
+	var dashboardTabsResponse apipb.ListDashboardTabsResponse
+	for _, dashboard := range cfg.Dashboards {
+		if config.Normalize(dashboard.Name) == dashboardKey {
+			for _, tab := range dashboard.DashboardTab {
+				rsc := apipb.Resource{
+					Name: tab.Name,
+					Link: fmt.Sprintf("%s/dashboards/%s/tabs/%s%s", s.Host, config.Normalize(dashboard.Name), config.Normalize(tab.Name), passQueryParameters(r)),
+				}
+				dashboardTabsResponse.DashboardTabs = append(dashboardTabsResponse.DashboardTabs, &rsc)
+			}
+			writeJSON(w, &dashboardTabsResponse)
+			return
+		}
+	}
+	http.Error(w, fmt.Sprintf("Dashboard %q not found", vars["dashboard"]), http.StatusNotFound)
 }
