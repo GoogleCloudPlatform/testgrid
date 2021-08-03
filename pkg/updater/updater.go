@@ -275,45 +275,69 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		return err
 	}
 	log.Info("Fetched testgroup metadata state")
+	active := map[string]bool{}
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	wg.Add(groupConcurrency)
 	defer wg.Wait()
 	channel := make(chan *configpb.TestGroup) // TODO(fejta): pass into this function to allow multi-writers
 	defer close(channel)
+
+	updateTestGroup := func(tg *configpb.TestGroup) {
+		name := tg.Name
+		log := log.WithField("group", name)
+		lock.RLock()
+		on := active[name]
+		lock.RUnlock()
+		if on {
+			log.Debug("Already updating...")
+			return
+		}
+		fin := mets.start()
+		tgp, err := testGroupPath(configPath, gridPrefix, name)
+		if err != nil {
+			fin.fail()
+			log.WithError(err).Error("Bad path")
+			return
+		}
+		lock.Lock()
+		if active[name] {
+			log.Debug("Another routine started updating...")
+			lock.Unlock()
+			return
+		}
+		active[name] = true
+		gen, hasGen := generations[name]
+		lock.Unlock()
+		defer func() {
+			attrs, err := client.Stat(ctx, *tgp)
+			lock.Lock()
+			active[name] = false
+			if err == nil {
+				generations[name] = attrs.Generation
+			}
+			lock.Unlock()
+		}()
+		if !hasGen {
+			gen = -1
+		}
+		unprocessed, err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin)
+		if err != nil {
+			delay := freq/4 + time.Duration(rand.Int63n(int64(freq/4)))
+			log.WithError(err).WithField("delay", delay).Error("Error updating group")
+			q.Fix(tg.Name, time.Now().Add(delay))
+			return
+		}
+		if unprocessed { // process another chunk ASAP
+			q.Fix(name, time.Now())
+		}
+	}
+
 	for i := 0; i < groupConcurrency; i++ {
 		go func() {
 			defer wg.Done()
 			for tg := range channel {
-				fin := mets.start()
-				log := log.WithField("group", tg.Name)
-				tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
-				if err != nil {
-					fin.fail()
-					log.WithError(err).Error("Bad path")
-					continue
-				}
-				lock.RLock()
-				gen, ok := generations[tg.Name]
-				lock.RUnlock()
-				if !ok {
-					gen = -1
-				}
-				unprocessed, err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin)
-				if err != nil {
-					delay := freq/4 + time.Duration(rand.Int63n(int64(freq/4)))
-					log.WithError(err).WithField("delay", delay).Error("Error updating group")
-					q.Fix(tg.Name, time.Now().Add(delay))
-					continue
-				}
-				if unprocessed { // process another chunk ASAP
-					q.Fix(tg.Name, time.Now())
-				}
-				if attrs, err := client.Stat(ctx, *tgp); err == nil {
-					lock.Lock()
-					generations[tg.Name] = attrs.Generation
-					lock.Unlock()
-				}
+				updateTestGroup(tg)
 				runtime.GC()
 			}
 		}()
