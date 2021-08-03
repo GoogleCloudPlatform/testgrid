@@ -52,6 +52,7 @@ go_test(
         "@com_google_cloud_go_storage//:go_default_library",
         "@io_bazel_rules_go//proto/wkt:timestamp_go_proto",
         "@io_k8s_api//core/v1:go_default_library",
+        "@org_golang_google_api//googleapi:go_default_library",
         "@org_golang_google_protobuf//testing/protocmp:go_default_library",
     ],
 )

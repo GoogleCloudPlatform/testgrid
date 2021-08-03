@@ -19,20 +19,15 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/fvbommel/sortorder"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/google/go-cmp/cmp"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/testing/protocmp"
-	core "k8s.io/api/core/v1"
-
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	_ "github.com/GoogleCloudPlatform/testgrid/metadata/junit"
@@ -41,6 +36,13 @@ import (
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
+	"github.com/fvbommel/sortorder"
+	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/protobuf/testing/protocmp"
+	core "k8s.io/api/core/v1"
 )
 
 type fakeUpload = fake.Upload
@@ -4179,6 +4181,50 @@ func TestDropEmptyRows(t *testing.T) {
 
 			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
 				t.Errorf("dropEmptyRows() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestIsPreconditionFailed(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "pass",
+		},
+		{
+			name: "normal",
+			err:  errors.New("normal"),
+		},
+		{
+			name: "googleapi",
+			err: &googleapi.Error{
+				Code: 404,
+			},
+		},
+		{
+			name: "precondition",
+			err: &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			},
+			want: true,
+		},
+		{
+			name: "wrapped precondition",
+			err: fmt.Errorf("wrap: %w", &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			}),
+			want: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isPreconditionFailed(tc.err); got != tc.want {
+				t.Errorf("isPreconditionFailed(%v) got %t, want %t", tc.err, got, tc.want)
 			}
 		})
 	}
