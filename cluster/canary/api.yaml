@@ -57,6 +57,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: testgrid-api-ingress
+  namespace: testgrid-canary
   annotations:
     kubernetes.io/ingress.class: "gce"
 spec:
