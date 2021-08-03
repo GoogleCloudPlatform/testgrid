@@ -19,6 +19,7 @@ package updater
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -165,8 +166,8 @@ func isPreconditionFailed(err error) bool {
 	if err == nil {
 		return false
 	}
-	e, ok := err.(*googleapi.Error)
-	if !ok {
+	var e *googleapi.Error
+	if !errors.As(err, &e) {
 		return false
 	}
 	return e.Code == http.StatusPreconditionFailed
