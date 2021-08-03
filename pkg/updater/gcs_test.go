@@ -360,6 +360,30 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
+			name: "pass dynamic email list as list of interaces",
+			result: gcsResult{
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Metadata: metadata.Metadata{
+							EmailListKey: []interface{}{"world"},
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					EmailAddresses: []string{"world"},
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "T",
+						Message: "Build did not complete within 24 hours",
+					},
+				},
+			},
+		},
+		{
 			name: "multiple dynamic email list",
 			result: gcsResult{
 				finished: gcs.Finished{
@@ -384,12 +408,36 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid email list",
+			name: "not a list",
 			result: gcsResult{
 				finished: gcs.Finished{
 					Finished: metadata.Finished{
 						Metadata: metadata.Metadata{
 							EmailListKey: "olam",
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					EmailAddresses: []string{},
+				},
+				Cells: map[string]Cell{
+					overallRow: {
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "T",
+						Message: "Build did not complete within 24 hours",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid email list",
+			result: gcsResult{
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Metadata: metadata.Metadata{
+							EmailListKey: []interface{}{1},
 						},
 					},
 				},
