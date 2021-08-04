@@ -94,11 +94,17 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 }
 
 // FixAll will fix multiple groups inside a single critical section.
-func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
+//
+// If later is set then it will move out the next update time, otherwise
+// it will only reduce it.
+func (q *TestGroupQueue) FixAll(whens map[string]time.Time, later bool) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	var missing []string
 	defer q.rouse()
+
+	reduced := map[string]time.Time{}
+	fixed := map[string]time.Time{}
 
 	for name, when := range whens {
 		it, ok := q.items[name]
@@ -106,23 +112,40 @@ func (q *TestGroupQueue) FixAll(whens map[string]time.Time) error {
 			missing = append(missing, name)
 			continue
 		}
-		if !when.Equal(it.when) {
-			logrus.WithFields(logrus.Fields{
-				"group": name,
-				"when":  when,
-			}).Info("Fixing groups")
-			it.when = when
+		if when.Before(it.when) {
+			reduced[name] = when
+		} else if later && !when.Equal(it.when) {
+			fixed[name] = when
+		} else {
+			continue
 		}
+		it.when = when
+	}
+	var log logrus.FieldLogger = logrus.New()
+	var any bool
+	if n := len(reduced); n > 0 {
+		log = log.WithField("reduced", n)
+		any = true
+	}
+	if n := len(fixed); n > 0 {
+		log = log.WithField("fixed", n)
+		any = true
 	}
 	heap.Init(&q.queue)
 	if len(missing) > 0 {
 		return fmt.Errorf("not found: %v", missing)
 	}
+	if any {
+		log.Info("Fixed all groups")
+	}
 	return nil
 }
 
 // Fix the next time to send the group to receivers.
-func (q *TestGroupQueue) Fix(name string, when time.Time) error {
+//
+// If later is set then it will move out the next update time, otherwise
+// it will only reduce it.
+func (q *TestGroupQueue) Fix(name string, when time.Time, later bool) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	defer q.rouse()
@@ -131,14 +154,20 @@ func (q *TestGroupQueue) Fix(name string, when time.Time) error {
 	if !ok {
 		return errors.New("not found")
 	}
-	if !when.Equal(it.when) {
-		logrus.WithFields(logrus.Fields{
-			"group": name,
-			"when":  when,
-		}).Info("Fixed group")
-		it.when = when
-		heap.Fix(&q.queue, it.index)
+	log := logrus.WithFields(logrus.Fields{
+		"group": name,
+		"when":  when,
+	})
+	if when.Before(it.when) {
+		log = log.WithField("reduced", it.when.Sub(when))
+	} else if later && !when.Equal(it.when) {
+		log = log.WithField("delayed", when.Sub(it.when))
+	} else {
+		return nil
 	}
+	it.when = when
+	heap.Fix(&q.queue, it.index)
+	log.Info("Fixed group")
 	return nil
 }
 

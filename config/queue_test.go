@@ -110,6 +110,7 @@ func TestFixAll(t *testing.T) {
 		name  string
 		q     *TestGroupQueue
 		fixes map[string]time.Time
+		later bool
 
 		next []*configpb.TestGroup
 		err  bool
@@ -119,7 +120,7 @@ func TestFixAll(t *testing.T) {
 			q:    &TestGroupQueue{},
 		},
 		{
-			name: "basic",
+			name: "later",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
 				q.Init([]*configpb.TestGroup{
@@ -147,6 +148,7 @@ func TestFixAll(t *testing.T) {
 				"second-now-fifth": now.Add(2 * time.Minute),
 				"fifth-now-fourth": now.Add(time.Minute),
 			},
+			later: true,
 
 			next: []*configpb.TestGroup{
 				{
@@ -166,11 +168,60 @@ func TestFixAll(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "reduce",
+			q: func() *TestGroupQueue {
+				var q TestGroupQueue
+				q.Init([]*configpb.TestGroup{
+					{
+						Name: "first-now-second",
+					},
+					{
+						Name: "second-ignored-becomes-fifth",
+					},
+					{
+						Name: "third-becomes-fourth",
+					},
+					{
+						Name: "fourth-now-first",
+					},
+					{
+						Name: "fifth-ignored-becomes-fourth",
+					},
+				}, now)
+				return &q
+			}(),
+			fixes: map[string]time.Time{
+				"fourth-now-first":             now.Add(-2 * time.Minute),
+				"first-now-second":             now.Add(-time.Minute),
+				"second-ignored-becomes-fifth": now.Add(2 * time.Minute), // noop
+				"fifth-ignored-becomes-fourth": now.Add(time.Minute),     // noop
+			},
+			later: true,
+
+			next: []*configpb.TestGroup{
+				{
+					Name: "fourth-now-first",
+				},
+				{
+					Name: "first-now-second",
+				},
+				{
+					Name: "third-becomes-fourth",
+				},
+				{
+					Name: "fifth-ignored-becomes-fourth",
+				},
+				{
+					Name: "second-ignored-becomes-fifth",
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := tc.q.FixAll(tc.fixes); (err != nil) != tc.err {
+			if err := tc.q.FixAll(tc.fixes, tc.later); (err != nil) != tc.err {
 				t.Errorf("FixAll() got unexpected error %v, wanted err=%t", err, tc.err)
 			}
 			var got []*configpb.TestGroup
@@ -188,9 +239,11 @@ func TestFix(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
 		name string
-		fix  string
-		when time.Time
-		q    *TestGroupQueue
+
+		q     *TestGroupQueue
+		fix   string
+		when  time.Time
+		later bool
 
 		next []*configpb.TestGroup
 		err  bool
@@ -202,7 +255,7 @@ func TestFix(t *testing.T) {
 			err:  true,
 		},
 		{
-			name: "basic",
+			name: "later",
 			fix:  "basic",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
@@ -216,7 +269,8 @@ func TestFix(t *testing.T) {
 				}, now)
 				return &q
 			}(),
-			when: now.Add(time.Minute),
+			when:  now.Add(time.Minute),
+			later: true,
 			next: []*configpb.TestGroup{
 				{
 					Name: "was-later-now-first",
@@ -226,11 +280,61 @@ func TestFix(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ignore later",
+			fix:  "basic",
+			q: func() *TestGroupQueue {
+				var q TestGroupQueue
+				q.Init([]*configpb.TestGroup{
+					{
+						Name: "basic",
+					},
+					{
+						Name: "was-later-still-later",
+					},
+				}, now)
+				return &q
+			}(),
+			when: now.Add(time.Minute),
+			next: []*configpb.TestGroup{
+				{
+					Name: "basic",
+				},
+				{
+					Name: "was-later-still-later",
+				},
+			},
+		},
+		{
+			name: "reduce",
+			fix:  "basic",
+			q: func() *TestGroupQueue {
+				var q TestGroupQueue
+				q.Init([]*configpb.TestGroup{
+					{
+						Name: "was-earlier-now-later",
+					},
+					{
+						Name: "basic",
+					},
+				}, now)
+				return &q
+			}(),
+			when: now.Add(-time.Minute),
+			next: []*configpb.TestGroup{
+				{
+					Name: "basic",
+				},
+				{
+					Name: "was-earlier-now-later",
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := tc.q.Fix(tc.fix, tc.when); (err != nil) != tc.err {
+			if err := tc.q.Fix(tc.fix, tc.when, tc.later); (err != nil) != tc.err {
 				t.Errorf("Fix() got unexpected error %v, wanted err=%t", err, tc.err)
 			}
 			var got []*configpb.TestGroup
@@ -290,7 +394,7 @@ func TestStatus(t *testing.T) {
 						Name: "there",
 					},
 				}, now)
-				q.Fix("middle", now.Add(-time.Minute))
+				q.Fix("middle", now.Add(-time.Minute), true)
 				return &q
 			}(),
 			depth: 3,
