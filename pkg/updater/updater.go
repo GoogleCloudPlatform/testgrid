@@ -251,7 +251,7 @@ func updateTestGroups(ctx context.Context, opener gcs.Opener, stater gcs.Stater,
 				// no change
 			}
 		}
-		q.FixAll(updates)
+		q.FixAll(updates, false)
 	}
 	return configGen, generations, nil
 }
@@ -302,8 +302,8 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		}
 		lock.Lock()
 		if active[name] {
-			log.Debug("Another routine started updating...")
 			lock.Unlock()
+			log.Debug("Another routine started updating...")
 			return
 		}
 		active[name] = true
@@ -315,6 +315,8 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			active[name] = false
 			if err == nil {
 				generations[name] = attrs.Generation
+			} else if errors.Is(err, storage.ErrObjectNotExist) {
+				generations[name] = 0
 			}
 			lock.Unlock()
 		}()
@@ -325,11 +327,11 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		if err != nil {
 			delay := freq/4 + time.Duration(rand.Int63n(int64(freq/4)))
 			log.WithError(err).WithField("delay", delay).Error("Error updating group")
-			q.Fix(tg.Name, time.Now().Add(delay))
+			q.Fix(tg.Name, time.Now().Add(delay), true)
 			return
 		}
 		if unprocessed { // process another chunk ASAP
-			q.Fix(name, time.Now())
+			q.Fix(name, time.Now(), false)
 		}
 	}
 
@@ -366,13 +368,10 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				gen, newGenerations, err := updateTestGroups(ctx, opener, client, &q, configPath, gridPrefix, groupNames, freq)
+				gen, _, err := updateTestGroups(ctx, opener, client, &q, configPath, gridPrefix, groupNames, freq)
 				switch {
 				case err == nil:
 					cond.GenerationNotMatch = gen
-					lock.Lock()
-					generations = newGenerations
-					lock.Unlock()
 				case !isPreconditionFailed(err):
 					log.WithError(err).Error("Failed to update configuration")
 				}
