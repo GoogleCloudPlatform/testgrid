@@ -37,5 +37,8 @@ func Route(r *mux.Router, s Server) *mux.Router {
 	}
 	r.HandleFunc("/dashboard-groups", s.ListDashboardGroups).Methods("GET")
 	r.HandleFunc("/dashboard-groups/{dashboard-group}", s.GetDashboardGroup).Methods("GET")
+	r.HandleFunc("/dashboards", s.ListDashboards).Methods("GET")
+	r.HandleFunc("/dashboards/{dashboard}/tabs", s.ListDashboardTabs).Methods("GET")
+	r.HandleFunc("/dashboards/{dashboard}", s.GetDashboard).Methods("GET")
 	return r
 }
