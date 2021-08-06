@@ -36,6 +36,7 @@ filegroup(
         "//pb:all-srcs",
         "//pkg/api:all-srcs",
         "//pkg/merger:all-srcs",
+        "//pkg/pubsub:all-srcs",
         "//pkg/summarizer:all-srcs",
         "//pkg/updater:all-srcs",
         "//resultstore:all-srcs",
