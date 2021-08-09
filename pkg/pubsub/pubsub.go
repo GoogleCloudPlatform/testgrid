@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package pubsub exports messages for interacting with pubsub.
 package pubsub
 
 import (
@@ -35,13 +36,18 @@ const (
 	keyGeneration = "objectGeneration"
 )
 
+// Event specifies what happened to the GCS object.
+//
+// See https://cloud.google.com/storage/docs/pubsub-notifications#events
 type Event string
 
+// Well-known event types.
 const (
 	Finalize Event = "OBJECT_FINALIZE"
 	Delete   Event = "OBJECT_DELETE"
 )
 
+// Notification captures information about a change to a GCS object.
 type Notification struct {
 	Path       gcs.Path
 	Event      Event
@@ -61,6 +67,8 @@ func (n Notification) String() string {
 // Sends the notification to the receivers channel.
 //   - Nacks messages associated with any unsent Notifications.
 //   - Acks as soon as the Notification is sent.
+//
+// More info: https://cloud.google.com/storage/docs/pubsub-notifications#overview
 func SendGCS(ctx context.Context, log logrus.FieldLogger, client *pubsub.Client, projectID, subID string, settings *pubsub.ReceiveSettings, receivers chan *Notification) error {
 	send := subscriptionInProject(client, projectID, subID, settings)
 
