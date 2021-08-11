@@ -28,6 +28,31 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Subscriber creates Senders that attach to subscriptions with the specified settings.
+type Subscriber interface {
+	Subscribe(projID, subID string, setttings *pubsub.ReceiveSettings) Sender
+}
+
+// Client makes a pubsub client a Subscriber that can Send pubsub messages.
+type Client pubsub.Client
+
+// NewClient converts a raw pubsub client into a Subscriber.
+func NewClient(client *pubsub.Client) *Client {
+	return (*Client)(client)
+}
+
+// Subscribe to the specified id in the project using optional receive settings.
+func (c *Client) Subscribe(projID, subID string, settings *pubsub.ReceiveSettings) Sender {
+	sub := (*pubsub.Client)(c).SubscriptionInProject(subID, projID)
+	if settings != nil {
+		sub.ReceiveSettings = *settings
+	}
+	return sub.Receive
+}
+
+// Sender forwards pubsub messages to the receive function until the send context expires.
+type Sender func(sendCtx context.Context, receive func(context.Context, *pubsub.Message)) error
+
 const (
 	keyBucket     = "bucketId"
 	keyObject     = "objectId"
@@ -69,20 +94,9 @@ func (n Notification) String() string {
 //   - Acks as soon as the Notification is sent.
 //
 // More info: https://cloud.google.com/storage/docs/pubsub-notifications#overview
-func SendGCS(ctx context.Context, log logrus.FieldLogger, client *pubsub.Client, projectID, subID string, settings *pubsub.ReceiveSettings, receivers chan *Notification) error {
-	send := subscriptionInProject(client, projectID, subID, settings)
-
+func SendGCS(ctx context.Context, log logrus.FieldLogger, client Subscriber, projectID, subID string, settings *pubsub.ReceiveSettings, receivers chan<- *Notification) error {
+	send := client.Subscribe(projectID, subID, settings)
 	return sendToReceivers(ctx, log, send, receivers, realAcker{})
-}
-
-type sender func(context.Context, func(context.Context, *pubsub.Message)) error
-
-func subscriptionInProject(client *pubsub.Client, projectID, subID string, settings *pubsub.ReceiveSettings) sender {
-	sub := client.SubscriptionInProject(subID, projectID)
-	if settings != nil {
-		sub.ReceiveSettings = *settings
-	}
-	return sub.Receive
 }
 
 type acker interface {
@@ -100,7 +114,7 @@ func (ra realAcker) Nack(m *pubsub.Message) {
 	m.Nack()
 }
 
-func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send sender, receivers chan *Notification, result acker) error {
+func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send Sender, receivers chan<- *Notification, result acker) error {
 	return send(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		bucket, obj := msg.Attributes[keyBucket], msg.Attributes[keyObject]
 		path, err := gcs.NewPath("gs://" + bucket + "/" + obj)

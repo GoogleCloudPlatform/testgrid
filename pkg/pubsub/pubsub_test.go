@@ -54,7 +54,7 @@ func TestSendToReceivers(t *testing.T) {
 	cases := []struct {
 		name     string
 		ctx      context.Context
-		send     sender
+		send     Sender
 		want     []*Notification
 		wantAcks fakeAcker
 		err      error
