@@ -20,9 +20,11 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	gpubsub "cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
@@ -30,6 +32,130 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
 )
+
+type fakeSubscriber struct {
+	messages map[string][]*gpubsub.Message
+	wg       sync.WaitGroup
+}
+
+func (s *fakeSubscriber) wait(cancel context.CancelFunc) {
+	s.wg.Wait()
+	cancel()
+}
+
+func (s *fakeSubscriber) add() {
+	n := len(s.messages)
+	s.wg.Add(n)
+}
+
+func (s *fakeSubscriber) Subscribe(proj, sub string, _ *gpubsub.ReceiveSettings) pubsub.Sender {
+	messages, ok := s.messages[proj+"/"+sub]
+	if !ok {
+		return func(ctx context.Context, receive func(context.Context, *gpubsub.Message)) error {
+			return nil
+		}
+	}
+	return func(ctx context.Context, receive func(context.Context, *gpubsub.Message)) error {
+		defer s.wg.Done()
+		for _, m := range messages {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			receive(ctx, m)
+		}
+		return nil
+	}
+}
+
+func TestFixGCS(t *testing.T) {
+	now := time.Now().Round(time.Second)
+	cases := []struct {
+		name       string
+		ctx        context.Context
+		subscriber *fakeSubscriber
+		q          func([]*configpb.TestGroup) *config.TestGroupQueue
+		groups     []*configpb.TestGroup
+
+		want     string
+		wantWhen time.Time
+	}{
+		{
+			name: "empty",
+			q: func([]*configpb.TestGroup) *config.TestGroupQueue {
+				return &config.TestGroupQueue{}
+			},
+			subscriber: &fakeSubscriber{},
+		},
+		{
+			name: "basic",
+			q: func(groups []*configpb.TestGroup) *config.TestGroupQueue {
+				var q config.TestGroupQueue
+				q.Init(groups, now.Add(time.Hour))
+				return &q
+			},
+			subscriber: &fakeSubscriber{
+				messages: map[string][]*gpubsub.Message{
+					"super/duper": {
+						{
+							Attributes: map[string]string{
+								"bucketId":         "bucket",
+								"objectId":         "path/finished.json",
+								"eventTime":        now.Format(time.RFC3339),
+								"objectGeneration": "1",
+							},
+						},
+					},
+				},
+			},
+			groups: []*configpb.TestGroup{
+				{
+					Name: "foo",
+					ResultSource: &configpb.TestGroup_ResultSource{
+						ResultSourceConfig: &configpb.TestGroup_ResultSource_GcsConfig{
+							GcsConfig: &configpb.GCSConfig{
+								GcsPrefix:          "bucket/path",
+								PubsubProject:      "super",
+								PubsubSubscription: "duper",
+							},
+						},
+					},
+				},
+			},
+			want:     "foo",
+			wantWhen: now.Add(namedDurations["finished.json"]),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			ctx, cancel := context.WithCancel(tc.ctx)
+			defer cancel()
+			q := tc.q(tc.groups)
+			tc.subscriber.add()
+			go func() {
+				tc.subscriber.wait(cancel)
+			}()
+
+			fix := FixGCS(tc.subscriber)
+			fix(ctx, logrus.WithField("name", tc.name), q, tc.groups)
+			_, who, when := q.Status()
+			var got string
+			if who != nil {
+				got = who.Name
+			}
+			if got != tc.want {
+				t.Errorf("FixGCS() got unexpected next group %q, wanted %q", got, tc.want)
+			}
+			if !when.Equal(tc.wantWhen) {
+				t.Errorf("FixGCS() got unexpected next time %s, wanted %s", when, tc.wantWhen)
+			}
+		})
+	}
+
+}
 
 func TestGCSSubscribedPaths(t *testing.T) {
 	origManual := manualSubs
