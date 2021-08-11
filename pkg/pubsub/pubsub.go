@@ -33,7 +33,7 @@ type Subscriber interface {
 	Subscribe(projID, subID string, setttings *pubsub.ReceiveSettings) Sender
 }
 
-// Client makes a pubsub client a Subscriber that can Send pubsub messages.
+// Client wraps a pubsub client into a Subscriber that creates Senders for pubsub subscriptions.
 type Client pubsub.Client
 
 // NewClient converts a raw pubsub client into a Subscriber.

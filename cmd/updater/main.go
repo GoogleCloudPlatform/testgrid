@@ -26,10 +26,13 @@ import (
 	"strings"
 	"time"
 
+	gpubsub "cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/api/option"
 )
 
 // Strings represents the value of a flag that accept multiple strings.
@@ -65,6 +68,7 @@ type options struct {
 	groupTimeout     time.Duration
 	buildTimeout     time.Duration
 	gridPrefix       string
+	subscriptions    Strings
 
 	debug    bool
 	trace    bool
@@ -89,6 +93,23 @@ func (o *options) validate() error {
 		}
 	}
 
+	return subscribeGCS(o.subscriptions.Strings()...)
+}
+
+func subscribeGCS(subs ...string) error {
+	for _, sub := range subs {
+		parts := strings.SplitN(sub, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("--subscribe format is prefix=proj/sub, got %q", sub)
+		}
+		prefix := parts[0]
+		parts = strings.SplitN(parts[1], "/", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("--subscribe format is prefix=proj/sub, got %q", sub)
+		}
+		proj, sub := parts[0], parts[1]
+		updater.AddManualSubscription(proj, sub, prefix)
+	}
 	return nil
 }
 
@@ -102,6 +123,8 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.IntVar(&o.groupConcurrency, "group-concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
+	fs.Var(&o.subscriptions, "subscribe", "gcs-prefix=project-id/sub-id (repeatable)")
+
 	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
@@ -144,7 +167,7 @@ func main() {
 
 	storageClient, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
-		logrus.Fatalf("Failed to create storage client: %v", err)
+		logrus.WithError(err).Fatal("Failed to create storage client")
 	}
 	defer storageClient.Close()
 
@@ -159,7 +182,16 @@ func main() {
 
 	mets := setupMetrics(ctx)
 
-	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait); err != nil {
+	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(opt.creds))
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to create pubsub client")
+	}
+
+	fixers := []updater.Fixer{
+		updater.FixGCS(pubsub.NewClient(pubsubClient)),
+	}
+
+	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not update")
 	}
 }

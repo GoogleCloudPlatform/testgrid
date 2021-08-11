@@ -135,11 +135,22 @@ func TestUpdate(t *testing.T) {
 						NumColumnsRecent:    6,
 					},
 					{
-						Name:                "skip-non-k8s",
-						GcsPrefix:           "kubernetes-jenkins/path/to/job",
-						DaysOfResults:       7,
-						UseKubernetesClient: false,
-						NumColumnsRecent:    6,
+						Name:             "modern",
+						DaysOfResults:    7,
+						NumColumnsRecent: 6,
+						ResultSource: &configpb.TestGroup_ResultSource{
+							ResultSourceConfig: &configpb.TestGroup_ResultSource_GcsConfig{
+								GcsConfig: &configpb.GCSConfig{
+									GcsPrefix: "kubernetes-jenkins/path/to/another-job",
+								},
+							},
+						},
+					},
+					{
+						Name:             "skip-non-k8s",
+						GcsPrefix:        "kubernetes-jenkins/path/to/job",
+						DaysOfResults:    7,
+						NumColumnsRecent: 6,
 					},
 				},
 				Dashboards: []*configpb.Dashboard{
@@ -149,6 +160,10 @@ func TestUpdate(t *testing.T) {
 							{
 								Name:          "hello-tab",
 								TestGroupName: "hello",
+							},
+							{
+								Name:          "modern-tab",
+								TestGroupName: "modern",
 							},
 							{
 								Name:          "skip-tab",
@@ -164,13 +179,13 @@ func TestUpdate(t *testing.T) {
 					CacheControl: "no-cache",
 					WorldRead:    gcs.DefaultACL,
 				},
-				*resolveOrDie(&configPath, "skip-non-k8s"): {
+				*resolveOrDie(&configPath, "modern"): {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
 					WorldRead:    gcs.DefaultACL,
 				},
 			},
-			successes: 2,
+			successes: 3,
 		},
 		{
 			name:       "bad grid prefix",
@@ -301,6 +316,7 @@ func TestUpdate(t *testing.T) {
 					}
 					return string(b)
 				}(),
+				Attrs:   &storage.ReaderObjectAttrs{},
 				ReadErr: tc.configErr,
 			}
 
@@ -348,11 +364,9 @@ func TestUpdate(t *testing.T) {
 				t.Error("Update() failed to receive an error")
 			default:
 				actual := client.Uploader
-				diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(fakeUpload{}))
-				if diff == "" {
-					return
+				if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(fakeUpload{})); diff != "" {
+					t.Errorf("Update() uploaded files got unexpected diff (-want, +got):\n%s", diff)
 				}
-				t.Errorf("Update() uploaded files got unexpected diff (-have, +want):\n%s", diff)
 			}
 
 			// Check that metrics also report.

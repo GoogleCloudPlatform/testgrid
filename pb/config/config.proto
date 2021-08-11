@@ -287,8 +287,8 @@ message TestGroup {
     reserved 1, 3; // Legacy sources
 
     oneof result_source_config {
-      // JUnit results, parsed from GCS buckets.
-      JUnitConfig junit_config = 2;
+      // GCS buckets holding junit and json results, typically created by prow.
+      GCSConfig gcs_config = 2;
     }
 
     reserved 4; // Private source
@@ -330,7 +330,21 @@ message TestGroup {
   // disable_prowjob_analysis 62
 }
 
-message JUnitConfig {}
+// GCSConfig specifies results stored in GCS, typically created by prow.
+//
+// Each invocation is stored in a GCS path, containing json metadata files
+// as well as junit and other artifacts specifying the result of the run.
+//
+// More info: https://github.com/GoogleCloudPlatform/testgrid/tree/master/metadata
+message GCSConfig {
+    // Path to the test result stored in gcs (some-bucket/some/optional/path).
+    string gcs_prefix = 1;
+
+    // The GCP project where GCS sends notifications for the above prefix.
+    string pubsub_project = 2;
+    // The pubsub subscription ID in the above topic
+    string pubsub_subscription = 3;
+}
 
 // Default metadata to apply when opening bugs.
 message TestMetadataOptions {
