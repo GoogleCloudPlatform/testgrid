@@ -49,7 +49,6 @@ func FixGCS(subscriber pubsub.Subscriber) Fixer {
 		var wg sync.WaitGroup
 		ch := make(chan *pubsub.Notification)
 		wg.Add(1)
-		defer wg.Done()
 		go func() {
 			defer wg.Done()
 			subscribeGCS(ctx, log, subscriber, ch, subs...)
