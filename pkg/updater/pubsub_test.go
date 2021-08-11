@@ -18,6 +18,8 @@ package updater
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,8 +117,8 @@ func TestGCSSubscribedPaths(t *testing.T) {
 			},
 			wantSubs: []subscription{
 				{"fancy", "cake"},
-				{"super", "duper"},
 				{"ha", "ha"},
+				{"super", "duper"},
 			},
 		},
 		{
@@ -178,8 +180,8 @@ func TestGCSSubscribedPaths(t *testing.T) {
 				mustPath("gs://bucket/path/to/job/"): {"world"},
 			},
 			wantSubs: []subscription{
-				{"this", "that"},
 				{"fancy", "cake"},
+				{"this", "that"},
 			},
 		},
 	}
@@ -199,6 +201,15 @@ func TestGCSSubscribedPaths(t *testing.T) {
 				if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(gcs.Path{})); diff != "" {
 					t.Errorf("gcsSubscribedPaths() got unexpected diff (-want +got):\n%s", diff)
 				}
+				sort.Slice(gotSubs, func(i, j int) bool {
+					switch strings.Compare(gotSubs[i].proj, gotSubs[j].proj) {
+					case -1:
+						return true
+					case 0:
+						return gotSubs[i].sub < gotSubs[j].sub
+					}
+					return false
+				})
 				if diff := cmp.Diff(tc.wantSubs, gotSubs, cmp.AllowUnexported(subscription{})); diff != "" {
 					t.Errorf("gcsSubscribedPaths() got unexpected subscription diff (-want +got):\n%s", diff)
 				}
