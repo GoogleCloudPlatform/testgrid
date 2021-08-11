@@ -218,7 +218,7 @@ func (nc nameConfig) render(job, test string, metadatas ...map[string]string) st
 
 func makeNameConfig(group *configpb.TestGroup) nameConfig {
 	nameCfg := convertNameConfig(group.TestNameConfig)
-	if strings.Contains(group.GcsPrefix, ",") {
+	if strings.Contains(gcsPrefix(group), ",") {
 		nameCfg.multiJob = true
 		ensureJobName(&nameCfg)
 	}

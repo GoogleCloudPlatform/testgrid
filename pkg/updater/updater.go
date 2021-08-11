@@ -119,7 +119,7 @@ type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gc
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
 func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
-		if !tg.UseKubernetesClient {
+		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
 			log.Debug("Skipping non-kubernetes client group")
 			return false, nil
 		}
@@ -198,63 +198,117 @@ func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldL
 	return more, nil
 }
 
-func updateTestGroups(ctx context.Context, opener gcs.Opener, stater gcs.Stater, q *config.TestGroupQueue, configPath gcs.Path, gridPrefix string, groupNames []string, freq time.Duration) (int64, map[string]int64, error) {
-	r, attrs, err := opener.Open(ctx, configPath)
+func testGroups(ctx context.Context, opener gcs.Opener, path gcs.Path, groupNames ...string) ([]*configpb.TestGroup, *storage.ReaderObjectAttrs, error) {
+	r, attrs, err := opener.Open(ctx, path)
 	if err != nil {
-		if !isPreconditionFailed(err) {
-			err = fmt.Errorf("read: %v", err)
-		}
-		return 0, nil, err
+		return nil, nil, fmt.Errorf("open: %w", err)
 	}
 	cfg, err := config.Unmarshal(r)
 	if err != nil {
-		return 0, nil, fmt.Errorf("unmarshal: %v", err)
+		return nil, nil, fmt.Errorf("unmarshal: %v", err)
 	}
-	var configGen int64
-	if attrs != nil {
-		configGen = attrs.Generation
+	if len(groupNames) == 0 {
+		return cfg.TestGroups, attrs, nil
 	}
-
-	var groups []*configpb.TestGroup
-	if len(groupNames) != 0 { // Just specific groups
-		for _, groupName := range groupNames {
-			tg := config.FindTestGroup(groupName, cfg)
-			if tg == nil {
-				return 0, nil, fmt.Errorf("group %q not found", groupName)
-			}
-			groups = append(groups, tg)
+	groups := make([]*configpb.TestGroup, 0, len(groupNames))
+	for _, groupName := range groupNames {
+		tg := config.FindTestGroup(groupName, cfg)
+		if tg == nil {
+			return nil, nil, fmt.Errorf("group %q not found", groupName)
 		}
-	} else { // All groups
-		groups = cfg.TestGroups
+		groups = append(groups, tg)
 	}
-
-	generations := make(map[string]int64, len(groups))
-
-	q.Init(groups, time.Now())
-
-	if len(groups) > 0 {
-		paths, err := gridPaths(configPath, gridPrefix, groups)
-		if err != nil {
-			return configGen, nil, err
-		}
-		attrs := gcs.Stat(ctx, stater, 20, paths...)
-		updates := make(map[string]time.Time, len(attrs))
-		for i, attrs := range attrs {
-			name := groups[i].Name
-			switch {
-			case attrs.Attrs != nil:
-				updates[name] = attrs.Attrs.Updated.Add(freq)
-				generations[name] = attrs.Attrs.Generation
-			case attrs.Err == storage.ErrObjectNotExist:
-				generations[name] = 0
-			default:
-				// no change
-			}
-		}
-		q.FixAll(updates, false)
-	}
-	return configGen, generations, nil
+	return groups, attrs, nil
 }
+
+type lastUpdated struct {
+	stater     gcs.Stater
+	gridPrefix string
+	configPath gcs.Path
+	freq       time.Duration
+}
+
+func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) (map[string]int64, error) {
+	attrs, err := gridAttrs(ctx, log, fixer.stater, fixer.configPath, fixer.gridPrefix, groups)
+	if err != nil {
+		return nil, err
+	}
+	generations := make(map[string]int64, len(attrs))
+	q.Init(groups, time.Now().Add(fixer.freq))
+	updates := make(map[string]time.Time, len(attrs))
+	for i, attr := range attrs {
+		if attr == nil {
+			continue
+		}
+		name := groups[i].Name
+		gen := attr.Generation
+		generations[name] = gen
+		if gen > 0 {
+			updates[name] = attr.Updated.Add(fixer.freq)
+		} else {
+			updates[name] = time.Now()
+		}
+	}
+	q.FixAll(updates, false)
+	return generations, nil
+}
+
+func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) error {
+	if fixer.freq == 0 {
+		return nil
+	}
+	ticker := time.NewTicker(fixer.freq)
+	fix := func() {
+		if _, err := fixer.FixOnce(ctx, log, q, groups); err != nil {
+			log.WithError(err).Warning("Failed to fix groups based on last update time")
+		}
+	}
+	fix()
+
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return ctx.Err()
+		case <-ticker.C:
+			fix()
+		}
+	}
+}
+
+func gridAttrs(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) ([]*storage.ObjectAttrs, error) {
+	paths, err := gridPaths(configPath, gridPrefix, groups)
+	if err != nil {
+		return nil, fmt.Errorf("grid paths: %v", err)
+	}
+
+	out := make([]*storage.ObjectAttrs, len(groups))
+
+	attrs := gcs.Stat(ctx, client, 20, paths...)
+	for i, attrs := range attrs {
+		name := groups[i].Name
+		switch {
+		case attrs.Attrs != nil:
+			out[i] = attrs.Attrs
+		case errors.Is(err, storage.ErrObjectNotExist):
+			out[i] = &storage.ObjectAttrs{}
+		default:
+			log.WithError(err).WithField("name", name).Info("Failed to stat")
+		}
+	}
+	return out, nil
+}
+
+// Fixer will fix the TestGroupQueue's next time for TestGroups.
+//
+// Fixer should:
+// * work continually and not return until the context expires.
+// * expect to be called multiple times with different contexts and test groups.
+//
+// For example, it might use the last updated time of the test group to
+// specify the next update time. Or it might watch the data backing these groups and
+// request an immediate update whenever the data changes.
+type Fixer func(context.Context, logrus.FieldLogger, *config.TestGroupQueue, []*configpb.TestGroup) error
 
 // Update test groups with the specified freq.
 //
@@ -262,25 +316,106 @@ func updateTestGroups(ctx context.Context, opener gcs.Opener, stater gcs.Stater,
 //
 // Filters down to a single group when set.
 // Returns after all groups updated once if freq is zero.
-func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, groupNames []string, updateGroup GroupUpdater, write bool, freq time.Duration) error {
+func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, groupNames []string, updateGroup GroupUpdater, write bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", configPath)
 
 	var q config.TestGroupQueue
 
-	log.Debug("Fetching testgroup metadata state...")
-	gen, generations, err := updateTestGroups(ctx, client, client, &q, configPath, gridPrefix, groupNames, freq)
+	log.Debug("Fetching config...")
+	groups, cfgAttrs, err := testGroups(ctx, client, configPath, groupNames...)
 	if err != nil {
-		return err
+		return fmt.Errorf("read config: %v", err)
 	}
-	log.Info("Fetched testgroup metadata state")
+	log.Info("Fetched config")
+	if err != nil {
+		return fmt.Errorf("test groups: %v", err)
+	}
+
+	q.Init(groups, time.Now().Add(freq))
+
+	log.Debug("Fetching initial generations...")
+	fixLastUpdated := lastUpdated{
+		stater:     client,
+		gridPrefix: gridPrefix,
+		configPath: configPath,
+		freq:       freq,
+	}
+	generations, err := fixLastUpdated.FixOnce(ctx, log, &q, groups)
+	if err != nil {
+		return fmt.Errorf("get generations: %v", err)
+	}
+	log.Info("Fetched initial generations")
+
+	fixers = append(fixers, fixLastUpdated.Fix)
+
+	go func() {
+		fixCtx, fixCancel := context.WithCancel(ctx)
+		var fixWg sync.WaitGroup
+		fixAll := func() {
+			n := len(fixers)
+			log.WithField("fixers", n).Trace("Starting fixers on current test groups...")
+			fixWg.Add(n)
+			for i, fix := range fixers {
+				go func(i int, fix Fixer) {
+					defer fixWg.Done()
+					if err := fix(fixCtx, log, &q, groups); err != nil && !errors.Is(err, context.Canceled) {
+						log.WithError(err).WithField("fixer", i).Warning("Fixer failed")
+					}
+				}(i, fix)
+			}
+			log.Debug("Started fixers on current test groups")
+		}
+		fixAll()
+		cond := storage.Conditions{GenerationNotMatch: cfgAttrs.Generation}
+		opener := client.If(&cond, &cond)
+		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
+		for {
+			depth, next, when := q.Status()
+			log := log.WithField("depth", depth)
+			if next != nil {
+				log = log.WithField("next", next.Name)
+			}
+			delay := time.Since(when)
+			if delay < 0 {
+				delay = 0
+				log = log.WithField("sleep", -delay)
+			}
+			log = log.WithField("delay", delay.Round(time.Second))
+			mets.delay(delay)
+			log.Info("Updating groups")
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				fixCancel()
+				return
+			case <-ticker.C:
+				groups, cfgAttrs, err = testGroups(ctx, opener, configPath, groupNames...)
+				switch {
+				case err == nil:
+					// Config changed, setup fixers again.
+					cond.GenerationNotMatch = cfgAttrs.Generation
+					log.Trace("Cancelling fixers on old test groups...")
+					fixCancel()
+					fixWg.Wait()
+					q.Init(groups, time.Now().Add(freq))
+					log.Debug("Canceled fixers on old test groups")
+					fixCtx, fixCancel = context.WithCancel(ctx)
+					fixAll()
+				case !isPreconditionFailed(err):
+					log.WithError(err).Error("Failed to update configuration")
+				}
+			}
+		}
+	}()
+
 	active := map[string]bool{}
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
 	wg.Add(groupConcurrency)
 	defer wg.Wait()
-	channel := make(chan *configpb.TestGroup) // TODO(fejta): pass into this function to allow multi-writers
+	channel := make(chan *configpb.TestGroup)
 	defer close(channel)
 
 	updateTestGroup := func(tg *configpb.TestGroup) {
@@ -345,40 +480,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		}()
 	}
 
-	go func() {
-		cond := storage.Conditions{GenerationNotMatch: gen}
-		opener := client.If(&cond, &cond)
-		ticker := time.NewTicker(time.Minute)
-		for {
-			depth, next, when := q.Status()
-			log := log.WithField("depth", depth)
-			if next != nil {
-				log = log.WithField("next", next.Name)
-			}
-			delay := time.Since(when)
-			if delay < 0 {
-				delay = 0
-				log = log.WithField("sleep", -delay)
-			}
-			log = log.WithField("delay", delay.Round(time.Second))
-			mets.delay(delay)
-			log.Info("Updating groups")
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				gen, _, err := updateTestGroups(ctx, opener, client, &q, configPath, gridPrefix, groupNames, freq)
-				switch {
-				case err == nil:
-					cond.GenerationNotMatch = gen
-				case !isPreconditionFailed(err):
-					log.WithError(err).Error("Failed to update configuration")
-				}
-			}
-		}
-	}()
-
+	log.Info("Starting to process test groups...")
 	return q.Send(ctx, channel, freq)
 }
 
@@ -399,9 +501,19 @@ func testGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) 
 	return np, nil
 }
 
+func gcsPrefix(tg *configpb.TestGroup) string {
+	if tg.ResultSource == nil {
+		return tg.GcsPrefix
+	}
+	if gcsCfg := tg.ResultSource.GetGcsConfig(); gcsCfg != nil {
+		return gcsCfg.GcsPrefix
+	}
+	return tg.GcsPrefix
+}
+
 func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 	var out []gcs.Path
-	prefixes := strings.Split(tg.GcsPrefix, ",")
+	prefixes := strings.Split(gcsPrefix(tg), ",")
 	for idx, prefix := range prefixes {
 		prefix := strings.TrimSpace(prefix)
 		if prefix == "" {
@@ -461,6 +573,9 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 		var offset *gcs.Path
 		var err error
 		if since != "" {
+			if !strings.HasSuffix(since, "/") {
+				since = since + "/"
+			}
 			if offset, err = tgPath.ResolveReference(&url.URL{Path: since}); err != nil {
 				return nil, fmt.Errorf("resolve since: %w", err)
 			}
