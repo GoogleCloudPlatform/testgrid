@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/api"
 	"github.com/sirupsen/logrus"
@@ -37,6 +38,8 @@ func gatherOptions() options {
 	flag.StringVar(&o.router.GcsCredentials, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.StringVar(&o.port, "port", "8080", "Port to deploy to")
 	flag.StringVar(&o.router.Hostname, "host", "", "Friendly hostname used to serve links")
+	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
+	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to merge everything in one loop")
 	flag.Parse()
 
 	if o.router.Hostname == "" {

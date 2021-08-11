@@ -25,11 +25,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -123,9 +125,10 @@ func TestPassQueryParameters(t *testing.T) {
 	}
 }
 
-type ConfigTestSpec struct {
+type TestSpec struct {
 	name             string
 	config           map[string]*pb.Configuration
+	grid             map[string]*statepb.Grid
 	endpoint         string
 	params           string
 	expectedResponse string
@@ -133,7 +136,7 @@ type ConfigTestSpec struct {
 }
 
 func TestListDashboardGroups(t *testing.T) {
-	tests := []ConfigTestSpec{
+	tests := []TestSpec{
 		{
 			name: "Returns an empty JSON when there's no groups",
 			config: map[string]*pb.Configuration{
@@ -200,7 +203,7 @@ func TestListDashboardGroups(t *testing.T) {
 }
 
 func TestGetDashboardGroup(t *testing.T) {
-	tests := []ConfigTestSpec{
+	tests := []TestSpec{
 		{
 			name: "Returns an error when there's no resource",
 			config: map[string]*pb.Configuration{
@@ -300,7 +303,7 @@ func TestGetDashboardGroup(t *testing.T) {
 }
 
 func TestListDashboards(t *testing.T) {
-	tests := []ConfigTestSpec{
+	tests := []TestSpec{
 		{
 			name: "Returns an empty JSON when there is no dashboards",
 			config: map[string]*pb.Configuration{
@@ -367,7 +370,7 @@ func TestListDashboards(t *testing.T) {
 }
 
 func TestGetDashboard(t *testing.T) {
-	tests := []ConfigTestSpec{
+	tests := []TestSpec{
 		{
 			name: "Returns an error when there's no resource",
 			config: map[string]*pb.Configuration{
@@ -500,7 +503,7 @@ func TestGetDashboard(t *testing.T) {
 }
 
 func TestGetDashboardTabs(t *testing.T) {
-	tests := []ConfigTestSpec{
+	tests := []TestSpec{
 		{
 			name: "Returns an error when there's no resource",
 			config: map[string]*pb.Configuration{
@@ -626,10 +629,10 @@ func TestGetDashboardTabs(t *testing.T) {
 	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
 }
 
-func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []ConfigTestSpec) {
+func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []TestSpec) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			router := Route(nil, setupTestServer(t, test.config))
+			router := Route(nil, setupTestServer(t, test.config, test.grid))
 			request, err := http.NewRequest("GET", baseEndpoint+test.endpoint+test.params, nil)
 			if err != nil {
 				t.Fatalf("Can't form request: %v", err)
@@ -650,7 +653,7 @@ func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []ConfigTe
 // Helper Functions
 ///////////////////
 
-func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration) Server {
+func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, grids map[string]*statepb.Grid) Server {
 	t.Helper()
 
 	var fc fakeClient
@@ -668,10 +671,24 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration) 
 		}
 	}
 
+	for p, grid := range grids {
+		path, err := gcs.NewPath(p)
+		if err != nil {
+			t.Fatalf("setupTestServer() can't generate path: %v", err)
+		}
+
+		fc.Datastore[*path], err = gcs.MarshalGrid(grid)
+		if err != nil {
+			t.Fatalf("Could not serialize proto: %v\n\nProto:\n%s", err, grid.String())
+		}
+	}
+
 	return Server{
-		Client:        fc,
-		Host:          "host",
-		DefaultBucket: "gs://default",
+		Client:         fc,
+		Host:           "host",
+		DefaultBucket:  "gs://default",
+		GridPathPrefix: "grid",
+		Timeout:        10 * time.Minute,
 	}
 }
 
