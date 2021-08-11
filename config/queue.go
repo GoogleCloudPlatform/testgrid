@@ -201,12 +201,22 @@ func (q *TestGroupQueue) sleep(d time.Duration) {
 		log.Debug("Sleeping...")
 	}
 	sleep := time.NewTimer(d)
+	start := time.Now()
 	select {
 	case <-q.signal:
 		if !sleep.Stop() {
 			<-sleep.C
 		}
-		log.Info("Roused")
+		dur := time.Now().Sub(start)
+		log := log.WithField("after", dur.Round(time.Millisecond))
+		switch {
+		case dur > 10*time.Second:
+			log.Info("Roused")
+		case dur > time.Second:
+			log.Debug("Roused")
+		default:
+			log.Trace("Roused")
+		}
 	case <-sleep.C:
 	}
 }
