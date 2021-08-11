@@ -204,6 +204,9 @@ func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path
 		offset = after.Object()
 	}
 	offsetBaseName := hackOffset(&offset)
+	if !strings.HasSuffix(offset, "/") {
+		offset += "/"
+	}
 	it := lister.Objects(ctx, gcsPath, "/", offset)
 	var all []Build
 	for {
