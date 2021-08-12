@@ -96,6 +96,7 @@ func (n Notification) String() string {
 // More info: https://cloud.google.com/storage/docs/pubsub-notifications#overview
 func SendGCS(ctx context.Context, log logrus.FieldLogger, client Subscriber, projectID, subID string, settings *pubsub.ReceiveSettings, receivers chan<- *Notification) error {
 	send := client.Subscribe(projectID, subID, settings)
+	log = log.WithField("subscription", "pubsub://"+projectID+"/"+subID)
 	return sendToReceivers(ctx, log, send, receivers, realAcker{})
 }
 
