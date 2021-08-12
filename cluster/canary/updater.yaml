@@ -39,12 +39,14 @@ spec:
         - --group-concurrency=4
         - --group-timeout=10m
         - --json-logs
+        - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid
+        - --subscribe=k8s-testgrid/testgrid-canary
         - --wait=3h
         resources:
           requests:
             cpu: "1"
             memory: "50G"
           limits:
-            cpu: "2"
+            cpu: "4"
             memory: "100G"
 ---
