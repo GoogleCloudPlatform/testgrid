@@ -32,19 +32,22 @@ spec:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20210812-v0.0.90-38-g463fa11
         args:
-        - --build-timeout=2m
         - --build-concurrency=2
-        - --group-concurrency=4
+        - --build-timeout=2m
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --json-logs
+        - --group-concurrency=4
         - --group-timeout=10m
-        - --wait=10m
+        - --json-logs
+        - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid
+        - --subscribe=oss-prow=k8s-testgrid/testgrid
+        - --subscribe=istio-prow=k8s-testgrid/testgrid
+        - --wait=2h
         resources:
           requests:
-            cpu: "1"
-            memory: "50G"
+            cpu: "5"
+            memory: "20G"
           limits:
-            cpu: "2"
-            memory: "100G"
+            cpu: "10"
+            memory: "50G"
 ---
