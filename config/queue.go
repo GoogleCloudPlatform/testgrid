@@ -159,9 +159,9 @@ func (q *TestGroupQueue) Fix(name string, when time.Time, later bool) error {
 		"when":  when,
 	})
 	if when.Before(it.when) {
-		log = log.WithField("reduced", it.when.Sub(when))
+		log = log.WithField("reduced minutes", it.when.Sub(when).Round(time.Second).Minutes())
 	} else if later && !when.Equal(it.when) {
-		log = log.WithField("delayed", when.Sub(it.when))
+		log = log.WithField("delayed minutes", when.Sub(it.when).Round(time.Second).Minutes())
 	} else {
 		return nil
 	}
