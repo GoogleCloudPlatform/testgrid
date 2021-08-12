@@ -38,7 +38,14 @@ log() {
 }
 
 apply-subscription() {
-    log "$create_sub" -c -t "$topic" -p k8s-testgrid testgrid
+    # Prod
+    log "$create_sub" -t "$topic" \
+        -b serviceAccount:updater@k8s-testgrid.iam.gserviceaccount.com \
+        -p k8s-testgrid testgrid
+    # Canary
+    log "$create_sub" -t "$topic" \
+        -b serviceAccount:testgrid-canary@k8s-testgrid.iam.gserviceaccount.com \
+        -p k8s-testgrid testgrid-canary
 }
 
 apply-topic() {
@@ -47,6 +54,7 @@ apply-topic() {
 
 do-list() {
     "$list" gs://k8s-testgrid-canary/config
+    echo "NOTICE: edit this file ($(basename "$0")) to add any additional paths" >&2
 }
 
 something=
