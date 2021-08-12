@@ -138,7 +138,7 @@ func subscribeGCS(ctx context.Context, log logrus.FieldLogger, client pubsub.Sub
 	wg.Add(len(subs))
 	defer wg.Wait()
 	for _, sub := range subs {
-		log := log.WithField("sub", sub)
+		log := log.WithField("subscription", sub.String())
 		projID, subID := sub.proj, sub.sub
 		log.Debug("Subscribed to GCS changes")
 		go func() {
