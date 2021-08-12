@@ -40,7 +40,8 @@ spec:
         - --group-timeout=10m
         - --json-logs
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid
-        - --subscribe=k8s-testgrid/testgrid-canary
+        - --subscribe=oss-prow=k8s-testgrid/testgrid-canary
+        - --subscribe=istio-prow=k8s-testgrid/testgrid-canary
         - --wait=3h
         resources:
           requests:
