@@ -8,8 +8,8 @@ test --@io_bazel_rules_go//go/config:race --test_output=errors
 # only build tests when testing
 test --build_tests_only
 
-# you can build remotely by specifying the following in a .bazelrc:
-# build --config=remote --remote_instance_name=<build_instance>
+# Note needs an instance name
+# See --config=ci-instance for a concrete example
 # https://github.com/bazelbuild/bazel-toolchains/blob/master/bazelrc/bazel-0.27.0.bazelrc
 build:remote --jobs=500
 build:remote --host_javabase=@rbe_default//java:jdk
@@ -34,7 +34,10 @@ build:remote --config=toplevel
 
 run:remote --experimental_remote_download_outputs=all --noexperimental_inmemory_jdeps_files --noexperimental_inmemory_dotd_files
 
-# configs to minimize what is downloaded
+# Improve cache hit rate
+build:remote --incompatible_strict_action_env=true
+
+# Minimize what is downloaded
 build:inmemory --experimental_inmemory_jdeps_files
 build:inmemory --experimental_inmemory_dotd_files
 
@@ -43,6 +46,16 @@ build:toplevel --experimental_remote_download_outputs=toplevel
 
 build:minimal --config=inmemory
 build:minimal --experimental_remote_download_outputs=minimal
+
+# Compose the remote configs with an instance name
+# A couple examples below:
+
+# --config=ci-instance adds the instance name
+build:ci-instance --remote_instance_name=projects/oss-prow-builds/instances/default_instance
+build:trusted-instance --remote_instance_name=projects/k8s-prow/instances/default_instance
+
+# Config we want to use in ci
+build:ci --config=remote --config=ci-instance
 
 # Used for non-interactive ci builds
 build:ci --noshow_progress # reduce log spam
