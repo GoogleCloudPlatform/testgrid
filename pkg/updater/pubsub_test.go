@@ -550,6 +550,24 @@ func TestProcessNotification(t *testing.T) {
 			},
 		},
 		{
+			name: "not junit",
+			paths: map[gcs.Path][]string{
+				mustPath("gs://foo/bar"): {"hello", "world"},
+			},
+			n: &pubsub.Notification{
+				Path: mustPath("gs://foo/bar/artifacts/context.xml"),
+			},
+		},
+		{
+			name: "irrelevant extension",
+			paths: map[gcs.Path][]string{
+				mustPath("gs://foo/bar"): {"hello", "world"},
+			},
+			n: &pubsub.Notification{
+				Path: mustPath("gs://foo/bar/artifacts/junit.jpeg"),
+			},
+		},
+		{
 			name: "simple junit",
 			paths: map[gcs.Path][]string{
 				mustPath("gs://foo/bar"): {"hello", "world"},
