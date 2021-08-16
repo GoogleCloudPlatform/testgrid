@@ -17,12 +17,18 @@
 set -o nounset
 set -o errexit
 
-buckets=(
+goog_buckets=(
     gs://oss-prow
     gs://istio-prow
 )
 
-topic=projects/k8s-testgrid/topics/prow-updates
+goog_topic=projects/k8s-testgrid/topics/prow-updates
+
+k8s_topic=projects/kubernetes-jenkins/topics/prow-updates
+
+k8s_buckets=(
+    gs://kubernetes-jenkins
+)
 
 dir=$(dirname "$0")
 list=$dir/list-gcs-prefixes.sh
@@ -38,17 +44,24 @@ log() {
 }
 
 apply-subscription() {
+    topic=$1
+    project=$2
+    sub=$3
+    canary=$4
     # Prod
     log "$create_sub" -t "$topic" \
         -b serviceAccount:updater@k8s-testgrid.iam.gserviceaccount.com \
-        -p k8s-testgrid testgrid
+        -p "$project" "$sub"
     # Canary
     log "$create_sub" -t "$topic" \
         -b serviceAccount:testgrid-canary@k8s-testgrid.iam.gserviceaccount.com \
-        -p k8s-testgrid testgrid-canary
+        -p "$project" "$canary"
 }
 
 apply-topic() {
+    topic=$1
+    shift
+    buckets=("$@")
     log "$create_topic" -t "$topic" -p logs/ -p pr-logs/ "${buckets[@]}"
 }
 
@@ -61,11 +74,13 @@ something=
 while getopts "lst" flag; do
     case "$flag" in
         s)
-            apply-subscription
+            apply-subscription "$goog_topic" k8s-testgrid testgrid testgrid-canary
+            apply-subscription "$k8s_topic" kubernetes-jenkins testgrid testgrid-canary
             something=yes
             ;;
         t)
-            apply-topic
+            apply-topic "$goog_topic" "${goog_buckets[@]}"
+            apply-topic "$k8s_topic" "${k8s_buckets[@]}"
             something=yes
             ;;
         l)

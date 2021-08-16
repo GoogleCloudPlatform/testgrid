@@ -21,21 +21,23 @@ set -o errexit
 
 args=()
 topic=
+prefixes=()
 
 while getopts "e:t:p:b:" flag; do
     case "$flag" in
         e) args+=(-e "$OPTARG");;
         t) topic=$OPTARG;;
-        p) args+=(-p "$OPTARG");;
+        p) prefixes+=("$OPTARG");;
     esac
 done
 
 shift $((OPTIND -1))
 
 if [[ -z "$topic" || $# == 0 ]]; then
-    echo "Usage: $(basename "$0") [-e EVENT] [-p PREFIX] <-t TOPIC> <BUCKET ...>" >&2
+    echo "Usage: $(basename "$0") [-e EVENT [-e ...]] [-p PREFIX] <-t TOPIC> <BUCKET ...>" >&2
     echo >&2
     echo "  -e EVENT: OBJECT_FINALIZE|OBJECT_METADATA_UPDATE|OBJECT_DELETE|OBJECT_ARCHIVE (repeatable)" >&2
+    echo "  -p PREFIX: only publish messages for objects that start with this name, such as logs/" >&2
     echo "  -t TOPIC: foo or projects/proj/topics/foo" >&2
     echo >&2
     echo "   More info: gsutil notification --help" >&2
@@ -51,8 +53,10 @@ log() {
 
 for bucket in "$@"; do
     existing=( $(gsutil notification list "$bucket" 2>/dev/null | grep -B 1 "$topic" | grep notificationConfigs || true) )
+    for prefix in "${prefixes[@]}"; do
+        log gsutil notification create -f json -t "$topic" -p "$prefix" "${args[@]}" "$bucket"
+    done
     if [[ ${#existing[@]} -gt 0 ]]; then
         log gsutil notification delete "${existing[@]}"
     fi
-    log gsutil notification create -f json -t "$topic" "${args[@]}" "$bucket"
 done

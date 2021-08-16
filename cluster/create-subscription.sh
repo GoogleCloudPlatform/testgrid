@@ -63,12 +63,12 @@ log() {
 # Subscribe to topic
 
 verb=create
-topic_arg=("--topic=$topic")
+create_arg=("--topic=$topic" "$@")
 old=$(gcloud pubsub subscriptions describe "--project=$project" "$name" --format='value(topic)' 2>/dev/null || true)
 if [[ -n "$old" ]]; then
     if [[ "$old" == "$topic" ]]; then
         verb=update
-        topic_arg=()
+        create_arg=()
     else
         echo "WARNING: $project/$name already subscribed to $old." >&2
         read -p "Delete and replace with a subscription to $topic [yes/NO]: " answer
@@ -83,8 +83,7 @@ fi
 log gcloud pubsub subscriptions "$verb" \
     "--project=$project" "$name" \
     "--ack-deadline=$ack" "--expiration-period=$exp" \
-    "${topic_arg[@]}" "$@"
-
+    "${create_arg[@]}"
 
 # Add bindings to subscription
 
