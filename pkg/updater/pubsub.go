@@ -213,11 +213,15 @@ func processNotification(paths map[gcs.Path][]string, n *pubsub.Notification) ([
 	b, obj := n.Path.Bucket(), n.Path.Object()
 	base := path.Base(obj)
 	dur, ok := namedDurations[base]
-	if !ok { // Maybe it is a junit file, should finish soon
-		if !strings.HasPrefix(base, "junit") || !strings.HasSuffix(base, ".xml") {
+	if !ok { // Maybe it is an interesting file
+		switch {
+		case strings.HasPrefix(base, "junit") && strings.HasSuffix(base, ".xml"): // row data
+			dur = 5 * time.Minute
+		case strings.HasSuffix(base, ".txt") && strings.Contains(obj, "directory/"): // symlink to actual data
+			dur = 5 * time.Minute
+		default:
 			return nil, 0
 		}
-		dur = 5 * time.Minute
 	}
 
 	for path, groups := range paths {

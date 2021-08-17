@@ -581,6 +581,26 @@ func TestProcessNotification(t *testing.T) {
 			wantDur: 5 * time.Minute,
 		},
 		{
+			name: "normal txt",
+			paths: map[gcs.Path][]string{
+				mustPath("gs://foo/bar"): {"yes"},
+			},
+			n: &pubsub.Notification{
+				Path: mustPath("gs://foo/bar/something.txt"),
+			},
+		},
+		{
+			name: "directory txt",
+			paths: map[gcs.Path][]string{
+				mustPath("gs://foo/bar/directory"): {"yes"},
+			},
+			n: &pubsub.Notification{
+				Path: mustPath("gs://foo/bar/directory/something.txt"),
+			},
+			want:    []string{"yes"},
+			wantDur: 5 * time.Minute,
+		},
+		{
 			name: "complex junit",
 			paths: map[gcs.Path][]string{
 				mustPath("gs://foo/bar"): {"hello", "world"},
