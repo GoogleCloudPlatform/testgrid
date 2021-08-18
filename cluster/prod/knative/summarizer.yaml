@@ -29,37 +29,6 @@ spec:
         - --json-logs
         - --wait=5m
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: beta-summarizer
-  namespace: knative
-  labels:
-    component: summarizer-beta
-    app: testgrid
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: testgrid
-      component: summarizer-beta
-  template:
-    metadata:
-      labels:
-        component: summarizer-beta
-        app: testgrid
-    spec:
-      serviceAccountName: summarizer
-      containers:
-      - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20210817-v0.0.91-14-gb2da23e
-        args:
-        - --config=gs://knative-own-testgrid/config
-        - --confirm
-        - --grid-path=grid
-        - --summary-path=summary
-        - --wait=5m
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
