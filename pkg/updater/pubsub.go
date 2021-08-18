@@ -195,10 +195,10 @@ func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *con
 }
 
 var namedDurations = map[string]time.Duration{
-	"podinfo.json":  time.Second,     // Done
-	"finished.json": time.Minute,     // Container done, wait for prowjob to finish
-	"metadata.json": 5 * time.Minute, // Should finish soon
-	"started.json":  time.Second,     // Running
+	"podinfo.json":  30 * time.Second, // Done
+	"finished.json": 5 * time.Minute,  // Container done, wait for prowjob to finish
+	"metadata.json": 5 * time.Minute,  // Should finish soon
+	"started.json":  30 * time.Second, // Running
 }
 
 // Try to balance providing up-to-date info with minimal redundant processing.
