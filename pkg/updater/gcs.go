@@ -46,6 +46,15 @@ type gcsResult struct {
 	malformed []string
 }
 
+// deadline to collect information (24 hours after the job starts or an hour after finishing).
+func (r gcsResult) deadline() time.Time {
+	f := r.finished.Timestamp
+	if f == nil {
+		return time.Unix(r.started.Timestamp, 0).Add(24 * time.Hour)
+	}
+	return time.Unix(*f, 0).Add(time.Hour)
+}
+
 const maxDuplicates = 20
 
 // EmailListKey is the expected metadata key for email addresses.
@@ -345,7 +354,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	}
 
 	if opt.analyzeProwJob {
-		if pic := podInfoCell(result.podInfo); pic.Message != gcs.MissingPodInfo || overall.Result != statuspb.TestStatus_RUNNING {
+		if pic := podInfoCell(result); pic.Message != gcs.MissingPodInfo || overall.Result != statuspb.TestStatus_RUNNING {
 			injectedCells[podInfoRow] = pic
 		}
 	}
@@ -397,13 +406,19 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	return out
 }
 
-func podInfoCell(podInfo gcs.PodInfo) Cell {
+func podInfoCell(result gcsResult) Cell {
+	podInfo := result.podInfo
 	pass, msg := podInfo.Summarize()
 	var status statuspb.TestStatus
 	var icon string
-	if pass {
+	switch {
+	case msg == gcs.MissingPodInfo && time.Now().Before(result.deadline()):
+		status = statuspb.TestStatus_RUNNING // Try and reprocess it next time.
+	case msg == gcs.MissingPodInfo:
+		status = statuspb.TestStatus_UNKNOWN // Probably won't receive it.
+	case pass:
 		status = statuspb.TestStatus_PASS
-	} else {
+	default:
 		status = statuspb.TestStatus_FAIL
 	}
 
@@ -455,7 +470,7 @@ func overallCell(result gcsResult) Cell {
 			c.Result = statuspb.TestStatus_FAIL
 		}
 		c.Metrics = setElapsed(nil, float64(finished-result.started.Timestamp))
-	case time.Now().Add(-24*time.Hour).Unix() > result.started.Timestamp:
+	case time.Now().After(result.deadline()):
 		c.Result = statuspb.TestStatus_FAIL
 		c.Message = "Build did not complete within 24 hours"
 		c.Icon = "T"

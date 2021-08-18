@@ -1612,23 +1612,83 @@ func TestConvertResult(t *testing.T) {
 }
 
 func TestPodInfoCell(t *testing.T) {
+	now := time.Now().Add(-time.Second)
+
 	cases := []struct {
 		name     string
-		podInfo  gcs.PodInfo
+		result   gcsResult
 		expected Cell
 	}{
 		{
-			name:     "basically works",
+			name: "basically works",
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now.Unix(),
+					},
+				},
+			},
 			expected: podInfoMissingCell,
 		},
 		{
-			name:     "passing result works",
-			podInfo:  podInfoSuccessPodInfo,
+			name: "wait for pod from running pod",
+			result: gcsResult{
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: func() *int64 {
+							when := now.Unix()
+							return &when
+						}(),
+					},
+				},
+			},
+			expected: podInfoMissingCell,
+		},
+		{
+			name: "wait for pod info from finished pod",
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now.Add(-24 * time.Hour).Unix(),
+					},
+				},
+			},
+			expected: func() Cell {
+				c := podInfoMissingCell
+				c.Result = statuspb.TestStatus_UNKNOWN
+				return c
+			}(),
+		},
+		{
+			name: "finished pod without podinfo",
+			result: gcsResult{
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: func() *int64 {
+							when := now.Add(-time.Hour).Unix()
+							return &when
+						}(),
+					},
+				},
+			},
+			expected: func() Cell {
+				c := podInfoMissingCell
+				c.Result = statuspb.TestStatus_UNKNOWN
+				return c
+			}(),
+		},
+		{
+			name: "passing pod",
+			result: gcsResult{
+				podInfo: podInfoSuccessPodInfo,
+			},
 			expected: podInfoPassCell,
 		},
 		{
-			name:    "no pod utils works",
-			podInfo: gcs.PodInfo{Pod: &core.Pod{}},
+			name: "no pod utils",
+			result: gcsResult{
+				podInfo: gcs.PodInfo{Pod: &core.Pod{}},
+			},
 			expected: Cell{
 				Message: gcs.NoPodUtils,
 				Icon:    "E",
@@ -1636,15 +1696,17 @@ func TestPodInfoCell(t *testing.T) {
 			},
 		},
 		{
-			name: "failure works",
-			podInfo: gcs.PodInfo{
-				Pod: &core.Pod{
-					Status: core.PodStatus{
-						Conditions: []core.PodCondition{
-							{
-								Type:    core.PodScheduled,
-								Status:  core.ConditionFalse,
-								Message: "hi there",
+			name: "pod failure",
+			result: gcsResult{
+				podInfo: gcs.PodInfo{
+					Pod: &core.Pod{
+						Status: core.PodStatus{
+							Conditions: []core.PodCondition{
+								{
+									Type:    core.PodScheduled,
+									Status:  core.ConditionFalse,
+									Message: "hi there",
+								},
 							},
 						},
 					},
@@ -1660,9 +1722,9 @@ func TestPodInfoCell(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := podInfoCell(tc.podInfo)
+			actual := podInfoCell(tc.result)
 			if diff := cmp.Diff(actual, tc.expected); diff != "" {
-				t.Errorf("podInfoCell(%s) got unexpected diff (-have, +want):\n%s", tc.podInfo, diff)
+				t.Errorf("podInfoCell(%v) got unexpected diff (-have, +want):\n%s", tc.result, diff)
 			}
 		})
 	}

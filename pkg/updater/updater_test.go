@@ -486,7 +486,7 @@ var (
 	podInfoSuccess     = jsonPodInfo(podInfoSuccessPodInfo)
 	podInfoPassCell    = cell{Result: statuspb.TestStatus_PASS}
 	podInfoMissingCell = cell{
-		Result:  statuspb.TestStatus_FAIL,
+		Result:  statuspb.TestStatus_RUNNING,
 		Icon:    "!",
 		Message: gcs.MissingPodInfo,
 	}
