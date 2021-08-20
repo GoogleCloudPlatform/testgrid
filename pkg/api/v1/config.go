@@ -78,7 +78,7 @@ func (s Server) getConfig(w http.ResponseWriter, r *http.Request) *configpb.Conf
 }
 
 // ListDashboardGroups returns every dashboard group in TestGrid
-// Response Proto: ListDashboardGroupResponse
+// Response json: ListDashboardGroupResponse
 func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
 	cfg := s.getConfig(w, r)
 	if cfg == nil {
@@ -98,7 +98,7 @@ func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetDashboardGroup returns a given dashboard group
-// Response Proto: GetDashboardGroupResponse
+// Response json: GetDashboardGroupResponse
 func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cfg := s.getConfig(w, r)
@@ -125,7 +125,7 @@ func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListDashboards returns every dashboard in TestGrid
-// Response Proto: ListDashboardResponse
+// Response json: ListDashboardResponse
 func (s Server) ListDashboards(w http.ResponseWriter, r *http.Request) {
 	cfg := s.getConfig(w, r)
 	if cfg == nil {
@@ -145,7 +145,7 @@ func (s Server) ListDashboards(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetDashboard returns a given dashboard
-// Response Proto: GetDashboardResponse
+// Response json: GetDashboardResponse
 func (s Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cfg := s.getConfig(w, r)
@@ -170,7 +170,7 @@ func (s Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListDashboardTabs returns a given dashboard tabs
-// Response Proto: ListDashboardTabsResponse
+// Response json: ListDashboardTabsResponse
 func (s Server) ListDashboardTabs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cfg := s.getConfig(w, r)
