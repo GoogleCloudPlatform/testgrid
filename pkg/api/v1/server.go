@@ -17,16 +17,19 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/gorilla/mux"
+	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/gorilla/mux"
 )
 
 // Server contains the necessary settings and i/o objects needed to serve this api
 type Server struct {
-	Client        gcs.Client
-	Host          string
-	DefaultBucket string
+	Client         gcs.Client
+	Host           string
+	DefaultBucket  string
+	GridPathPrefix string
+	Timeout        time.Duration
 }
 
 // Route applies all the v1 API functions provided by the Server to the Router given.
@@ -40,5 +43,8 @@ func Route(r *mux.Router, s Server) *mux.Router {
 	r.HandleFunc("/dashboards", s.ListDashboards).Methods("GET")
 	r.HandleFunc("/dashboards/{dashboard}/tabs", s.ListDashboardTabs).Methods("GET")
 	r.HandleFunc("/dashboards/{dashboard}", s.GetDashboard).Methods("GET")
+
+	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/headers", s.ListHeaders).Methods("GET")
+	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/rows", s.ListRows).Methods("GET")
 	return r
 }
