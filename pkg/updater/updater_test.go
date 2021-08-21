@@ -113,6 +113,7 @@ func TestUpdate(t *testing.T) {
 		groupConcurrency int
 		buildConcurrency int
 		skipConfirm      bool
+		groupUpdater     GroupUpdater
 		groupTimeout     *time.Duration
 		buildTimeout     *time.Duration
 		groupNames       []string
@@ -276,6 +277,39 @@ func TestUpdate(t *testing.T) {
 			},
 			successes: 2,
 		},
+		{
+			name: "update error with freq = 0",
+			config: &configpb.Configuration{
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:                "hello",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dash",
+						DashboardTab: []*configpb.DashboardTab{
+							{
+								Name:          "hello-tab",
+								TestGroupName: "hello",
+							},
+						},
+					},
+				},
+			},
+			groupUpdater: func(_ context.Context, _ logrus.FieldLogger, _ gcs.Client, _ *configpb.TestGroup, _ gcs.Path) (bool, error) {
+				return false, errors.New("bad update")
+			},
+			builds:     make(map[string][]fakeBuild),
+			groupNames: []string{"hello"},
+			freq:       time.Duration(0),
+			expected:   fakeUploader{},
+			errors:     1,
+		},
 		// TODO(fejta): more cases
 	}
 
@@ -335,7 +369,9 @@ func TestUpdate(t *testing.T) {
 				client.Lister[buildsPath] = fi
 			}
 
-			groupUpdater := GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
+			if tc.groupUpdater == nil {
+				tc.groupUpdater = GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
+			}
 			mets := &Metrics{
 				Successes:    &fakeCounter{},
 				Errors:       &fakeCounter{},
@@ -351,7 +387,7 @@ func TestUpdate(t *testing.T) {
 				tc.gridPrefix,
 				tc.groupConcurrency,
 				tc.groupNames,
-				groupUpdater,
+				tc.groupUpdater,
 				!tc.skipConfirm,
 				tc.freq,
 			)
