@@ -16,7 +16,7 @@ metadata:
     component: updater
     app: testgrid
 spec:
-  replicas: 2
+  replicas: 1 # https://github.com/GoogleCloudPlatform/testgrid/issues/663
   selector:
     matchLabels:
       app: testgrid
