@@ -460,9 +460,14 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		}
 		unprocessed, err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin)
 		if err != nil {
-			delay := freq/4 + time.Duration(rand.Int63n(int64(freq/4)))
-			log.WithError(err).WithField("delay", delay).Error("Error updating group")
-			q.Fix(tg.Name, time.Now().Add(delay), true)
+			log := log.WithError(err)
+			var delay time.Duration
+			if freq > 0 {
+				delay = freq/4 + time.Duration(rand.Int63n(int64(freq/4))) // Int63n() panics if freq <= 0
+				log = log.WithField("delay", delay.Seconds())
+				q.Fix(tg.Name, time.Now().Add(delay), true)
+			}
+			log.Error("error updating group")
 			return
 		}
 		if unprocessed { // process another chunk ASAP
