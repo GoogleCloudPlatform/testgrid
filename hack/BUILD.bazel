@@ -1,5 +1,3 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-
 package(default_visibility = ["//visibility:public"])
 
 py_test(
@@ -140,34 +138,4 @@ filegroup(
     srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
-)
-
-go_binary(
-    name = "compare_states",
-    embed = [":go_default_library"],
-    importpath = "github.com/GoogleCloudPlatform/testgrid/hack",
-)
-
-go_library(
-    name = "go_default_library",
-    srcs = ["compare_states.go"],
-    importpath = "github.com/GoogleCloudPlatform/testgrid/hack",
-    deps = [
-        "//config:go_default_library",
-        "//pb/state:go_default_library",
-        "//util/gcs:go_default_library",
-        "@com_github_google_go_cmp//cmp:go_default_library",
-        "@com_github_sirupsen_logrus//:go_default_library",
-        "@org_golang_google_api//iterator:go_default_library",
-    ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["compare_states_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "//pb/state:go_default_library",
-        "//util/gcs:go_default_library",
-    ],
 )
