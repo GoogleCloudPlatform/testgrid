@@ -26,6 +26,7 @@ filegroup(
         "//cluster/prod:all-srcs",
         "//cmd/api:all-srcs",
         "//cmd/config_merger:all-srcs",
+        "//cmd/state_comparer:all-srcs",
         "//cmd/summarizer:all-srcs",
         "//cmd/updater:all-srcs",
         "//config:all-srcs",
