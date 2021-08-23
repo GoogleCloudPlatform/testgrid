@@ -22,9 +22,10 @@ package main
 
 import (
 	"context"
-	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"strings"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 )
@@ -143,8 +144,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -153,8 +154,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			diffed: false,
@@ -166,8 +167,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row1"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -175,8 +176,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			diffed: true,
@@ -189,8 +190,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -198,8 +199,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row1"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			diffRatioOK: 0.6,
@@ -212,7 +213,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -221,7 +223,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col2"},
+					{Build: "col3"},
+					{Build: "col4"},
 				},
 			},
 			diffed: true,
@@ -234,8 +237,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -244,10 +247,11 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
+					{Build: "col1"},
 				},
 			},
 			diffRatioOK: 0.6,
+			diffed:      false,
 		},
 		{
 			name: "different grids, diff",
@@ -257,8 +261,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -266,7 +270,7 @@ func TestCompare(t *testing.T) {
 					{Name: "row1"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
+					{Build: "col1"},
 				},
 			},
 			diffed: true,
@@ -279,8 +283,8 @@ func TestCompare(t *testing.T) {
 					{Name: "row2"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
-					{Name: "col2"},
+					{Build: "col1"},
+					{Build: "col2"},
 				},
 			},
 			second: &statepb.Grid{
@@ -288,18 +292,345 @@ func TestCompare(t *testing.T) {
 					{Name: "row1"},
 				},
 				Columns: []*statepb.Column{
-					{Name: "col1"},
+					{Build: "col1"},
 				},
 			},
 			diffRatioOK: 0.6,
+			diffed:      false,
+		},
+		{
+			name: "diff cols but empty rows, same",
+			first: &statepb.Grid{
+				Rows: []*statepb.Row{},
+				Columns: []*statepb.Column{
+					{Build: "col1"},
+				},
+			},
+			second: &statepb.Grid{
+				Rows: []*statepb.Row{},
+				Columns: []*statepb.Column{
+					{Build: "col1"},
+					{Build: "col2"},
+				},
+			},
+			diffed: false,
+		},
+		{
+			name: "diff rows but empty cols, same",
+			first: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+					{Name: "row2"},
+				},
+				Columns: []*statepb.Column{},
+			},
+			second: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+				},
+				Columns: []*statepb.Column{},
+			},
+			diffed: false,
+		},
+		{
+			name: "first empty, second has one column, same",
+			first: &statepb.Grid{
+				Rows:    []*statepb.Row{},
+				Columns: []*statepb.Column{},
+			},
+			second: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{Name: "row1"},
+					{Name: "row2"},
+					{Name: "row3"},
+				},
+				Columns: []*statepb.Column{
+					{Build: "col1"},
+				},
+			},
+			diffed: false,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			if diffed := compare(ctx, tc.first, tc.second, tc.diffRatioOK, false); diffed != tc.diffed {
+			if diffed, _, _ := compare(ctx, tc.first, tc.second, tc.diffRatioOK, 5); diffed != tc.diffed {
 				t.Errorf("compare(%s, %s) not as expected; got %t, want %t", tc.first, tc.second, diffed, tc.diffed)
+			}
+		})
+	}
+}
+
+func TestReportDiff(t *testing.T) {
+	cases := []struct {
+		name        string
+		first       map[string]int
+		second      map[string]int
+		diffRatioOK float64
+		diffed      bool
+		reasons     diffReasons
+	}{
+		{
+			name:   "nil",
+			diffed: false,
+		},
+		{
+			name: "same",
+			first: map[string]int{
+				"some": 1,
+				"more": 2,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 2,
+			},
+			diffed: false,
+		},
+		{
+			name: "different",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"hi":    1,
+				"hello": 1,
+				"yay":   1,
+			},
+			diffed:  true,
+			reasons: diffReasons{other: true},
+		},
+		{
+			name: "different above ratio",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+				"hi":   1,
+			},
+			diffRatioOK: 0.3,
+			diffed:      true,
+			reasons:     diffReasons{other: true},
+		},
+		{
+			name: "different below ratio",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+				"hi":   1,
+			},
+			diffRatioOK: 0.6,
+			diffed:      false,
+			reasons:     diffReasons{},
+		},
+		{
+			name: "first has duplicates",
+			first: map[string]int{
+				"some": 3,
+				"more": 5,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			diffed:  true,
+			reasons: diffReasons{firstHasDuplicates: true},
+		},
+		{
+			name: "second has duplicates",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"some": 3,
+				"more": 5,
+			},
+			diffed:  true,
+			reasons: diffReasons{secondHasDuplicates: true},
+		},
+		{
+			name: "first has duplicates below ratio",
+			first: map[string]int{
+				"some": 1,
+				"more": 2,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			diffRatioOK: 0.6,
+			diffed:      false,
+			reasons:     diffReasons{},
+		},
+		{
+			name: "second has duplicates below ratio",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 2,
+			},
+			diffRatioOK: 0.6,
+			diffed:      false,
+			reasons:     diffReasons{},
+		},
+		{
+			name: "first has duplicates above ratio",
+			first: map[string]int{
+				"some": 2,
+				"more": 2,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			diffRatioOK: 0.3,
+			diffed:      true,
+			reasons:     diffReasons{firstHasDuplicates: true},
+		},
+		{
+			name: "second has duplicates above ratio",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"some": 2,
+				"more": 2,
+			},
+			diffRatioOK: 0.3,
+			diffed:      true,
+			reasons:     diffReasons{secondHasDuplicates: true},
+		},
+		{
+			name: "second has duplicates and differences above ratio",
+			first: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			second: map[string]int{
+				"some": 2,
+				"more": 2,
+				"hi":   5,
+			},
+			diffRatioOK: 0.3,
+			diffed:      true,
+			reasons:     diffReasons{other: true},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			diffed, reasons := reportDiff(tc.first, tc.second, "thing", tc.diffRatioOK)
+			if diffed != tc.diffed {
+				t.Errorf("reportDiff(%v, %v, %f) diffed wrong; got %t, want %t", tc.first, tc.second, tc.diffRatioOK, diffed, tc.diffed)
+			}
+			if reasons != tc.reasons {
+				t.Errorf("reportDiff(%v, %v, %f) has wrong diff reasons; got %t, want %t", tc.first, tc.second, tc.diffRatioOK, reasons, tc.reasons)
+			}
+		})
+	}
+}
+
+func TestCompareKeys(t *testing.T) {
+	cases := []struct {
+		name        string
+		first       map[string]int
+		second      map[string]int
+		diffRatioOK float64
+		diffed      bool
+	}{
+		{
+			name:   "nil",
+			diffed: false,
+		},
+		{
+			name:   "empty",
+			first:  map[string]int{},
+			second: map[string]int{},
+			diffed: false,
+		},
+		{
+			name: "maps match",
+			first: map[string]int{
+				"some": 1,
+				"more": 2,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 2,
+			},
+			diffed: false,
+		},
+		{
+			name: "non-matching keys",
+			first: map[string]int{
+				"some": 5,
+				"more": 3,
+			},
+			second: map[string]int{
+				"hi":    1,
+				"hello": 1,
+				"other": 1,
+			},
+			diffed: true,
+		},
+		{
+			name: "duplicate keys",
+			first: map[string]int{
+				"some": 5,
+				"more": 3,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+			},
+			diffed: false,
+		},
+		{
+			name: "mostly duplicate keys below ratio",
+			first: map[string]int{
+				"some": 5,
+				"more": 3,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+				"hi":   1,
+			},
+			diffRatioOK: 0.6,
+			diffed:      false,
+		},
+		{
+			name: "mostly duplicate keys above ratio",
+			first: map[string]int{
+				"some": 5,
+				"more": 3,
+			},
+			second: map[string]int{
+				"some": 1,
+				"more": 1,
+				"hi":   1,
+			},
+			diffRatioOK: 0.3,
+			diffed:      true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if diffed := compareKeys(tc.first, tc.second, tc.diffRatioOK); diffed != tc.diffed {
+				t.Errorf("compareKeys(%v, %v, %f) not as expected; got %t, want %t", tc.first, tc.second, tc.diffRatioOK, diffed, tc.diffed)
 			}
 		})
 	}
