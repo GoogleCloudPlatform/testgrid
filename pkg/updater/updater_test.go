@@ -100,6 +100,116 @@ func TestGCS(t *testing.T) {
 	}
 }
 
+func TestGridAttrs(t *testing.T) {
+	configPath := newPathOrDie("gs://bucket/path/to/config")
+	cases := []struct {
+		name   string
+		stats  fake.Stater
+		prefix string
+		groups []*configpb.TestGroup
+
+		want []*storage.ObjectAttrs
+		err  bool
+	}{
+		{
+			name: "basic",
+			want: []*storage.ObjectAttrs{},
+		},
+		{
+			name: "err",
+			stats: fake.Stater{
+				newPathOrDie("gs://bucket/path/to/boom"): fakeStat{
+					Err: errors.New("boom"),
+				},
+			},
+			groups: []*configpb.TestGroup{
+				{
+					Name: "boom",
+				},
+			},
+			want: []*storage.ObjectAttrs{nil},
+		},
+		{
+			name: "not found",
+			stats: fake.Stater{
+				newPathOrDie("gs://bucket/path/to/boom"): fakeStat{
+					Err: storage.ErrObjectNotExist,
+				},
+				newPathOrDie("gs://bucket/path/to/wrapped"): fakeStat{
+					Err: fmt.Errorf("wrap: %w", storage.ErrObjectNotExist),
+				},
+			},
+			groups: []*configpb.TestGroup{
+				{
+					Name: "boom",
+				},
+				{
+					Name: "wrapped",
+				},
+			},
+			want: []*storage.ObjectAttrs{{}, {}},
+		},
+		{
+			name: "found",
+			stats: fake.Stater{
+				newPathOrDie("gs://bucket/path/to/boom"): fakeStat{
+					Attrs: storage.ObjectAttrs{
+						Name: "yo",
+					},
+				},
+			},
+			groups: []*configpb.TestGroup{
+				{
+					Name: "boom",
+				},
+			},
+			want: []*storage.ObjectAttrs{
+				{
+					Name: "yo",
+				},
+			},
+		},
+		{
+			name: "found",
+			stats: fake.Stater{
+				newPathOrDie("gs://bucket/path/to/another/boom"): fakeStat{
+					Attrs: storage.ObjectAttrs{
+						Name: "yo",
+					},
+				},
+			},
+			prefix: "another",
+			groups: []*configpb.TestGroup{
+				{
+					Name: "boom",
+				},
+			},
+			want: []*storage.ObjectAttrs{
+				{
+					Name: "yo",
+				},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := gridAttrs(context.Background(), logrus.WithField("name", tc.name), tc.stats, configPath, tc.prefix, tc.groups)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("gridAttrs() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("gridAttrs() failed to return an error, got %v", got)
+			default:
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("gridAttrs() got unexpected diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	defaultTimeout := 5 * time.Minute
 	configPath := newPathOrDie("gs://bucket/path/to/config")
@@ -181,6 +291,11 @@ func TestUpdate(t *testing.T) {
 					WorldRead:    gcs.DefaultACL,
 				},
 				*resolveOrDie(&configPath, "modern"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+				},
+				*resolveOrDie(&configPath, "skip-non-k8s"): {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
 					WorldRead:    gcs.DefaultACL,
@@ -307,8 +422,14 @@ func TestUpdate(t *testing.T) {
 			builds:     make(map[string][]fakeBuild),
 			groupNames: []string{"hello"},
 			freq:       time.Duration(0),
-			expected:   fakeUploader{},
-			errors:     1,
+			expected: fakeUploader{
+				*resolveOrDie(&configPath, "hello"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+				},
+			},
+			errors: 1,
 		},
 		// TODO(fejta): more cases
 	}

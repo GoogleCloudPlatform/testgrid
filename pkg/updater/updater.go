@@ -286,6 +286,7 @@ func gridAttrs(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, c
 
 	attrs := gcs.Stat(ctx, client, 20, paths...)
 	for i, attrs := range attrs {
+		err := attrs.Err
 		name := groups[i].Name
 		switch {
 		case attrs.Attrs != nil:
