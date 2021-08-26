@@ -757,6 +757,9 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 			return false, fmt.Errorf("upload %d bytes: %w", len(buf), err)
 		}
 	}
+	if unreadColumns {
+		log = log.WithField("more", true)
+	}
 	log.WithFields(logrus.Fields{
 		"cols":     len(grid.Columns),
 		"rows":     len(grid.Rows),
