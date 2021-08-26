@@ -45,9 +45,9 @@ spec:
         - --wait=2h
         resources:
           requests:
-            cpu: "5"
-            memory: "20G"
+            cpu: "7"
+            memory: "25G"
           limits:
-            cpu: "10"
+            cpu: "14"
             memory: "50G"
 ---
