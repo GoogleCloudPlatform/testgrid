@@ -173,31 +173,6 @@ func isPreconditionFailed(err error) bool {
 	return e.Code == http.StatusPreconditionFailed
 }
 
-func update(ctx context.Context, client gcs.ConditionalClient, log logrus.FieldLogger, tg *configpb.TestGroup, tgp gcs.Path, updateGroup GroupUpdater, write bool, gen int64, fin *finish) (bool, error) {
-	log.Debug("Starting update")
-	if write && gen >= 0 {
-		if attrs, err := lockGroup(ctx, client, tgp, gen); err != nil {
-			if !isPreconditionFailed(err) {
-				fin.fail()
-				return false, fmt.Errorf("lock: %v", err)
-			}
-			fin.skip()
-			return false, nil
-		} else if gen := attrs.Generation; gen > 0 {
-			cond := storage.Conditions{GenerationMatch: gen}
-			client = client.If(&cond, &cond)
-		}
-		log.Debug("Acquired update lock")
-	}
-	more, err := updateGroup(ctx, log, client, tg, tgp)
-	if err != nil {
-		fin.fail()
-		return false, err
-	}
-	fin.success()
-	return more, nil
-}
-
 func testGroups(ctx context.Context, opener gcs.Opener, path gcs.Path, groupNames ...string) ([]*configpb.TestGroup, *storage.ReaderObjectAttrs, error) {
 	r, attrs, err := opener.Open(ctx, path)
 	if err != nil {
@@ -228,12 +203,11 @@ type lastUpdated struct {
 	freq       time.Duration
 }
 
-func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) (map[string]int64, error) {
+func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) error {
 	attrs, err := gridAttrs(ctx, log, fixer.stater, fixer.configPath, fixer.gridPrefix, groups)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	generations := make(map[string]int64, len(attrs))
 	q.Init(groups, time.Now().Add(fixer.freq))
 	updates := make(map[string]time.Time, len(attrs))
 	for i, attr := range attrs {
@@ -241,16 +215,14 @@ func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q 
 			continue
 		}
 		name := groups[i].Name
-		gen := attr.Generation
-		generations[name] = gen
-		if gen > 0 {
+		if attr.Generation > 0 {
 			updates[name] = attr.Updated.Add(fixer.freq)
 		} else {
 			updates[name] = time.Now()
 		}
 	}
 	q.FixAll(updates, false)
-	return generations, nil
+	return nil
 }
 
 func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) error {
@@ -259,7 +231,7 @@ func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *con
 	}
 	ticker := time.NewTicker(fixer.freq)
 	fix := func() {
-		if _, err := fixer.FixOnce(ctx, log, q, groups); err != nil {
+		if err := fixer.FixOnce(ctx, log, q, groups); err != nil {
 			log.WithError(err).Warning("Failed to fix groups based on last update time")
 		}
 	}
@@ -336,18 +308,17 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 
 	q.Init(groups, time.Now().Add(freq))
 
-	log.Debug("Fetching initial generations...")
+	log.Debug("Fetching initial start times...")
 	fixLastUpdated := lastUpdated{
 		stater:     client,
 		gridPrefix: gridPrefix,
 		configPath: configPath,
 		freq:       freq,
 	}
-	generations, err := fixLastUpdated.FixOnce(ctx, log, &q, groups)
-	if err != nil {
+	if err := fixLastUpdated.FixOnce(ctx, log, &q, groups); err != nil {
 		return fmt.Errorf("get generations: %v", err)
 	}
-	log.Info("Fetched initial generations")
+	log.Info("Fetched initial start times")
 
 	fixers = append(fixers, fixLastUpdated.Fix)
 
@@ -395,6 +366,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				groups, cfgAttrs, err = testGroups(ctx, opener, configPath, groupNames...)
 				switch {
 				case err == nil:
+					log.Info("Configuration changed")
 					// Config changed, setup fixers again.
 					cond.GenerationNotMatch = cfgAttrs.Generation
 					log.Trace("Cancelling fixers on old test groups...")
@@ -443,36 +415,34 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			return
 		}
 		active[name] = true
-		gen, hasGen := generations[name]
 		lock.Unlock()
 		defer func() {
-			attrs, err := client.Stat(ctx, *tgp)
 			lock.Lock()
 			active[name] = false
-			if err == nil {
-				generations[name] = attrs.Generation
-			} else if errors.Is(err, storage.ErrObjectNotExist) {
-				generations[name] = 0
-			}
 			lock.Unlock()
 		}()
-		if !hasGen {
-			gen = -1
-		}
-		unprocessed, err := update(ctx, client, log, tg, *tgp, updateGroup, write, gen, fin)
+		unprocessed, err := updateGroup(ctx, log, client, tg, *tgp)
 		if err != nil {
 			log := log.WithError(err)
+			if isPreconditionFailed(err) {
+				fin.skip()
+				log.Info("Group was modified while updating")
+			} else {
+				fin.fail()
+				log.Error("Failed to update group")
+			}
 			var delay time.Duration
 			if freq > 0 {
 				delay = freq/4 + time.Duration(rand.Int63n(int64(freq/4))) // Int63n() panics if freq <= 0
 				log = log.WithField("delay", delay.Seconds())
 				q.Fix(tg.Name, time.Now().Add(delay), true)
 			}
-			log.Error("error updating group")
 			return
-		}
-		if unprocessed { // process another chunk ASAP
-			q.Fix(name, time.Now(), false)
+		} else {
+			fin.success()
+			if unprocessed { // process another chunk ASAP
+				q.Fix(name, time.Now(), false)
+			}
 		}
 	}
 
@@ -660,8 +630,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	var issues map[string][]string
 
 	log.Trace("Downloading existing grid...")
-	// TODO(fejta): track metadata
-	old, _, err := gcs.DownloadGrid(ctx, client, gridPath)
+	old, attrs, err := gcs.DownloadGrid(ctx, client, gridPath)
 	if err != nil {
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
@@ -671,6 +640,15 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		cols, issues = InflateGrid(old, stop, time.Now().Add(-reprocess))
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
+	}
+	if condClient, ok := client.(gcs.ConditionalClient); ok {
+		var cond storage.Conditions
+		if attrs == nil {
+			cond.DoesNotExist = true
+		} else {
+			cond.GenerationMatch = attrs.Generation
+		}
+		client = condClient.If(&cond, &cond)
 	}
 
 	newCols := make(chan InflatedColumn)

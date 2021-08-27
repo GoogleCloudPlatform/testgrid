@@ -233,6 +233,7 @@ func TestUpdate(t *testing.T) {
 		err       bool
 		successes int
 		errors    int
+		skips     int
 	}{
 		{
 			name: "basically works",
@@ -291,11 +292,6 @@ func TestUpdate(t *testing.T) {
 					WorldRead:    gcs.DefaultACL,
 				},
 				*resolveOrDie(&configPath, "modern"): {
-					Buf:          mustGrid(&statepb.Grid{}),
-					CacheControl: "no-cache",
-					WorldRead:    gcs.DefaultACL,
-				},
-				*resolveOrDie(&configPath, "skip-non-k8s"): {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
 					WorldRead:    gcs.DefaultACL,
@@ -403,6 +399,13 @@ func TestUpdate(t *testing.T) {
 						UseKubernetesClient: true,
 						NumColumnsRecent:    6,
 					},
+					{
+						Name:                "world",
+						GcsPrefix:           "kubernetes-jenkins/path/to/job",
+						DaysOfResults:       7,
+						UseKubernetesClient: true,
+						NumColumnsRecent:    6,
+					},
 				},
 				Dashboards: []*configpb.Dashboard{
 					{
@@ -412,24 +415,28 @@ func TestUpdate(t *testing.T) {
 								Name:          "hello-tab",
 								TestGroupName: "hello",
 							},
+							{
+								Name:          "world-tab",
+								TestGroupName: "world",
+							},
 						},
 					},
 				},
 			},
-			groupUpdater: func(_ context.Context, _ logrus.FieldLogger, _ gcs.Client, _ *configpb.TestGroup, _ gcs.Path) (bool, error) {
+			groupUpdater: func(_ context.Context, _ logrus.FieldLogger, _ gcs.Client, tg *configpb.TestGroup, _ gcs.Path) (bool, error) {
+				if tg.Name == "world" {
+					return false, &googleapi.Error{
+						Code: http.StatusPreconditionFailed,
+					}
+				}
 				return false, errors.New("bad update")
+
 			},
-			builds:     make(map[string][]fakeBuild),
-			groupNames: []string{"hello"},
-			freq:       time.Duration(0),
-			expected: fakeUploader{
-				*resolveOrDie(&configPath, "hello"): {
-					Buf:          mustGrid(&statepb.Grid{}),
-					CacheControl: "no-cache",
-					WorldRead:    gcs.DefaultACL,
-				},
-			},
-			errors: 1,
+			builds:   make(map[string][]fakeBuild),
+			freq:     time.Duration(0),
+			expected: fakeUploader{},
+			errors:   1,
+			skips:    1,
 		},
 		// TODO(fejta): more cases
 	}
@@ -532,6 +539,9 @@ func TestUpdate(t *testing.T) {
 			}
 			if want, got := int64(tc.errors), mets.Errors.(*fakeCounter).total; want != got {
 				t.Errorf("Update() has wrong number of failed updates; want %d, got %d", want, got)
+			}
+			if want, got := int64(tc.skips), mets.Skips.(*fakeCounter).total; want != got {
+				t.Errorf("Update() has wrong number of skipped updates; want %d, got %d", want, got)
 			}
 		})
 	}
@@ -660,109 +670,6 @@ func mustGrid(grid *statepb.Grid) []byte {
 	}
 	return buf
 }
-
-/*
-func TestSortGroups(t *testing.T) {
-	now := time.Now()
-	times := []time.Time{
-		now.Add(1 * time.Hour),
-		now.Add(2 * time.Hour),
-		now.Add(3 * time.Hour),
-		now.Add(4 * time.Hour),
-	}
-
-	cases := []struct {
-		name     string
-		groups   []*configpb.TestGroup
-		updated  map[string]*time.Time
-		expected []*configpb.TestGroup
-	}{
-		{
-			name: "basically works",
-		},
-		{
-			name: "sorts multiple groups by least recently updated",
-			groups: []*configpb.TestGroup{
-				{Name: "middle"},
-				{Name: "new"},
-				{Name: "old"},
-			},
-			updated: map[string]*time.Time{
-				"old":    &times[0],
-				"middle": &times[1],
-				"new":    &times[2],
-			},
-			expected: []*configpb.TestGroup{
-				{Name: "old"},
-				{Name: "middle"},
-				{Name: "new"},
-			},
-		},
-		{
-			name: "groups with no existing state come first",
-			groups: []*configpb.TestGroup{
-				{Name: "new"},
-				{Name: "never"},
-				{Name: "old"},
-			},
-			updated: map[string]*time.Time{
-				"old": &times[0],
-				"new": &times[2],
-			},
-			expected: []*configpb.TestGroup{
-				{Name: "never"},
-				{Name: "old"},
-				{Name: "new"},
-			},
-		},
-		{
-			name: "groups with an error state also go first",
-			groups: []*configpb.TestGroup{
-				{Name: "new"},
-				{Name: "boom"},
-				{Name: "old"},
-			},
-			updated: map[string]*time.Time{
-				"boom": nil,
-				"old":  &times[0],
-				"new":  &times[2],
-			},
-			expected: []*configpb.TestGroup{
-				{Name: "boom"},
-				{Name: "old"},
-				{Name: "new"},
-			},
-		},
-	}
-
-	const gridPrefix = "grid"
-	configPath, err := gcs.NewPath("gs://k8s-testgrid-canary/config")
-	if err != nil {
-		t.Fatalf("bad path: %v", err)
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			client := fakeStater{}
-			for name, updated := range tc.updated {
-				var stat fakeStat
-				if updated == nil {
-					stat.Err = errors.New("error")
-				} else {
-					stat.Attrs.Updated = *updated
-				}
-				path, err := testGroupPath(*configPath, gridPrefix, name)
-				if err != nil {
-					t.Fatalf("bad group path: %v", err)
-				}
-				client[*path] = stat
-			}
-			defer cancel()
-			sortGroups(ctx, logrus.WithField("case", tc.name), client, *configPath, gridPrefix, tc.groups)
-		})
-	}
-}
-*/
 
 func TestTruncateRunning(t *testing.T) {
 	now := float64(time.Now().UTC().Unix() * 1000)
@@ -1310,7 +1217,7 @@ func TestInflateDropAppend(t *testing.T) {
 		name         string
 		ctx          context.Context
 		builds       []fakeBuild
-		group        configpb.TestGroup
+		group        *configpb.TestGroup
 		concurrency  int
 		skipWrite    bool
 		colReader    func(builds []fakeBuild) ColumnReader
@@ -1324,7 +1231,7 @@ func TestInflateDropAppend(t *testing.T) {
 	}{
 		{
 			name: "basically works",
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -1466,11 +1373,12 @@ func TestInflateDropAppend(t *testing.T) {
 				}),
 				CacheControl: "no-cache",
 				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
 			},
 		},
 		{
 			name: "sort ascending",
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -1628,12 +1536,13 @@ func TestInflateDropAppend(t *testing.T) {
 				}),
 				CacheControl: "no-cache",
 				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
 			},
 		},
 		{
 			name:      "do not write when requested",
 			skipWrite: true,
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -1675,7 +1584,7 @@ func TestInflateDropAppend(t *testing.T) {
 		},
 		{
 			name: "recent", // keep columns past the reprocess boundary
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -1774,12 +1683,13 @@ func TestInflateDropAppend(t *testing.T) {
 				}),
 				CacheControl: "no-cache",
 				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
 			},
 		},
 		{
 			// short reprocessing time depends on our reprocessing running columns outside this timeframe.
 			name: "running", // reprocess everything at least as new as the running column
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -1900,11 +1810,12 @@ func TestInflateDropAppend(t *testing.T) {
 				}),
 				CacheControl: "no-cache",
 				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
 			},
 		},
 		{
 			name: "ignore empty", // ignore builds with no results.
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix:              "bucket/path/to/build/",
 				DisableProwjobAnalysis: true,
 			},
@@ -1978,11 +1889,12 @@ func TestInflateDropAppend(t *testing.T) {
 				}),
 				CacheControl: "no-cache",
 				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
 			},
 		},
 		{
 			name: "ignore empty with old columns", // correctly group old and new empty columns
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix:              "bucket/path/to/build/",
 				DisableProwjobAnalysis: true,
 			},
@@ -2084,6 +1996,7 @@ func TestInflateDropAppend(t *testing.T) {
 				}),
 				CacheControl: "no-cache",
 				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
 			},
 		},
 	}
@@ -2106,11 +2019,13 @@ func TestInflateDropAppend(t *testing.T) {
 				tc.buildTimeout = &defaultTimeout
 			}
 
-			client := fakeUploadClient{
-				Uploader: fakeUploader{},
-				Client: fakeClient{
-					Lister: fakeLister{},
-					Opener: fakeOpener{},
+			client := &fake.ConditionalClient{
+				UploadClient: fake.UploadClient{
+					Uploader: fakeUploader{},
+					Client: fakeClient{
+						Lister: fakeLister{},
+						Opener: fakeOpener{},
+					},
 				},
 			}
 
@@ -2138,7 +2053,7 @@ func TestInflateDropAppend(t *testing.T) {
 				ctx,
 				logrus.WithField("test", tc.name),
 				client,
-				&tc.group,
+				tc.group,
 				uploadPath,
 				!tc.skipWrite,
 				colReader,
@@ -3062,16 +2977,19 @@ func TestGroupColumns(t *testing.T) {
 func TestConstructGrid(t *testing.T) {
 	cases := []struct {
 		name     string
-		group    configpb.TestGroup
+		group    *configpb.TestGroup
 		cols     []inflatedColumn
 		issues   map[string][]string
-		expected statepb.Grid
+		expected *statepb.Grid
 	}{
 		{
-			name: "basically works",
+			name:     "basically works",
+			group:    &configpb.TestGroup{},
+			expected: &statepb.Grid{},
 		},
 		{
-			name: "multiple columns",
+			name:  "multiple columns",
+			group: &configpb.TestGroup{},
 			cols: []inflatedColumn{
 				{
 					Column: &statepb.Column{Build: "15"},
@@ -3113,7 +3031,7 @@ func TestConstructGrid(t *testing.T) {
 					},
 				},
 			},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "15"},
 					{Build: "10"},
@@ -3175,7 +3093,7 @@ func TestConstructGrid(t *testing.T) {
 		},
 		{
 			name: "open alert",
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				NumFailuresToAlert: 2,
 			},
 			cols: []inflatedColumn{
@@ -3202,7 +3120,7 @@ func TestConstructGrid(t *testing.T) {
 					},
 				},
 			},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "4"},
 					{Build: "3"},
@@ -3229,7 +3147,7 @@ func TestConstructGrid(t *testing.T) {
 		},
 		{
 			name: "close alert",
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				NumPassesToDisableAlert: 2,
 				NumFailuresToAlert:      1,
 			},
@@ -3279,7 +3197,7 @@ func TestConstructGrid(t *testing.T) {
 					},
 				},
 			},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "4"},
 					{Build: "3"},
@@ -3311,7 +3229,8 @@ func TestConstructGrid(t *testing.T) {
 			},
 		},
 		{
-			name: "issues",
+			name:  "issues",
+			group: &configpb.TestGroup{},
 			cols: []inflatedColumn{
 				{
 					Column: &statepb.Column{Build: "15"},
@@ -3361,7 +3280,7 @@ func TestConstructGrid(t *testing.T) {
 					"should-deduplicate-from-both",
 				},
 			},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "15"},
 					{Build: "10"},
@@ -3413,7 +3332,7 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := ConstructGrid(logrus.WithField("name", tc.name), &tc.group, tc.cols, tc.issues)
+			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.group, tc.cols, tc.issues)
 			failuresOpen := int(tc.group.NumFailuresToAlert)
 			passesClose := int(tc.group.NumPassesToDisableAlert)
 			if failuresOpen > 0 && passesClose == 0 {
@@ -3428,7 +3347,7 @@ func TestConstructGrid(t *testing.T) {
 					return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
 				})
 			}
-			if diff := cmp.Diff(&tc.expected, actual, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("ConstructGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
@@ -3438,49 +3357,51 @@ func TestConstructGrid(t *testing.T) {
 func TestAppendMetric(t *testing.T) {
 	cases := []struct {
 		name     string
-		metric   statepb.Metric
+		metric   *statepb.Metric
 		idx      int32
 		value    float64
-		expected statepb.Metric
+		expected *statepb.Metric
 	}{
 		{
-			name: "basically works",
-			expected: statepb.Metric{
+			name:   "basically works",
+			metric: &statepb.Metric{},
+			expected: &statepb.Metric{
 				Indices: []int32{0, 1},
 				Values:  []float64{0},
 			},
 		},
 		{
-			name:  "start metric at random column",
-			idx:   7,
-			value: 11,
-			expected: statepb.Metric{
+			name:   "start metric at random column",
+			metric: &statepb.Metric{},
+			idx:    7,
+			value:  11,
+			expected: &statepb.Metric{
 				Indices: []int32{7, 1},
 				Values:  []float64{11},
 			},
 		},
 		{
 			name: "continue existing series",
-			metric: statepb.Metric{
+			metric: &statepb.Metric{
 				Indices: []int32{6, 2},
 				Values:  []float64{6.1, 6.2},
 			},
 			idx:   8,
 			value: 88,
-			expected: statepb.Metric{
+			expected: &statepb.Metric{
 				Indices: []int32{6, 3},
 				Values:  []float64{6.1, 6.2, 88},
 			},
 		},
 		{
 			name: "start new series",
-			metric: statepb.Metric{
+			metric: &statepb.Metric{
 				Indices: []int32{3, 2},
 				Values:  []float64{6.1, 6.2},
 			},
 			idx:   8,
 			value: 88,
-			expected: statepb.Metric{
+			expected: &statepb.Metric{
 				Indices: []int32{3, 2, 8, 1},
 				Values:  []float64{6.1, 6.2, 88},
 			},
@@ -3489,7 +3410,7 @@ func TestAppendMetric(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			appendMetric(&tc.metric, tc.idx, tc.value)
+			appendMetric(tc.metric, tc.idx, tc.value)
 			if diff := cmp.Diff(tc.metric, tc.expected, protocmp.Transform()); diff != "" {
 				t.Errorf("appendMetric() got unexpected diff (-got +want):\n%s", diff)
 			}
@@ -3500,26 +3421,28 @@ func TestAppendMetric(t *testing.T) {
 func TestAppendCell(t *testing.T) {
 	cases := []struct {
 		name  string
-		row   statepb.Row
+		row   *statepb.Row
 		cell  cell
 		start int
 		count int
 
-		expected statepb.Row
+		expected *statepb.Row
 	}{
 		{
 			name: "basically works",
-			expected: statepb.Row{
+			row:  &statepb.Row{},
+			expected: &statepb.Row{
 				Results: []int32{0, 0},
 			},
 		},
 		{
 			name: "first result",
+			row:  &statepb.Row{},
 			cell: cell{
 				Result: statuspb.TestStatus_PASS,
 			},
 			count: 1,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results:      []int32{int32(statuspb.TestStatus_PASS), 1},
 				CellIds:      []string{""},
 				Messages:     []string{""},
@@ -3529,6 +3452,7 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "all fields filled",
+			row:  &statepb.Row{},
 			cell: cell{
 				Result:  statuspb.TestStatus_PASS,
 				CellID:  "cell-id",
@@ -3541,7 +3465,7 @@ func TestAppendCell(t *testing.T) {
 				UserProperty: "hello",
 			},
 			count: 1,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results:  []int32{int32(statuspb.TestStatus_PASS), 1},
 				CellIds:  []string{"cell-id"},
 				Messages: []string{"hi"},
@@ -3567,7 +3491,7 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "append same result",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 				},
@@ -3584,7 +3508,7 @@ func TestAppendCell(t *testing.T) {
 				UserProperty: "more more",
 			},
 			count: 2,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results:      []int32{int32(statuspb.TestStatus_FLAKY), 5},
 				CellIds:      []string{"", "", "", "again and", "again and"},
 				Messages:     []string{"", "", "", "echo", "echo"},
@@ -3594,7 +3518,7 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "append different result",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 				},
@@ -3607,7 +3531,7 @@ func TestAppendCell(t *testing.T) {
 				Result: statuspb.TestStatus_PASS,
 			},
 			count: 2,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 					int32(statuspb.TestStatus_PASS), 2,
@@ -3620,7 +3544,7 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "append no Result (results, no cellIDs, messages or icons)",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 				},
@@ -3633,7 +3557,7 @@ func TestAppendCell(t *testing.T) {
 				Result: statuspb.TestStatus_NO_RESULT,
 			},
 			count: 2,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 3,
 					int32(statuspb.TestStatus_NO_RESULT), 2,
@@ -3646,7 +3570,7 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name: "add metric to series",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results:      []int32{int32(statuspb.TestStatus_PASS), 5},
 				CellIds:      []string{"", "", "", "", "c"},
 				Messages:     []string{"", "", "", "", "m"},
@@ -3679,7 +3603,7 @@ func TestAppendCell(t *testing.T) {
 			},
 			start: 5,
 			count: 1,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results:      []int32{int32(statuspb.TestStatus_PASS), 6},
 				CellIds:      []string{"", "", "", "", "c", ""},
 				Messages:     []string{"", "", "", "", "m", ""},
@@ -3711,19 +3635,21 @@ func TestAppendCell(t *testing.T) {
 		},
 		{
 			name:  "add a bunch of initial blank columns (eg a deleted row)",
+			row:   &statepb.Row{},
 			cell:  emptyCell,
 			count: 7,
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 7},
 			},
 		},
 		{
 			name:  "issues",
+			row:   &statepb.Row{},
 			count: 395,
 			cell: Cell{
 				Issues: []string{"problematic", "state"},
 			},
-			expected: statepb.Row{
+			expected: &statepb.Row{
 				Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 395},
 				Issues:  []string{"problematic", "state"},
 			},
@@ -3732,7 +3658,7 @@ func TestAppendCell(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			appendCell(&tc.row, tc.cell, tc.start, tc.count)
+			appendCell(tc.row, tc.cell, tc.start, tc.count)
 			sort.SliceStable(tc.row.Metric, func(i, j int) bool {
 				return tc.row.Metric[i] < tc.row.Metric[j]
 			})
@@ -3770,14 +3696,15 @@ func setupRow(row *statepb.Row, cells ...cell) *statepb.Row {
 func TestAppendColumn(t *testing.T) {
 	cases := []struct {
 		name     string
-		grid     statepb.Grid
+		grid     *statepb.Grid
 		col      inflatedColumn
-		expected statepb.Grid
+		expected *statepb.Grid
 	}{
 		{
 			name: "append first column",
+			grid: &statepb.Grid{},
 			col:  inflatedColumn{Column: &statepb.Column{Build: "10"}},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
 				},
@@ -3785,14 +3712,14 @@ func TestAppendColumn(t *testing.T) {
 		},
 		{
 			name: "append additional column",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
 				},
 			},
 			col: inflatedColumn{Column: &statepb.Column{Build: "20"}},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
@@ -3802,6 +3729,7 @@ func TestAppendColumn(t *testing.T) {
 		},
 		{
 			name: "add rows to first column",
+			grid: &statepb.Grid{},
 			col: inflatedColumn{
 				Column: &statepb.Column{Build: "10"},
 				Cells: map[string]cell{
@@ -3820,7 +3748,7 @@ func TestAppendColumn(t *testing.T) {
 					},
 				},
 			},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
 				},
@@ -3854,7 +3782,7 @@ func TestAppendColumn(t *testing.T) {
 		},
 		{
 			name: "add empty cells",
-			grid: statepb.Grid{
+			grid: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
@@ -3888,7 +3816,7 @@ func TestAppendColumn(t *testing.T) {
 					"new":    {Result: statuspb.TestStatus_PASS},
 				},
 			},
-			expected: statepb.Grid{
+			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Build: "10"},
 					{Build: "11"},
@@ -3938,7 +3866,7 @@ func TestAppendColumn(t *testing.T) {
 			for _, r := range tc.grid.Rows {
 				rows[r.Name] = r
 			}
-			appendColumn(&tc.grid, rows, tc.col)
+			appendColumn(tc.grid, rows, tc.col)
 			sort.SliceStable(tc.grid.Rows, func(i, j int) bool {
 				return tc.grid.Rows[i].Name < tc.grid.Rows[j].Name
 			})
@@ -4017,14 +3945,14 @@ func TestAlertRow(t *testing.T) {
 	}
 	cases := []struct {
 		name      string
-		row       statepb.Row
+		row       *statepb.Row
 		failOpen  int
 		passClose int
 		expected  *statepb.AlertInfo
 	}{
 		{
 			name: "never alert by default",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 6,
 				},
@@ -4032,7 +3960,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "passes do not alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 6,
 				},
@@ -4042,7 +3970,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "flakes do not alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 6,
 				},
@@ -4051,7 +3979,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "intermittent failures do not alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 2,
 					int32(statuspb.TestStatus_PASS), 1,
@@ -4062,7 +3990,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "new failures alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 3,
 					int32(statuspb.TestStatus_PASS), 3,
@@ -4075,7 +4003,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "rows without cell IDs can alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 3,
 					int32(statuspb.TestStatus_PASS), 3,
@@ -4087,7 +4015,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "too few passes do not close",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 2,
 					int32(statuspb.TestStatus_FAIL), 4,
@@ -4101,7 +4029,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "flakes do not close",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 2,
 					int32(statuspb.TestStatus_FAIL), 4,
@@ -4114,7 +4042,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "count failures after flaky passes",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 1,
 					int32(statuspb.TestStatus_FLAKY), 1,
@@ -4131,7 +4059,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "close alert",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 1,
 					int32(statuspb.TestStatus_FAIL), 5,
@@ -4141,7 +4069,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "track through empty results",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 1,
 					int32(statuspb.TestStatus_NO_RESULT), 1,
@@ -4156,7 +4084,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "track passes through empty results",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 1,
 					int32(statuspb.TestStatus_NO_RESULT), 1,
@@ -4169,7 +4097,7 @@ func TestAlertRow(t *testing.T) {
 		},
 		{
 			name: "running cells advance compressed index",
-			row: statepb.Row{
+			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_RUNNING), 1,
 					int32(statuspb.TestStatus_FAIL), 5,
@@ -4183,7 +4111,7 @@ func TestAlertRow(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		actual := alertRow(columns, &tc.row, tc.failOpen, tc.passClose)
+		actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose)
 		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
