@@ -122,12 +122,15 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 		defer close(out)
 		defer cancel()
 		var filledIdx int
-		Metrics := map[string]<-chan *float64{}
+		var mets map[string]<-chan *float64
+		if len(row.Metrics) > 0 {
+			mets = make(map[string]<-chan *float64, len(row.Metrics))
+		}
 		for i, m := range row.Metrics {
 			if m.Name == "" && len(row.Metrics) > i {
 				m.Name = row.Metric[i]
 			}
-			Metrics[m.Name] = inflateMetric(ctx, m)
+			mets[m.Name] = inflateMetric(ctx, m)
 		}
 		var val *float64
 		for result := range inflateResults(ctx, row.Results) {
@@ -135,7 +138,7 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 				Result: result,
 				ID:     row.Id,
 			}
-			for name, ch := range Metrics {
+			for name, ch := range mets {
 				select {
 				case <-ctx.Done():
 					return
@@ -145,7 +148,7 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 					continue
 				}
 				if c.Metrics == nil {
-					c.Metrics = map[string]float64{}
+					c.Metrics = make(map[string]float64, 2)
 				}
 				c.Metrics[name] = *val
 			}
