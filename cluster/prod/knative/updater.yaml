@@ -8,7 +8,7 @@ metadata:
     component: updater
     app: testgrid
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: testgrid
@@ -24,10 +24,10 @@ spec:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20210828-v0.0.93-16-g532acf0
         args:
-        - --build-timeout=1m
+        - --build-timeout=10m
         - --config=gs://knative-own-testgrid/config
         - --confirm
-        - --group-timeout=5m
+        - --group-timeout=20m
         - --json-logs
         - --subscribe=knative-prow=knative-tests/testgrid
         - --wait=1h
