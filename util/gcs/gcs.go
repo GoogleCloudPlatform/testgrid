@@ -199,7 +199,7 @@ func UploadHandle(ctx context.Context, handle *storage.ObjectHandle, buf []byte,
 func DownloadGrid(ctx context.Context, opener Opener, path Path) (*statepb.Grid, *storage.ReaderObjectAttrs, error) {
 	var g statepb.Grid
 	r, attrs, err := opener.Open(ctx, path)
-	if err != nil && err == storage.ErrObjectNotExist {
+	if err != nil && errors.Is(err, storage.ErrObjectNotExist) {
 		return &g, nil, nil
 	}
 	if err != nil {
