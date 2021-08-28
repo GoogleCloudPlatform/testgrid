@@ -29,7 +29,8 @@ spec:
         - --confirm
         - --group-timeout=5m
         - --json-logs
-        - --wait=5m
+        - --subscribe=knative-prow=knative-tests/testgrid
+        - --wait=1h
 ---
 apiVersion: v1
 kind: ServiceAccount
