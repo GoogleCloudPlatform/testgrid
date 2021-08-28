@@ -438,11 +438,10 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				q.Fix(tg.Name, time.Now().Add(delay), true)
 			}
 			return
-		} else {
-			fin.success()
-			if unprocessed { // process another chunk ASAP
-				q.Fix(name, time.Now(), false)
-			}
+		}
+		fin.success()
+		if unprocessed { // process another chunk ASAP
+			q.Fix(name, time.Now(), false)
 		}
 	}
 
