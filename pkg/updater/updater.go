@@ -1293,11 +1293,12 @@ func buildID(col *statepb.Column) string {
 const billion = 1e9
 
 // stamp converts seconds into a timestamp proto
+// TODO(#683): col.Started should be a timestamp instead of a float
 func stamp(col *statepb.Column) *timestamp.Timestamp {
 	if col == nil {
 		return nil
 	}
-	seconds := col.Started
+	seconds := col.Started / 1000
 	floor := math.Floor(seconds)
 	remain := seconds - floor
 	return &timestamp.Timestamp{
