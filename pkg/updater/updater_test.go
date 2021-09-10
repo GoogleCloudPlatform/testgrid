@@ -4168,7 +4168,7 @@ func TestStamp(t *testing.T) {
 		{
 			name: "no nanos",
 			col: &statepb.Column{
-				Started: 2,
+				Started: 2000,
 			},
 			expected: &timestamp.Timestamp{
 				Seconds: 2,
@@ -4176,13 +4176,23 @@ func TestStamp(t *testing.T) {
 			},
 		},
 		{
-			name: "has nanos",
+			name: "milli to nano",
+			col: &statepb.Column{
+				Started: 1234,
+			},
+			expected: &timestamp.Timestamp{
+				Seconds: 1,
+				Nanos:   234000000,
+			},
+		},
+		{
+			name: "double to nanos",
 			col: &statepb.Column{
 				Started: 1.1,
 			},
 			expected: &timestamp.Timestamp{
-				Seconds: 1,
-				Nanos:   1e8,
+				Seconds: 0,
+				Nanos:   1100000,
 			},
 		},
 	}
