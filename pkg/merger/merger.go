@@ -89,17 +89,11 @@ type mergeClient interface {
 // Puts the result at targetPath if confirm is true
 // Will skip an input config if it is invalid and skipValidate is false
 // Other problems are considered fatal and will return an error
-func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, skipValidate, confirm bool) error {
+func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, skipValidate, confirm bool) (*configpb.Configuration, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// TODO: Cache the version for each source. Only read if they've changed.
-	type Shard struct {
-		name string
-		cfg  *configpb.Configuration
-		err  error
-	}
-
 	shards := map[string]*configpb.Configuration{}
 	var shardsLock sync.Mutex
 	var fatal error
@@ -108,7 +102,7 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, ski
 
 	for _, source := range list.Sources {
 		if source.Path == nil {
-			return fmt.Errorf("path at %q is nil", source.Name)
+			return nil, fmt.Errorf("path at %q is nil", source.Name)
 		}
 
 		wg.Add(1)
@@ -146,31 +140,31 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, ski
 	wg.Wait()
 
 	if fatal != nil {
-		return fatal
+		return nil, fatal
 	}
 	if len(shards) == 0 {
-		return errors.New("no configs to merge")
+		return nil, errors.New("no configs to merge")
 	}
 
 	// Merge and marshal the result
 	result, err := config.Converge(shards)
 	if err != nil {
-		return fmt.Errorf("can't merge configurations: %w", err)
+		return result, fmt.Errorf("can't merge configurations: %w", err)
 	}
 
 	if !confirm {
 		fmt.Println(result)
-		return nil
+		return result, nil
 	}
 
 	buf, err := proto.Marshal(result)
 	if err != nil {
-		return fmt.Errorf("can't marshal merged proto: %w", err)
+		return result, fmt.Errorf("can't marshal merged proto: %w", err)
 	}
 
 	if _, err := client.Upload(ctx, *list.Path, buf, gcs.DefaultACL, "no-cache"); err != nil {
-		return fmt.Errorf("can't upload merged proto to %s: %w", list.Path, err)
+		return result, fmt.Errorf("can't upload merged proto to %s: %w", list.Path, err)
 	}
 
-	return nil
+	return result, nil
 }

@@ -20,6 +20,7 @@ go_library(
     importpath = "github.com/GoogleCloudPlatform/testgrid/cmd/config_merger",
     visibility = ["//visibility:public"],
     deps = [
+        "//config:go_default_library",
         "//pkg/merger:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics:go_default_library",

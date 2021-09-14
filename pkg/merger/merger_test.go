@@ -21,10 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
 	"io"
 	"io/ioutil"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
@@ -387,7 +388,7 @@ func Test_MergeAndUpdate(t *testing.T) {
 				})
 			}
 
-			resultErr := MergeAndUpdate(context.Background(), &client, mergeList, tc.skipValidate, tc.confirm)
+			_, resultErr := MergeAndUpdate(context.Background(), &client, mergeList, tc.skipValidate, tc.confirm)
 
 			if tc.expectUpload && !client.uploaded {
 				t.Errorf("Expected upload, but there was none")
