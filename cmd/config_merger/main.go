@@ -23,12 +23,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/merger"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 
 	"github.com/sirupsen/logrus"
 )
+
+const componentName = "config_merger"
 
 type options struct {
 	listPath     string
@@ -110,6 +113,7 @@ func main() {
 	cycle := reporter.Int64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", log, "component")
 	successes := reporter.Counter("successes", "Number of successful updates", log, "component")
 	errors := reporter.Counter("errors", "Number of failed updates", log, "component")
+	fields := reporter.Int64("fields", "Config field usage by name", log, "component", "field-name")
 
 	go func() {
 		reporter.Report(ctx, nil, time.Minute)
@@ -120,14 +124,18 @@ func main() {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 		log.Info("Starting MergeAndUpdate")
-		err := merger.MergeAndUpdate(ctx, client, list, opt.skipValidate, opt.confirm)
-		cycle.Set(int64(time.Since(start).Seconds()), "config_merger")
+		result, err := merger.MergeAndUpdate(ctx, client, list, opt.skipValidate, opt.confirm)
+		cycle.Set(int64(time.Since(start).Seconds()), componentName)
 		if err != nil {
 			log.WithError(err).Error("Update failed")
-			errors.Add(1, "config_merger")
+			errors.Add(1, componentName)
 			return
 		}
-		successes.Add(1, "config_merger")
+		successes.Add(1, componentName)
+		f := config.Fields(result)
+		for name, qty := range f {
+			fields.Set(qty, componentName, name)
+		}
 		log.Info("Update successful")
 	}
 
