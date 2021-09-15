@@ -9,6 +9,10 @@ syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 
+message Property {
+  map<string, string> property = 1;
+}
+
 // A metric and its values for each test cycle.
 message Metric {
   string name = 1;  // Name of metric, such as duration
@@ -171,7 +175,12 @@ message Row {
   AlertInfo alert_info = 11;
 
   // Values of a user-defined property found in cells for this row.
+  // TODO: Fold this into `properties` field.
   repeated string user_property = 12;
+
+  // General key-value pairs associated with cells in this row.
+  // Present for any column with a non-empty status (not NO_RESULT).
+  repeated Property properties = 13;
 }
 
 // A single table of test results backing a dashboard tab.

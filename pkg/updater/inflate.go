@@ -48,6 +48,9 @@ type Cell struct {
 	// clicking different cells in a column to go to different locations.
 	CellID string
 
+	// Properties maps key:value pairs for cell IDs.
+	Properties map[string]string
+
 	// Icon is a short string that appears on the cell
 	Icon string
 	// Message is a longer string that appears on mouse-over
@@ -157,6 +160,14 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 				c.Message = row.Messages[filledIdx]
 				if addCellID {
 					c.CellID = row.CellIds[filledIdx]
+				}
+				if len(row.Properties) != 0 && c.Properties == nil {
+					c.Properties = make(map[string]string)
+				}
+				if filledIdx < len(row.Properties) {
+					for k, v := range row.GetProperties()[filledIdx].GetProperty() {
+						c.Properties[k] = v
+					}
 				}
 				if n := len(row.UserProperty); n > filledIdx {
 					c.UserProperty = row.UserProperty[filledIdx]
