@@ -1123,6 +1123,9 @@ func appendCell(row *statepb.Row, cell Cell, start, count int) {
 		if addCellID {
 			row.CellIds = append(row.CellIds, cell.CellID)
 		}
+		row.Properties = append(row.Properties, &statepb.Property{
+			Property: cell.Properties,
+		})
 		// Javascript client expects no result cells to skip icons/messages
 		row.Messages = append(row.Messages, cell.Message)
 		row.Icons = append(row.Icons, cell.Icon)

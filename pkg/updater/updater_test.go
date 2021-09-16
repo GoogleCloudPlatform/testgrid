@@ -3448,6 +3448,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{""},
 				Icons:        []string{""},
 				UserProperty: []string{""},
+				Properties:   []*statepb.Property{{}},
 			},
 		},
 		{
@@ -3463,6 +3464,10 @@ func TestAppendCell(t *testing.T) {
 					"golden": 1.618,
 				},
 				UserProperty: "hello",
+				Properties: map[string]string{
+					"workflow-id":   "run-1",
+					"workflow-name": "//workflow-a",
+				},
 			},
 			count: 1,
 			expected: &statepb.Row{
@@ -3487,6 +3492,12 @@ func TestAppendCell(t *testing.T) {
 					},
 				},
 				UserProperty: []string{"hello"},
+				Properties: []*statepb.Property{{
+					Property: map[string]string{
+						"workflow-id":   "run-1",
+						"workflow-name": "//workflow-a",
+					},
+				}},
 			},
 		},
 		{
@@ -3499,6 +3510,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", ""},
 				Icons:        []string{"", "", ""},
 				UserProperty: []string{"", "", ""},
+				Properties:   []*statepb.Property{{}, {}, {}},
 			},
 			cell: cell{
 				Result:       statuspb.TestStatus_FLAKY,
@@ -3506,6 +3518,10 @@ func TestAppendCell(t *testing.T) {
 				CellID:       "again and",
 				Icon:         "keeps going",
 				UserProperty: "more more",
+				Properties: map[string]string{
+					"workflow-id":   "run-1",
+					"workflow-name": "//workflow-a",
+				},
 			},
 			count: 2,
 			expected: &statepb.Row{
@@ -3514,6 +3530,23 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", "", "echo", "echo"},
 				Icons:        []string{"", "", "", "keeps going", "keeps going"},
 				UserProperty: []string{"", "", "", "more more", "more more"},
+				Properties: []*statepb.Property{
+					{},
+					{},
+					{},
+					{
+						Property: map[string]string{
+							"workflow-id":   "run-1",
+							"workflow-name": "//workflow-a",
+						},
+					},
+					{
+						Property: map[string]string{
+							"workflow-id":   "run-1",
+							"workflow-name": "//workflow-a",
+						},
+					},
+				},
 			},
 		},
 		{
@@ -3526,6 +3559,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", ""},
 				Icons:        []string{"", "", ""},
 				UserProperty: []string{"", "", ""},
+				Properties:   []*statepb.Property{{}, {}, {}},
 			},
 			cell: cell{
 				Result: statuspb.TestStatus_PASS,
@@ -3540,6 +3574,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", "", "", ""},
 				Icons:        []string{"", "", "", "", ""},
 				UserProperty: []string{"", "", "", "", ""},
+				Properties:   []*statepb.Property{{}, {}, {}, {}, {}},
 			},
 		},
 		{
@@ -3552,6 +3587,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", ""},
 				Icons:        []string{"", "", ""},
 				UserProperty: []string{"", "", ""},
+				Properties:   []*statepb.Property{{}, {}, {}},
 			},
 			cell: cell{
 				Result: statuspb.TestStatus_NO_RESULT,
@@ -3566,6 +3602,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", ""},
 				Icons:        []string{"", "", ""},
 				UserProperty: []string{"", "", ""},
+				Properties:   []*statepb.Property{{}, {}, {}},
 			},
 		},
 		{
@@ -3576,6 +3613,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", "", "", "m"},
 				Icons:        []string{"", "", "", "", "i"},
 				UserProperty: []string{"", "", "", "", "up"},
+				Properties:   []*statepb.Property{{}, {}, {}, {}, {}},
 				Metric: []string{
 					"continued-series",
 					"new-series",
@@ -3609,6 +3647,7 @@ func TestAppendCell(t *testing.T) {
 				Messages:     []string{"", "", "", "", "m", ""},
 				Icons:        []string{"", "", "", "", "i", ""},
 				UserProperty: []string{"", "", "", "", "up", ""},
+				Properties:   []*statepb.Property{{}, {}, {}, {}, {}, {}},
 				Metric: []string{
 					"continued-series",
 					"new-series",
