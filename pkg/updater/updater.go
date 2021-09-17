@@ -1121,11 +1121,12 @@ func appendCell(row *statepb.Row, cell Cell, start, count int) {
 			continue
 		}
 		if addCellID {
+			// These values can be derived from the parent row and don't need to be repeated here.
 			row.CellIds = append(row.CellIds, cell.CellID)
+			row.Properties = append(row.Properties, &statepb.Property{
+				Property: cell.Properties,
+			})
 		}
-		row.Properties = append(row.Properties, &statepb.Property{
-			Property: cell.Properties,
-		})
 		// Javascript client expects no result cells to skip icons/messages
 		row.Messages = append(row.Messages, cell.Message)
 		row.Icons = append(row.Icons, cell.Icon)

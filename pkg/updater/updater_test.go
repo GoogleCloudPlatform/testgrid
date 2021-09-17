@@ -3693,6 +3693,36 @@ func TestAppendCell(t *testing.T) {
 				Issues:  []string{"problematic", "state"},
 			},
 		},
+		{
+			name: "append to group delimiter",
+			row: &statepb.Row{
+				Name: "test1@TESTGRID@something",
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 1,
+				},
+				Messages:     []string{""},
+				Icons:        []string{""},
+				UserProperty: []string{""},
+			},
+			cell: cell{
+				Result: statuspb.TestStatus_PASS,
+				CellID: "cell-id-1",
+				Properties: map[string]string{
+					"workflow-id":   "run-1",
+					"workflow-name": "//workflow-a",
+				},
+			},
+			count: 1,
+			expected: &statepb.Row{
+				Name: "test1@TESTGRID@something",
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 2,
+				},
+				Messages:     []string{"", ""},
+				Icons:        []string{"", ""},
+				UserProperty: []string{"", ""},
+			},
+		},
 	}
 
 	for _, tc := range cases {
