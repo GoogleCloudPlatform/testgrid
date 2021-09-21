@@ -4407,3 +4407,75 @@ func TestIsPreconditionFailed(t *testing.T) {
 		})
 	}
 }
+
+func TestTruncate(t *testing.T) {
+	cases := []struct {
+		name string
+		msg  string
+		max  int
+		want string
+	}{
+		{
+			name: "empty",
+			msg:  "",
+			max:  20,
+			want: "",
+		},
+		{
+			name: "short",
+			msg:  "short message",
+			max:  20,
+			want: "short message",
+		},
+		{
+			name: "long",
+			msg:  "i'm too long of a message, oh no what will i do",
+			max:  20,
+			want: "i'm too lo... will i do",
+		},
+		{
+			name: "long runes",
+			msg:  "庭には二羽鶏がいる。", // In the yard two chickens are there.
+			max:  20,
+			want: "庭には...いる。",
+		},
+		{
+			name: "short runes",
+			msg:  "鶏がいる。", // Two chickens are there.
+			max:  20,
+			want: "鶏がいる。",
+		},
+		{
+			name: "small max",
+			msg:  "short message",
+			max:  2,
+			want: "s...e",
+		},
+		{
+			name: "odd max",
+			msg:  "short message",
+			max:  5,
+			want: "sh...ge",
+		},
+		{
+			name: "max 1",
+			msg:  "short message",
+			max:  1,
+			want: "...",
+		},
+		{
+			name: "max 0",
+			msg:  "short message",
+			max:  0,
+			want: "short message",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := truncate(tc.msg, tc.max); got != tc.want {
+				t.Errorf("truncate(%q, %d) got %q, want %q", tc.msg, tc.max, got, tc.want)
+			}
+		})
+	}
+}

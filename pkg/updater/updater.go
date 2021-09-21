@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
@@ -1075,6 +1076,23 @@ func hasCellID(name string) bool {
 	return !strings.Contains(name, "@TESTGRID@")
 }
 
+// truncate truncates a message to max runes (and ellipses). Max = 0 returns the original message.
+func truncate(msg string, max int) string {
+	if max == 0 || len(msg) <= max {
+		return msg
+	}
+	convert := func(s string) string {
+		if utf8.ValidString(s) {
+			return s
+		}
+		return strings.ToValidUTF8(s, "")
+		// return s
+	}
+	start := convert(msg[:max/2])
+	end := convert(msg[len(msg)-max/2:])
+	return start + "..." + end
+}
+
 // appendCell adds the rowResult column to the row.
 //
 // Handles the details like missing fields and run-length-encoding the result.
@@ -1128,7 +1146,7 @@ func appendCell(row *statepb.Row, cell Cell, start, count int) {
 			})
 		}
 		// Javascript client expects no result cells to skip icons/messages
-		row.Messages = append(row.Messages, cell.Message)
+		row.Messages = append(row.Messages, truncate(cell.Message, 140))
 		row.Icons = append(row.Icons, cell.Icon)
 		row.UserProperty = append(row.UserProperty, cell.UserProperty)
 	}
