@@ -31,6 +31,9 @@ spec:
       containers:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20211025-v0.0.107-14-g518ebab
+        ports:
+        - name: metrics
+          containerPort: 2112
         args:
         - --build-concurrency=5
         - --build-timeout=2m

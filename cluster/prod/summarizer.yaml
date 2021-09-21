@@ -32,6 +32,9 @@ spec:
       containers:
       - name: summarizer
         image: gcr.io/k8s-testgrid/summarizer:v20211025-v0.0.107-14-g518ebab
+        ports:
+        - name: metrics
+          containerPort: 2112
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm

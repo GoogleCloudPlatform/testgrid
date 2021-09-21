@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics/logmetrics"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 )
@@ -127,7 +127,7 @@ func main() {
 	}
 
 	client := gcs.NewClient(storageClient)
-	mets := setupMetrics(ctx)
+	mets := setupMetrics()
 	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
@@ -137,17 +137,10 @@ func main() {
 	}
 }
 
-func setupMetrics(ctx context.Context) *summarizer.Metrics {
-	var reporter logmetrics.Reporter
-	const field = "component"
-	log := logrus.New()
-	successes := reporter.Counter("successes", "Number of successful updates", log, field)
-	errors := reporter.Counter("errors", "Number of failed updates", log, field)
-	go func() {
-		reporter.Report(ctx, nil, 30*time.Second)
-	}()
+func setupMetrics() *summarizer.Metrics {
+	const component = "component"
 	return &summarizer.Metrics{
-		Successes: successes,
-		Errors:    errors,
+		Successes: prometheus.NewCounter("successes", "Number of successful updates", component),
+		Errors:    prometheus.NewCounter("errors", "Number of failed updates", component),
 	}
 }
