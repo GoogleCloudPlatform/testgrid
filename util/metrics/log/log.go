@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metrics
+package log
 
 import (
 	"context"
@@ -24,12 +24,13 @@ import (
 	"time"
 
 	"bitbucket.org/creachadair/stringset"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/sirupsen/logrus"
 )
 
 // Valuer extends a metric to include a report on its values.
 type Valuer interface {
-	Metric
+	metrics.Metric
 	Values() map[string]map[string]interface{}
 }
 
@@ -73,7 +74,7 @@ func (r *Reporter) Report(ctx context.Context, log logrus.FieldLogger, freq time
 }
 
 // Int64 configures a new Int64 metric to report.
-func (r *Reporter) Int64(name, desc string, log logrus.FieldLogger, fields ...string) Int64 {
+func (r *Reporter) Int64(name, desc string, log logrus.FieldLogger, fields ...string) metrics.Int64 {
 	current := make([]map[string][]int64, len(fields))
 	for i := range fields {
 		current[i] = make(map[string][]int64, 1)
@@ -91,7 +92,7 @@ func (r *Reporter) Int64(name, desc string, log logrus.FieldLogger, fields ...st
 }
 
 // Counter configures a new Counter metric to report
-func (r *Reporter) Counter(name, desc string, log logrus.FieldLogger, fields ...string) Counter {
+func (r *Reporter) Counter(name, desc string, log logrus.FieldLogger, fields ...string) metrics.Counter {
 	current := make([]map[string]int64, len(fields))
 	previous := make([]map[string]int64, len(fields))
 	for i := range fields {
