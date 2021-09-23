@@ -32,12 +32,12 @@ spec:
       - name: updater
         image: gcr.io/k8s-testgrid/updater:v20210921-v0.0.97-2-g3948691 
         args:
-        - --build-concurrency=10
+        - --build-concurrency=5
         - --build-timeout=2m
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
-        - --group-concurrency=4
-        - --group-timeout=10m
+        - --group-concurrency=10
+        - --group-timeout=20m
         - --json-logs
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid-canary
         - --subscribe=oss-prow=k8s-testgrid/testgrid-canary
@@ -45,9 +45,9 @@ spec:
         - --wait=4h
         resources:
           requests:
-            cpu: "14"
-            memory: "100G"
+            cpu: "30"
+            memory: "75G"
           limits:
-            cpu: "28"
-            memory: "200G"
+            cpu: "40"
+            memory: "150G"
 ---
