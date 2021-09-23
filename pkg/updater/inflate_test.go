@@ -57,15 +57,45 @@ func TestInflateGrid(t *testing.T) {
 
 	cases := []struct {
 		name       string
+		ctx        context.Context
 		grid       *statepb.Grid
 		earliest   time.Time
 		latest     time.Time
 		expected   []inflatedColumn
 		wantIssues map[string][]string
+		err        bool
 	}{
 		{
 			name: "basically works",
 			grid: &statepb.Grid{},
+		},
+		{
+			name: "preserve column data",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			}(),
+			grid: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Build:      "build",
+						Hint:       "xyzpdq",
+						Name:       "name",
+						Started:    5,
+						Extra:      []string{"extra", "fun"},
+						HotlistIds: "hot topic",
+					},
+					{
+						Build:      "second build", // Also becomes Hint
+						Name:       "second name",
+						Started:    10,
+						Extra:      []string{"more", "gooder"},
+						HotlistIds: "hot pocket",
+					},
+				},
+			},
+			err: true,
 		},
 		{
 			name: "preserve column data",
@@ -548,12 +578,24 @@ func TestInflateGrid(t *testing.T) {
 			if tc.wantIssues == nil {
 				tc.wantIssues = map[string][]string{}
 			}
-			actual, issues := InflateGrid(tc.grid, tc.earliest, tc.latest)
-			if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
-				t.Errorf("InflateGrid() got unexpected diff (-want +got):\n%s", diff)
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
 			}
-			if diff := cmp.Diff(tc.wantIssues, issues); diff != "" {
-				t.Errorf("InflateGrid() got unexpected issue diff (-want +got):\n%s", diff)
+			actual, issues, err := InflateGrid(tc.ctx, tc.grid, tc.earliest, tc.latest)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("InflatedGrid() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Error("InflateGrid() failed to return an error")
+			default:
+				if diff := cmp.Diff(tc.expected, actual, cmp.AllowUnexported(inflatedColumn{}, cell{}), protocmp.Transform()); diff != "" {
+					t.Errorf("InflateGrid() got unexpected diff (-want +got):\n%s", diff)
+				}
+				if diff := cmp.Diff(tc.wantIssues, issues); diff != "" {
+					t.Errorf("InflateGrid() got unexpected issue diff (-want +got):\n%s", diff)
+				}
 			}
 		})
 

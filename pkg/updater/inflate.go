@@ -73,11 +73,13 @@ type Cell struct {
 //
 // Drops columns before earliest or more recent than latest.
 // Also returns a map of issues associated with each row name.
-func InflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColumn, map[string][]string) {
+func InflateGrid(ctx context.Context, grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColumn, map[string][]string, error) {
 	var cols []InflatedColumn
+	if n := len(grid.Columns); n > 0 {
+		cols = make([]InflatedColumn, 0, n)
+	}
 
-	// nothing is blocking, so no need for a parent context.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	rows := make(map[string]<-chan Cell, len(grid.Rows))
@@ -90,6 +92,9 @@ func InflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColu
 	}
 
 	for _, col := range grid.Columns {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
 		// Even if we wind up skipping the column
 		// we still need to inflate the cells.
 		item := InflatedColumn{
@@ -110,9 +115,8 @@ func InflateGrid(grid *statepb.Grid, earliest, latest time.Time) ([]InflatedColu
 			continue // Do not assume they are sorted by start time.
 		}
 		cols = append(cols, item)
-
 	}
-	return cols, issues
+	return cols, issues, nil
 }
 
 // inflateRow inflates the values for each column into a Cell channel.
