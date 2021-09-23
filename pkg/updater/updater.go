@@ -636,8 +636,11 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	}
 	if old != nil {
 		var cols []InflatedColumn
+		var err error
 		log.Trace("Inflating grid...")
-		cols, issues = InflateGrid(old, stop, time.Now().Add(-reprocess))
+		if cols, issues, err = InflateGrid(ctx, old, stop, time.Now().Add(-reprocess)); err != nil {
+			return false, fmt.Errorf("inflate: %w", err)
+		}
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
 	}
