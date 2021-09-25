@@ -1002,7 +1002,8 @@ func ConstructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []Inf
 		})
 	}
 
-	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose)
+	usesK8sClient := group.UseKubernetesClient || (group.GetResultSource().GetGcsConfig() != nil)
+	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose, usesK8sClient)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
 	})
@@ -1202,14 +1203,14 @@ func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated Inf
 }
 
 // alertRows configures the alert for every row that has one.
-func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int) {
+func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int, useKubernetesClient bool) {
 	for _, r := range rows {
-		r.AlertInfo = alertRow(cols, r, openFailures, closePasses)
+		r.AlertInfo = alertRow(cols, r, openFailures, closePasses, useKubernetesClient)
 	}
 }
 
 // alertRow returns an AlertInfo proto if there have been failuresToOpen consecutive failures more recently than passesToClose.
-func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int) *statepb.AlertInfo {
+func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int, useKubernetesClient bool) *statepb.AlertInfo {
 	if failuresToOpen == 0 {
 		return nil
 	}
@@ -1278,21 +1279,21 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		latestID = row.CellIds[latestFailIdx]
 	}
 	msg := row.Messages[latestFailIdx]
-	return alertInfo(totalFailures, msg, id, latestID, firstFail, latestFail, latestPass)
+	return alertInfo(totalFailures, msg, id, latestID, firstFail, latestFail, latestPass, useKubernetesClient)
 }
 
 // alertInfo returns an alert proto with the configured fields
-func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFail, pass *statepb.Column) *statepb.AlertInfo {
+func alertInfo(failures int32, msg, cellID, latestCellID string, fail, latestFail, pass *statepb.Column, useCommitAsBuildID bool) *statepb.AlertInfo {
 	return &statepb.AlertInfo{
 		FailCount:         failures,
-		FailBuildId:       buildID(fail),
-		LatestFailBuildId: buildID(latestFail),
+		FailBuildId:       buildID(fail, useCommitAsBuildID),
+		LatestFailBuildId: buildID(latestFail, useCommitAsBuildID),
 		FailTime:          stamp(fail),
 		FailTestId:        cellID,
 		LatestFailTestId:  latestCellID,
 		FailureMessage:    msg,
 		PassTime:          stamp(pass),
-		PassBuildId:       buildID(pass),
+		PassBuildId:       buildID(pass, useCommitAsBuildID),
 		EmailAddresses:    emailAddresses(fail),
 	}
 }
@@ -1304,12 +1305,12 @@ func emailAddresses(col *statepb.Column) []string {
 	return col.GetEmailAddresses()
 }
 
-// buildID extracts the ID from the first extra row or else the Build field.
-func buildID(col *statepb.Column) string {
+// buildID extracts the ID from the first extra row (where commit data is) or else the Build field.
+func buildID(col *statepb.Column, getCommitHeader bool) string {
 	if col == nil {
 		return ""
 	}
-	if len(col.Extra) > 0 {
+	if getCommitHeader && len(col.Extra) > 0 {
 		return col.Extra[0]
 	}
 	return col.Build

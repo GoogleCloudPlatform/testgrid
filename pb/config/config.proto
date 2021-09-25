@@ -162,7 +162,7 @@ message TestGroup {
   bool disable_merged_status = 60;
 
   // deprecated - always set to true
-  bool use_kubernetes_client = 24;
+  bool use_kubernetes_client = 24 [deprecated = true];
 
   // When use_kubernetes_client is on testgrid expects these results
   // to come from prow, which should include a prowjob.json and podinfo.json
