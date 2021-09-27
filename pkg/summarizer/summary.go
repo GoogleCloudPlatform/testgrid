@@ -375,6 +375,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
+	// TODO(chases2): Determine alerts (updater.alertRows) again; the pass/fail thresholds may be different on tabs
 	failures := failingTestSummaries(grid.Rows)
 	passingCols, completedCols, passingCells, filledCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold)
 	return &summarypb.DashboardTabSummary{

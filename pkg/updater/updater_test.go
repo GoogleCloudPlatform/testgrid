@@ -3338,7 +3338,7 @@ func TestConstructGrid(t *testing.T) {
 			if failuresOpen > 0 && passesClose == 0 {
 				passesClose = 1
 			}
-			alertRows(tc.expected.Columns, tc.expected.Rows, failuresOpen, passesClose)
+			alertRows(tc.expected.Columns, tc.expected.Rows, failuresOpen, passesClose, tc.group.UseKubernetesClient)
 			for _, row := range tc.expected.Rows {
 				sort.SliceStable(row.Metric, func(i, j int) bool {
 					return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
@@ -3968,7 +3968,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails},
-			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil),
+			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil, false),
 		},
 		{
 			name: "two column with dynamic emails, we get only the first one",
@@ -3980,7 +3980,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&anotherColumnWithEmails, &columnWithEmails},
-			expected: alertInfo(2, "", "", "", &columnWithEmails, &anotherColumnWithEmails, nil),
+			expected: alertInfo(2, "", "", "", &columnWithEmails, &anotherColumnWithEmails, nil, false),
 		},
 		{
 			name: "first column don't have results, second column emails on the alert",
@@ -3993,11 +3993,11 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails, &anotherColumnWithEmails},
-			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil),
+			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil, false),
 		},
 	}
 	for _, tc := range cases {
-		actual := alertRow(tc.columns, tc.row, 1, 1)
+		actual := alertRow(tc.columns, tc.row, 1, 1, false)
 		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
@@ -4068,7 +4068,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3]),
+			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3], false),
 		},
 		{
 			name: "rows without cell IDs can alert",
@@ -4080,7 +4080,7 @@ func TestAlertRow(t *testing.T) {
 				Messages: []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "", "", columns[2], columns[0], columns[3]),
+			expected: alertInfo(3, "no", "", "", columns[2], columns[0], columns[3], false),
 		},
 		{
 			name: "too few passes do not close",
@@ -4094,7 +4094,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  1,
 			passClose: 3,
-			expected:  alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil),
+			expected:  alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, false),
 		},
 		{
 			name: "flakes do not close",
@@ -4107,7 +4107,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "no", "yep", "very wrong", "hi", "hello"},
 			},
 			failOpen: 1,
-			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil),
+			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, false),
 		},
 		{
 			name: "count failures after flaky passes",
@@ -4124,7 +4124,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[4], nil),
+			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[4], nil, false),
 		},
 		{
 			name: "close alert",
@@ -4149,7 +4149,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  5,
 			passClose: 2,
-			expected:  alertInfo(5, "yay", "nada", "yay-cell", columns[5], columns[0], nil),
+			expected:  alertInfo(5, "yay", "nada", "yay-cell", columns[5], columns[0], nil, false),
 		},
 		{
 			name: "track passes through empty results",
@@ -4175,12 +4175,12 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
 			},
 			failOpen: 1,
-			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil),
+			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil, false),
 		},
 	}
 
 	for _, tc := range cases {
-		actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose)
+		actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false)
 		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
@@ -4189,24 +4189,27 @@ func TestAlertRow(t *testing.T) {
 
 func TestBuildID(t *testing.T) {
 	cases := []struct {
-		name     string
-		build    string
-		extra    string
-		expected string
+		name      string
+		build     string
+		extra     string
+		useCommit bool
+		expected  string
 	}{
 		{
 			name: "return empty by default",
 		},
 		{
-			name:     "favor extra if it exists",
-			build:    "wrong",
-			extra:    "right",
-			expected: "right",
+			name:      "use header as commit",
+			build:     "wrong",
+			extra:     "right",
+			useCommit: true,
+			expected:  "right",
 		},
 		{
-			name:     "build if no extra",
-			build:    "yes",
-			expected: "yes",
+			name:     "use build otherwise",
+			build:    "right",
+			extra:    "wrong",
+			expected: "right",
 		},
 	}
 
@@ -4218,7 +4221,7 @@ func TestBuildID(t *testing.T) {
 			if tc.extra != "" {
 				col.Extra = append(col.Extra, tc.extra)
 			}
-			if actual := buildID(&col); actual != tc.expected {
+			if actual := buildID(&col, tc.useCommit); actual != tc.expected {
 				t.Errorf("%q != expected %q", actual, tc.expected)
 			}
 		})
