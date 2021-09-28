@@ -198,19 +198,22 @@ func testGroups(ctx context.Context, opener gcs.Opener, path gcs.Path, groupName
 }
 
 type lastUpdated struct {
-	stater     gcs.Stater
+	client     gcs.ConditionalClient
 	gridPrefix string
 	configPath gcs.Path
 	freq       time.Duration
 }
 
 func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) error {
-	attrs, err := gridAttrs(ctx, log, fixer.stater, fixer.configPath, fixer.gridPrefix, groups)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	paths, err := gridPaths(fixer.configPath, fixer.gridPrefix, groups)
 	if err != nil {
 		return err
 	}
-	q.Init(groups, time.Now().Add(fixer.freq))
+	attrs := gridAttrs(ctx, log, fixer.client, paths...)
 	updates := make(map[string]time.Time, len(attrs))
+	var wg sync.WaitGroup
 	for i, attr := range attrs {
 		if attr == nil {
 			continue
@@ -218,10 +221,19 @@ func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q 
 		name := groups[i].Name
 		if attr.Generation > 0 {
 			updates[name] = attr.Updated.Add(fixer.freq)
-		} else {
+		} else if attr.Generation == 0 {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				if _, err := lockGroup(ctx, fixer.client, paths[i], 0); err != nil && !isPreconditionFailed(err) {
+					log.WithError(err).Error("Failed to create empty group state")
+				}
+			}(i)
 			updates[name] = time.Now()
 		}
 	}
+	wg.Wait()
+	q.Init(groups, time.Now().Add(fixer.freq))
 	q.FixAll(updates, false)
 	return nil
 }
@@ -249,28 +261,22 @@ func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *con
 	}
 }
 
-func gridAttrs(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) ([]*storage.ObjectAttrs, error) {
-	paths, err := gridPaths(configPath, gridPrefix, groups)
-	if err != nil {
-		return nil, fmt.Errorf("grid paths: %v", err)
-	}
-
-	out := make([]*storage.ObjectAttrs, len(groups))
+func gridAttrs(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, paths ...gcs.Path) []*storage.ObjectAttrs {
+	out := make([]*storage.ObjectAttrs, len(paths))
 
 	attrs := gcs.Stat(ctx, client, 20, paths...)
 	for i, attrs := range attrs {
 		err := attrs.Err
-		name := groups[i].Name
 		switch {
 		case attrs.Attrs != nil:
 			out[i] = attrs.Attrs
 		case errors.Is(err, storage.ErrObjectNotExist):
 			out[i] = &storage.ObjectAttrs{}
 		default:
-			log.WithError(err).WithField("name", name).Info("Failed to stat")
+			log.WithError(err).WithField("path", paths[i]).Info("Failed to stat")
 		}
 	}
-	return out, nil
+	return out
 }
 
 // Fixer will fix the TestGroupQueue's next time for TestGroups.
@@ -311,7 +317,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 
 	log.Debug("Fetching initial start times...")
 	fixLastUpdated := lastUpdated{
-		stater:     client,
+		client:     client,
 		gridPrefix: gridPrefix,
 		configPath: configPath,
 		freq:       freq,

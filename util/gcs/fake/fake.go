@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
@@ -34,11 +35,12 @@ import (
 type ConditionalClient struct {
 	UploadClient
 	read, write *storage.Conditions
+	Lock        *sync.RWMutex
 }
 
-func (cc ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error {
+func (cc *ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error {
 	if from != nil && cc.read != nil {
-		attrs, err := cc.Stat(ctx, *from)
+		attrs, err := cc.UploadClient.Stat(ctx, *from)
 		if err != nil {
 			return err
 		}
@@ -49,7 +51,7 @@ func (cc ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error
 		}
 	}
 	if to != nil && cc.write != nil {
-		attrs, err := cc.Stat(ctx, *to)
+		attrs, err := cc.UploadClient.Stat(ctx, *to)
 		switch {
 		case err == storage.ErrObjectNotExist:
 			if cc.write.GenerationMatch != 0 {
@@ -69,7 +71,11 @@ func (cc ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error
 }
 
 // Copy copies the contents of 'from' into 'to'.
-func (cc ConditionalClient) Copy(ctx context.Context, from, to gcs.Path) (*storage.ObjectAttrs, error) {
+func (cc *ConditionalClient) Copy(ctx context.Context, from, to gcs.Path) (*storage.ObjectAttrs, error) {
+	if cc.Lock != nil {
+		cc.Lock.Lock()
+		defer cc.Lock.Unlock()
+	}
 	if err := cc.check(ctx, &from, &to); err != nil {
 		return nil, err
 	}
@@ -85,7 +91,11 @@ func (cc ConditionalClient) Copy(ctx context.Context, from, to gcs.Path) (*stora
 }
 
 // Upload writes content to the given path.
-func (cc ConditionalClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cache string) (*storage.ObjectAttrs, error) {
+func (cc *ConditionalClient) Upload(ctx context.Context, path gcs.Path, buf []byte, worldRead bool, cache string) (*storage.ObjectAttrs, error) {
+	if cc.Lock != nil {
+		cc.Lock.Lock()
+		defer cc.Lock.Unlock()
+	}
 	if err := cc.check(ctx, nil, &path); err != nil {
 		return nil, err
 	}
@@ -103,12 +113,44 @@ func (cc ConditionalClient) Upload(ctx context.Context, path gcs.Path, buf []byt
 }
 
 // If returns a fake conditional client.
-func (cc ConditionalClient) If(read, write *storage.Conditions) gcs.ConditionalClient {
-	return ConditionalClient{
+func (cc *ConditionalClient) If(read, write *storage.Conditions) gcs.ConditionalClient {
+	return &ConditionalClient{
 		UploadClient: cc.UploadClient,
 		read:         read,
 		write:        write,
+		Lock:         cc.Lock,
 	}
+}
+
+// Open the path conditionally.
+func (cc *ConditionalClient) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
+	if cc.Lock != nil {
+		cc.Lock.RLock()
+		defer cc.Lock.RUnlock()
+	}
+	if err := cc.check(ctx, &path, nil); err != nil {
+		return nil, nil, err
+	}
+	return cc.UploadClient.Open(ctx, path)
+}
+
+// Objects in the
+func (cc *ConditionalClient) Objects(ctx context.Context, path gcs.Path, _, offset string) gcs.Iterator {
+	if cc.Lock != nil {
+		cc.Lock.RLock()
+		defer cc.Lock.RUnlock()
+	}
+	return cc.UploadClient.Objects(ctx, path, "", offset)
+}
+func (cc *ConditionalClient) Stat(ctx context.Context, path gcs.Path) (*storage.ObjectAttrs, error) {
+	if cc.Lock != nil {
+		cc.Lock.RLock()
+		defer cc.Lock.RUnlock()
+	}
+	if err := cc.check(ctx, &path, nil); err != nil {
+		return nil, err
+	}
+	return cc.UploadClient.Stat(ctx, path)
 }
 
 // UploadClient is a fake upload client
