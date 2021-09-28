@@ -387,9 +387,9 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupF
 		OverallStatus:        overallStatus(grid, recent, alert, brokenState, failures),
 		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
-		// TODO(fejta): BugUrl
-		Healthiness:  healthiness,
-		LinkedIssues: allLinkedIssues(grid.Rows),
+		BugUrl:               tab.GetOpenBugTemplate().GetUrl(),
+		Healthiness:          healthiness,
+		LinkedIssues:         allLinkedIssues(grid.Rows),
 	}, nil
 }
 

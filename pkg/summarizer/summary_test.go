@@ -178,6 +178,109 @@ func TestUpdateDashboard(t *testing.T) {
 			},
 			err: true,
 		},
+		{
+			name: "bug url",
+			dash: &configpb.Dashboard{
+				Name: "a-dashboard",
+				DashboardTab: []*configpb.DashboardTab{
+					{
+						Name:          "none",
+						TestGroupName: "a-group",
+					},
+					{
+						Name:            "empty",
+						TestGroupName:   "a-group",
+						OpenBugTemplate: &configpb.LinkTemplate{},
+					},
+					{
+						Name:          "url",
+						TestGroupName: "a-group",
+						OpenBugTemplate: &configpb.LinkTemplate{
+							Url: "http://some-bugs/",
+						},
+					},
+					{
+						Name:          "url-options-empty",
+						TestGroupName: "a-group",
+						OpenBugTemplate: &configpb.LinkTemplate{
+							Url:     "http://more-bugs/",
+							Options: []*configpb.LinkOptionsTemplate{},
+						},
+					},
+					{
+						Name:          "url-options",
+						TestGroupName: "a-group",
+						OpenBugTemplate: &configpb.LinkTemplate{
+							Url: "http://ooh-bugs/",
+							Options: []*configpb.LinkOptionsTemplate{
+								{
+									Key:   "id",
+									Value: "warble",
+								},
+								{
+									Key:   "name",
+									Value: "garble",
+								},
+							},
+						},
+					},
+				},
+			},
+			groups: map[string]fakeGroup{
+				"a-group": {
+					mod: time.Unix(1000, 0),
+				},
+			},
+			expected: &summarypb.DashboardSummary{
+				TabSummaries: []*summarypb.DashboardTabSummary{
+					{
+						DashboardName:       "a-dashboard",
+						DashboardTabName:    "none",
+						LastUpdateTimestamp: 1000,
+						Status:              noRuns,
+						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
+						LatestGreen:         noGreens,
+						BugUrl:              "",
+					},
+					{
+						DashboardName:       "a-dashboard",
+						DashboardTabName:    "empty",
+						LastUpdateTimestamp: 1000,
+						Status:              noRuns,
+						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
+						LatestGreen:         noGreens,
+						BugUrl:              "",
+					},
+					{
+						DashboardName:       "a-dashboard",
+						DashboardTabName:    "url",
+						LastUpdateTimestamp: 1000,
+						Status:              noRuns,
+						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
+						LatestGreen:         noGreens,
+						BugUrl:              "http://some-bugs/",
+					},
+					{
+						DashboardName:       "a-dashboard",
+						DashboardTabName:    "url-options-empty",
+						LastUpdateTimestamp: 1000,
+						Status:              noRuns,
+						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
+						LatestGreen:         noGreens,
+						BugUrl:              "http://more-bugs/",
+					},
+					{
+						DashboardName:       "a-dashboard",
+						DashboardTabName:    "url-options",
+						LastUpdateTimestamp: 1000,
+						Status:              noRuns,
+						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
+						LatestGreen:         noGreens,
+						BugUrl:              "http://ooh-bugs/",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
