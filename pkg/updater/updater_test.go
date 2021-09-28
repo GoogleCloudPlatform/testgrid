@@ -1330,8 +1330,8 @@ func TestInflateDropAppend(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: overallRow,
-								Id:   overallRow,
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
 							},
 							cell{
 								Result:  statuspb.TestStatus_RUNNING,
@@ -1353,8 +1353,8 @@ func TestInflateDropAppend(t *testing.T) {
 						),
 						setupRow(
 							&statepb.Row{
-								Name: podInfoRow,
-								Id:   podInfoRow,
+								Name: "build." + podInfoRow,
+								Id:   "build." + podInfoRow,
 							},
 							cell{Result: statuspb.TestStatus_NO_RESULT},
 							podInfoPassCell,
@@ -1493,8 +1493,8 @@ func TestInflateDropAppend(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: overallRow,
-								Id:   overallRow,
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
 							},
 							cell{
 								Result:  statuspb.TestStatus_PASS,
@@ -1516,8 +1516,8 @@ func TestInflateDropAppend(t *testing.T) {
 						),
 						setupRow(
 							&statepb.Row{
-								Name: podInfoRow,
-								Id:   podInfoRow,
+								Name: "build." + podInfoRow,
+								Id:   "build." + podInfoRow,
 							},
 							podInfoPassCell,
 							podInfoPassCell,
@@ -1650,8 +1650,8 @@ func TestInflateDropAppend(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: overallRow,
-								Id:   overallRow,
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
 							},
 							cell{
 								Result:  statuspb.TestStatus_PASS,
@@ -1691,8 +1691,8 @@ func TestInflateDropAppend(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: overallRow,
-								Id:   overallRow,
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
 							},
 							cell{
 								Result:  statuspb.TestStatus_RUNNING,
@@ -1767,8 +1767,8 @@ func TestInflateDropAppend(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: overallRow,
-								Id:   overallRow,
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
 							},
 							cell{
 								Result:  statuspb.TestStatus_PASS,
@@ -1818,8 +1818,8 @@ func TestInflateDropAppend(t *testing.T) {
 					Rows: []*statepb.Row{
 						setupRow(
 							&statepb.Row{
-								Name: overallRow,
-								Id:   overallRow,
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
 							},
 							cell{
 								Result:  statuspb.TestStatus_RUNNING,

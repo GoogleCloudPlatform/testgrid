@@ -348,7 +348,6 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 			overall.Message = "Build failed outside of test results"
 		}
 	}
-
 	injectedCells := map[string]Cell{
 		overallRow: overall,
 	}
@@ -361,11 +360,11 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 
 	for name, c := range injectedCells {
 		c.CellID = cellID
+		jobName := result.job + "." + name
+		cells[jobName] = append([]Cell{c}, cells[jobName]...)
 		if nameCfg.multiJob {
-			jobName := result.job + "." + name
-			cells[jobName] = append([]Cell{c}, cells[jobName]...)
+			cells[name] = append([]Cell{c}, cells[name]...)
 		}
-		cells[name] = append([]Cell{c}, cells[name]...)
 	}
 
 	out := InflatedColumn{
