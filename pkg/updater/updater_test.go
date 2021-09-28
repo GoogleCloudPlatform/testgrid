@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -109,7 +110,6 @@ func TestGridAttrs(t *testing.T) {
 		groups []*configpb.TestGroup
 
 		want []*storage.ObjectAttrs
-		err  bool
 	}{
 		{
 			name: "basic",
@@ -193,18 +193,18 @@ func TestGridAttrs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := gridAttrs(context.Background(), logrus.WithField("name", tc.name), tc.stats, configPath, tc.prefix, tc.groups)
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("gridAttrs() got unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Errorf("gridAttrs() failed to return an error, got %v", got)
-			default:
-				if diff := cmp.Diff(tc.want, got); diff != "" {
-					t.Errorf("gridAttrs() got unexpected diff (-want +got):\n%s", diff)
-				}
+			client := &fake.ConditionalClient{
+				UploadClient: fake.UploadClient{
+					Stater: tc.stats,
+				},
+			}
+			paths, err := gridPaths(configPath, tc.prefix, tc.groups)
+			if err != nil {
+				t.Fatalf("gridPaths() failed: %v", err)
+			}
+			got := gridAttrs(context.Background(), logrus.WithField("name", tc.name), client, paths...)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("gridAttrs() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -290,11 +290,19 @@ func TestUpdate(t *testing.T) {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
 					WorldRead:    gcs.DefaultACL,
+					Generation:   2,
 				},
 				*resolveOrDie(&configPath, "modern"): {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
+					Generation:   2,
 					WorldRead:    gcs.DefaultACL,
+				},
+				*resolveOrDie(&configPath, "skip-non-k8s"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+					Generation:   1,
 				},
 			},
 			successes: 3,
@@ -379,10 +387,12 @@ func TestUpdate(t *testing.T) {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
 					WorldRead:    gcs.DefaultACL,
+					Generation:   2,
 				},
 				*resolveOrDie(&configPath, "hiya"): {
 					Buf:          mustGrid(&statepb.Grid{}),
 					CacheControl: "no-cache",
+					Generation:   2,
 					WorldRead:    gcs.DefaultACL,
 				},
 			},
@@ -432,11 +442,24 @@ func TestUpdate(t *testing.T) {
 				return false, errors.New("bad update")
 
 			},
-			builds:   make(map[string][]fakeBuild),
-			freq:     time.Duration(0),
-			expected: fakeUploader{},
-			errors:   1,
-			skips:    1,
+			builds: make(map[string][]fakeBuild),
+			freq:   time.Duration(0),
+			expected: fakeUploader{
+				*resolveOrDie(&configPath, "hello"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+					Generation:   1,
+				},
+				*resolveOrDie(&configPath, "world"): {
+					Buf:          mustGrid(&statepb.Grid{}),
+					CacheControl: "no-cache",
+					WorldRead:    gcs.DefaultACL,
+					Generation:   1,
+				},
+			},
+			errors: 1,
+			skips:  1,
 		},
 		// TODO(fejta): more cases
 	}
@@ -462,12 +485,15 @@ func TestUpdate(t *testing.T) {
 				tc.buildTimeout = &defaultTimeout
 			}
 
-			client := fakeUploadClient{
-				Uploader: fakeUploader{},
-				Client: fakeClient{
-					Lister: fakeLister{},
-					Opener: fakeOpener{},
+			client := &fake.ConditionalClient{
+				UploadClient: fake.UploadClient{
+					Uploader: fakeUploader{},
+					Client: fakeClient{
+						Lister: fakeLister{},
+						Opener: fakeOpener{},
+					},
 				},
+				Lock: &sync.RWMutex{},
 			}
 
 			client.Opener[configPath] = fakeObject{

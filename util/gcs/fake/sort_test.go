@@ -215,7 +215,7 @@ func TestTouch(t *testing.T) {
 	cases := []struct {
 		name       string
 		ctx        context.Context
-		client     ConditionalClient
+		client     *ConditionalClient
 		generation int64
 		buf        []byte
 		expected   Uploader
@@ -230,7 +230,7 @@ func TestTouch(t *testing.T) {
 				return ctx
 			}(),
 			generation: 123,
-			client: ConditionalClient{
+			client: &ConditionalClient{
 				UploadClient: UploadClient{
 					Uploader: Uploader{
 						*path: {
@@ -252,7 +252,7 @@ func TestTouch(t *testing.T) {
 		{
 			name:       "same gen",
 			generation: 123,
-			client: ConditionalClient{
+			client: &ConditionalClient{
 				UploadClient: UploadClient{
 					Uploader: Uploader{
 						*path: {
@@ -279,7 +279,7 @@ func TestTouch(t *testing.T) {
 		{
 			name:       "wrong read gen",
 			generation: 123,
-			client: ConditionalClient{
+			client: &ConditionalClient{
 				UploadClient: UploadClient{
 					Uploader: Uploader{
 						*path: {
@@ -301,7 +301,7 @@ func TestTouch(t *testing.T) {
 		{
 			name:       "fail copy",
 			generation: 123,
-			client: ConditionalClient{
+			client: &ConditionalClient{
 				UploadClient: UploadClient{
 					Uploader: Uploader{
 						*path: {
@@ -321,7 +321,7 @@ func TestTouch(t *testing.T) {
 		},
 		{
 			name: "upload",
-			client: ConditionalClient{
+			client: &ConditionalClient{
 				UploadClient: UploadClient{
 					Uploader: Uploader{},
 					Stater:   Stater{},
@@ -338,7 +338,7 @@ func TestTouch(t *testing.T) {
 		},
 		{
 			name: "fail upload",
-			client: ConditionalClient{
+			client: &ConditionalClient{
 				UploadClient: UploadClient{
 					Uploader: Uploader{
 						*path: {
