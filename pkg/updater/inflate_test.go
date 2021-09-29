@@ -235,7 +235,6 @@ func TestInflateGrid(t *testing.T) {
 							Result: statuspb.TestStatus_PASS,
 						},
 						"sparse": {},
-						"issued": {},
 					},
 				},
 				{
@@ -267,7 +266,6 @@ func TestInflateGrid(t *testing.T) {
 							Icon:         "I2-sparse",
 							UserProperty: "there-sparse",
 						},
-						"issued": {},
 					},
 				},
 			},
@@ -605,7 +603,7 @@ func TestInflateGrid(t *testing.T) {
 func TestInflateRow(t *testing.T) {
 	cases := []struct {
 		name     string
-		row      statepb.Row
+		row      *statepb.Row
 		expected []cell
 	}{
 		{
@@ -613,7 +611,7 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "preserve cell ids",
-			row: statepb.Row{
+			row: &statepb.Row{
 				CellIds:  []string{"cell-a", "cell-b", "cell-d"},
 				Icons:    blank(3),
 				Messages: blank(3),
@@ -647,7 +645,7 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "only finished columns contain icons and messages",
-			row: statepb.Row{
+			row: &statepb.Row{
 				CellIds: blank(8),
 				Icons: []string{
 					"F1", "~1", "~2",
@@ -688,7 +686,7 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "find metric name from row when missing",
-			row: statepb.Row{
+			row: &statepb.Row{
 				CellIds:  blank(1),
 				Icons:    blank(1),
 				Messages: blank(1),
@@ -714,7 +712,7 @@ func TestInflateRow(t *testing.T) {
 		},
 		{
 			name: "prioritize local metric name",
-			row: statepb.Row{
+			row: &statepb.Row{
 				CellIds:  blank(1),
 				Icons:    blank(1),
 				Messages: blank(1),
@@ -744,8 +742,9 @@ func TestInflateRow(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var actual []cell
-			for r := range inflateRow(context.Background(), &tc.row) {
-				actual = append(actual, r)
+			nextCell := inflateRow(tc.row)
+			for c := nextCell(); c != nil; c = nextCell() {
+				actual = append(actual, *c)
 			}
 
 			if diff := cmp.Diff(actual, tc.expected, cmp.AllowUnexported(cell{}), protocmp.Transform()); diff != "" {
@@ -755,7 +754,7 @@ func TestInflateRow(t *testing.T) {
 	}
 }
 
-func TestInflateMetic(t *testing.T) {
+func TestInflateMetric(t *testing.T) {
 	point := func(v float64) *float64 {
 		return &v
 	}
@@ -795,12 +794,13 @@ func TestInflateMetic(t *testing.T) {
 				Indices: tc.indices,
 				Values:  tc.values,
 			}
-			for v := range inflateMetric(context.Background(), &metric) {
-				actual = append(actual, v)
+			nextMetric := inflateMetric(&metric)
+			for val, ok := nextMetric(); ok; val, ok = nextMetric() {
+				actual = append(actual, val)
 			}
 
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("inflateMetric(%v) got %v want %v", metric, actual, tc.expected)
+			if diff := cmp.Diff(tc.expected, actual); diff != "" {
+				t.Errorf("inflateMetric(%v) got unexpected diff (-want +got):\n%s", metric, diff)
 			}
 		})
 	}
@@ -856,10 +856,10 @@ func TestInflateResults(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ch := inflateResults(context.Background(), tc.results)
+			nextResult := inflateResults(tc.results)
 			var actual []statuspb.TestStatus
-			for r := range ch {
-				actual = append(actual, r)
+			for cur := nextResult(); cur != nil; cur = nextResult() {
+				actual = append(actual, *cur)
 			}
 			if !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("inflateResults(%v) got %v, want %v", tc.results, actual, tc.expected)

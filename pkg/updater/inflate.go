@@ -82,10 +82,10 @@ func InflateGrid(ctx context.Context, grid *statepb.Grid, earliest, latest time.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	rows := make(map[string]<-chan Cell, len(grid.Rows))
+	rows := make(map[string]func() *Cell, len(grid.Rows))
 	issues := make(map[string][]string, len(grid.Rows))
 	for _, row := range grid.Rows {
-		rows[row.Name] = inflateRow(ctx, row)
+		rows[row.Name] = inflateRow(row)
 		if len(row.Issues) > 0 {
 			issues[row.Name] = row.Issues
 		}
@@ -104,8 +104,11 @@ func InflateGrid(ctx context.Context, grid *statepb.Grid, earliest, latest time.
 		if col.Hint == "" { // TODO(fejta): drop after everything sets its hint.
 			col.Hint = col.Build
 		}
-		for rowName, rowCells := range rows {
-			item.Cells[rowName] = <-rowCells
+		for rowName, nextCell := range rows {
+			cell := nextCell()
+			if cell != nil {
+				item.Cells[rowName] = *cell
+			}
 		}
 		when := int64(col.Started / 1000)
 		if when > latest.Unix() {
@@ -120,37 +123,34 @@ func InflateGrid(ctx context.Context, grid *statepb.Grid, earliest, latest time.
 }
 
 // inflateRow inflates the values for each column into a Cell channel.
-func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
-	out := make(chan Cell)
+func inflateRow(row *statepb.Row) func() *Cell {
+	if row == nil {
+		return func() *Cell { return nil }
+	}
 	addCellID := hasCellID(row.Name)
 
-	go func() {
-		ctx, cancel := context.WithCancel(parent)
-		defer close(out)
-		defer cancel()
-		var filledIdx int
-		var mets map[string]<-chan *float64
-		if len(row.Metrics) > 0 {
-			mets = make(map[string]<-chan *float64, len(row.Metrics))
+	var filledIdx int
+	var mets map[string]func() (*float64, bool)
+	if len(row.Metrics) > 0 {
+		mets = make(map[string]func() (*float64, bool), len(row.Metrics))
+	}
+	for i, m := range row.Metrics {
+		if m.Name == "" && len(row.Metrics) > i {
+			m.Name = row.Metric[i]
 		}
-		for i, m := range row.Metrics {
-			if m.Name == "" && len(row.Metrics) > i {
-				m.Name = row.Metric[i]
-			}
-			mets[m.Name] = inflateMetric(ctx, m)
-		}
-		var val *float64
-		for result := range inflateResults(ctx, row.Results) {
+		mets[m.Name] = inflateMetric(m)
+	}
+	var val *float64
+	nextResult := inflateResults(row.Results)
+	return func() *Cell {
+		for cur := nextResult(); cur != nil; cur = nextResult() {
+			result := *cur
 			c := Cell{
 				Result: result,
 				ID:     row.Id,
 			}
-			for name, ch := range mets {
-				select {
-				case <-ctx.Done():
-					return
-				case val = <-ch:
-				}
+			for name, nextValue := range mets {
+				val, _ = nextValue()
 				if val == nil {
 					continue
 				}
@@ -159,6 +159,7 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 				}
 				c.Metrics[name] = *val
 			}
+			// TODO(fejta): consider returning (nil, true) instead here
 			if result != statuspb.TestStatus_NO_RESULT {
 				c.Icon = row.Icons[filledIdx]
 				c.Message = row.Messages[filledIdx]
@@ -178,67 +179,81 @@ func inflateRow(parent context.Context, row *statepb.Row) <-chan Cell {
 				}
 				filledIdx++
 			}
-			select {
-			case <-ctx.Done():
-				return
-			case out <- c:
-			}
+			return &c
 		}
-
-	}()
-	return out
+		return nil
+	}
 }
 
 // inflateMetric inflates the sparse-encoded metric values into a channel
-func inflateMetric(ctx context.Context, metric *statepb.Metric) <-chan *float64 {
-	out := make(chan *float64)
-	go func() {
-		defer close(out)
-		var current int32
-		var valueIdx int
-		for i := 0; i < len(metric.Indices); i++ {
-			start := metric.Indices[i]
-			i++
-			remain := metric.Indices[i]
-			for ; remain > 0; current++ {
+//
+// {Indices: [0,2,6,4], Values: {0.1, 0.2, 6.1, 6.2, 6.3, 6.4}} encodes:
+// {0.1, 0.2, nil, nil, nil, nil, 6.1, 6.2, 6.3, 6.4}
+func inflateMetric(metric *statepb.Metric) func() (*float64, bool) {
+	idx := -1
+	var remain int32
+	valueIdx := -1
+	current := int32(-1)
+	var start int32
+	more := true
+	return func() (*float64, bool) {
+		if !more {
+			return nil, false
+		}
+		for {
+			if remain > 0 {
+				current++
 				if current < start {
-					select {
-					case <-ctx.Done():
-						return
-					case out <- nil:
-					}
-					continue
+					return nil, true
 				}
 				remain--
-				value := metric.Values[valueIdx]
 				valueIdx++
-				select {
-				case <-ctx.Done():
-					return
-				case out <- &value:
+				if valueIdx == len(metric.Values) {
+					break
 				}
+				v := metric.Values[valueIdx]
+				return &v, true
 			}
+			idx++
+			if idx >= len(metric.Indices)-1 {
+				break
+			}
+			start = metric.Indices[idx]
+			idx++
+			remain = metric.Indices[idx]
 		}
-	}()
-	return out
+		more = false
+		return nil, false
+	}
 }
 
 // inflateResults inflates the run-length encoded row results into a channel.
-func inflateResults(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
-	out := make(chan statuspb.TestStatus)
-	go func() {
-		defer close(out)
-		for idx := 0; idx < len(results); idx++ {
-			val := results[idx]
-			idx++
-			for n := results[idx]; n > 0; n-- {
-				select {
-				case <-ctx.Done():
-					return
-				case out <- statuspb.TestStatus(val):
-				}
-			}
+//
+// [PASS, 2, NO_RESULT, 1, FAIL, 3] is equivalent to:
+// [PASS, PASS, NO_RESULT, FAIL, FAIL, FAIL]
+func inflateResults(results []int32) func() *statuspb.TestStatus {
+	idx := -1
+	var current statuspb.TestStatus
+	var remain int32
+	more := true
+	return func() *statuspb.TestStatus {
+		if !more {
+			return nil
 		}
-	}()
-	return out
+		for {
+			if remain > 0 {
+				remain--
+				return &current
+			}
+			idx++
+			if idx == len(results) {
+				break
+			}
+			current = statuspb.TestStatus(results[idx])
+			idx++
+			remain = results[idx]
+		}
+		more = false
+		return nil
+	}
 }
