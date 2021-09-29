@@ -18,6 +18,7 @@ package updater
 
 import (
 	"context"
+	"flag"
 	"reflect"
 	"testing"
 	"time"
@@ -25,8 +26,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	"cloud.google.com/go/storage"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 // TODO(fejta): rename everything to InflatedColumn
@@ -41,6 +44,40 @@ func blank(n int) []string {
 		out = append(out, "")
 	}
 	return out
+}
+
+var benchPath gcs.Path
+
+func init() {
+	flag.Var(&benchPath, "bench-path", "Path to ./foo/local-state or gs://bucket/grid/test-group")
+}
+
+func BenchmarkInflateGrid(b *testing.B) {
+	ctx := context.Background()
+	if benchPath.Object() == "" {
+		b.Skip("No grid-path specified")
+	}
+	var storageClient *storage.Client
+	if benchPath.Bucket() != "" {
+		s, err := gcs.ClientWithCreds(context.Background())
+		if err != nil {
+			b.Fatalf("Cannot create GCS client: %v", err)
+		}
+		storageClient = s
+	}
+	client := gcs.NewClient(storageClient)
+	grid, _, err := gcs.DownloadGrid(ctx, client, benchPath)
+	if err != nil {
+		b.Fatalf("Failed to download %s: %v", benchPath, err)
+	}
+	latest := time.Now().Add(time.Hour)
+	earliest := time.Unix(0, 0)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			InflateGrid(ctx, grid, earliest, latest)
+		}
+	})
 }
 
 func TestInflateGrid(t *testing.T) {
