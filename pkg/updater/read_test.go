@@ -252,13 +252,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+10) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -268,7 +268,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+11) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result:  statuspb.TestStatus_FAIL,
 							Icon:    "F",
 							Message: "Build failed outside of test results",
@@ -276,7 +276,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 			},
@@ -341,13 +341,13 @@ func TestReadColumns(t *testing.T) {
 						},
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -361,7 +361,7 @@ func TestReadColumns(t *testing.T) {
 						},
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result:  statuspb.TestStatus_FAIL,
 							Icon:    "F",
 							Message: "Build failed outside of test results",
@@ -369,7 +369,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 			},
@@ -424,13 +424,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+10) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 						"name good - context context-a - thread 33": {
 							Result: statuspb.TestStatus_PASS,
 						},
@@ -532,13 +532,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -548,13 +548,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+14) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 14 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 			},
@@ -625,13 +625,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -641,13 +641,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+12) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -657,13 +657,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+11) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 11 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 				{
@@ -673,13 +673,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+10) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 10 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -750,13 +750,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -766,13 +766,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+12) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 12 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 				// drop 11 and 10
@@ -867,13 +867,13 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+9) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 9 / 60.0,
 							},
 						},
-						podInfoRow: podInfoMissingCell,
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 				{
@@ -909,7 +909,7 @@ func TestReadColumns(t *testing.T) {
 						Started: float64(now+13) * 1000,
 					},
 					Cells: map[string]cell{
-						overallRow: {
+						"build." + overallRow: {
 							Result:  statuspb.TestStatus_FAIL,
 							Icon:    "F",
 							Message: "Build failed outside of test results",
@@ -917,7 +917,7 @@ func TestReadColumns(t *testing.T) {
 								"test-duration-minutes": 13 / 60.0,
 							},
 						},
-						podInfoRow: podInfoPassCell,
+						"build." + podInfoRow: podInfoPassCell,
 					},
 				},
 				{

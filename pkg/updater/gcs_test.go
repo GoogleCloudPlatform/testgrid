@@ -327,7 +327,7 @@ func TestConvertResult(t *testing.T) {
 			expected: InflatedColumn{
 				Column: &statepb.Column{},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -351,7 +351,7 @@ func TestConvertResult(t *testing.T) {
 					EmailAddresses: []string{"world"},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -375,7 +375,7 @@ func TestConvertResult(t *testing.T) {
 					EmailAddresses: []string{"world"},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -399,7 +399,7 @@ func TestConvertResult(t *testing.T) {
 					EmailAddresses: []string{"world", "olam"},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -423,7 +423,7 @@ func TestConvertResult(t *testing.T) {
 					EmailAddresses: []string{},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -447,7 +447,7 @@ func TestConvertResult(t *testing.T) {
 					EmailAddresses: []string{},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -488,7 +488,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "T",
 						Message: "Build did not complete within 24 hours",
@@ -529,7 +529,7 @@ func TestConvertResult(t *testing.T) {
 					},
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_RUNNING,
 						Icon:    "R",
 						Message: "Build still running...",
@@ -538,7 +538,7 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "add job overall when multiJob",
+			name: "add overall when multiJob",
 			id:   "build",
 			nameCfg: nameConfig{
 				format:   "%s.%s",
@@ -603,7 +603,7 @@ func TestConvertResult(t *testing.T) {
 			},
 		},
 		{
-			name: "inclue job name upon request",
+			name: "include job name upon request",
 			nameCfg: nameConfig{
 				format: "%s.%s",
 				parts:  []string{jobName, testsName},
@@ -642,7 +642,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"job-name." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "F",
 						Message: "Build failed outside of test results",
@@ -693,7 +693,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Icon:    "F",
 						Message: "Build failed outside of test results",
@@ -781,7 +781,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Metrics: setElapsed(nil, 1),
 					},
@@ -937,7 +937,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_FAIL,
 						Metrics: setElapsed(nil, 1),
 					},
@@ -1064,7 +1064,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 					},
@@ -1157,7 +1157,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 					},
@@ -1238,7 +1238,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 					},
@@ -1315,7 +1315,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 					},
@@ -1390,7 +1390,7 @@ func TestConvertResult(t *testing.T) {
 				},
 				Cells: func() map[string]Cell {
 					out := map[string]Cell{
-						overallRow: {
+						"." + overallRow: {
 							Result:  statuspb.TestStatus_PASS,
 							Metrics: setElapsed(nil, 1),
 						},
@@ -1440,11 +1440,11 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoMissingCell,
+					"." + podInfoRow: podInfoMissingCell,
 				},
 			},
 		},
@@ -1476,11 +1476,11 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 					},
-					podInfoRow: podInfoPassCell,
+					"." + podInfoRow: podInfoPassCell,
 				},
 			},
 		},
@@ -1501,7 +1501,7 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_RUNNING,
 						Icon:    "R",
 						Message: "Build still running...",
@@ -1531,12 +1531,12 @@ func TestConvertResult(t *testing.T) {
 					Started: float64(now * 1000),
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_RUNNING,
 						Icon:    "R",
 						Message: "Build still running...",
 					},
-					podInfoRow: podInfoPassCell,
+					"." + podInfoRow: podInfoPassCell,
 				},
 			},
 		},
@@ -1586,7 +1586,7 @@ func TestConvertResult(t *testing.T) {
 					Hint:    "McLovin",
 				},
 				Cells: map[string]Cell{
-					overallRow: {
+					"." + overallRow: {
 						Result:  statuspb.TestStatus_PASS,
 						Metrics: setElapsed(nil, 1),
 						CellID:  "McLovin",
