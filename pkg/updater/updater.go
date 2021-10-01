@@ -729,6 +729,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	sortCols(tg, cols)
 
 	const byteCeiling = 10e6 // 10mb
+	truncateGrid(cols, byteCeiling)
 	grid, buf, err := shrinkGrid(shrinkGrace, log, tg, cols, issues, byteCeiling)
 	if err != nil {
 		return false, fmt.Errorf("shrink grid: %v", err)
@@ -753,6 +754,20 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		"appended": added,
 	}).Info("Wrote grid")
 	return unreadColumns, nil
+}
+
+func truncateGrid(cols []InflatedColumn, byteCeiling int) {
+	// Assume each cell consumes at least 1 byte
+	var cells int
+	for i := 0; i < len(cols); i++ {
+		nc := len(cols[i].Cells)
+		cells += nc
+		if i > 1 && cells > byteCeiling {
+			cols[i].Cells = truncatedCells(cells, byteCeiling, nc, "cell")
+			cells -= nc
+			cells++
+		}
+	}
 }
 
 func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
@@ -786,7 +801,7 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 			if nc < 2 {
 				continue
 			}
-			cols[j].Cells = truncatedCells(orig, byteCeiling, nc)
+			cols[j].Cells = truncatedCells(orig, byteCeiling, nc, "byte")
 		}
 		grid = ConstructGrid(log, tg, cols, issues)
 		buf, err = gcs.MarshalGrid(grid)
@@ -834,12 +849,12 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 	return grid, buf, err
 }
 
-func truncatedCells(orig, max, dropped int) map[string]Cell {
+func truncatedCells(orig, max, dropped int, entity string) map[string]Cell {
 	return map[string]Cell{
 		"Truncated": {
 			Result:  statuspb.TestStatus_UNKNOWN,
 			ID:      "Truncated",
-			Message: fmt.Sprintf("%d byte grid exceeds maximum size of %d bytes, removed %d rows", orig, max, dropped),
+			Message: fmt.Sprintf("%d %s grid exceeds maximum size of %d %ss, removed %d rows", orig, entity, max, entity, dropped),
 		},
 	}
 }
