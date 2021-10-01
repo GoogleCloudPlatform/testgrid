@@ -2183,6 +2183,99 @@ func TestFormatStrftime(t *testing.T) {
 
 }
 
+func TestTruncateGrid(t *testing.T) {
+	addRows := func(n int, skel *Cell) map[string]Cell {
+		if skel == nil {
+			skel = &Cell{}
+		}
+		out := make(map[string]Cell, n)
+		for i := 0; i < n; i++ {
+			skel.ID = fmt.Sprintf("row-%d", i)
+			out[skel.ID] = *skel
+		}
+		return out
+	}
+
+	addCols := func(rows ...map[string]Cell) []InflatedColumn {
+		out := make([]InflatedColumn, 0, len(rows))
+		for i, cells := range rows {
+			id := fmt.Sprintf("col-%d", i)
+			out = append(out, InflatedColumn{
+				Column: &statepb.Column{
+					Name:  id,
+					Build: id,
+				},
+				Cells: cells,
+			})
+		}
+		return out
+	}
+
+	cases := []struct {
+		name    string
+		cols    []InflatedColumn
+		ceiling int
+		want    []InflatedColumn
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "keep first two cols",
+			cols: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
+			),
+			want: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
+			),
+		},
+		{
+			name: "shrink after second column",
+			cols: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
+				addRows(1000, nil),
+				addRows(1000, nil),
+			),
+			want: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
+				truncatedCells(3000, 0, 1000, "cell"),
+				truncatedCells(3001, 0, 1000, "cell"),
+			),
+		},
+		{
+			name: "honor ceiling",
+			cols: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
+				addRows(1000, nil),
+				addRows(1, nil),
+				addRows(1000, nil),
+			),
+			ceiling: 3001,
+			want: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
+				addRows(1000, nil),
+				addRows(1, nil),
+				truncatedCells(4001, 3001, 1000, "cell"),
+			),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			truncateGrid(tc.cols, tc.ceiling)
+			if diff := cmp.Diff(tc.want, tc.cols, protocmp.Transform()); diff != "" {
+				t.Errorf("truncateGrid() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestShrinkGrid(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -2310,7 +2403,7 @@ func TestShrinkGrid(t *testing.T) {
 				grid := ConstructGrid(logger, tg, cols, issues)
 				buf, _ := gcs.MarshalGrid(grid)
 				orig := len(buf)
-				cols[1].Cells = truncatedCells(orig, 1000, len(cols[1].Cells))
+				cols[1].Cells = truncatedCells(orig, 1000, len(cols[1].Cells), "byte")
 
 				return ConstructGrid(logger, tg, cols, issues)
 			},
@@ -2411,7 +2504,7 @@ func TestShrinkGrid(t *testing.T) {
 				buf, _ := gcs.MarshalGrid(grid)
 				orig := len(buf)
 				// Shrink row data for second column
-				cols[1].Cells = truncatedCells(orig, 100, len(cols[1].Cells))
+				cols[1].Cells = truncatedCells(orig, 100, len(cols[1].Cells), "byte")
 
 				// Merge column 3 into column 2
 				cols[1].Column = &statepb.Column{}
