@@ -531,7 +531,9 @@ func excludeRows(in []*statepb.Row, exclude string) ([]*statepb.Row, error) {
 func latestRun(columns []*statepb.Column) (time.Time, int64) {
 	if len(columns) > 0 {
 		if start := int64(columns[0].Started); start > 0 {
-			return time.Unix(start, 0), start
+			second := start / 1000
+			mills := start % 1000
+			return time.Unix(second, mills*1e6), second
 		}
 	}
 	return time.Time{}, 0

@@ -1100,13 +1100,13 @@ func TestLatestRun(t *testing.T) {
 			name: "return first time in unix",
 			cols: []*statepb.Column{
 				{
-					Started: 333.333,
+					Started: 333333,
 				},
 				{
-					Started: 222,
+					Started: 222222,
 				},
 			},
-			expectedTime: time.Unix(333, 0),
+			expectedTime: time.Unix(333, 333000000),
 			expectedSecs: 333,
 		},
 	}
