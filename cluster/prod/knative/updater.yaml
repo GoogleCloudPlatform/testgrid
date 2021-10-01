@@ -22,7 +22,7 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20210928-v0.0.99-15-ge5bd55a
+        image: gcr.io/k8s-testgrid/updater:v20211001-v0.0.102-2-g696ffdd
         args:
         - --build-timeout=10m
         - --config=gs://knative-own-testgrid/config
