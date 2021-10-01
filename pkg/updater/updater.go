@@ -1247,16 +1247,19 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		if res == statuspb.TestStatus_PASS {
 			passes++
 			if failures >= failuresToOpen {
-				latestPass = col // most recent pass before outage
-				break
+				if latestPass == nil {
+					latestPass = col // most recent pass before outage
+				}
+				if passes >= passesToClose {
+					break // enough failures and enough passes, definitely past the start of the failure
+				}
+			} else if passes >= passesToClose {
+				return nil // enough passes but not enough failures, there is no outage
 			}
-			if passes >= passesToClose {
-				return nil // there is no outage
-			}
-			failures = 0
 		}
 		if res == statuspb.TestStatus_FAIL {
 			passes = 0
+			latestPass = nil
 			failures++
 			totalFailures++
 			if failures == 1 { // note most recent failure for this outage
