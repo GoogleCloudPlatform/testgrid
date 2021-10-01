@@ -4136,7 +4136,7 @@ func TestAlertRow(t *testing.T) {
 			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, false),
 		},
 		{
-			name: "count failures after flaky passes",
+			name: "failures after insufficient passes",
 			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 1,
@@ -4145,12 +4145,12 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_PASS), 1,
 					int32(statuspb.TestStatus_FAIL), 2,
 				},
-				Messages: []string{"nope", "no", "buu", "wrong", "this one", "hi"},
-				CellIds:  []string{"wrong", "no", "buzz", "wrong2", "good job", "hi"},
+				Messages: []string{"nope", "no", "this one", "wrong", "buu", "hi"},
+				CellIds:  []string{"wrong", "no", "good job", "wrong2", "buzz", "hi"},
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[4], nil, false),
+			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[2], nil, false),
 		},
 		{
 			name: "close alert",
@@ -4203,13 +4203,32 @@ func TestAlertRow(t *testing.T) {
 			failOpen: 1,
 			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil, false),
 		},
+		{
+			name: "complex",
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_FAIL), 1,
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_FAIL), 2,
+					int32(statuspb.TestStatus_PASS), 1,
+				},
+				Messages: []string{"latest pass", "latest fail", "pass", "second fail", "first fail", "first pass"},
+				CellIds:  []string{"no-p0", "no-f1", "no-p2", "no-f3", "yes-f4", "yes-p5"},
+			},
+			failOpen:  2,
+			passClose: 2,
+			expected:  alertInfo(3, "latest fail", "yes-f4", "no-f1", columns[4], columns[1], columns[5], false),
+		},
 	}
 
 	for _, tc := range cases {
-		actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false)
-		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
-			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false)
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
+			}
+		})
 	}
 }
 
