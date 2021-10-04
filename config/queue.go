@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/creachadair/stringset"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/sirupsen/logrus"
 )
@@ -37,6 +36,7 @@ import (
 type TestGroupQueue struct {
 	queue  priorityQueue
 	items  map[string]*item
+	groups map[string]*configpb.TestGroup
 	lock   sync.RWMutex
 	signal chan struct{}
 }
@@ -44,11 +44,12 @@ type TestGroupQueue struct {
 // Init (or reinit) the queue with the specified groups, which should be updated at frequency.
 func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) {
 	n := len(testGroups)
-	found := stringset.NewSize(n)
+	groups := make(map[string]*configpb.TestGroup, n)
 
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	defer q.rouse()
+	q.groups = groups
 
 	if q.signal == nil {
 		q.signal = make(chan struct{})
@@ -64,11 +65,11 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 
 	for _, tg := range testGroups {
 		name := tg.Name
-		found.Add(name)
+		groups[name] = tg
 		it, ok := items[name]
 		if !ok {
 			it = &item{
-				tg:    tg,
+				name:  name,
 				when:  when,
 				index: len(q.queue),
 			}
@@ -78,13 +79,11 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 				"when":  when,
 				"group": name,
 			}).Info("Adding group to queue")
-		} else {
-			it.tg = tg
 		}
 	}
 
 	for name, it := range items {
-		if found.Contains(name) {
+		if _, ok := groups[name]; ok {
 			continue
 		}
 		logrus.WithField("group", name).Info("Removing group from queue")
@@ -178,7 +177,7 @@ func (q *TestGroupQueue) Status() (int, *configpb.TestGroup, time.Time) {
 	var tg *configpb.TestGroup
 	var when time.Time
 	if it := q.queue.peek(); it != nil {
-		tg = it.tg
+		tg = q.groups[it.name]
 		when = it.when
 	}
 	return len(q.queue), tg, when
@@ -233,7 +232,7 @@ func (q *TestGroupQueue) Send(ctx context.Context, receivers chan<- *configpb.Te
 				return nil, time.Time{}
 			}
 			it := heap.Pop(&q.queue).(*item)
-			return it.tg, it.when
+			return q.groups[it.name], it.when
 		}
 	} else {
 		next = func() (*configpb.TestGroup, time.Time) {
@@ -244,7 +243,7 @@ func (q *TestGroupQueue) Send(ctx context.Context, receivers chan<- *configpb.Te
 			when := it.when
 			it.when = time.Now().Add(frequency)
 			heap.Fix(&q.queue, it.index)
-			return it.tg, when
+			return q.groups[it.name], when
 		}
 	}
 
@@ -314,7 +313,7 @@ func (pq priorityQueue) peek() *item {
 }
 
 type item struct {
-	tg    *configpb.TestGroup
+	name  string
 	when  time.Time
 	index int
 }

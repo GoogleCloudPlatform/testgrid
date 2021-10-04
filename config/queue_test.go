@@ -36,7 +36,7 @@ func TestInit(t *testing.T) {
 		groups []*configpb.TestGroup
 		when   time.Time
 
-		next []*configpb.TestGroup
+		next []string
 	}{
 		{
 			name: "add",
@@ -48,11 +48,7 @@ func TestInit(t *testing.T) {
 			},
 			when: now,
 
-			next: []*configpb.TestGroup{
-				{
-					Name: "hi",
-				},
-			},
+			next: []string{"hi"},
 		},
 		{
 			name: "remove",
@@ -77,14 +73,9 @@ func TestInit(t *testing.T) {
 				},
 			},
 			when: now.Add(-time.Minute),
-
-			next: []*configpb.TestGroup{
-				{
-					Name: "add",
-				},
-				{
-					Name: "keep",
-				},
+			next: []string{
+				"add",
+				"keep",
 			},
 		},
 	}
@@ -93,9 +84,9 @@ func TestInit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.q.Init(tc.groups, tc.when)
 
-			var got []*configpb.TestGroup
+			var got []string
 			for range tc.next {
-				got = append(got, heap.Pop(&tc.q.queue).(*item).tg)
+				got = append(got, heap.Pop(&tc.q.queue).(*item).name)
 			}
 			if diff := cmp.Diff(tc.next, got, protocmp.Transform()); diff != "" {
 				t.Errorf("FixAll() got unexpected diff (-want +got):\n%s", diff)
@@ -112,7 +103,7 @@ func TestFixAll(t *testing.T) {
 		fixes map[string]time.Time
 		later bool
 
-		next []*configpb.TestGroup
+		next []string
 		err  bool
 	}{
 		{
@@ -150,22 +141,12 @@ func TestFixAll(t *testing.T) {
 			},
 			later: true,
 
-			next: []*configpb.TestGroup{
-				{
-					Name: "fourth-now-first",
-				},
-				{
-					Name: "first-now-second",
-				},
-				{
-					Name: "third",
-				},
-				{
-					Name: "fifth-now-fourth",
-				},
-				{
-					Name: "second-now-fifth",
-				},
+			next: []string{
+				"fourth-now-first",
+				"first-now-second",
+				"third",
+				"fifth-now-fourth",
+				"second-now-fifth",
 			},
 		},
 		{
@@ -199,22 +180,12 @@ func TestFixAll(t *testing.T) {
 			},
 			later: true,
 
-			next: []*configpb.TestGroup{
-				{
-					Name: "fourth-now-first",
-				},
-				{
-					Name: "first-now-second",
-				},
-				{
-					Name: "third-becomes-fourth",
-				},
-				{
-					Name: "fifth-ignored-becomes-fourth",
-				},
-				{
-					Name: "second-ignored-becomes-fifth",
-				},
+			next: []string{
+				"fourth-now-first",
+				"first-now-second",
+				"third-becomes-fourth",
+				"fifth-ignored-becomes-fourth",
+				"second-ignored-becomes-fifth",
 			},
 		},
 	}
@@ -224,9 +195,9 @@ func TestFixAll(t *testing.T) {
 			if err := tc.q.FixAll(tc.fixes, tc.later); (err != nil) != tc.err {
 				t.Errorf("FixAll() got unexpected error %v, wanted err=%t", err, tc.err)
 			}
-			var got []*configpb.TestGroup
+			var got []string
 			for range tc.next {
-				got = append(got, heap.Pop(&tc.q.queue).(*item).tg)
+				got = append(got, heap.Pop(&tc.q.queue).(*item).name)
 			}
 			if diff := cmp.Diff(tc.next, got, protocmp.Transform()); diff != "" {
 				t.Errorf("FixAll() got unexpected diff (-want +got):\n%s", diff)
@@ -245,7 +216,7 @@ func TestFix(t *testing.T) {
 		when  time.Time
 		later bool
 
-		next []*configpb.TestGroup
+		next []string
 		err  bool
 	}{
 		{
@@ -271,13 +242,9 @@ func TestFix(t *testing.T) {
 			}(),
 			when:  now.Add(time.Minute),
 			later: true,
-			next: []*configpb.TestGroup{
-				{
-					Name: "was-later-now-first",
-				},
-				{
-					Name: "basic",
-				},
+			next: []string{
+				"was-later-now-first",
+				"basic",
 			},
 		},
 		{
@@ -296,13 +263,9 @@ func TestFix(t *testing.T) {
 				return &q
 			}(),
 			when: now.Add(time.Minute),
-			next: []*configpb.TestGroup{
-				{
-					Name: "basic",
-				},
-				{
-					Name: "was-later-still-later",
-				},
+			next: []string{
+				"basic",
+				"was-later-still-later",
 			},
 		},
 		{
@@ -321,13 +284,9 @@ func TestFix(t *testing.T) {
 				return &q
 			}(),
 			when: now.Add(-time.Minute),
-			next: []*configpb.TestGroup{
-				{
-					Name: "basic",
-				},
-				{
-					Name: "was-earlier-now-later",
-				},
+			next: []string{
+				"basic",
+				"was-earlier-now-later",
 			},
 		},
 	}
@@ -337,9 +296,9 @@ func TestFix(t *testing.T) {
 			if err := tc.q.Fix(tc.fix, tc.when, tc.later); (err != nil) != tc.err {
 				t.Errorf("Fix() got unexpected error %v, wanted err=%t", err, tc.err)
 			}
-			var got []*configpb.TestGroup
+			var got []string
 			for range tc.next {
-				got = append(got, heap.Pop(&tc.q.queue).(*item).tg)
+				got = append(got, heap.Pop(&tc.q.queue).(*item).name)
 			}
 			if diff := cmp.Diff(tc.next, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Fix() got unexpected diff (-want +got):\n%s", diff)
@@ -703,7 +662,7 @@ func TestPriorityQueue(t *testing.T) {
 	cases := []struct {
 		name  string
 		items []*item
-		want  []*configpb.TestGroup
+		want  []string
 	}{
 		{
 			name: "basic",
@@ -712,66 +671,38 @@ func TestPriorityQueue(t *testing.T) {
 			name: "single",
 			items: []*item{
 				{
-					tg: &configpb.TestGroup{
-						Name: "hi",
-					},
+					name: "hi",
 				},
 			},
-			want: []*configpb.TestGroup{
-				{
-					Name: "hi",
-				},
-			},
+			want: []string{"hi"},
 		},
 		{
 			name: "desc",
 			items: []*item{
 				{
-					tg: &configpb.TestGroup{
-						Name: "young",
-					},
+					name: "young",
 					when: time.Now(),
 				},
 				{
-					tg: &configpb.TestGroup{
-						Name: "old",
-					},
+					name: "old",
 					when: time.Now().Add(-time.Hour),
 				},
 			},
-			want: []*configpb.TestGroup{
-				{
-					Name: "old",
-				},
-				{
-					Name: "young",
-				},
-			},
+			want: []string{"old", "young"},
 		},
 		{
 			name: "asc",
 			items: []*item{
 				{
-					tg: &configpb.TestGroup{
-						Name: "old",
-					},
+					name: "old",
 					when: time.Now().Add(-time.Hour),
 				},
 				{
-					tg: &configpb.TestGroup{
-						Name: "young",
-					},
+					name: "young",
 					when: time.Now(),
 				},
 			},
-			want: []*configpb.TestGroup{
-				{
-					Name: "old",
-				},
-				{
-					Name: "young",
-				},
-			},
+			want: []string{"old", "young"},
 		},
 	}
 
@@ -779,13 +710,13 @@ func TestPriorityQueue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pq := priorityQueue(tc.items)
 			heap.Init(&pq)
-			var got []*configpb.TestGroup
+			var got []string
 			for i, w := range tc.want {
-				g := pq.peek().tg
+				g := pq.peek().name
 				if diff := cmp.Diff(w, g, protocmp.Transform()); diff != "" {
 					t.Errorf("%d peek() got unexpected diff (-want +got):\n%s", i, diff)
 				}
-				got = append(got, heap.Pop(&pq).(*item).tg)
+				got = append(got, heap.Pop(&pq).(*item).name)
 			}
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("priorityQueue() got unexpected diff (-want +got):\n%s", diff)
