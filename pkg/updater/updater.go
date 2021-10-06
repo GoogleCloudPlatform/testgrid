@@ -950,7 +950,9 @@ func groupColumns(tg *configpb.TestGroup, cols []InflatedColumn) []InflatedColum
 						continue
 					}
 					if col.Column.Extra[i] == "" {
-						col.Column.Extra[i] = c.Column.Extra[i]
+						col.Column.Extra[i] = val
+					} else if i < len(tg.GetColumnHeader()) && tg.GetColumnHeader()[i].ListAllValues {
+						col.Column.Extra[i] = joinHeaders(col.Column.Extra[i], val)
 					} else {
 						col.Column.Extra[i] = "*" // values differ
 					}
@@ -978,6 +980,25 @@ func groupColumns(tg *configpb.TestGroup, cols []InflatedColumn) []InflatedColum
 		out = append(out, col)
 	}
 	return out
+}
+
+func joinHeaders(headers ...string) string {
+	headerSet := make(map[string]bool)
+	for _, header := range headers {
+		vals := strings.Split(header, "||")
+		for _, val := range vals {
+			if val == "" {
+				continue
+			}
+			headerSet[val] = true
+		}
+	}
+	keys := []string{}
+	for k := range headerSet {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, "||")
 }
 
 // days converts days float into a time.Duration, assuming a 24 hour day.

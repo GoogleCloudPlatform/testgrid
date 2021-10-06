@@ -2898,6 +2898,92 @@ func TestGroupColumns(t *testing.T) {
 			},
 		},
 		{
+			name: "group columns with the same build and name, listing all values",
+			tg: &configpb.TestGroup{
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						Property:      "",
+						ListAllValues: true,
+					},
+					{
+						Property:      "",
+						ListAllValues: true,
+					},
+					{
+						Property:      "",
+						ListAllValues: true,
+					},
+					{
+						Property:      "",
+						ListAllValues: true,
+					},
+					{
+						Property:      "",
+						ListAllValues: true,
+					},
+				},
+			},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "99",
+						Started: 7,
+						Extra: []string{
+							"first",
+							"",
+							"same",
+							"different",
+							"overlap||some",
+						},
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "100",
+						Started: 9,
+						Extra: []string{
+							"",
+							"second",
+							"same",
+							"changed",
+							"other||overlap",
+						},
+					},
+					Cells: map[string]Cell{
+						"also": {ID: "remains"},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Started: 7,
+						Hint:    "100",
+						Extra: []string{
+							"first",
+							"second",
+							"same",
+							"changed||different",
+							"other||overlap||some",
+						},
+					},
+					Cells: map[string]Cell{
+						"keep": {ID: "me"},
+						"also": {ID: "remains"},
+					},
+				},
+			},
+		},
+		{
 			name: "do not group different builds",
 			cols: []InflatedColumn{
 				{
