@@ -3543,7 +3543,7 @@ func TestConstructGrid(t *testing.T) {
 			if failuresOpen > 0 && passesClose == 0 {
 				passesClose = 1
 			}
-			alertRows(tc.expected.Columns, tc.expected.Rows, failuresOpen, passesClose, tc.group.UseKubernetesClient)
+			alertRows(tc.expected.Columns, tc.expected.Rows, failuresOpen, passesClose, tc.group.UseKubernetesClient, tc.group.UserProperty)
 			for _, row := range tc.expected.Rows {
 				sort.SliceStable(row.Metric, func(i, j int) bool {
 					return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
@@ -4173,7 +4173,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails},
-			expected: alertInfo(1, "", "", "", &columnWithEmails, &columnWithEmails, nil, false),
+			expected: alertInfo(1, "", "", "", nil, &columnWithEmails, &columnWithEmails, nil, false),
 		},
 		{
 			name: "two column with dynamic emails, we get only the first one",
@@ -4185,7 +4185,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&anotherColumnWithEmails, &columnWithEmails},
-			expected: alertInfo(2, "", "", "", &columnWithEmails, &anotherColumnWithEmails, nil, false),
+			expected: alertInfo(2, "", "", "", nil, &columnWithEmails, &anotherColumnWithEmails, nil, false),
 		},
 		{
 			name: "first column don't have results, second column emails on the alert",
@@ -4198,11 +4198,11 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails, &anotherColumnWithEmails},
-			expected: alertInfo(1, "", "", "", &anotherColumnWithEmails, &anotherColumnWithEmails, nil, false),
+			expected: alertInfo(1, "", "", "", nil, &anotherColumnWithEmails, &anotherColumnWithEmails, nil, false),
 		},
 	}
 	for _, tc := range cases {
-		actual := alertRow(tc.columns, tc.row, 1, 1, false)
+		actual := alertRow(tc.columns, tc.row, 1, 1, false, "")
 		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
@@ -4222,6 +4222,7 @@ func TestAlertRow(t *testing.T) {
 		row       *statepb.Row
 		failOpen  int
 		passClose int
+		property  string
 		expected  *statepb.AlertInfo
 	}{
 		{
@@ -4273,7 +4274,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "very wrong", "no", columns[2], columns[0], columns[3], false),
+			expected: alertInfo(3, "no", "very wrong", "no", nil, columns[2], columns[0], columns[3], false),
 		},
 		{
 			name: "rows without cell IDs can alert",
@@ -4285,7 +4286,7 @@ func TestAlertRow(t *testing.T) {
 				Messages: []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "", "", columns[2], columns[0], columns[3], false),
+			expected: alertInfo(3, "no", "", "", nil, columns[2], columns[0], columns[3], false),
 		},
 		{
 			name: "too few passes do not close",
@@ -4299,7 +4300,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  1,
 			passClose: 3,
-			expected:  alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, false),
+			expected:  alertInfo(4, "yay", "hello", "yep", nil, columns[5], columns[2], nil, false),
 		},
 		{
 			name: "flakes do not close",
@@ -4312,7 +4313,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "no", "yep", "very wrong", "hi", "hello"},
 			},
 			failOpen: 1,
-			expected: alertInfo(4, "yay", "hello", "yep", columns[5], columns[2], nil, false),
+			expected: alertInfo(4, "yay", "hello", "yep", nil, columns[5], columns[2], nil, false),
 		},
 		{
 			name: "failures after insufficient passes",
@@ -4329,7 +4330,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "this one", "hi", "good job", columns[5], columns[2], nil, false),
+			expected:  alertInfo(4, "this one", "hi", "good job", nil, columns[5], columns[2], nil, false),
 		},
 		{
 			name: "close alert",
@@ -4354,7 +4355,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  5,
 			passClose: 2,
-			expected:  alertInfo(5, "yay", "nada", "yay-cell", columns[5], columns[0], nil, false),
+			expected:  alertInfo(5, "yay", "nada", "yay-cell", nil, columns[5], columns[0], nil, false),
 		},
 		{
 			name: "track passes through empty results",
@@ -4380,7 +4381,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
 			},
 			failOpen: 1,
-			expected: alertInfo(5, "fail1-expected", "no5", "yep", columns[5], columns[1], nil, false),
+			expected: alertInfo(5, "fail1-expected", "no5", "yep", nil, columns[5], columns[1], nil, false),
 		},
 		{
 			name: "complex",
@@ -4397,13 +4398,76 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(3, "latest fail", "yes-f4", "no-f1", columns[4], columns[1], columns[5], false),
+			expected:  alertInfo(3, "latest fail", "yes-f4", "no-f1", nil, columns[4], columns[1], columns[5], false),
+		},
+		{
+			name: "properties",
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_FAIL), 3,
+					int32(statuspb.TestStatus_PASS), 3,
+				},
+				Messages:     []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				CellIds:      []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				UserProperty: []string{"prop0", "prop1", "prop2", "prop3", "prop4", "prop5"},
+			},
+			failOpen: 3,
+			property: "some-prop",
+			expected: alertInfo(3, "no", "very wrong", "no", map[string]string{"some-prop": "prop0"}, columns[2], columns[0], columns[3], false),
+		},
+		{
+			name: "properties after passes",
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 2,
+					int32(statuspb.TestStatus_FAIL), 3,
+					int32(statuspb.TestStatus_PASS), 1,
+				},
+				Messages:     []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				CellIds:      []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				UserProperty: []string{"prop0", "prop1", "prop2", "prop3", "prop4", "prop5"},
+			},
+			failOpen:  3,
+			passClose: 3,
+			property:  "some-prop",
+			expected:  alertInfo(3, "very wrong", "hi", "very wrong", map[string]string{"some-prop": "prop2"}, columns[4], columns[2], columns[5], false),
+		},
+		{
+			name: "empty properties",
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_FAIL), 3,
+					int32(statuspb.TestStatus_PASS), 3,
+				},
+				Messages:     []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				CellIds:      []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				UserProperty: []string{},
+			},
+			failOpen: 3,
+			property: "some-prop",
+			expected: alertInfo(3, "no", "very wrong", "no", nil, columns[2], columns[0], columns[3], false),
+		},
+		{
+			name: "insufficient properties",
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 2,
+					int32(statuspb.TestStatus_FAIL), 4,
+				},
+				Messages:     []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				CellIds:      []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				UserProperty: []string{"prop0"},
+			},
+			failOpen:  3,
+			passClose: 3,
+			property:  "some-prop",
+			expected:  alertInfo(4, "very wrong", "hello", "very wrong", nil, columns[5], columns[2], nil, false),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false)
+			actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false, tc.property)
 			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 			}
@@ -4702,6 +4766,62 @@ func TestTruncate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := truncate(tc.msg, tc.max); got != tc.want {
 				t.Errorf("truncate(%q, %d) got %q, want %q", tc.msg, tc.max, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHotlistIDs(t *testing.T) {
+	cases := []struct {
+		name       string
+		hotlistIDs string
+		want       []string
+	}{
+		{
+			name:       "none",
+			hotlistIDs: "",
+			want:       nil,
+		},
+		{
+			name:       "empty",
+			hotlistIDs: ",,",
+			want:       nil,
+		},
+		{
+			name:       "one",
+			hotlistIDs: "123",
+			want:       []string{"123"},
+		},
+		{
+			name:       "many",
+			hotlistIDs: "123,456,789",
+			want:       []string{"123", "456", "789"},
+		},
+		{
+			name:       "spaces",
+			hotlistIDs: "123 , 456, 789 ",
+			want:       []string{"123", "456", "789"},
+		},
+		{
+			name:       "many empty",
+			hotlistIDs: "123,,456,",
+			want:       []string{"123", "456"},
+		},
+		{
+			name:       "complex",
+			hotlistIDs: " 123,456,,, 789 ,",
+			want:       []string{"123", "456", "789"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			col := &statepb.Column{
+				HotlistIds: tc.hotlistIDs,
+			}
+			got := hotlistIDs(col)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("hotlistIDs(%v) differed (-want, +got): %s", col, diff)
 			}
 		})
 	}
