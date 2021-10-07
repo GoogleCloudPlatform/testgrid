@@ -95,6 +95,9 @@ message TestGroup {
     string label = 1;
     string property = 2;
     string configuration_value = 3;
+
+    // If true, list all distinct values. Else, list multiple distinct values as "*".
+    bool list_all_values = 4;
   }
   repeated ColumnHeader column_header = 9;
 
