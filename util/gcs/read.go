@@ -187,10 +187,13 @@ func hackOffset(offset *string) string {
 	if *offset == "" {
 		return ""
 	}
-	offsetBaseName := path.Base(*offset)
+	if strings.HasSuffix(*offset, "/") {
+		*offset = (*offset)[:len(*offset)-1]
+	}
+	dir, offsetBaseName := path.Split(*offset)
 	const first = 1000000000000000000
 	if n, err := strconv.Atoi(offsetBaseName); err == nil && n < first {
-		*offset = path.Join(path.Dir(*offset), "0")
+		*offset = path.Join(dir, "0")
 	}
 	return offsetBaseName
 }

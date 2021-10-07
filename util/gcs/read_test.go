@@ -271,10 +271,22 @@ func TestOffsetHack(t *testing.T) {
 			name: "basically works",
 		},
 		{
+			name:   "normal prow builds work with trailing slash",
+			input:  "logs/ci-benchmark-scheduler/1364607429106470912/",
+			output: "logs/ci-benchmark-scheduler/1364607429106470912",
+			base:   "1364607429106470912",
+		},
+		{
 			name:   "normal prow builds work",
 			input:  "logs/ci-benchmark-scheduler/1364607429106470912",
 			output: "logs/ci-benchmark-scheduler/1364607429106470912",
 			base:   "1364607429106470912",
+		},
+		{
+			name:   "hack tot style with trailing slash",
+			input:  "logs/ci-benchmark-scheduler/10/",
+			output: "logs/ci-benchmark-scheduler/0",
+			base:   "10",
 		},
 		{
 			name:   "hack tot style",
