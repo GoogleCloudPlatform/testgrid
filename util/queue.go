@@ -62,20 +62,20 @@ func (q *Queue) Init(names []string, when time.Time) {
 
 	for _, name := range names {
 		found[name] = true
-		it, ok := items[name]
-		if !ok {
-			it = &item{
-				name:  name,
-				when:  when,
-				index: len(q.queue),
-			}
-			heap.Push(&q.queue, it)
-			items[name] = it
-			logrus.WithFields(logrus.Fields{
-				"when": when,
-				"name": name,
-			}).Info("Adding name to queue")
+		if _, ok := items[name]; ok {
+			continue
 		}
+		it := &item{
+			name:  name,
+			when:  when,
+			index: len(q.queue),
+		}
+		heap.Push(&q.queue, it)
+		items[name] = it
+		logrus.WithFields(logrus.Fields{
+			"when": when,
+			"name": name,
+		}).Info("Adding name to queue")
 	}
 
 	for name, it := range items {
