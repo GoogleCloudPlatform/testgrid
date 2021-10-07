@@ -134,7 +134,7 @@ func (cc *ConditionalClient) Open(ctx context.Context, path gcs.Path) (io.ReadCl
 	return cc.UploadClient.Open(ctx, path)
 }
 
-// Objects in the
+// Objects in the path.
 func (cc *ConditionalClient) Objects(ctx context.Context, path gcs.Path, _, offset string) gcs.Iterator {
 	if cc.Lock != nil {
 		cc.Lock.RLock()
@@ -142,6 +142,8 @@ func (cc *ConditionalClient) Objects(ctx context.Context, path gcs.Path, _, offs
 	}
 	return cc.UploadClient.Objects(ctx, path, "", offset)
 }
+
+// Stat about the path, such as size, generation, etc.
 func (cc *ConditionalClient) Stat(ctx context.Context, path gcs.Path) (*storage.ObjectAttrs, error) {
 	if cc.Lock != nil {
 		cc.Lock.RLock()

@@ -21,9 +21,60 @@ import (
 	"sync"
 	"time"
 
+	"bitbucket.org/creachadair/stringset"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 )
+
+// DashboardQueue sends dashboard names at a specific frequency.
+type DashboardQueue struct {
+	util.Queue
+	dashboards map[string]*configpb.Dashboard
+	groups     map[string]*stringset.Set
+
+	lock sync.RWMutex
+}
+
+// Init (or reinit) the queue with the specified configuration.
+func (q *DashboardQueue) Init(dashboards []*configpb.Dashboard, when time.Time) {
+	n := len(dashboards)
+	names := make([]string, n)
+	namedDashboards := make(map[string]*configpb.Dashboard, n)
+	groups := make(map[string]*stringset.Set, n)
+	for i, d := range dashboards {
+		name := d.Name
+		names[i] = name
+		for _, tab := range d.DashboardTab {
+			if groups[tab.TestGroupName] == nil {
+				ns := stringset.New()
+				groups[tab.TestGroupName] = &ns
+			}
+			groups[tab.TestGroupName].Add(name)
+		}
+	}
+	q.lock.Lock()
+	q.Queue.Init(names, when)
+	q.dashboards = namedDashboards
+	q.groups = groups
+	q.lock.Unlock()
+}
+
+// FixTestGroups will fix all the dashboards associated with the groups.
+func (q *DashboardQueue) FixTestGroups(when time.Time, later bool, groups ...string) error {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	dashboards := make(map[string]time.Time, len(groups))
+	for _, groupName := range groups {
+		dashes := q.groups[groupName]
+		if dashes == nil {
+			continue
+		}
+		for dashName := range *dashes {
+			dashboards[dashName] = when
+		}
+	}
+	return q.FixAll(dashboards, later)
+}
 
 // TestGroupQueue can send test groups to receivers at a specific frequency.
 //
@@ -48,8 +99,8 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 		groups[name] = tg
 	}
 
-	q.Queue.Init(names, when)
 	q.lock.Lock()
+	q.Queue.Init(names, when)
 	q.groups = groups
 	q.lock.Unlock()
 }

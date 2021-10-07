@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"net/http"
 	"net/url"
 	"path"
 	"runtime"
@@ -44,7 +43,6 @@ import (
 	"github.com/fvbommel/sortorder"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/api/googleapi"
 )
 
 const componentName = "updater"
@@ -163,17 +161,6 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
-func isPreconditionFailed(err error) bool {
-	if err == nil {
-		return false
-	}
-	var e *googleapi.Error
-	if !errors.As(err, &e) {
-		return false
-	}
-	return e.Code == http.StatusPreconditionFailed
-}
-
 func testGroups(ctx context.Context, opener gcs.Opener, path gcs.Path, groupNames ...string) ([]*configpb.TestGroup, *storage.ReaderObjectAttrs, error) {
 	r, attrs, err := opener.Open(ctx, path)
 	if err != nil {
@@ -204,7 +191,7 @@ type lastUpdated struct {
 	freq       time.Duration
 }
 
-func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) error {
+func (fixer lastUpdated) fixOnce(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, groups []*configpb.TestGroup) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	paths, err := gridPaths(fixer.configPath, fixer.gridPrefix, groups)
@@ -225,7 +212,7 @@ func (fixer lastUpdated) FixOnce(ctx context.Context, log logrus.FieldLogger, q 
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
-				if _, err := lockGroup(ctx, fixer.client, paths[i], 0); err != nil && !isPreconditionFailed(err) {
+				if _, err := lockGroup(ctx, fixer.client, paths[i], 0); err != nil && !gcs.IsPreconditionFailed(err) {
 					log.WithError(err).Error("Failed to create empty group state")
 				}
 			}(i)
@@ -244,7 +231,7 @@ func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *con
 	}
 	ticker := time.NewTicker(fixer.freq)
 	fix := func() {
-		if err := fixer.FixOnce(ctx, log, q, groups); err != nil {
+		if err := fixer.fixOnce(ctx, log, q, groups); err != nil {
 			log.WithError(err).Warning("Failed to fix groups based on last update time")
 		}
 	}
@@ -322,7 +309,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		configPath: configPath,
 		freq:       freq,
 	}
-	if err := fixLastUpdated.FixOnce(ctx, log, &q, groups); err != nil {
+	if err := fixLastUpdated.fixOnce(ctx, log, &q, groups); err != nil {
 		return fmt.Errorf("get generations: %v", err)
 	}
 	log.Info("Fetched initial start times")
@@ -383,7 +370,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 					log.Debug("Canceled fixers on old test groups")
 					fixCtx, fixCancel = context.WithCancel(ctx)
 					fixAll()
-				case !isPreconditionFailed(err):
+				case !gcs.IsPreconditionFailed(err):
 					log.WithError(err).Error("Failed to update configuration")
 				}
 			}
@@ -431,7 +418,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		unprocessed, err := updateGroup(ctx, log, client, tg, *tgp)
 		if err != nil {
 			log := log.WithError(err)
-			if isPreconditionFailed(err) {
+			if gcs.IsPreconditionFailed(err) {
 				fin.skip()
 				log.Info("Group was modified while updating")
 			} else {
