@@ -4325,12 +4325,12 @@ func TestAlertRow(t *testing.T) {
 					int32(statuspb.TestStatus_PASS), 1,
 					int32(statuspb.TestStatus_FAIL), 2,
 				},
-				Messages: []string{"nope", "no", "this one", "wrong", "buu", "hi"},
-				CellIds:  []string{"wrong", "no", "good job", "wrong2", "buzz", "hi"},
+				Messages: []string{"newest-fail", "what", "carelessness", "okay", "alert-here", "misfortune"},
+				CellIds:  []string{"f0", "flake", "f2", "p3", "f4", "f5"},
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "this one", "hi", "good job", nil, columns[5], columns[2], nil, false),
+			expected:  alertInfo(4, "newest-fail", "f5", "f0", nil, columns[5], columns[0], nil, false),
 		},
 		{
 			name: "close alert",
@@ -4399,6 +4399,22 @@ func TestAlertRow(t *testing.T) {
 			failOpen:  2,
 			passClose: 2,
 			expected:  alertInfo(3, "latest fail", "yes-f4", "no-f1", nil, columns[4], columns[1], columns[5], false),
+		},
+		{
+			name: "alert consecutive failures only",
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_FAIL), 1,
+					int32(statuspb.TestStatus_PASS), 1,
+					int32(statuspb.TestStatus_FAIL), 1,
+					int32(statuspb.TestStatus_PASS), 3,
+				},
+				Messages: []string{"latest pass", "latest fail", "pass", "second fail", "pass", "pass", "pass"},
+				CellIds:  []string{"p0", "f1", "p2", "f3", "p4", "p5", "p6"},
+			},
+			failOpen:  2,
+			passClose: 3,
 		},
 		{
 			name: "properties",
