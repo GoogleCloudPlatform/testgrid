@@ -1258,7 +1258,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	var failures int
+	var concurrentFailures int
 	var totalFailures int32
 	var passes int
 	var compressedIdx int
@@ -1282,7 +1282,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		}
 		if res == statuspb.TestStatus_PASS {
 			passes++
-			if failures >= failuresToOpen {
+			if concurrentFailures >= failuresToOpen {
 				if latestPass == nil {
 					latestPass = col // most recent pass before outage
 				}
@@ -1291,14 +1291,16 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 				}
 			} else if passes >= passesToClose {
 				return nil // enough passes but not enough failures, there is no outage
+			} else {
+				concurrentFailures = 0
 			}
 		}
 		if res == statuspb.TestStatus_FAIL {
 			passes = 0
 			latestPass = nil
-			failures++
+			concurrentFailures++
 			totalFailures++
-			if failures == 1 { // note most recent failure for this outage
+			if totalFailures == 1 { // note most recent failure for this outage
 				latestFailIdx = compressedIdx
 				latestFail = col
 			}
@@ -1307,14 +1309,14 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		}
 		if res == statuspb.TestStatus_FLAKY {
 			passes = 0
-			if failures >= failuresToOpen {
+			if concurrentFailures >= failuresToOpen {
 				break // cannot definitively say which commit is at fault
 			}
-			failures = 0
+			concurrentFailures = 0
 		}
 		compressedIdx++
 	}
-	if failures < failuresToOpen {
+	if concurrentFailures < failuresToOpen {
 		return nil
 	}
 	var id string
