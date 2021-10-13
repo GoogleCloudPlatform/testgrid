@@ -19,7 +19,7 @@ package api
 
 import (
 	"context"
-	"path"
+	"net/url"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -32,11 +32,13 @@ import (
 // RouterOptions are the options needed to GetRouter
 type RouterOptions struct {
 	GcsCredentials string
-	Hostname       string
+	Hostname       *url.URL
 	HomeBucket     string
 	GridPathPrefix string
 	Timeout        time.Duration
 }
+
+const v1InfixRef = "/api/v1"
 
 // GetRouter returns an http router that serves TestGrid's API
 // It also instantiates necessary caching and i/o objects
@@ -50,12 +52,15 @@ func GetRouter(options RouterOptions, storageClient *storage.Client) (*mux.Route
 		storageClient = sc
 	}
 
-	const v1Infix = "/api/v1"
+	v1InfixURL, err := url.Parse(v1InfixRef)
+	if err != nil {
+		return nil, err
+	}
 
-	sub1 := r.PathPrefix(v1Infix).Subrouter()
+	sub1 := r.PathPrefix(v1InfixRef).Subrouter()
 	s := v1.Server{
 		Client:         gcs.NewClient(storageClient),
-		Host:           path.Join(options.Hostname, v1Infix),
+		Host:           options.Hostname.ResolveReference(v1InfixURL),
 		DefaultBucket:  options.HomeBucket,
 		GridPathPrefix: options.GridPathPrefix,
 		Timeout:        options.Timeout,

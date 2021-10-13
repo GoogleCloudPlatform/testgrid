@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"net/url"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
@@ -26,7 +27,7 @@ import (
 // Server contains the necessary settings and i/o objects needed to serve this api
 type Server struct {
 	Client         gcs.Client
-	Host           string
+	Host           *url.URL
 	DefaultBucket  string
 	GridPathPrefix string
 	Timeout        time.Duration

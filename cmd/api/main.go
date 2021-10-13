@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/api"
@@ -28,29 +29,35 @@ import (
 )
 
 type options struct {
-	port   string
-	router api.RouterOptions
+	port       string
+	router     api.RouterOptions
+	hostString string
 }
 
-func gatherOptions() options {
+func gatherOptions() (options, error) {
 	var o options
 	flag.StringVar(&o.router.HomeBucket, "scope", "", "Local or cloud TestGrid context to read from")
 	flag.StringVar(&o.router.GcsCredentials, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.StringVar(&o.port, "port", "8080", "Port to deploy to")
-	flag.StringVar(&o.router.Hostname, "host", "", "Friendly hostname used to serve links")
+	flag.StringVar(&o.hostString, "host", "", "Friendly hostname used to serve links")
 	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
 	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to merge everything in one loop")
 	flag.Parse()
 
-	if o.router.Hostname == "" {
-		o.router.Hostname = fmt.Sprintf("localhost:%s", o.port)
+	if o.hostString == "" {
+		o.hostString = fmt.Sprintf("localhost:%s", o.port)
 	}
-	return o
+	var err error
+	o.router.Hostname, err = url.Parse(o.hostString)
+	return o, err
 }
 
 func main() {
 	log := logrus.WithField("component", "api")
-	opt := gatherOptions()
+	opt, err := gatherOptions()
+	if err != nil {
+		log.WithError(err).Fatal("Can't parse options")
+	}
 
 	log.WithField("port", opt.port).Info("Listening...")
 	router, err := api.GetRouter(opt.router, nil)

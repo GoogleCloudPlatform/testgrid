@@ -89,7 +89,7 @@ func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
 	for _, group := range cfg.DashboardGroups {
 		rsc := apipb.Resource{
 			Name: group.Name,
-			Link: fmt.Sprintf("%s/dashboard-groups/%s%s", s.Host, config.Normalize(group.Name), passQueryParameters(r)),
+			Link: fmt.Sprintf("%s/dashboard-groups/%s%s", s.Host.String(), config.Normalize(group.Name), passQueryParameters(r)),
 		}
 		groups.DashboardGroups = append(groups.DashboardGroups, &rsc)
 	}
@@ -113,7 +113,7 @@ func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
 			for _, dash := range group.DashboardNames {
 				rsc := apipb.Resource{
 					Name: dash,
-					Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host, config.Normalize(dash), passQueryParameters(r)),
+					Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dash), passQueryParameters(r)),
 				}
 				result.Dashboards = append(result.Dashboards, &rsc)
 			}
@@ -136,7 +136,7 @@ func (s Server) ListDashboards(w http.ResponseWriter, r *http.Request) {
 	for _, dashboard := range cfg.Dashboards {
 		rsc := apipb.Resource{
 			Name: dashboard.Name,
-			Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host, config.Normalize(dashboard.Name), passQueryParameters(r)),
+			Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dashboard.Name), passQueryParameters(r)),
 		}
 		dashboardResponse.Dashboards = append(dashboardResponse.Dashboards, &rsc)
 	}
@@ -185,7 +185,7 @@ func (s Server) ListDashboardTabs(w http.ResponseWriter, r *http.Request) {
 			for _, tab := range dashboard.DashboardTab {
 				rsc := apipb.Resource{
 					Name: tab.Name,
-					Link: fmt.Sprintf("%s/dashboards/%s/tabs/%s%s", s.Host, config.Normalize(dashboard.Name), config.Normalize(tab.Name), passQueryParameters(r)),
+					Link: fmt.Sprintf("%s/dashboards/%s/tabs/%s%s", s.Host.String(), config.Normalize(dashboard.Name), config.Normalize(tab.Name), passQueryParameters(r)),
 				}
 				dashboardTabsResponse.DashboardTabs = append(dashboardTabsResponse.DashboardTabs, &rsc)
 			}
