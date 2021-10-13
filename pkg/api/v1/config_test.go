@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -683,9 +684,14 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, 
 		}
 	}
 
+	host, err := url.Parse("host")
+	if err != nil {
+		t.Fatalf("Could not form host: %v", err)
+	}
+
 	return Server{
 		Client:         fc,
-		Host:           "host",
+		Host:           host,
 		DefaultBucket:  "gs://default",
 		GridPathPrefix: "grid",
 		Timeout:        10 * time.Minute,
