@@ -354,6 +354,13 @@ func TestProcessGCSNotifications(t *testing.T) {
 		return *p
 	}
 	now := time.Now()
+	defer func(f func() time.Time) {
+		timeNow = f
+	}(timeNow)
+
+	timeNow = func() time.Time {
+		return now
+	}
 	cases := []struct {
 		name     string
 		ctx      context.Context
@@ -399,6 +406,38 @@ func TestProcessGCSNotifications(t *testing.T) {
 			},
 			want:     "boom",
 			wantWhen: now.Add(namedDurations["finished.json"]),
+		},
+		{
+			name: "historical", // set floor
+			q: func() *config.TestGroupQueue {
+				var q config.TestGroupQueue
+				q.Init([]*configpb.TestGroup{
+					{
+						Name: "hello",
+					},
+					{
+						Name: "boom",
+					},
+					{
+						Name: "world",
+					},
+				}, now.Add(time.Hour))
+				if err := q.Fix("world", now.Add(30*time.Minute), false); err != nil {
+					t.Fatalf("Fixing got unexpected error: %v", err)
+				}
+				return &q
+			}(),
+			paths: map[gcs.Path][]string{
+				mustPath("gs://foo/boom"): {"boom"},
+			},
+			notices: []*pubsub.Notification{
+				{
+					Path: mustPath("gs://foo/boom/build/finished.json"),
+					Time: now.Add(-time.Hour),
+				},
+			},
+			want:     "boom",
+			wantWhen: now,
 		},
 		{
 			name: "multi",

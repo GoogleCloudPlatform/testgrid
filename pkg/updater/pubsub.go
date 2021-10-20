@@ -160,6 +160,10 @@ func subscribeGCS(ctx context.Context, log logrus.FieldLogger, client pubsub.Sub
 	}
 }
 
+var (
+	timeNow = func() time.Time { return time.Now() }
+)
+
 func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, paths map[gcs.Path][]string, senders <-chan *pubsub.Notification) error {
 	for {
 		select {
@@ -171,6 +175,9 @@ func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *con
 				break
 			}
 			when := notice.Time.Add(delay)
+			if time.Until(when) < 0 {
+				when = timeNow()
+			}
 			log.WithFields(logrus.Fields{
 				"groups":       groups,
 				"when":         when,
