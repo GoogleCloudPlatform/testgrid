@@ -596,6 +596,10 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 	})
 }
 
+var (
+	byteCeiling int = 10e6 // 10mb, var so testing can change
+)
+
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
 func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
 	log := alog.(logrus.Ext1FieldLogger) // Add trace method
@@ -650,53 +654,56 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols)
 	}
-	if condClient, ok := client.(gcs.ConditionalClient); ok {
-		var cond storage.Conditions
-		if attrs == nil {
-			cond.DoesNotExist = true
-		} else {
-			cond.GenerationMatch = attrs.Generation
+	var cols []InflatedColumn
+	var unreadColumns bool
+	if attrs != nil && attrs.Size >= int64(byteCeiling) {
+		log.WithField("size", attrs.Size).Info("Grid too large, compressing...")
+		unreadColumns = true
+		cols = oldCols
+	} else {
+		if condClient, ok := client.(gcs.ConditionalClient); ok {
+			var cond storage.Conditions
+			if attrs == nil {
+				cond.DoesNotExist = true
+			} else {
+				cond.GenerationMatch = attrs.Generation
+			}
+			client = condClient.If(&cond, &cond)
 		}
-		client = condClient.If(&cond, &cond)
-	}
 
-	newCols := make(chan InflatedColumn)
-	ec := make(chan error)
+		newCols := make(chan InflatedColumn)
+		ec := make(chan error)
 
-	log.Trace("Reading first column...")
-	go func() {
-		err := readCols(ctx, log, tg, oldCols, stop, newCols)
+		log.Trace("Reading first column...")
+		go func() {
+			err := readCols(ctx, log, tg, oldCols, stop, newCols)
+			select {
+			case <-ctx.Done():
+			case ec <- err:
+			}
+		}()
+
+		// Must read at least one column every cycle to ensure we make forward progress.
+		more := true
 		select {
 		case <-ctx.Done():
-		case ec <- err:
+			return false, fmt.Errorf("first column: %w", ctx.Err())
+		case col := <-newCols:
+			if len(col.Cells) == 0 {
+				// Group all empty columns together by setting build/name empty.
+				col.Column.Build = ""
+				col.Column.Name = ""
+			}
+			cols = append(cols, col)
+		case err := <-ec:
+			if err != nil {
+				return false, fmt.Errorf("read first column: %w", err)
+			}
+			more = false
 		}
-	}()
 
-	var cols []InflatedColumn
-
-	// Must read at least one column every cycle to ensure we make forward progress.
-	more := true
-	select {
-	case <-ctx.Done():
-		return false, fmt.Errorf("first column: %w", ctx.Err())
-	case col := <-newCols:
-		if len(col.Cells) == 0 {
-			// Group all empty columns together by setting build/name empty.
-			col.Column.Build = ""
-			col.Column.Name = ""
-		}
-		cols = append(cols, col)
-	case err := <-ec:
-		if err != nil {
-			return false, fmt.Errorf("read first column: %w", err)
-		}
-		more = false
-	}
-
-	// Read as many additional columns as we can within the allocated time.
-	log.Trace("Reading additional columns...")
-	var unreadColumns bool
-	if more {
+		// Read as many additional columns as we can within the allocated time.
+		log.Trace("Reading additional columns...")
 		for more {
 			select {
 			case <-grace.Done():
@@ -718,17 +725,16 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 				more = false
 			}
 		}
+
+		log = log.WithField("appended", len(cols))
+
+		overrideBuild(tg, cols) // so we group correctly
+		cols = append(cols, oldCols...)
+		cols = groupColumns(tg, cols)
 	}
-
-	added := len(cols)
-
-	overrideBuild(tg, cols) // so we group correctly
-	cols = append(cols, oldCols...)
-	cols = groupColumns(tg, cols)
 
 	sortCols(tg, cols)
 
-	const byteCeiling = 10e6 // 10mb
 	truncateGrid(cols, byteCeiling)
 	grid, buf, err := shrinkGrid(shrinkGrace, log, tg, cols, issues, byteCeiling)
 	if err != nil {
@@ -749,9 +755,8 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		log = log.WithField("more", true)
 	}
 	log.WithFields(logrus.Fields{
-		"cols":     len(grid.Columns),
-		"rows":     len(grid.Rows),
-		"appended": added,
+		"cols": len(grid.Columns),
+		"rows": len(grid.Rows),
 	}).Info("Wrote grid")
 	return unreadColumns, nil
 }
