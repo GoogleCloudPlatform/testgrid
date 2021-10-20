@@ -1252,6 +1252,7 @@ func TestInflateDropAppend(t *testing.T) {
 		groupTimeout *time.Duration
 		buildTimeout *time.Duration
 		current      *fake.Object
+		byteCeiling  int
 		expected     *fakeUpload
 		err          bool
 	}{
@@ -1713,6 +1714,144 @@ func TestInflateDropAppend(t *testing.T) {
 			},
 		},
 		{
+			name: "only shrink",
+			group: &configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			reprocess:   time.Nanosecond,
+			byteCeiling: 1,
+			builds: []fakeBuild{
+				{
+					id:      "bad",
+					started: jsonStarted(now),
+				},
+			},
+			current: &fake.Object{
+				Attrs: &storage.ReaderObjectAttrs{
+					Size: 100000000,
+				},
+				Data: string(mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "a",
+							Hint:    "10",
+							Started: float64(now * 1000),
+							Extra:   []string{""},
+						},
+						{
+							Build:   "b",
+							Hint:    "5",
+							Started: float64(now-5) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "c",
+							Hint:    "3",
+							Started: float64(now-7) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "d",
+							Hint:    "2",
+							Started: float64(now-8) * 1000,
+							Extra:   []string{""},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "a",
+								Icon:    "a",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "b",
+								Icon:    "b",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "c",
+								Icon:    "c",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "d",
+								Icon:    "d",
+							},
+						),
+					},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Hint:    "10",
+							Started: float64(now-8) * 1000,
+							Extra:   []string{""},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "Truncated",
+								Id:   "Truncated",
+							},
+							cell{
+								Result:  statuspb.TestStatus_UNKNOWN,
+								Message: "3 cell grid exceeds maximum size of 1 cells, removed 1 rows",
+							},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: "Truncated [1]",
+								Id:   "Truncated",
+							},
+							cell{
+								Result:  statuspb.TestStatus_UNKNOWN,
+								Message: "4 cell grid exceeds maximum size of 1 cells, removed 1 rows",
+							},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "a",
+								Icon:    "a",
+							},
+						),
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow + " [1]",
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "b",
+								Icon:    "b",
+							},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
+			},
+		},
+		{
 			// short reprocessing time depends on our reprocessing running columns outside this timeframe.
 			name: "running", // reprocess everything at least as new as the running column
 			group: &configpb.TestGroup{
@@ -2034,6 +2173,13 @@ func TestInflateDropAppend(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
+
+			if tc.byteCeiling != 0 {
+				defer func(orig int) {
+					byteCeiling = orig
+				}(byteCeiling)
+				byteCeiling = tc.byteCeiling
+			}
 
 			if tc.concurrency == 0 {
 				tc.concurrency = 1
