@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"path"
 	"regexp"
@@ -39,12 +38,10 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
-	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/api/googleapi"
 )
 
 // Metrics holds metrics relevant to the Updater.
@@ -73,142 +70,131 @@ type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, erro
 // groupFinder returns the named group as well as reader for the grid state
 type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 
-// Update summary protos by reading the state protos defined in the config.
-//
-// Will use concurrency go routines to update dashboards in parallel.
-// Setting dashboard will limit update to this dashboard.
-// Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if concurrency < 1 {
-		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
-	}
-	cfg, err := config.ReadGCS(ctx, client, configPath)
+func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, dashboard string) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
+	r, attrs, err := client.Open(ctx, configPath)
 	if err != nil {
-		return fmt.Errorf("Failed to read config: %w", err)
-	}
-	log := logrus.WithField("config", configPath)
-	log.WithField("dashboards", len(cfg.Dashboards)).Info("Updating dashboards")
-
-	dashboards := make(chan *configpb.Dashboard)
-	var wg sync.WaitGroup
-
-	var generations map[string]int64
-
-	groupFinder := func(name string) (*configpb.TestGroup, gridReader, error) {
-		group := config.FindTestGroup(name, cfg)
-		if group == nil {
-			return nil, nil, nil
-		}
-		groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(gridPathPrefix, name)})
-		if err != nil {
-			return group, nil, err
-		}
-		reader := func(ctx context.Context) (io.ReadCloser, time.Time, int64, error) {
-			return pathReader(ctx, client, *groupPath)
-		}
-		return group, reader, nil
+		return nil, nil, fmt.Errorf("open: %w", err)
 	}
 
-	errCh := make(chan error)
-
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for dash := range dashboards {
-				log := log.WithField("dashboard", dash.Name)
-				log.Debug("Summarizing dashboard")
-				summaryPath, err := summaryPath(configPath, summaryPathPrefix, dash.Name)
-				if err != nil {
-					log.WithError(err).Error("Cannot resolve summary path")
-					errCh <- errors.New(dash.Name)
-					continue
-				}
-				client := client
-				if confirm && generations != nil {
-					if attrs, err := lockDashboard(ctx, client, *summaryPath, generations[dash.Name]); err != nil {
-						var ok bool
-						switch ee := err.(type) {
-						case *googleapi.Error:
-							if ee.Code == http.StatusPreconditionFailed {
-								ok = true
-								log.Debug("Lost the lock race")
-							}
-						}
-						if !ok {
-							log.WithError(err).Warning("Failed to acquire lock")
-						}
-						continue
-					} else if gen := attrs.Generation; gen > 0 {
-						cond := storage.Conditions{GenerationMatch: gen}
-						client = client.If(&cond, &cond)
-					}
-					log.Debug("Acquired update lock")
-				}
-				sum, err := updateDashboard(ctx, dash, groupFinder)
-				if err != nil {
-					log.WithError(err).Error("Cannot summarize dashboard")
-					errCh <- errors.New(dash.Name)
-					continue
-				}
-				log = log.WithField("path", summaryPath)
-				if !confirm {
-					log.WithField("summary", sum).Info("Summarized")
-					continue
-				}
-				if err := writeSummary(ctx, client, *summaryPath, sum); err != nil {
-					log.WithError(err).Error("Cannot write summary")
-					errCh <- errors.New(dash.Name)
-					continue
-				}
-				log.Info("Wrote dashboard summary")
-				errCh <- nil
-			}
-		}()
+	cfg, err := config.Unmarshal(r)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unmarshal: %v", err)
 	}
 
-	resultCh := make(chan error)
-	go func() {
-		var errs []string
-		for err := range errCh {
-			if err == nil {
-				mets.Success()
+	if dashboard != "" {
+		dashes := make([]*configpb.Dashboard, 0, 1)
+		for _, d := range cfg.Dashboards {
+			if d.Name != dashboard {
 				continue
 			}
-			if mets.Errors != nil {
-				mets.Error()
-			}
-			errs = append(errs, err.Error())
+			dashes = append(dashes, d)
 		}
-		if n := len(errs); n > 0 {
-			resultCh <- fmt.Errorf("failed to update %d dashboards: %v", n, strings.Join(errs, ", "))
+		if len(dashes) == 0 {
+			return nil, nil, errors.New("dashboard not found")
 		}
-		resultCh <- nil
-		close(resultCh)
-	}()
+		cfg.Dashboards = dashes
+	}
+	return cfg, attrs, nil
+}
 
-	if dashboard == "" {
-		var err error
-		generations, err = sortDashboards(ctx, log, client, configPath, summaryPathPrefix, cfg.Dashboards)
+type configSnapshot struct {
+	dashboards map[string]*configpb.Dashboard
+	groups     map[string]*configpb.TestGroup
+	lock       sync.RWMutex
+}
+
+func (cs *configSnapshot) dashboard(name string) *configpb.Dashboard {
+	cs.lock.RLock()
+	defer cs.lock.RUnlock()
+
+	return cs.dashboards[name]
+}
+
+func (cs *configSnapshot) group(name string) *configpb.TestGroup {
+	cs.lock.RLock()
+	defer cs.lock.RUnlock()
+
+	return cs.groups[name]
+}
+
+func (cs *configSnapshot) dashboardTestGroups(dashboardName string) (*configpb.Dashboard, map[string]*configpb.TestGroup) {
+	cs.lock.RLock()
+	defer cs.lock.RLock()
+
+	d := cs.dashboards[dashboardName]
+	if d == nil {
+		return nil, nil
+	}
+	gs := make(map[string]*configpb.TestGroup, len(d.DashboardTab))
+	for _, tab := range d.DashboardTab {
+		n := tab.TestGroupName
+		gs[n] = cs.groups[n]
+	}
+	return d, gs
+}
+
+func (cs *configSnapshot) update(ctx context.Context, log logrus.FieldLogger, client gcs.ConditionalClient, configPath gcs.Path, summaryPathPrefix, dashboard string, q *config.DashboardQueue, freq time.Duration) (*storage.ReaderObjectAttrs, error) {
+	cfg, attrs, err := fetchConfig(ctx, client, configPath, dashboard)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+
+	dashboards := cfg.Dashboards
+	paths := make([]gcs.Path, 0, len(dashboards))
+	for _, d := range dashboards {
+		path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
 		if err != nil {
-			log.WithError(err).Warning("Failed to sort dashboards")
+			return nil, fmt.Errorf("bad dashboard path: %s: %w", d.Name, err)
 		}
+		paths = append(paths, *path)
 	}
-	currently := util.Progress(ctx, log, time.Minute, len(cfg.Dashboards), "Summarizing dashboards...")
-	for i, d := range cfg.Dashboards {
-		currently(i)
-		if dashboard != "" && dashboard != d.Name {
-			log.WithField("dashboard", d.Name).Info("Skipping")
-			continue
+
+	stats := gcs.Stat(ctx, client, 10, paths...)
+	whens := make(map[string]time.Time, len(stats))
+	var wg sync.WaitGroup
+	for i, stat := range stats {
+		name := dashboards[i].Name
+		switch {
+		case stat.Attrs != nil:
+			whens[name] = stat.Attrs.Updated.Add(freq)
+		default:
+			if errors.Is(stat.Err, storage.ErrObjectNotExist) {
+				wg.Add(1)
+				defer func(i int) {
+					defer wg.Done()
+					if _, err := lockDashboard(ctx, client, paths[i], 0); err != nil && !gcs.IsPreconditionFailed(err) {
+						log.WithError(err).WithField("path", paths[i]).Error("Failed to lock initial summary")
+					}
+				}(i)
+			} else {
+				log.WithError(err).WithField("path", paths[i]).Info("Failed to stat")
+			}
+			whens[name] = now
 		}
-		dashboards <- d
+
 	}
-	close(dashboards)
-	wg.Wait()
-	close(errCh)
-	return <-resultCh
+
+	namedDashboards := make(map[string]*configpb.Dashboard, len(cfg.Dashboards))
+	for _, d := range cfg.Dashboards {
+		namedDashboards[d.Name] = d
+	}
+	namedGroups := make(map[string]*configpb.TestGroup, len(cfg.TestGroups))
+	for _, tg := range cfg.TestGroups {
+		namedGroups[tg.Name] = tg
+	}
+
+	when := now.Add(freq)
+	cs.lock.Lock()
+	defer cs.lock.Unlock()
+	cs.dashboards = namedDashboards
+	cs.groups = namedGroups
+	q.Init(cfg.Dashboards, when)
+	if err := q.FixAll(whens, false); err != nil {
+		log.WithError(err).Error("Failed to fix all dashboards based on last update time")
+	}
+	return attrs, nil
 }
 
 func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) (*storage.ObjectAttrs, error) {
@@ -225,27 +211,128 @@ func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.P
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
-func sortDashboards(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, configPath gcs.Path, summaryPathPrefix string, dashboards []*configpb.Dashboard) (map[string]int64, error) {
-	pathedDashboards := make(map[gcs.Path]*configpb.Dashboard, len(dashboards))
-	paths := make([]gcs.Path, 0, len(dashboards))
-	for _, d := range dashboards {
-		path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
-		if err != nil {
-			return nil, fmt.Errorf("bad dashboard path: %s: %w", d.Name, err)
+// Update summary protos by reading the state protos defined in the config.
+//
+// Will use concurrency go routines to update dashboards in parallel.
+// Setting dashboard will limit update to this dashboard.
+// Will write summary proto when confirm is set.
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool, freq time.Duration, fix Fixer) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if concurrency < 1 {
+		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
+	}
+	log := logrus.WithField("config", configPath)
+
+	var q config.DashboardQueue
+
+	log.Debug("Fetching config...")
+	var cfg configSnapshot
+	cfgAttrs, err := cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboard, &q, freq)
+	if err != nil {
+		return fmt.Errorf("fetch config: %w", err)
+	}
+	log.Info("Fetched config")
+
+	go func() {
+		fix(ctx, &q)
+	}()
+
+	go func() {
+		var cond storage.Conditions
+		cond.GenerationNotMatch = cfgAttrs.Generation
+		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
+		for {
+
+			depth, next, when := q.Status()
+			log := log.WithField("depth", depth)
+			if next != nil {
+				log = log.WithField("next", *next)
+			}
+			delay := time.Since(when)
+			if delay < 0 {
+				delay = 0
+				log = log.WithField("sleep", -delay)
+			}
+			log = log.WithField("delay", delay.Round(time.Second))
+			log.Info("Updating groups")
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				var err error
+				cfgAttrs, err = cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboard, &q, freq)
+				switch {
+				case err == nil:
+					log.Info("Configuration changed")
+					// Config changed, setup fixers again.
+					cond.GenerationNotMatch = cfgAttrs.Generation
+				case !gcs.IsPreconditionFailed(err):
+					log.WithError(err).Error("Failed to update configuration")
+				}
+			}
+
 		}
-		pathedDashboards[*path] = d
-		paths = append(paths, *path)
+	}()
+	dashboardNames := make(chan string)
+	defer close(dashboardNames)
+
+	// TODO(fejta): cache downloaded group?
+	groupFinder := func(name string) (*configpb.TestGroup, gridReader, error) {
+		group := cfg.group(name)
+		if group == nil {
+			return nil, nil, nil
+		}
+		groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(gridPathPrefix, name)})
+		if err != nil {
+			return group, nil, err
+		}
+		reader := func(ctx context.Context) (io.ReadCloser, time.Time, int64, error) {
+			return pathReader(ctx, client, *groupPath)
+		}
+		return group, reader, nil
 	}
 
-	generationPaths := gcs.LeastRecentlyUpdated(ctx, log, client, paths)
-	generations := make(map[string]int64, len(generationPaths))
-	for i, p := range paths {
-		d := pathedDashboards[p]
-		dashboards[i] = d
-		generations[d.Name] = generationPaths[p]
+	updateName := func(log *logrus.Entry, dashName string) error {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		dash := cfg.dashboard(dashName)
+		log.Debug("Summarizing dashboard")
+		summaryPath, err := summaryPath(configPath, summaryPathPrefix, dashName)
+		if err != nil {
+			return fmt.Errorf("summary path: %v", err)
+		}
+		sum, err := updateDashboard(ctx, dash, groupFinder)
+		if err != nil {
+			return fmt.Errorf("update: %w", err)
+		}
+		log = log.WithField("path", summaryPath)
+		if !confirm {
+			log.WithField("summary", sum).Info("Summarized")
+			return nil
+		}
+		if err := writeSummary(ctx, client, *summaryPath, sum); err != nil {
+			return fmt.Errorf("write: %w", err)
+		}
+		return nil
 	}
 
-	return generations, nil
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for dashName := range dashboardNames {
+				log := log.WithField("dashboard", dashName)
+				if err := updateName(log, dashName); err != nil {
+					mets.Error()
+					log.WithError(err).Error("Failed to summarize dashboard")
+				} else {
+					mets.Success()
+				}
+			}
+		}()
+	}
+
+	return q.Send(ctx, dashboardNames, freq)
 }
 
 var (

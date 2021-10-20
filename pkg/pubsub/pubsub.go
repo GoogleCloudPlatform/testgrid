@@ -160,5 +160,4 @@ func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send Sender, r
 			result.Ack(msg)
 		}
 	})
-
 }

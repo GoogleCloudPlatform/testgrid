@@ -244,12 +244,10 @@ func (q *Queue) Send(ctx context.Context, receivers chan<- string, frequency tim
 	}
 
 	for {
-		q.lock.Lock()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+		if err := ctx.Err(); err != nil {
+			return err
 		}
+		q.lock.Lock()
 		who, when := next()
 		q.lock.Unlock()
 
@@ -261,7 +259,7 @@ func (q *Queue) Send(ctx context.Context, receivers chan<- string, frequency tim
 			continue
 		}
 
-		if dur := when.Sub(time.Now()); dur > 0 {
+		if dur := time.Until(when); dur > 0 {
 			q.sleep(dur)
 		}
 		select {

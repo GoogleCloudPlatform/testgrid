@@ -30,6 +30,7 @@ import (
 	"hash/crc32"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -37,8 +38,21 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
+
+// IsPreconditionFailed returns true when the error is an http.StatusPreconditionFailed googleapi.Error.
+func IsPreconditionFailed(err error) bool {
+	if err == nil {
+		return false
+	}
+	var e *googleapi.Error
+	if !errors.As(err, &e) {
+		return false
+	}
+	return e.Code == http.StatusPreconditionFailed
+}
 
 // ClientWithCreds returns a storage client, optionally authenticated with the specified .json creds
 func ClientWithCreds(ctx context.Context, creds ...string) (*storage.Client, error) {

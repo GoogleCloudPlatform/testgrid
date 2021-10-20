@@ -21,14 +21,16 @@ import (
 	"errors"
 	"flag"
 	"runtime"
+	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
+	gpubsub "cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
-
-	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/api/option"
 )
 
 type options struct {
@@ -40,6 +42,7 @@ type options struct {
 	wait              time.Duration
 	gridPathPrefix    string
 	summaryPathPrefix string
+	pubsub            string
 
 	debug    bool
 	trace    bool
@@ -66,6 +69,7 @@ func gatherOptions() options {
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.summaryPathPrefix, "summary-path", "summary", "Write summaries under this GCS path.")
+	flag.StringVar(&o.pubsub, "pubsub", "", "listen for test group updates at project/subscription")
 
 	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
@@ -73,6 +77,23 @@ func gatherOptions() options {
 
 	flag.Parse()
 	return o
+}
+
+func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridPrefix, credPath string) (summarizer.Fixer, error) {
+	if projectSub == "" {
+		return nil, nil
+	}
+	parts := strings.SplitN(projectSub, "/", 2)
+	if len(parts) != 2 {
+		return nil, errors.New("malformed project/subscription")
+	}
+	projID, subID := parts[0], parts[1]
+	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(credPath))
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to create pubsub client")
+	}
+	client := pubsub.NewClient(pubsubClient)
+	return summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix)
 }
 
 func main() {
@@ -101,31 +122,17 @@ func main() {
 	defer cancel()
 	storageClient, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
-		logrus.Fatalf("Failed to read storage client: %v", err)
+		logrus.WithError(err).Fatal("Failed to read storage client")
 	}
 
 	client := gcs.NewClient(storageClient)
 	mets := setupMetrics(ctx)
-	updateOnce := func(ctx context.Context) error {
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
-		return summarizer.Update(ctx, client, mets, opt.config, opt.concurrency, opt.dashboard, opt.gridPathPrefix, opt.summaryPathPrefix, opt.confirm)
+	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
+	if err != nil {
+		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
-
-	if err := updateOnce(ctx); err != nil {
-		logrus.WithError(err).Error("Failed update")
-	}
-	if opt.wait == 0 {
-		return
-	}
-	timer := time.NewTimer(opt.wait)
-	defer timer.Stop()
-	for range timer.C {
-		timer.Reset(opt.wait)
-		if err := updateOnce(ctx); err != nil {
-			logrus.WithError(err).Error("Failed update")
-		}
-		logrus.WithField("wait", opt.wait).Info("Sleeping")
+	if err := summarizer.Update(ctx, client, mets, opt.config, opt.concurrency, opt.dashboard, opt.gridPathPrefix, opt.summaryPathPrefix, opt.confirm, opt.wait, fixer); err != nil {
+		logrus.WithError(err).Error("Could not summarize")
 	}
 }
 

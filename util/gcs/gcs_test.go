@@ -17,13 +17,61 @@ limitations under the License.
 package gcs
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/api/googleapi"
 )
+
+func TestIsPreconditionFailed(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "pass",
+		},
+		{
+			name: "normal",
+			err:  errors.New("normal"),
+		},
+		{
+			name: "googleapi",
+			err: &googleapi.Error{
+				Code: 404,
+			},
+		},
+		{
+			name: "precondition",
+			err: &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			},
+			want: true,
+		},
+		{
+			name: "wrapped precondition",
+			err: fmt.Errorf("wrap: %w", &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			}),
+			want: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsPreconditionFailed(tc.err); got != tc.want {
+				t.Errorf("isPreconditionFailed(%v) got %t, want %t", tc.err, got, tc.want)
+			}
+		})
+	}
+}
 
 func Test_SetURL(t *testing.T) {
 	cases := []struct {
