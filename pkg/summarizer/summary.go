@@ -234,9 +234,11 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	}
 	log.Info("Fetched config")
 
-	go func() {
-		fix(ctx, &q)
-	}()
+	if fix != nil {
+		go func() {
+			fix(ctx, &q)
+		}()
+	}
 
 	go func() {
 		var cond storage.Conditions
