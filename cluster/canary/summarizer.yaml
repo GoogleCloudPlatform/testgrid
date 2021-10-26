@@ -40,7 +40,7 @@ spec:
         - --confirm
         - --grid-path=grid
         - --json-logs
-        - --pubsub=k8s-testgrid/canary-testgrid
+        - --pubsub=k8s-testgrid/canary-test-group-updates
         - --summary-path=summary
         - --wait=1h
         resources:
