@@ -37,6 +37,7 @@ spec:
         - --confirm
         - --grid-path=grid
         - --json-logs
+        - --pubsub=k8s-testgrid/test-group-updates
         - --summary-path=summary
         - --wait=5m
         resources:
