@@ -438,6 +438,10 @@ message AutoBugOptions {
   // [BETA] If True, query the test metadata API to get issue-routing metadata.
   // Enables routing issues using structured test failures.
   bool advanced_test_metadata = 11;
+
+  // If True, file a bug when the tab goes stale.
+  // (Requires `alert_stale_results_hours` to be set.)
+  bool file_stale = 12;
 }
 
 message HotlistIdFromSource {
