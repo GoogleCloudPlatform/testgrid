@@ -1809,17 +1809,7 @@ func TestInflateDropAppend(t *testing.T) {
 							},
 							cell{
 								Result:  statuspb.TestStatus_UNKNOWN,
-								Message: "3 cell grid exceeds maximum size of 1 cells, removed 1 rows",
-							},
-						),
-						setupRow(
-							&statepb.Row{
-								Name: "Truncated [1]",
-								Id:   "Truncated",
-							},
-							cell{
-								Result:  statuspb.TestStatus_UNKNOWN,
-								Message: "4 cell grid exceeds maximum size of 1 cells, removed 1 rows",
+								Message: "4 cell grid exceeds maximum size of 1 cells, removed 2 rows",
 							},
 						),
 						setupRow(
@@ -2178,7 +2168,12 @@ func TestInflateDropAppend(t *testing.T) {
 				defer func(orig int) {
 					byteCeiling = orig
 				}(byteCeiling)
+				defer func(orig int) {
+					cellCeiling = orig
+				}(cellCeiling)
 				byteCeiling = tc.byteCeiling
+				cellCeiling = tc.byteCeiling
+
 			}
 
 			if tc.concurrency == 0 {
@@ -2384,12 +2379,20 @@ func TestTruncateGrid(t *testing.T) {
 				addRows(1000, nil),
 				addRows(1000, nil),
 				addRows(1000, nil),
+				addRows(1000, nil),
 			),
-			want: addCols(
-				addRows(1000, nil),
-				addRows(1000, nil),
-				truncatedCells(3000, 0, 1000, "cell"),
-				truncatedCells(3001, 0, 1000, "cell"),
+			want: append(
+				addCols(
+					addRows(1000, nil),
+					addRows(1000, nil),
+					truncatedCells(5000, 0, 3000, "cell"),
+				),
+				InflatedColumn{
+					Column: &statepb.Column{},
+				},
+				InflatedColumn{
+					Column: &statepb.Column{},
+				},
 			),
 		},
 		{
