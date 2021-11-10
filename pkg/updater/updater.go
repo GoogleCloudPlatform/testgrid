@@ -585,6 +585,7 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 
 var (
 	byteCeiling int = 10e6 // 10mb, var so testing can change
+	cellCeiling int = 1e6  // 1mb, var so testing can change
 )
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
@@ -722,7 +723,9 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 
 	sortCols(tg, cols)
 
-	truncateGrid(cols, byteCeiling)
+	if truncateGrid(cols, cellCeiling) {
+		cols = groupColumns(tg, cols)
+	}
 	grid, buf, err := shrinkGrid(shrinkGrace, log, tg, cols, issues, byteCeiling)
 	if err != nil {
 		return false, fmt.Errorf("shrink grid: %v", err)
@@ -748,18 +751,28 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	return unreadColumns, nil
 }
 
-func truncateGrid(cols []InflatedColumn, byteCeiling int) {
+func truncateGrid(cols []InflatedColumn, cellCeiling int) bool {
 	// Assume each cell consumes at least 1 byte
 	var cells int
+	var max int
+	var dropped int
 	for i := 0; i < len(cols); i++ {
 		nc := len(cols[i].Cells)
 		cells += nc
-		if i > 1 && cells > byteCeiling {
-			cols[i].Cells = truncatedCells(cells, byteCeiling, nc, "cell")
-			cells -= nc
-			cells++
+		if i < 2 || cells <= cellCeiling {
+			continue
 		}
+		dropped += nc
+		if max > 0 { // merge together these columns
+			cols[i].Column.Name = ""
+			cols[i].Column.Build = ""
+			cols[i].Cells = nil
+		} else {
+			max = i
+		}
+		cols[max].Cells = truncatedCells(cells, cellCeiling, dropped, "cell")
 	}
+	return max > 0
 }
 
 func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
