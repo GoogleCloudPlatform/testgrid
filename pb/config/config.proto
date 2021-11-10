@@ -442,6 +442,9 @@ message AutoBugOptions {
   // If True, file a bug when the tab goes stale.
   // (Requires `alert_stale_results_hours` to be set.)
   bool file_stale = 12;
+
+  // If True, ignore overall rows when auto-filing.
+  bool ignore_overall = 13;
 }
 
 message HotlistIdFromSource {
