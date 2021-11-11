@@ -329,6 +329,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 					log.WithError(err).Error("Failed to summarize dashboard")
 				} else {
 					mets.Success()
+					log.Info("Summarized dashboard")
 				}
 			}
 		}()
