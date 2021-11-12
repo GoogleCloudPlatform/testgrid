@@ -27,6 +27,7 @@ import (
 	gpubsub "cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
+	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/sirupsen/logrus"
@@ -37,7 +38,7 @@ type options struct {
 	config            gcs.Path // gcs://path/to/config/proto
 	creds             string
 	confirm           bool
-	dashboard         string
+	dashboards        util.Strings
 	concurrency       int
 	wait              time.Duration
 	gridPathPrefix    string
@@ -64,7 +65,7 @@ func gatherOptions() options {
 	flag.Var(&o.config, "config", "gs://path/to/config.pb")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	flag.StringVar(&o.dashboard, "dashboard", "", "Only update named dashboard if set")
+	flag.Var(&o.dashboards, "dashboard", "Only update named dashboards if set (repeateable)")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Read grid states under this GCS path.")
@@ -131,7 +132,7 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
-	if err := summarizer.Update(ctx, client, mets, opt.config, opt.concurrency, opt.dashboard, opt.gridPathPrefix, opt.summaryPathPrefix, opt.confirm, opt.wait, fixer); err != nil {
+	if err := summarizer.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.wait, fixer); err != nil {
 		logrus.WithError(err).Error("Could not summarize")
 	}
 }

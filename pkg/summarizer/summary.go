@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"bitbucket.org/creachadair/stringset"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
@@ -70,7 +71,7 @@ type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, erro
 // groupFinder returns the named group as well as reader for the grid state
 type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
 
-func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, dashboard string) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
+func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, dashboards []string) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
 	r, attrs, err := client.Open(ctx, configPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open: %w", err)
@@ -81,16 +82,20 @@ func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath g
 		return nil, nil, fmt.Errorf("unmarshal: %v", err)
 	}
 
-	if dashboard != "" {
+	if n := len(dashboards); n > 0 {
+		valid := stringset.New(dashboards...)
+		var found stringset.Set
 		dashes := make([]*configpb.Dashboard, 0, 1)
 		for _, d := range cfg.Dashboards {
-			if d.Name != dashboard {
+			name := d.Name
+			if !valid.Contains(name) {
 				continue
 			}
+			found.Add(name)
 			dashes = append(dashes, d)
 		}
-		if len(dashes) == 0 {
-			return nil, nil, errors.New("dashboard not found")
+		if missing := valid.Diff(found); missing.Len() > 0 {
+			return nil, nil, fmt.Errorf("not found: %s", missing)
 		}
 		cfg.Dashboards = dashes
 	}
@@ -133,8 +138,8 @@ func (cs *configSnapshot) dashboardTestGroups(dashboardName string) (*configpb.D
 	return d, gs
 }
 
-func (cs *configSnapshot) update(ctx context.Context, log logrus.FieldLogger, client gcs.ConditionalClient, configPath gcs.Path, summaryPathPrefix, dashboard string, q *config.DashboardQueue, freq time.Duration) (*storage.ReaderObjectAttrs, error) {
-	cfg, attrs, err := fetchConfig(ctx, client, configPath, dashboard)
+func (cs *configSnapshot) update(ctx context.Context, log logrus.FieldLogger, client gcs.ConditionalClient, configPath gcs.Path, summaryPathPrefix string, validDashboards []string, q *config.DashboardQueue, freq time.Duration) (*storage.ReaderObjectAttrs, error) {
+	cfg, attrs, err := fetchConfig(ctx, client, configPath, validDashboards)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +221,7 @@ func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.P
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, dashboard, gridPathPrefix, summaryPathPrefix string, confirm bool, freq time.Duration, fix Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, summaryPathPrefix string, dashboards []string, confirm bool, freq time.Duration, fix Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -228,7 +233,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	log.Debug("Fetching config...")
 	var cfg configSnapshot
-	cfgAttrs, err := cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboard, &q, freq)
+	cfgAttrs, err := cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboards, &q, freq)
 	if err != nil {
 		return fmt.Errorf("fetch config: %w", err)
 	}
@@ -264,7 +269,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				return
 			case <-ticker.C:
 				var err error
-				cfgAttrs, err = cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboard, &q, freq)
+				cfgAttrs, err = cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboards, &q, freq)
 				switch {
 				case err == nil:
 					log.Info("Configuration changed")

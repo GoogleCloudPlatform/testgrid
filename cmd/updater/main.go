@@ -29,46 +29,26 @@ import (
 	gpubsub "cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
+	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 )
 
-// Strings represents the value of a flag that accept multiple strings.
-type Strings struct {
-	vals []string
-}
-
-// Strings returns the slice of strings set for this value instance.
-func (s *Strings) Strings() []string {
-	return s.vals
-}
-
-// String returns a concatenated string of all the values joined by commas.
-func (s *Strings) String() string {
-	return strings.Join(s.vals, ",")
-}
-
-// Set records the value passed
-func (s *Strings) Set(value string) error {
-	s.vals = append(s.vals, value)
-	return nil
-}
-
 // options configures the updater
 type options struct {
 	config           gcs.Path // gs://path/to/config/proto
 	creds            string
 	confirm          bool
-	groups           Strings
+	groups           util.Strings
 	groupConcurrency int
 	buildConcurrency int
 	wait             time.Duration
 	groupTimeout     time.Duration
 	buildTimeout     time.Duration
 	gridPrefix       string
-	subscriptions    Strings
+	subscriptions    util.Strings
 
 	debug    bool
 	trace    bool

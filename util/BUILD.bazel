@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "log.go",
         "queue.go",
+        "strings.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/testgrid/util",
     visibility = ["//visibility:public"],
