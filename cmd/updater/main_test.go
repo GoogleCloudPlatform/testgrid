@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -137,7 +138,7 @@ func TestGatherFlagOptions(t *testing.T) {
 			case tc.err:
 				t.Error("validate() failed to return an error")
 			default:
-				if diff := cmp.Diff(expected, actual, cmp.AllowUnexported(options{}, gcs.Path{}), cmp.AllowUnexported(options{}, Strings{})); diff != "" {
+				if diff := cmp.Diff(expected, actual, cmp.AllowUnexported(options{}, gcs.Path{}), cmp.AllowUnexported(options{}, util.Strings{})); diff != "" {
 					t.Fatalf("gatherFlagOptions() got unexpected diff (-want +got):\n%s", diff)
 				}
 
