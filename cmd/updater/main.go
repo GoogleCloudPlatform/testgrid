@@ -30,7 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics/logmetrics"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 )
@@ -197,7 +197,7 @@ func main() {
 }
 
 func setupMetrics(ctx context.Context) *updater.Metrics {
-	var reporter metrics.Reporter
+	var reporter logmetrics.Reporter
 	log := logrus.New()
 	const field = "component"
 	successes := reporter.Counter("successes", "Number of successful updates", log, field)

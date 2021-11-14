@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package log
+package logmetrics
 
 import (
 	"context"
@@ -36,6 +36,23 @@ type Valuer interface {
 
 // Reporter is a collection of metric values to report.
 type Reporter []Valuer
+
+// ReportNow reports all metrics once, immediately
+func (r *Reporter) ReportNow(log logrus.FieldLogger) {
+	if log == nil {
+		log = logrus.New()
+	}
+	for _, metric := range *r {
+		log := log.WithField("metric", metric.Name())
+		for field, values := range metric.Values() {
+			log := log.WithField("field", field)
+			for value, measurement := range values {
+				log = log.WithField(value, measurement)
+			}
+			log.Info("Current status")
+		}
+	}
+}
 
 // Report the status of its metrics every freq until the context expires.
 func (r *Reporter) Report(ctx context.Context, log logrus.FieldLogger, freq time.Duration) error {
