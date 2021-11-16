@@ -198,7 +198,7 @@ func (fixer lastUpdated) fixOnce(ctx context.Context, log logrus.FieldLogger, q 
 	if err != nil {
 		return err
 	}
-	attrs := gridAttrs(ctx, log, fixer.client, paths...)
+	attrs := gcs.StatExisting(ctx, log, fixer.client, paths...)
 	updates := make(map[string]time.Time, len(attrs))
 	var wg sync.WaitGroup
 	for i, attr := range attrs {
@@ -246,24 +246,6 @@ func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *con
 			fix()
 		}
 	}
-}
-
-func gridAttrs(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, paths ...gcs.Path) []*storage.ObjectAttrs {
-	out := make([]*storage.ObjectAttrs, len(paths))
-
-	attrs := gcs.Stat(ctx, client, 20, paths...)
-	for i, attrs := range attrs {
-		err := attrs.Err
-		switch {
-		case attrs.Attrs != nil:
-			out[i] = attrs.Attrs
-		case errors.Is(err, storage.ErrObjectNotExist):
-			out[i] = &storage.ObjectAttrs{}
-		default:
-			log.WithError(err).WithField("path", paths[i]).Info("Failed to stat")
-		}
-	}
-	return out
 }
 
 // Fixer will fix the TestGroupQueue's next time for TestGroups.

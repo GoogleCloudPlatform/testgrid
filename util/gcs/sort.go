@@ -18,6 +18,7 @@ package gcs
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -52,6 +53,28 @@ func Stat(ctx context.Context, client Stater, workers int, paths ...Path) []Stat
 	}
 	close(ch)
 	wg.Wait()
+	return out
+}
+
+// StatExisting reduces Stat() to an array of ObjectAttrs.
+//
+// Non-existent objects will return a pointer to a zero storage.ObjectAttrs.
+// Objects that fail to stat will be nil (and log).
+func StatExisting(ctx context.Context, log logrus.FieldLogger, client Stater, paths ...Path) []*storage.ObjectAttrs {
+	out := make([]*storage.ObjectAttrs, len(paths))
+
+	attrs := Stat(ctx, client, 20, paths...)
+	for i, attrs := range attrs {
+		err := attrs.Err
+		switch {
+		case attrs.Attrs != nil:
+			out[i] = attrs.Attrs
+		case errors.Is(err, storage.ErrObjectNotExist):
+			out[i] = &storage.ObjectAttrs{}
+		default:
+			log.WithError(err).WithField("path", paths[i]).Info("Failed to stat")
+		}
+	}
 	return out
 }
 

@@ -19,6 +19,7 @@ package fake // Needs to be in fake package to access the fakes
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -36,6 +37,80 @@ func mustPath(s string) *gcs.Path {
 		panic(err)
 	}
 	return p
+}
+
+func TestStatExisting(t *testing.T) {
+	cases := []struct {
+		name  string
+		stats Stater
+		paths []gcs.Path
+
+		want []*storage.ObjectAttrs
+	}{
+		{
+			name: "basic",
+			want: []*storage.ObjectAttrs{},
+		},
+		{
+			name: "err",
+			stats: Stater{
+				*mustPath("gs://bucket/path/to/boom"): Stat{
+					Err: errors.New("boom"),
+				},
+			},
+			paths: []gcs.Path{
+				*mustPath("gs://bucket/path/to/boom"),
+			},
+			want: []*storage.ObjectAttrs{nil},
+		},
+		{
+			name: "not found",
+			stats: Stater{
+				*mustPath("gs://bucket/path/to/boom"): Stat{
+					Err: storage.ErrObjectNotExist,
+				},
+				*mustPath("gs://bucket/path/to/wrapped"): Stat{
+					Err: fmt.Errorf("wrap: %w", storage.ErrObjectNotExist),
+				},
+			},
+			paths: []gcs.Path{
+				*mustPath("gs://bucket/path/to/boom"),
+				*mustPath("gs://bucket/path/to/wrapped"),
+			},
+			want: []*storage.ObjectAttrs{{}, {}},
+		},
+		{
+			name: "found",
+			stats: Stater{
+				*mustPath("gs://bucket/path/to/boom"): Stat{
+					Attrs: storage.ObjectAttrs{
+						Name: "yo",
+					},
+				},
+			},
+			paths: []gcs.Path{
+				*mustPath("gs://bucket/path/to/boom"),
+			},
+			want: []*storage.ObjectAttrs{
+				{
+					Name: "yo",
+				},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &ConditionalClient{
+				UploadClient: UploadClient{
+					Stater: tc.stats,
+				},
+			}
+			got := gcs.StatExisting(context.Background(), logrus.WithField("name", tc.name), client, tc.paths...)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("gridAttrs() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestLeastRecentlyUpdated(t *testing.T) {

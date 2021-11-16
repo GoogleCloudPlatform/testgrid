@@ -64,6 +64,7 @@ go_test(
         "//pkg/summarizer/analyzers:go_default_library",
         "//pkg/summarizer/common:go_default_library",
         "//util/gcs:go_default_library",
+        "//util/gcs/fake:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",

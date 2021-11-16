@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -69,7 +70,7 @@ func (mets *Metrics) Success() {
 type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, error)
 
 // groupFinder returns the named group as well as reader for the grid state
-type groupFinder func(string) (*configpb.TestGroup, gridReader, error)
+type groupFinder func(string) (*gcs.Path, *configpb.TestGroup, gridReader, error)
 
 func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, dashboards []string) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
 	r, attrs, err := client.Open(ctx, configPath)
@@ -283,22 +284,21 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 	}()
 	dashboardNames := make(chan string)
-	defer close(dashboardNames)
 
 	// TODO(fejta): cache downloaded group?
-	groupFinder := func(name string) (*configpb.TestGroup, gridReader, error) {
+	findGroup := func(name string) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 		group := cfg.group(name)
 		if group == nil {
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(gridPathPrefix, name)})
 		if err != nil {
-			return group, nil, err
+			return nil, group, nil, err
 		}
 		reader := func(ctx context.Context) (io.ReadCloser, time.Time, int64, error) {
 			return pathReader(ctx, client, *groupPath)
 		}
-		return group, reader, nil
+		return groupPath, group, reader, nil
 	}
 
 	updateName := func(log *logrus.Entry, dashName string) error {
@@ -310,10 +310,17 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		if err != nil {
 			return fmt.Errorf("summary path: %v", err)
 		}
-		sum, err := updateDashboard(ctx, dash, groupFinder)
+		sum, _, _, err := readSummary(ctx, client, *summaryPath)
 		if err != nil {
-			return fmt.Errorf("update: %w", err)
+			return fmt.Errorf("read %q: %v", *summaryPath, err)
 		}
+
+		if sum == nil {
+			sum = &summarypb.DashboardSummary{}
+		}
+
+		updateDashboard(ctx, client, dash, sum, findGroup)
+
 		log = log.WithField("path", summaryPath)
 		if !confirm {
 			log.WithField("summary", sum).Info("Summarized")
@@ -325,8 +332,12 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return nil
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
+			defer wg.Done()
+			// TODO(fejta): sort by last modified
 			for dashName := range dashboardNames {
 				log := log.WithField("dashboard", dashName)
 				if err := updateName(log, dashName); err != nil {
@@ -339,6 +350,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			}
 		}()
 	}
+	defer wg.Wait()
+	defer close(dashboardNames)
 
 	return q.Send(ctx, dashboardNames, freq)
 }
@@ -365,6 +378,26 @@ func summaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	return np, nil
 }
 
+func readSummary(ctx context.Context, client gcs.Client, path gcs.Path) (*summarypb.DashboardSummary, time.Time, int64, error) {
+	r, modified, gen, err := pathReader(ctx, client, path)
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return nil, time.Time{}, 0, nil
+	} else if err != nil {
+		return nil, time.Time{}, 0, fmt.Errorf("open: %w", err)
+	}
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, time.Time{}, 0, fmt.Errorf("read: %w", err)
+	}
+	var sum summarypb.DashboardSummary
+
+	if err := proto.Unmarshal(buf, &sum); err != nil {
+		return nil, time.Time{}, 0, fmt.Errorf("unmarhsal: %v", err)
+	}
+
+	return &sum, modified, gen, nil
+}
+
 func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
 	buf, err := proto.Marshal(sum)
 	if err != nil {
@@ -372,6 +405,10 @@ func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *su
 	}
 	_, err = client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache") // TODO(fejta): configurable cache value
 	return err
+}
+
+func statPaths(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, paths ...gcs.Path) []*storage.ObjectAttrs {
+	return gcs.StatExisting(ctx, log, client, paths...)
 }
 
 // pathReader returns a reader for the specified path and last modified, generation metadata.
@@ -386,37 +423,136 @@ func pathReader(ctx context.Context, client gcs.Client, path gcs.Path) (io.ReadC
 	return r, attrs.LastModified, attrs.Generation, nil
 }
 
-// updateDashboard will summarize all the tabs (through errors), returning an error if any fail to summarize.
-func updateDashboard(ctx context.Context, dash *configpb.Dashboard, finder groupFinder) (*summarypb.DashboardSummary, error) {
-	log := logrus.WithField("dashboard", dash.Name)
-	var badTabs []string
-	var sum summarypb.DashboardSummary
-	for _, tab := range dash.DashboardTab {
-		log := log.WithField("tab", tab.Name)
-		log.Debug("Summarizing tab")
-		s, err := updateTab(ctx, tab, finder)
-		if err != nil {
-			log.WithError(err).Error("Cannot summarize tab")
-			badTabs = append(badTabs, tab.Name)
-			sum.TabSummaries = append(sum.TabSummaries, problemTab(dash.Name, tab.Name))
-			continue
-		}
-		s.DashboardName = dash.Name
-		sum.TabSummaries = append(sum.TabSummaries, s)
+func tabStatus(dashName, tabName, msg string) *summarypb.DashboardTabSummary {
+	return &summarypb.DashboardTabSummary{
+		DashboardName:    dashName,
+		DashboardTabName: tabName,
+		OverallStatus:    summarypb.DashboardTabSummary_UNKNOWN,
+		Alert:            msg,
+		Status:           msg,
 	}
-	var err error
-	if d := len(badTabs); d > 0 {
-		err = fmt.Errorf("Failed %d tabs: %s", d, strings.Join(badTabs, ", "))
-	}
-	return &sum, err
 }
 
-// problemTab summarizes a tab that cannot summarize
-func problemTab(dashboardName, tabName string) *summarypb.DashboardTabSummary {
-	return &summarypb.DashboardTabSummary{
-		DashboardName:    dashboardName,
-		DashboardTabName: tabName,
-		Alert:            "failed to summarize tab",
+// updateDashboard will summarize all the tabs.
+//
+// Errors summarizing tabs are displayed on the summary for the dashboard.
+func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder) {
+	log := logrus.WithField("dashboard", dash.Name)
+
+	var graceCtx context.Context
+	if when, ok := ctx.Deadline(); ok {
+		dur := time.Until(when) / 2
+		var cancel func()
+		graceCtx, cancel = context.WithTimeout(ctx, dur)
+		defer cancel()
+	} else {
+		graceCtx = ctx
+	}
+
+	// First collect the previously summarized tabs.
+	tabSummaries := make(map[string]*summarypb.DashboardTabSummary, len(sum.TabSummaries))
+	for _, tabSum := range sum.TabSummaries {
+		tabSummaries[tabSum.DashboardTabName] = tabSum
+	}
+
+	// Now create info about which tabs we need to summarize and where the grid state lives.
+	type groupInfo struct {
+		group  *configpb.TestGroup
+		reader gridReader
+		tabs   []*configpb.DashboardTab
+	}
+	groupInfos := make(map[gcs.Path]*groupInfo, len(dash.DashboardTab))
+
+	var paths []gcs.Path
+	for _, tab := range dash.DashboardTab {
+		groupName := tab.TestGroupName
+		groupPath, group, groupReader, err := findGroup(groupName)
+		if err != nil {
+			tabSummaries[tab.Name] = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Error reading group info: %v", err))
+			continue
+		}
+		if group == nil {
+			tabSummaries[tab.Name] = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Test group does not exist: %q", groupName))
+			continue
+		}
+		info := groupInfos[*groupPath]
+		if info == nil {
+			info = &groupInfo{
+				group:  group,
+				reader: groupReader, // TODO(fejta): optimize (only read once)
+			}
+			paths = append(paths, *groupPath)
+			groupInfos[*groupPath] = info
+		}
+		info.tabs = append(info.tabs, tab)
+	}
+
+	// Check the attributes of the grid states.
+	attrs := gcs.StatExisting(ctx, log, client, paths...)
+
+	delays := make(map[gcs.Path]float64, len(paths))
+
+	// determine how much behind each summary is
+	for i, path := range paths {
+		a := attrs[i]
+		for _, tab := range groupInfos[path].tabs {
+			// TODO(fejta): optimize (only read once)
+			name := tab.Name
+			sum := tabSummaries[name]
+			if a == nil {
+				tabSummaries[name] = tabStatus(dash.Name, name, noRuns)
+				delays[path] = -1
+			} else if sum == nil {
+				tabSummaries[name] = tabStatus(dash.Name, name, "Newly created tab")
+				delays[path] = float64(24 * time.Hour / time.Second)
+				log.WithField("tab", name).Debug("Found new tab")
+			} else {
+				delays[path] = float64(attrs[i].Updated.Unix()) - tabSummaries[name].LastUpdateTimestamp
+			}
+		}
+	}
+
+	// sort by delay
+	sort.SliceStable(paths, func(i, j int) bool {
+		return delays[paths[i]] > delays[paths[j]]
+	})
+
+	// update the summaries, starting with most delayed
+nextPath:
+	for _, path := range paths {
+		info := groupInfos[path]
+		log := log.WithField("group", path)
+		for _, tab := range info.tabs {
+			log := log.WithField("tab", tab.Name)
+			delay := delays[path]
+			if delay == 0 {
+				log.Debug("Already up to date")
+				continue
+			} else if delay == -1 {
+				log.Debug("No grid state to process")
+			}
+			log = log.WithField("delay", delay)
+			if err := graceCtx.Err(); err != nil {
+				log.WithError(err).Info("Interrupted")
+				break nextPath
+			}
+			log.Debug("Updating tab summary")
+			s, err := updateTab(ctx, tab, info.group, info.reader)
+			if err != nil {
+				s = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Error attempting to summarize tab: %v", err))
+				log = log.WithError(err)
+			} else {
+				s.DashboardName = dash.Name
+			}
+			tabSummaries[tab.Name] = s
+			log.Trace("Updated tab summary")
+		}
+	}
+
+	// assemble them back into the dashboard summary.
+	sum.TabSummaries = make([]*summarypb.DashboardTabSummary, len(dash.DashboardTab))
+	for idx, tab := range dash.DashboardTab {
+		sum.TabSummaries[idx] = tabSummaries[tab.Name]
 	}
 }
 
@@ -429,25 +565,9 @@ func staleHours(tab *configpb.DashboardTab) time.Duration {
 }
 
 // updateTab reads the latest grid state for the tab and summarizes it.
-func updateTab(ctx context.Context, tab *configpb.DashboardTab, findGroup groupFinder) (*summarypb.DashboardTabSummary, error) {
+func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.TestGroup, groupReader gridReader) (*summarypb.DashboardTabSummary, error) {
 	groupName := tab.TestGroupName
-	group, groupReader, err := findGroup(groupName)
-	if err != nil {
-		return nil, fmt.Errorf("find group: %v", err)
-	}
-	if group == nil {
-		return nil, fmt.Errorf("not found: %q", groupName)
-	}
 	grid, mod, _, err := readGrid(ctx, groupReader) // TODO(fejta): track gen
-	if err != nil && errors.Is(err, storage.ErrObjectNotExist) {
-		return &summarypb.DashboardTabSummary{
-			DashboardTabName: tab.Name,
-			Alert:            noRuns,
-			OverallStatus:    overallStatus(nil, 0, noRuns, false, nil),
-			Status:           noRuns,
-			LatestGreen:      noGreens,
-		}, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("load %s: %v", groupName, err)
 	}

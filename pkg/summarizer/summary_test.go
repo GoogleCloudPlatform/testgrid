@@ -44,11 +44,12 @@ import (
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
 )
 
 type fakeGroup struct {
-	group configpb.TestGroup
-	grid  statepb.Grid
+	group *configpb.TestGroup
+	grid  *statepb.Grid
 	mod   time.Time
 	gen   int64
 	err   error
@@ -92,7 +93,9 @@ func TestUpdateDashboard(t *testing.T) {
 			},
 			groups: map[string]fakeGroup{
 				"foo-group": {
-					mod: time.Unix(1000, 0),
+					group: &configpb.TestGroup{},
+					grid:  &statepb.Grid{},
+					mod:   time.Unix(1000, 0),
 				},
 			},
 			expected: &summarypb.DashboardSummary{
@@ -146,10 +149,14 @@ func TestUpdateDashboard(t *testing.T) {
 			},
 			groups: map[string]fakeGroup{
 				"working-group": {
-					mod: time.Unix(1000, 0),
+					mod:   time.Unix(1000, 0),
+					group: &configpb.TestGroup{},
+					grid:  &statepb.Grid{},
 				},
 				"has-errors": {
-					err: errors.New("tragedy"),
+					err:   errors.New("tragedy"),
+					group: &configpb.TestGroup{},
+					grid:  &statepb.Grid{},
 				},
 			},
 			expected: &summarypb.DashboardSummary{
@@ -163,8 +170,8 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
 					},
-					problemTab("a-dashboard", "missing-tab"),
-					problemTab("a-dashboard", "error-tab"),
+					tabStatus("a-dashboard", "missing-tab", `Test group does not exist: "group-not-present"`),
+					tabStatus("a-dashboard", "error-tab", fmt.Sprintf("Error attempting to summarize tab: load has-errors: open: tragedy")),
 					{
 						DashboardName:       "a-dashboard",
 						DashboardTabName:    "still-working",
@@ -228,7 +235,9 @@ func TestUpdateDashboard(t *testing.T) {
 			},
 			groups: map[string]fakeGroup{
 				"a-group": {
-					mod: time.Unix(1000, 0),
+					mod:   time.Unix(1000, 0),
+					group: &configpb.TestGroup{},
+					grid:  &statepb.Grid{},
 				},
 			},
 			expected: &summarypb.DashboardSummary{
@@ -285,28 +294,41 @@ func TestUpdateDashboard(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			finder := func(name string) (*configpb.TestGroup, gridReader, error) {
+			finder := func(name string) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 				if name == "inject-error" {
-					return nil, nil, errors.New("injected find group error")
+					return nil, nil, nil, errors.New("injected find group error")
 				}
 				fake, ok := tc.groups[name]
 				if !ok {
-					return nil, nil, nil
+					return nil, nil, nil, nil
+				}
+				path, err := gcs.NewPath("gs://bucket/grid/" + name)
+				if err != nil {
+					t.Helper()
+					t.Fatalf("Failed to create path: %v", err)
 				}
 				reader := func(_ context.Context) (io.ReadCloser, time.Time, int64, error) {
-					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(&fake.grid)))), fake.mod, fake.gen, fake.err
+					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(fake.grid)))), fake.mod, fake.gen, fake.err
 				}
-				return &fake.group, reader, nil
+				return path, fake.group, reader, nil
 			}
-			actual, err := updateDashboard(context.Background(), tc.dash, finder)
-			if err != nil && !tc.err {
-				t.Errorf("unexpected error: %v", err)
+			var actual summarypb.DashboardSummary
+			client := fake.Stater{}
+			for name, group := range tc.groups {
+				path, err := gcs.NewPath("gs://bucket/grid/" + name)
+				if err != nil {
+					t.Errorf("Failed to create Path: %v", err)
+				}
+				client[*path] = fake.Stat{
+					Attrs: storage.ObjectAttrs{
+						Generation: group.gen,
+						Updated:    group.mod,
+					},
+				}
 			}
-			if tc.err && err == nil {
-				t.Error("failed to receive expected error")
-			}
-			if !proto.Equal(actual, tc.expected) {
-				t.Errorf("actual dashboard summary %s != expected %s", actual, tc.expected)
+			updateDashboard(context.Background(), client, tc.dash, &actual, finder)
+			if diff := cmp.Diff(tc.expected, &actual, protocmp.Transform()); diff != "" {
+				t.Errorf("updateDashboard() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -371,23 +393,13 @@ func TestUpdateTab(t *testing.T) {
 		name      string
 		tab       *configpb.DashboardTab
 		group     *configpb.TestGroup
-		findError error
-		grid      statepb.Grid
+		grid      *statepb.Grid
 		mod       time.Time
 		gen       int64
 		gridError error
 		expected  *summarypb.DashboardTabSummary
 		err       bool
 	}{
-		{
-			name:      "find grid error returns error",
-			findError: errors.New("failed to resolve url reference"),
-			err:       true,
-		},
-		{
-			name: "grid does not exist returns error",
-			err:  true,
-		},
 		{
 			name: "read grid error returns error",
 			tab: &configpb.DashboardTab{
@@ -409,6 +421,7 @@ func TestUpdateTab(t *testing.T) {
 				},
 			},
 			group: &configpb.TestGroup{},
+			grid:  &statepb.Grid{},
 			mod:   now,
 			gen:   43,
 			expected: &summarypb.DashboardTabSummary{
@@ -427,38 +440,22 @@ func TestUpdateTab(t *testing.T) {
 			},
 			group:     &configpb.TestGroup{},
 			gridError: fmt.Errorf("oh yeah: %w", storage.ErrObjectNotExist),
-			expected: &summarypb.DashboardTabSummary{
-				DashboardTabName: "you know",
-				Alert:            noRuns,
-				OverallStatus:    summarypb.DashboardTabSummary_STALE,
-				Status:           noRuns,
-				LatestGreen:      noGreens,
-			},
+			err:       true,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			finder := func(name string) (*configpb.TestGroup, gridReader, error) {
-				if name != tc.tab.TestGroupName {
-					t.Fatalf("wrong name: %q != expected %q", name, tc.tab.TestGroupName)
-				}
-				if tc.findError != nil {
-					return nil, nil, tc.findError
-				}
-				reader := func(_ context.Context) (io.ReadCloser, time.Time, int64, error) {
-					if tc.gridError != nil {
-						return nil, time.Time{}, 0, tc.gridError
-					}
-					return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(&tc.grid)))), tc.mod, tc.gen, nil
-				}
-				return tc.group, reader, nil
-			}
-
 			if tc.tab == nil {
 				tc.tab = &configpb.DashboardTab{}
 			}
-			actual, err := updateTab(context.Background(), tc.tab, finder)
+			reader := func(_ context.Context) (io.ReadCloser, time.Time, int64, error) {
+				if tc.gridError != nil {
+					return nil, time.Time{}, 0, tc.gridError
+				}
+				return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(tc.grid)))), tc.mod, tc.gen, nil
+			}
+			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader)
 			switch {
 			case err != nil:
 				if !tc.err {
