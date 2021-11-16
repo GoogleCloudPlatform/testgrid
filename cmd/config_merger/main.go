@@ -26,12 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/merger"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 
 	"github.com/sirupsen/logrus"
 )
 
-const componentName = "config_merger"
+const componentName = "config-merger"
 
 type options struct {
 	listPath     string
@@ -67,7 +67,7 @@ func gatherOptions() options {
 }
 
 func main() {
-	log := logrus.WithField("component", "config-merger")
+	log := logrus.WithField("component", componentName)
 	opt := gatherOptions()
 	opt.validate(log)
 
@@ -109,15 +109,10 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 
-	var reporter metrics.Reporter
-	cycle := reporter.Int64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", log, "component")
-	successes := reporter.Counter("successes", "Number of successful updates", log, "component")
-	errors := reporter.Counter("errors", "Number of failed updates", log, "component")
-	fields := reporter.Int64("fields", "Config field usage by name", log, "component", "field-name")
-
-	go func() {
-		reporter.Report(ctx, nil, time.Minute)
-	}()
+	cycle := prometheus.NewInt64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", "component")
+	successes := prometheus.NewCounter("successes", "Number of successful updates", "component")
+	errors := prometheus.NewCounter("errors", "Number of failed updates", "component")
+	fields := prometheus.NewInt64("fields", "Config field usage by name", "component", "field")
 
 	updateOnce := func(ctx context.Context) {
 		start := time.Now()
