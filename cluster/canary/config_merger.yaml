@@ -26,6 +26,9 @@ spec:
       containers:
       - name: config-merger
         image: gcr.io/k8s-testgrid/config_merger:v20211112-v0.0.109-4-gfaa0089
+        ports:
+        - name: metrics
+          containerPort: 2112
         args:
         - --config-url=https://raw.githubusercontent.com/kubernetes/test-infra/master/config/mergelists/canary.yaml
         - --confirm
