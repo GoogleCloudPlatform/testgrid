@@ -1,0 +1,21 @@
+---
+apiVersion: monitoring.gke.io/v1alpha1
+kind: PodMonitor
+metadata:
+  labels:
+    app: testgrid-metrics
+    component: config-merger
+  name: config-merger
+  namespace: testgrid
+spec:
+  podMetricsEndpoints:
+  - interval: 30s
+    port: metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - testgrid
+  selector:
+    matchLabels:
+      app: testgrid
+      component: config-merger
