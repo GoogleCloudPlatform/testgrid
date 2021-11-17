@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics/logmetrics"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 )
@@ -160,7 +160,7 @@ func main() {
 
 	groupUpdater := updater.GCS(client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 
-	mets := setupMetrics(ctx)
+	mets := setupMetrics()
 
 	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(opt.creds))
 	if err != nil {
@@ -176,23 +176,13 @@ func main() {
 	}
 }
 
-func setupMetrics(ctx context.Context) *updater.Metrics {
-	var reporter logmetrics.Reporter
-	log := logrus.New()
-	const field = "component"
-	successes := reporter.Counter("successes", "Number of successful updates", log, field)
-	errs := reporter.Counter("errors", "Number of failed updates", log, field)
-	skips := reporter.Counter("skips", "Number of skipped updated", log, field)
-	delay := reporter.Int64("delay", "Seconds updater is behind schedule", log, field)
-	cycle := reporter.Int64("cycle", "Seconds updater takes to update a group", log, field)
-	go func() {
-		reporter.Report(ctx, nil, 30*time.Second)
-	}()
+func setupMetrics() *updater.Metrics {
+	const component = "component"
 	return &updater.Metrics{
-		Successes:    successes,
-		Errors:       errs,
-		Skips:        skips,
-		DelaySeconds: delay,
-		CycleSeconds: cycle,
+		Successes:    prometheus.NewCounter("successes", "Number of successful updates", component),
+		Errors:       prometheus.NewCounter("errors", "Number of failed updates", component),
+		Skips:        prometheus.NewCounter("skips", "Number of skipped updated", component),
+		DelaySeconds: prometheus.NewInt64("delay", "Seconds updater is behind schedule", component),
+		CycleSeconds: prometheus.NewInt64("cycle", "Seconds updater takes to update a group", component),
 	}
 }

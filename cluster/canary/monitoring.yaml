@@ -19,3 +19,45 @@ spec:
     matchLabels:
       app: testgrid
       component: config-merger
+---
+apiVersion: monitoring.gke.io/v1alpha1
+kind: PodMonitor
+metadata:
+  labels:
+    app: testgrid-metrics
+    component: summarizer
+  name: summarizer
+  namespace: testgrid-canary
+spec:
+  podMetricsEndpoints:
+  - interval: 30s
+    port: metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - testgrid-canary
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer
+---
+apiVersion: monitoring.gke.io/v1alpha1
+kind: PodMonitor
+metadata:
+  labels:
+    app: testgrid-metrics
+    component: updater
+  name: updater
+  namespace: testgrid-canary
+spec:
+  podMetricsEndpoints:
+  - interval: 30s
+    port: metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - testgrid-canary
+  selector:
+    matchLabels:
+      app: testgrid
+      component: updater
