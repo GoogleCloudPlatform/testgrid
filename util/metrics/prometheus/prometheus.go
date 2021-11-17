@@ -19,6 +19,7 @@ package prometheus
 import (
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,6 +37,7 @@ type int64Metric struct {
 	name   string
 	fields map[string]bool
 	met    *prometheus.GaugeVec
+	lock   sync.RWMutex
 }
 
 // init sets up the Prometheus endpoint at this port and URL when the package is imported
@@ -55,7 +57,7 @@ func NewInt64(name, desc string, fields ...string) metrics.Int64 {
 	prometheus.MustRegister(m)
 	return &int64Metric{
 		name:   name,
-		fields: make(map[string]bool),
+		fields: map[string]bool{},
 		met:    m,
 	}
 }
@@ -67,6 +69,8 @@ func (m *int64Metric) Name() string {
 
 // Set the metric's value to the given number.
 func (m *int64Metric) Set(n int64, fields ...string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.met.WithLabelValues(fields...).Set(float64(n))
 	m.fields[strings.Join(fields, "|")] = true
 }
@@ -81,7 +85,9 @@ func gaugeValue(metric *prometheus.GaugeVec, labels ...string) float64 {
 
 // Values returns each field and its current value.
 func (m *int64Metric) Values() map[string]float64 {
-	values := make(map[string]float64)
+	values := map[string]float64{}
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	for fieldStr := range m.fields {
 		fields := strings.Split(fieldStr, "|")
 		values[fieldStr] = gaugeValue(m.met, fields...)
@@ -93,6 +99,7 @@ type counterMetric struct {
 	name   string
 	fields map[string]bool
 	met    *prometheus.CounterVec
+	lock   sync.RWMutex
 }
 
 // NewCounter creates and registers a strictly-increasing counter metric with Prometheus.
@@ -104,7 +111,7 @@ func NewCounter(name, desc string, fields ...string) metrics.Counter {
 	prometheus.MustRegister(m)
 	return &counterMetric{
 		name:   name,
-		fields: make(map[string]bool),
+		fields: map[string]bool{},
 		met:    m,
 	}
 }
@@ -117,6 +124,8 @@ func (m *counterMetric) Name() string {
 // Add the given number to the Counter.
 func (m *counterMetric) Add(n int64, fields ...string) {
 	m.met.WithLabelValues(fields...).Add(float64(n))
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.fields[strings.Join(fields, "|")] = true
 }
 
@@ -130,7 +139,9 @@ func counterValue(metric *prometheus.CounterVec, labels ...string) float64 {
 
 // Values returns each field and its current value.
 func (m *counterMetric) Values() map[string]float64 {
-	values := make(map[string]float64)
+	values := map[string]float64{}
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	for fieldStr := range m.fields {
 		fields := strings.Split(fieldStr, "|")
 		values[fieldStr] = counterValue(m.met, fields...)
