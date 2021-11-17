@@ -933,6 +933,10 @@ func groupColumns(tg *configpb.TestGroup, cols []InflatedColumn) []InflatedColum
 					col.Column.Hint = c.Column.Hint
 				}
 				for i, val := range c.Column.Extra {
+					if i == len(col.Column.Extra) {
+						col.Column.Extra = append(col.Column.Extra, val)
+						continue
+					}
 					if val == "" || val == col.Column.Extra[i] {
 						continue
 					}

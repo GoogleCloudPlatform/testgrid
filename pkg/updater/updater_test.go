@@ -3024,6 +3024,146 @@ func TestGroupColumns(t *testing.T) {
 			},
 		},
 		{
+			name: "columns add more headers",
+			tg: &configpb.TestGroup{
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						Property: "",
+					},
+					{
+						Property: "",
+					},
+					{
+						Property: "",
+					},
+				},
+			},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "99",
+						Started: 7,
+						Extra: []string{
+							"one",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "100",
+						Started: 9,
+						Extra: []string{
+							"one",
+							"two",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "100",
+						Started: 9,
+						Extra: []string{
+							"one",
+							"two",
+							"three",
+						},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Started: 7,
+						Hint:    "100",
+						Extra: []string{
+							"one",
+							"two",
+							"three",
+						},
+					},
+					Cells: map[string]Cell{},
+				},
+			},
+		},
+		{
+			name: "columns remove headers",
+			tg: &configpb.TestGroup{
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						Property: "",
+					},
+					{
+						Property: "",
+					},
+					{
+						Property: "",
+					},
+				},
+			},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "99",
+						Started: 7,
+						Extra: []string{
+							"one",
+							"two",
+							"three",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "100",
+						Started: 9,
+						Extra: []string{
+							"one",
+							"two",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Hint:    "100",
+						Started: 9,
+						Extra: []string{
+							"one",
+						},
+					},
+				},
+			},
+			want: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "same",
+						Name:    "lemming",
+						Started: 7,
+						Hint:    "100",
+						Extra: []string{
+							"one",
+							"two",
+							"three",
+						},
+					},
+					Cells: map[string]Cell{},
+				},
+			},
+		},
+		{
 			name: "do not group different builds",
 			cols: []InflatedColumn{
 				{
