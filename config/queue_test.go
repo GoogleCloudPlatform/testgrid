@@ -24,11 +24,13 @@ import (
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestStatus(t *testing.T) {
 	now := time.Now()
+	log := logrus.WithField("test", "TestStatus")
 	cases := []struct {
 		name string
 		q    *TestGroupQueue
@@ -45,7 +47,7 @@ func TestStatus(t *testing.T) {
 			name: "single",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hi",
 					},
@@ -62,7 +64,7 @@ func TestStatus(t *testing.T) {
 			name: "multi",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hi",
 					},
@@ -101,6 +103,7 @@ func TestStatus(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
+	log := logrus.WithField("test", "TestSend")
 	cases := []struct {
 		name      string
 		q         *TestGroupQueue
@@ -111,7 +114,11 @@ func TestSend(t *testing.T) {
 	}{
 		{
 			name: "empty",
-			q:    &TestGroupQueue{},
+			q: func() *TestGroupQueue {
+				var q TestGroupQueue
+				q.Init(log, nil, time.Now())
+				return &q
+			}(),
 			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				go func() {
@@ -131,7 +138,11 @@ func TestSend(t *testing.T) {
 		},
 		{
 			name: "empty loop",
-			q:    &TestGroupQueue{},
+			q: func() *TestGroupQueue {
+				var q TestGroupQueue
+				q.Init(log, nil, time.Now())
+				return &q
+			}(),
 			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- *configpb.TestGroup, func() []*configpb.TestGroup) {
 				ch := make(chan *configpb.TestGroup)
 				ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
@@ -156,7 +167,7 @@ func TestSend(t *testing.T) {
 			name: "single",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hi",
 					},
@@ -196,7 +207,7 @@ func TestSend(t *testing.T) {
 			name: "single loop",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hi",
 					},
@@ -247,7 +258,7 @@ func TestSend(t *testing.T) {
 			name: "multi",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hi",
 					},
@@ -295,7 +306,7 @@ func TestSend(t *testing.T) {
 			name: "multi loop",
 			q: func() *TestGroupQueue {
 				var q TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hi",
 					},

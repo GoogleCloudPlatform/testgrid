@@ -19,15 +19,18 @@ package util
 import (
 	"container/heap"
 	"context"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/testing/protocmp"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestInit(t *testing.T) {
 	now := time.Now()
+	log := logrus.WithField("test", "TestInit")
 	cases := []struct {
 		name  string
 		q     *Queue
@@ -50,7 +53,7 @@ func TestInit(t *testing.T) {
 			name: "remove",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{"drop", "keep"}, now)
+				q.Init(log, []string{"drop", "keep"}, now)
 				return &q
 			}(),
 			names: []string{
@@ -67,7 +70,7 @@ func TestInit(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.q.Init(tc.names, tc.when)
+			tc.q.Init(log, tc.names, tc.when)
 
 			var got []string
 			for range tc.next {
@@ -81,6 +84,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestFixAll(t *testing.T) {
+	log := logrus.WithField("test", "TestFixAll")
 	now := time.Now()
 	cases := []struct {
 		name  string
@@ -99,7 +103,7 @@ func TestFixAll(t *testing.T) {
 			name: "later",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"first-now-second",
 					"second-now-fifth",
 					"third",
@@ -128,7 +132,7 @@ func TestFixAll(t *testing.T) {
 			name: "reduce",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"first-now-second",
 					"second-ignored-becomes-fifth",
 					"third-becomes-fourth",
@@ -173,6 +177,7 @@ func TestFixAll(t *testing.T) {
 
 func TestFix(t *testing.T) {
 	now := time.Now()
+	log := logrus.WithField("test", "TestFix")
 	cases := []struct {
 		name string
 
@@ -195,7 +200,7 @@ func TestFix(t *testing.T) {
 			fix:  "basic",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"basic",
 					"was-later-now-first",
 				}, now)
@@ -213,7 +218,7 @@ func TestFix(t *testing.T) {
 			fix:  "basic",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"basic",
 					"was-later-still-later",
 				}, now)
@@ -230,7 +235,7 @@ func TestFix(t *testing.T) {
 			fix:  "basic",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"was-earlier-now-later",
 					"basic",
 				}, now)
@@ -261,6 +266,7 @@ func TestFix(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
+	log := logrus.WithField("test", "TestStatus")
 	pstr := func(s string) *string { return &s }
 	now := time.Now()
 	cases := []struct {
@@ -279,7 +285,7 @@ func TestStatus(t *testing.T) {
 			name: "single",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{"hi"}, now)
+				q.Init(log, []string{"hi"}, now)
 				return &q
 			}(),
 			depth: 1,
@@ -290,7 +296,7 @@ func TestStatus(t *testing.T) {
 			name: "multi",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"hi",
 					"middle",
 					"there",
@@ -321,6 +327,7 @@ func TestStatus(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
+	log := logrus.WithField("test", "TestSend")
 	cases := []struct {
 		name      string
 		q         *Queue
@@ -331,7 +338,7 @@ func TestSend(t *testing.T) {
 	}{
 		{
 			name: "empty",
-			q:    &Queue{},
+			q:    &Queue{log: log},
 			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- string, func() []string) {
 				ch := make(chan string)
 				go func() {
@@ -351,7 +358,7 @@ func TestSend(t *testing.T) {
 		},
 		{
 			name: "empty loop",
-			q:    &Queue{},
+			q:    &Queue{log: log},
 			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- string, func() []string) {
 				ch := make(chan string)
 				ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
@@ -376,7 +383,7 @@ func TestSend(t *testing.T) {
 			name: "single",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{"hi"}, time.Now())
+				q.Init(log, []string{"hi"}, time.Now())
 				return &q
 			}(),
 			receivers: func(ctx context.Context, t *testing.T) (context.Context, chan<- string, func() []string) {
@@ -408,7 +415,7 @@ func TestSend(t *testing.T) {
 			name: "single loop",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{"hi"}, time.Now())
+				q.Init(log, []string{"hi"}, time.Now())
 				return &q
 			}(),
 			receivers: func(ctx context.Context, _ *testing.T) (context.Context, chan<- string, func() []string) {
@@ -449,7 +456,7 @@ func TestSend(t *testing.T) {
 			name: "multi",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{
+				q.Init(log, []string{
 					"hi",
 					"there",
 				}, time.Now())
@@ -489,7 +496,7 @@ func TestSend(t *testing.T) {
 			name: "multi loop",
 			q: func() *Queue {
 				var q Queue
-				q.Init([]string{"hi", "there"}, time.Now())
+				q.Init(log, []string{"hi", "there"}, time.Now())
 				return &q
 			}(),
 			receivers: func(ctx context.Context, _ *testing.T) (context.Context, chan<- string, func() []string) {

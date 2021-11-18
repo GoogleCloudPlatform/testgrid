@@ -196,7 +196,7 @@ func (cs *configSnapshot) update(ctx context.Context, log logrus.FieldLogger, cl
 	defer cs.lock.Unlock()
 	cs.dashboards = namedDashboards
 	cs.groups = namedGroups
-	q.Init(cfg.Dashboards, when)
+	q.Init(log, cfg.Dashboards, when)
 	if err := q.FixAll(whens, false); err != nil {
 		log.WithError(err).Error("Failed to fix all dashboards based on last update time")
 	}
