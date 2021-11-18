@@ -566,8 +566,8 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 }
 
 var (
-	byteCeiling int = 10e6 // 10mb, var so testing can change
-	cellCeiling int = 1e6  // 1mb, var so testing can change
+	byteCeiling int = 2e6 // 2mb, var so testing can change
+	cellCeiling int = 1e6 // 1mb, var so testing can change
 )
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
