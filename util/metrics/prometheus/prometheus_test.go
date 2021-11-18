@@ -18,6 +18,7 @@ package prometheus
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -55,7 +56,7 @@ func TestInt64Set(t *testing.T) {
 			},
 		},
 		{
-			name:   "values",
+			name:   "serial values",
 			fields: []string{"component"},
 			sets: []map[int64][]string{
 				{64: {"updater"}},
@@ -66,28 +67,23 @@ func TestInt64Set(t *testing.T) {
 			},
 		},
 		{
-			name:   "fields and values",
-			fields: []string{"component", "source"},
-			sets: []map[int64][]string{
-				{64: {"updater", "prow"}},
-				{32: {"updater", "prow"}},
-			},
-			want: map[string]float64{
-				"updater|prow": float64(32),
-			},
-		},
-		{
 			name:   "complex",
 			fields: []string{"component", "source"},
 			sets: []map[int64][]string{
-				{64: {"updater", "prow"}},
-				{66: {"updater", "google"}},
-				{32: {"summarizer", "google"}},
+				{
+					64: {"updater", "prow"},
+					66: {"updater", "google"},
+					32: {"summarizer", "google"},
+				},
+				{
+					64: {"updater", "prow"},
+					22: {"summarizer", "google"},
+				},
 			},
 			want: map[string]float64{
 				"updater|prow":      float64(64),
 				"updater|google":    float64(66),
-				"summarizer|google": float64(32),
+				"summarizer|google": float64(22),
 			},
 		},
 	}
@@ -96,10 +92,17 @@ func TestInt64Set(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mName := strings.Replace(tc.name, " ", "_", -1) + "_int"
 			m := NewInt64(mName, "fake desc", tc.fields...)
+			var wg sync.WaitGroup
 			for _, set := range tc.sets {
 				for n, fields := range set {
-					m.Set(n, fields...)
+					wg.Add(1)
+					go func(n int64, fields []string) {
+						m.Set(n, fields...)
+						m.(Valuer).Values() // Set and Values must be able to run concurrently
+						wg.Done()
+					}(n, fields)
 				}
+				wg.Wait()
 			}
 			got := m.(Valuer).Values()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
@@ -143,14 +146,17 @@ func TestCounterAdd(t *testing.T) {
 			},
 		},
 		{
-			name:   "values",
+			name:   "concurrent values",
 			fields: []string{"component"},
 			adds: []map[int64][]string{
-				{64: {"updater"}},
+				{
+					32: {"updater"},
+					64: {"updater"},
+				},
 				{32: {"updater"}},
 			},
 			want: map[string]float64{
-				"updater": float64(64 + 32),
+				"updater": float64(32 + 32 + 64),
 			},
 		},
 		{
@@ -168,14 +174,17 @@ func TestCounterAdd(t *testing.T) {
 			name:   "complex",
 			fields: []string{"component", "source"},
 			adds: []map[int64][]string{
-				{64: {"updater", "prow"}},
-				{66: {"updater", "google"}},
-				{32: {"summarizer", "google"}},
+				{
+					64: {"updater", "prow"},
+					66: {"updater", "google"},
+					32: {"summarizer", "google"},
+					22: {"summarizer", "google"},
+				},
 			},
 			want: map[string]float64{
 				"updater|prow":      float64(64),
 				"updater|google":    float64(66),
-				"summarizer|google": float64(32),
+				"summarizer|google": float64(32 + 22),
 			},
 		},
 	}
@@ -184,10 +193,17 @@ func TestCounterAdd(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mName := strings.Replace(tc.name, " ", "_", -1) + "_counter"
 			m := NewCounter(mName, "fake desc", tc.fields...)
+			var wg sync.WaitGroup
 			for _, add := range tc.adds {
 				for n, values := range add {
-					m.Add(n, values...)
+					wg.Add(1)
+					go func(n int64, values []string) {
+						m.Add(n, values...)
+						m.(Valuer).Values() // Add and Values must be able to run concurrently
+						wg.Done()
+					}(n, values)
 				}
+				wg.Wait()
 			}
 			got := m.(Valuer).Values()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
