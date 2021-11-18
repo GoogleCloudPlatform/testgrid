@@ -388,7 +388,7 @@ func Test_MergeAndUpdate(t *testing.T) {
 				})
 			}
 
-			_, resultErr := MergeAndUpdate(context.Background(), &client, mergeList, tc.skipValidate, tc.confirm)
+			_, resultErr := MergeAndUpdate(context.Background(), &client, nil, mergeList, tc.skipValidate, tc.confirm)
 
 			if tc.expectUpload && !client.uploaded {
 				t.Errorf("Expected upload, but there was none")

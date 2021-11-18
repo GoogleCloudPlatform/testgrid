@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
@@ -160,7 +161,10 @@ func main() {
 
 	groupUpdater := updater.GCS(client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 
-	mets := setupMetrics()
+	mets := updater.CreateMetrics(metrics.Factory{
+		NewInt64:   prometheus.NewInt64,
+		NewCounter: prometheus.NewCounter,
+	})
 
 	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(opt.creds))
 	if err != nil {
@@ -173,16 +177,5 @@ func main() {
 
 	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not update")
-	}
-}
-
-func setupMetrics() *updater.Metrics {
-	const component = "component"
-	return &updater.Metrics{
-		Successes:    prometheus.NewCounter("successes", "Number of successful updates", component),
-		Errors:       prometheus.NewCounter("errors", "Number of failed updates", component),
-		Skips:        prometheus.NewCounter("skips", "Number of skipped updated", component),
-		DelaySeconds: prometheus.NewInt64("delay", "Seconds updater is behind schedule", component),
-		CycleSeconds: prometheus.NewInt64("cycle", "Seconds updater takes to update a group", component),
 	}
 }

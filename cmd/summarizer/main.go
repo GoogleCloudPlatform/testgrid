@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
@@ -127,20 +128,15 @@ func main() {
 	}
 
 	client := gcs.NewClient(storageClient)
-	mets := setupMetrics()
+	metrics := summarizer.CreateMetrics(metrics.Factory{
+		NewInt64:   prometheus.NewInt64,
+		NewCounter: prometheus.NewCounter,
+	})
 	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
-	if err := summarizer.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.wait, fixer); err != nil {
+	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.gridPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.wait, fixer); err != nil {
 		logrus.WithError(err).Error("Could not summarize")
-	}
-}
-
-func setupMetrics() *summarizer.Metrics {
-	const component = "component"
-	return &summarizer.Metrics{
-		Successes: prometheus.NewCounter("successes", "Number of successful updates", component),
-		Errors:    prometheus.NewCounter("errors", "Number of failed updates", component),
 	}
 }
