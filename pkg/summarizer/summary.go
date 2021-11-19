@@ -239,14 +239,24 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}()
 	}
 
+	var active stringset.Set
+	var waiting stringset.Set
+	var lock sync.Mutex
+
 	go func() {
 		var cond storage.Conditions
 		cond.GenerationNotMatch = cfgAttrs.Generation
 		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
 		for {
+			lock.Lock()
+			activeDashboards := active.Elements()
+			lock.Unlock()
 
 			depth, next, when := q.Status()
-			log := log.WithField("depth", depth)
+			log := log.WithFields(logrus.Fields{
+				"depth":  depth,
+				"active": activeDashboards,
+			})
 			if next != nil {
 				log = log.WithField("next", *next)
 			}
@@ -330,17 +340,36 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			defer wg.Done()
-			// TODO(fejta): sort by last modified
 			for dashName := range dashboardNames {
+				lock.Lock()
+				start := active.Add(dashName)
+				if !start {
+					waiting.Add(dashName)
+				}
+				lock.Unlock()
+				if !start {
+					continue
+				}
+
 				log := log.WithField("dashboard", dashName)
 				finish := mets.Summarize.Start()
 				if err := updateName(log, dashName); err != nil {
+					q.Fix(dashName, time.Now().Add(freq/2), false)
 					finish.Fail()
 					log.WithError(err).Error("Failed to summarize dashboard")
 				} else {
 					finish.Success()
 					log.Info("Summarized dashboard")
 				}
+
+				lock.Lock()
+				active.Discard(dashName)
+				restart := waiting.Discard(dashName)
+				lock.Unlock()
+				if restart {
+					q.Fix(dashName, time.Now(), false)
+				}
+
 			}
 		}()
 	}
