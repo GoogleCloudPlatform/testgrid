@@ -53,6 +53,7 @@ type Metrics struct {
 	DelaySeconds metrics.Int64
 }
 
+// CreateMetrics creates metrics for this controller
 func CreateMetrics(factory metrics.Factory) *Metrics {
 	return &Metrics{
 		UpdateState:  factory.NewCyclic(componentName),

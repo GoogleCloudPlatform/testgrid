@@ -26,7 +26,6 @@ import (
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
@@ -94,7 +93,7 @@ type Metrics struct {
 func CreateMetrics(factory metrics.Factory) *Metrics {
 	return &Metrics{
 		Update: factory.NewCyclic(componentName),
-		Fields: prometheus.NewInt64("config_fields", "Config field usage by name", "component", "field"),
+		Fields: factory.NewInt64("config_fields", "Config field usage by name", "component", "field"),
 	}
 }
 
