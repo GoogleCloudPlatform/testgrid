@@ -48,21 +48,14 @@ import (
 
 // Metrics holds metrics relevant to the Updater.
 type Metrics struct {
-	Successes metrics.Counter
-	Errors    metrics.Counter
+	Summarize metrics.Cyclic
 }
 
-// Error increments the counter for failed updates.
-func (mets *Metrics) Error() {
-	if mets.Errors != nil {
-		mets.Errors.Add(1, "summarizer")
-	}
-}
-
-// Success increments the counter for successful updates.
-func (mets *Metrics) Success() {
-	if mets.Successes != nil {
-		mets.Successes.Add(1, "summarizer")
+// CreateMetrics creates all the metrics that the Summarizer will use
+// This should be called once
+func CreateMetrics(factory metrics.Factory) *Metrics {
+	return &Metrics{
+		Summarize: factory.NewCyclic("summarizer"),
 	}
 }
 
@@ -340,11 +333,12 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			// TODO(fejta): sort by last modified
 			for dashName := range dashboardNames {
 				log := log.WithField("dashboard", dashName)
+				finish := mets.Summarize.Start()
 				if err := updateName(log, dashName); err != nil {
-					mets.Error()
+					finish.Fail()
 					log.WithError(err).Error("Failed to summarize dashboard")
 				} else {
-					mets.Success()
+					finish.Success()
 					log.Info("Summarized dashboard")
 				}
 			}

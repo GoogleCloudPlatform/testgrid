@@ -17,6 +17,8 @@ limitations under the License.
 // Package metrics provides metric reporting for TestGrid components.
 package metrics
 
+import "time"
+
 // Metric contains common metric functions.
 type Metric interface {
 	Name() string
@@ -32,4 +34,80 @@ type Int64 interface {
 type Counter interface {
 	Metric
 	Add(int64, ...string)
+}
+
+// Factory is a collection of functions that create metrics
+type Factory struct {
+	NewInt64   func(name, desc string, fields ...string) Int64
+	NewCounter func(name, desc string, fields ...string) Counter
+}
+
+// NewCyclic derives a cycle metric from the given metrics
+func (f Factory) NewCyclic(componentName string) Cyclic {
+	fields := []string{"component"}
+	return Cyclic{
+		errors:       f.NewCounter("errors", "Number of failed updates", fields...),
+		skips:        f.NewCounter("skips", "Number of skipped updates", fields...),
+		successes:    f.NewCounter("successes", "Number of successful updates", fields...),
+		cycleSeconds: f.NewInt64("cycle", "Seconds required to complete an update", fields...),
+		fields:       []string{componentName},
+	}
+}
+
+// Cyclic is a collection of metrics that measures how long a task takes to complete
+type Cyclic struct {
+	fields       []string
+	errors       Counter
+	skips        Counter
+	successes    Counter
+	cycleSeconds Int64
+}
+
+// Start returns a PeriodicReporter that logs metrics when one of its methods are called.
+func (p *Cyclic) Start() *CycleReporter {
+	if p == nil {
+		return nil
+	}
+	return &CycleReporter{metric: p, when: time.Now()}
+}
+
+// CycleReporter reports the status of the task that spawned it and how long it took.
+type CycleReporter struct {
+	metric *Cyclic
+	when   time.Time
+}
+
+func (pr *CycleReporter) done() {
+	if pr == nil || pr.metric.cycleSeconds == nil {
+		return
+	}
+	seconds := int64(time.Since(pr.when).Seconds())
+	pr.metric.cycleSeconds.Set(seconds, pr.metric.fields...)
+}
+
+// Success reports success
+func (pr *CycleReporter) Success() {
+	pr.done()
+	if pr == nil || pr.metric.successes == nil {
+		return
+	}
+	pr.metric.successes.Add(1, pr.metric.fields...)
+}
+
+// Fail reports a failure or unexpected error
+func (pr *CycleReporter) Fail() {
+	pr.done()
+	if pr == nil || pr.metric.errors == nil {
+		return
+	}
+	pr.metric.errors.Add(1, pr.metric.fields...)
+}
+
+// Skip reports a cycle that was skipped due to an expected condition, flag, or configuration
+func (pr *CycleReporter) Skip() {
+	pr.done()
+	if pr == nil || pr.metric.skips == nil {
+		return
+	}
+	pr.metric.skips.Add(1, pr.metric.fields...)
 }

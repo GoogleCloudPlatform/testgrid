@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/merger"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 
 	"github.com/sirupsen/logrus"
@@ -109,29 +109,20 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 
-	cycle := prometheus.NewInt64("cycle_duration", "Duration required for a component to complete one cycle (in seconds)", "component")
-	successes := prometheus.NewCounter("successes", "Number of successful updates", "component")
-	errors := prometheus.NewCounter("errors", "Number of failed updates", "component")
-	fields := prometheus.NewInt64("fields", "Config field usage by name", "component", "field")
+	mets := merger.CreateMetrics(metrics.Factory{
+		NewInt64:   prometheus.NewInt64,
+		NewCounter: prometheus.NewCounter,
+	})
 
 	updateOnce := func(ctx context.Context) {
-		start := time.Now()
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 		log.Info("Starting MergeAndUpdate")
-		result, err := merger.MergeAndUpdate(ctx, client, list, opt.skipValidate, opt.confirm)
-		cycle.Set(int64(time.Since(start).Seconds()), componentName)
+		_, err := merger.MergeAndUpdate(ctx, client, mets, list, opt.skipValidate, opt.confirm)
 		if err != nil {
 			log.WithError(err).Error("Update failed")
-			errors.Add(1, componentName)
 			return
 		}
-		successes.Add(1, componentName)
-		f := config.Fields(result)
-		for name, qty := range f {
-			fields.Set(qty, componentName, name)
-		}
-		log.Info("Update successful")
 	}
 
 	updateOnce(ctx)

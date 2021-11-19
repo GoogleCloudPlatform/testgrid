@@ -49,52 +49,15 @@ const componentName = "updater"
 
 // Metrics holds metrics relevant to the Updater.
 type Metrics struct {
-	Errors       metrics.Counter
-	Skips        metrics.Counter
-	Successes    metrics.Counter
+	UpdateState  metrics.Cyclic
 	DelaySeconds metrics.Int64
-	CycleSeconds metrics.Int64
 }
 
-type finish struct {
-	m    *Metrics
-	when time.Time
-}
-
-func (f finish) done() {
-	seconds := int64(time.Since(f.when).Seconds())
-	f.m.CycleSeconds.Set(seconds, componentName)
-}
-
-func (f *finish) skip() {
-	if f == nil {
-		return
+func CreateMetrics(factory metrics.Factory) *Metrics {
+	return &Metrics{
+		UpdateState:  factory.NewCyclic(componentName),
+		DelaySeconds: factory.NewInt64("delay", "Seconds updater is behind schedule", "component"),
 	}
-	f.done()
-	f.m.Skips.Add(1, componentName)
-}
-
-func (f *finish) fail() {
-	if f == nil {
-		return
-	}
-	f.done()
-	f.m.Errors.Add(1, componentName)
-}
-
-func (f *finish) success() {
-	if f == nil {
-		return
-	}
-	f.done()
-	f.m.Successes.Add(1, componentName)
-}
-
-func (mets *Metrics) start() *finish {
-	if mets == nil {
-		return nil
-	}
-	return &finish{mets, time.Now()}
 }
 
 func (mets *Metrics) delay(dur time.Duration) {
@@ -104,6 +67,13 @@ func (mets *Metrics) delay(dur time.Duration) {
 
 	seconds := int64(dur.Seconds())
 	mets.DelaySeconds.Set(seconds, componentName)
+}
+
+func (mets *Metrics) start() *metrics.CycleReporter {
+	if mets == nil {
+		return nil
+	}
+	return mets.UpdateState.Start()
 }
 
 // GroupUpdater will compile the grid state proto for the specified group and upload it.
@@ -380,7 +350,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		fin := mets.start()
 		tgp, err := testGroupPath(configPath, gridPrefix, name)
 		if err != nil {
-			fin.fail()
+			fin.Fail()
 			log.WithError(err).Error("Bad path")
 			return
 		}
@@ -401,10 +371,10 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		if err != nil {
 			log := log.WithError(err)
 			if gcs.IsPreconditionFailed(err) {
-				fin.skip()
+				fin.Skip()
 				log.Info("Group was modified while updating")
 			} else {
-				fin.fail()
+				fin.Fail()
 				log.Error("Failed to update group")
 			}
 			var delay time.Duration
@@ -415,7 +385,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			}
 			return
 		}
-		fin.success()
+		fin.Success()
 		if unprocessed { // process another chunk ASAP
 			q.Fix(name, time.Now(), false)
 		}

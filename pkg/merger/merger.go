@@ -25,11 +25,15 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
+	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
+
+const componentName = "config-merger"
 
 // MergeList is a list of config sources to merge together
 // ParseAndCheck will construct this from a YAML document
@@ -80,6 +84,20 @@ func ParseAndCheck(data []byte) (list MergeList, err error) {
 	return
 }
 
+// Metrics holds metrics relevant to the config merger.
+type Metrics struct {
+	Update metrics.Cyclic
+	Fields metrics.Int64
+}
+
+// CreateMetrics creates metrics for the Config Merger
+func CreateMetrics(factory metrics.Factory) *Metrics {
+	return &Metrics{
+		Update: factory.NewCyclic(componentName),
+		Fields: prometheus.NewInt64("config_fields", "Config field usage by name", "component", "field"),
+	}
+}
+
 type mergeClient interface {
 	gcs.Opener
 	gcs.Uploader
@@ -89,9 +107,14 @@ type mergeClient interface {
 // Puts the result at targetPath if confirm is true
 // Will skip an input config if it is invalid and skipValidate is false
 // Other problems are considered fatal and will return an error
-func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, skipValidate, confirm bool) (*configpb.Configuration, error) {
+func MergeAndUpdate(ctx context.Context, client mergeClient, mets *Metrics, list MergeList, skipValidate, confirm bool) (*configpb.Configuration, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	var finish *metrics.CycleReporter
+	if mets != nil {
+		finish = mets.Update.Start()
+	}
 
 	// TODO: Cache the version for each source. Only read if they've changed.
 	shards := map[string]*configpb.Configuration{}
@@ -102,6 +125,7 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, ski
 
 	for _, source := range list.Sources {
 		if source.Path == nil {
+			finish.Skip()
 			return nil, fmt.Errorf("path at %q is nil", source.Name)
 		}
 
@@ -140,31 +164,46 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, list MergeList, ski
 	wg.Wait()
 
 	if fatal != nil {
+		finish.Fail()
 		return nil, fatal
 	}
 	if len(shards) == 0 {
+		finish.Skip()
 		return nil, errors.New("no configs to merge")
 	}
 
-	// Merge and marshal the result
+	// Merge and output the result
 	result, err := config.Converge(shards)
 	if err != nil {
+		finish.Fail()
 		return result, fmt.Errorf("can't merge configurations: %w", err)
 	}
 
 	if !confirm {
 		fmt.Println(result)
+		finish.Success()
 		return result, nil
+	}
+
+	// Log each field as a metric
+	if mets != nil {
+		f := config.Fields(result)
+		for name, qty := range f {
+			mets.Fields.Set(qty, componentName, name)
+		}
 	}
 
 	buf, err := proto.Marshal(result)
 	if err != nil {
+		finish.Fail()
 		return result, fmt.Errorf("can't marshal merged proto: %w", err)
 	}
 
 	if _, err := client.Upload(ctx, *list.Path, buf, gcs.DefaultACL, "no-cache"); err != nil {
+		finish.Fail()
 		return result, fmt.Errorf("can't upload merged proto to %s: %w", list.Path, err)
 	}
 
+	finish.Success()
 	return result, nil
 }

@@ -417,17 +417,10 @@ func TestUpdate(t *testing.T) {
 			if tc.groupUpdater == nil {
 				tc.groupUpdater = GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
 			}
-			mets := &Metrics{
-				Successes:    &fakeCounter{},
-				Errors:       &fakeCounter{},
-				Skips:        &fakeCounter{},
-				DelaySeconds: &fakeInt64{},
-				CycleSeconds: &fakeInt64{},
-			}
 			err := Update(
 				ctx,
 				client,
-				mets,
+				nil, // metric
 				configPath,
 				tc.gridPrefix,
 				tc.groupConcurrency,
@@ -449,39 +442,8 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Update() uploaded files got unexpected diff (-want, +got):\n%s", diff)
 				}
 			}
-
-			// Check that metrics also report.
-			if want, got := int64(tc.successes), mets.Successes.(*fakeCounter).total; want != got {
-				t.Errorf("Update() has wrong number of successful updates; want %d, got %d", want, got)
-			}
-			if want, got := int64(tc.errors), mets.Errors.(*fakeCounter).total; want != got {
-				t.Errorf("Update() has wrong number of failed updates; want %d, got %d", want, got)
-			}
-			if want, got := int64(tc.skips), mets.Skips.(*fakeCounter).total; want != got {
-				t.Errorf("Update() has wrong number of skipped updates; want %d, got %d", want, got)
-			}
 		})
 	}
-}
-
-type fakeInt64 struct {
-	values []int64
-}
-
-func (fi *fakeInt64) Name() string { return "fake-int64" }
-
-func (fi *fakeInt64) Set(n int64, _ ...string) {
-	fi.values = append(fi.values, n)
-}
-
-type fakeCounter struct {
-	total int64
-}
-
-func (fc *fakeCounter) Name() string { return "fake-counter" }
-
-func (fc *fakeCounter) Add(n int64, _ ...string) {
-	fc.total += n
 }
 
 func TestTestGroupPath(t *testing.T) {
