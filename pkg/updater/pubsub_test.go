@@ -68,6 +68,7 @@ func (s *fakeSubscriber) Subscribe(proj, sub string, _ *gpubsub.ReceiveSettings)
 }
 
 func TestFixGCS(t *testing.T) {
+	log := logrus.WithField("test", "TestFixGCS")
 	now := time.Now().Round(time.Second)
 	cases := []struct {
 		name       string
@@ -82,7 +83,9 @@ func TestFixGCS(t *testing.T) {
 		{
 			name: "empty",
 			q: func([]*configpb.TestGroup) *config.TestGroupQueue {
-				return &config.TestGroupQueue{}
+				var q config.TestGroupQueue
+				q.Init(log, nil, now.Add(time.Hour))
+				return &q
 			},
 			subscriber: &fakeSubscriber{},
 		},
@@ -90,7 +93,7 @@ func TestFixGCS(t *testing.T) {
 			name: "basic",
 			q: func(groups []*configpb.TestGroup) *config.TestGroupQueue {
 				var q config.TestGroupQueue
-				q.Init(groups, now.Add(time.Hour))
+				q.Init(log, groups, now.Add(time.Hour))
 				return &q
 			},
 			subscriber: &fakeSubscriber{
@@ -346,6 +349,7 @@ func TestGCSSubscribedPaths(t *testing.T) {
 }
 
 func TestProcessGCSNotifications(t *testing.T) {
+	log := logrus.WithField("test", "TestProcessGCSNotifications")
 	mustPath := func(s string) gcs.Path {
 		p, err := gcs.NewPath(s)
 		if err != nil {
@@ -379,7 +383,7 @@ func TestProcessGCSNotifications(t *testing.T) {
 			name: "basic",
 			q: func() *config.TestGroupQueue {
 				var q config.TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hello",
 					},
@@ -411,7 +415,7 @@ func TestProcessGCSNotifications(t *testing.T) {
 			name: "historical", // set floor
 			q: func() *config.TestGroupQueue {
 				var q config.TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hello",
 					},
@@ -443,7 +447,7 @@ func TestProcessGCSNotifications(t *testing.T) {
 			name: "multi",
 			q: func() *config.TestGroupQueue {
 				var q config.TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hello",
 					},
@@ -475,7 +479,7 @@ func TestProcessGCSNotifications(t *testing.T) {
 			name: "unchanged",
 			q: func() *config.TestGroupQueue {
 				var q config.TestGroupQueue
-				q.Init([]*configpb.TestGroup{
+				q.Init(log, []*configpb.TestGroup{
 					{
 						Name: "hello",
 					},

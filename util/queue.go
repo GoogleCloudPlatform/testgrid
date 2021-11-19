@@ -37,10 +37,11 @@ type Queue struct {
 	items  map[string]*item
 	lock   sync.RWMutex
 	signal chan struct{}
+	log    logrus.FieldLogger
 }
 
 // Init (or reinit) the queue with the specified groups, which should be updated at frequency.
-func (q *Queue) Init(names []string, when time.Time) {
+func (q *Queue) Init(log logrus.FieldLogger, names []string, when time.Time) {
 	n := len(names)
 	found := make(map[string]bool, n)
 
@@ -60,6 +61,7 @@ func (q *Queue) Init(names []string, when time.Time) {
 	}
 	items := q.items
 
+	q.log = log
 	for _, name := range names {
 		found[name] = true
 		if _, ok := items[name]; ok {
@@ -72,7 +74,7 @@ func (q *Queue) Init(names []string, when time.Time) {
 		}
 		heap.Push(&q.queue, it)
 		items[name] = it
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(logrus.Fields{
 			"when": when,
 			"name": name,
 		}).Info("Adding name to queue")
@@ -82,7 +84,7 @@ func (q *Queue) Init(names []string, when time.Time) {
 		if found[name] {
 			continue
 		}
-		logrus.WithField("name", name).Info("Removing name from queue")
+		log.WithField("name", name).Info("Removing name from queue")
 		heap.Remove(&q.queue, it.index)
 		delete(q.items, name)
 	}
@@ -116,7 +118,7 @@ func (q *Queue) FixAll(whens map[string]time.Time, later bool) error {
 		}
 		it.when = when
 	}
-	var log logrus.FieldLogger = logrus.New()
+	log := q.log
 	var any bool
 	if n := len(reduced); n > 0 {
 		log = log.WithField("reduced", n)
@@ -149,7 +151,7 @@ func (q *Queue) Fix(name string, when time.Time, later bool) error {
 	if !ok {
 		return errors.New("not found")
 	}
-	log := logrus.WithFields(logrus.Fields{
+	log := q.log.WithFields(logrus.Fields{
 		"group": name,
 		"when":  when,
 	})
@@ -187,7 +189,7 @@ func (q *Queue) rouse() {
 }
 
 func (q *Queue) sleep(d time.Duration) {
-	log := logrus.WithFields(logrus.Fields{
+	log := q.log.WithFields(logrus.Fields{
 		"seconds": d.Round(100 * time.Millisecond).Seconds(),
 	})
 	if d > 5*time.Second {

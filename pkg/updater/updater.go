@@ -190,7 +190,7 @@ func (fixer lastUpdated) fixOnce(ctx context.Context, log logrus.FieldLogger, q 
 		}
 	}
 	wg.Wait()
-	q.Init(groups, time.Now().Add(fixer.freq))
+	q.Init(log, groups, time.Now().Add(fixer.freq))
 	q.FixAll(updates, false)
 	return nil
 }
@@ -252,7 +252,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		return fmt.Errorf("test groups: %v", err)
 	}
 
-	q.Init(groups, time.Now().Add(freq))
+	q.Init(log, groups, time.Now().Add(freq))
 
 	log.Debug("Fetching initial start times...")
 	fixLastUpdated := lastUpdated{
@@ -292,6 +292,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		for {
 			depth, next, when := q.Status()
 			log := log.WithField("depth", depth)
+			qLog := log
 			if next != nil {
 				log = log.WithField("next", next.Name)
 			}
@@ -318,7 +319,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 					log.Trace("Cancelling fixers on old test groups...")
 					fixCancel()
 					fixWg.Wait()
-					q.Init(groups, time.Now().Add(freq))
+					q.Init(qLog, groups, time.Now().Add(freq))
 					log.Debug("Canceled fixers on old test groups")
 					fixCtx, fixCancel = context.WithCancel(ctx)
 					fixAll()

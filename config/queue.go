@@ -24,6 +24,7 @@ import (
 	"bitbucket.org/creachadair/stringset"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util"
+	"github.com/sirupsen/logrus"
 )
 
 // DashboardQueue sends dashboard names at a specific frequency.
@@ -36,7 +37,7 @@ type DashboardQueue struct {
 }
 
 // Init (or reinit) the queue with the specified configuration.
-func (q *DashboardQueue) Init(dashboards []*configpb.Dashboard, when time.Time) {
+func (q *DashboardQueue) Init(log logrus.FieldLogger, dashboards []*configpb.Dashboard, when time.Time) {
 	n := len(dashboards)
 	names := make([]string, n)
 	namedDashboards := make(map[string]*configpb.Dashboard, n)
@@ -53,7 +54,7 @@ func (q *DashboardQueue) Init(dashboards []*configpb.Dashboard, when time.Time) 
 		}
 	}
 	q.lock.Lock()
-	q.Queue.Init(names, when)
+	q.Queue.Init(log, names, when)
 	q.dashboards = namedDashboards
 	q.groups = groups
 	q.lock.Unlock()
@@ -88,7 +89,7 @@ type TestGroupQueue struct {
 }
 
 // Init (or reinit) the queue with the specified groups, which should be updated at frequency.
-func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) {
+func (q *TestGroupQueue) Init(log logrus.FieldLogger, testGroups []*configpb.TestGroup, when time.Time) {
 	n := len(testGroups)
 	groups := make(map[string]*configpb.TestGroup, n)
 	names := make([]string, n)
@@ -100,7 +101,7 @@ func (q *TestGroupQueue) Init(testGroups []*configpb.TestGroup, when time.Time) 
 	}
 
 	q.lock.Lock()
-	q.Queue.Init(names, when)
+	q.Queue.Init(log, names, when)
 	q.groups = groups
 	q.lock.Unlock()
 }
