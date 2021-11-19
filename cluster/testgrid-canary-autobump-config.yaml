@@ -3,6 +3,7 @@ gitHubLogin: "google-oss-robot"
 gitHubToken: "/etc/github-token/oauth"
 onCallAddress: "https://storage.googleapis.com/kubernetes-jenkins/oncall.json"
 skipPullRequest: false
+skipOncallAssignment: true
 gitHubOrg: "GoogleCloudPlatform"
 gitHubRepo: "testgrid"
 remoteName: "testgrid"
