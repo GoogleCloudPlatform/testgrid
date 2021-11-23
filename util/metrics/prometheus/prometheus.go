@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,13 +28,21 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+func NewFactory() metrics.Factory {
+	return metrics.Factory{
+		NewInt64:    NewInt64,
+		NewCounter:  NewCounter,
+		NewDuration: NewDuration,
+	}
+}
+
 // Valuer extends a metric to include a report on its values.
 type Valuer interface {
 	metrics.Metric
 	Values() map[string]float64
 }
 
-type int64Metric struct {
+type gaugeMetric struct {
 	name   string
 	fields map[string]bool
 	met    *prometheus.GaugeVec
@@ -55,7 +64,7 @@ func NewInt64(name, desc string, fields ...string) metrics.Int64 {
 		Help: desc,
 	}, fields)
 	prometheus.MustRegister(m)
-	return &int64Metric{
+	return &gaugeMetric{
 		name:   name,
 		fields: map[string]bool{},
 		met:    m,
@@ -63,12 +72,12 @@ func NewInt64(name, desc string, fields ...string) metrics.Int64 {
 }
 
 // Name returns the metric's name.
-func (m *int64Metric) Name() string {
+func (m *gaugeMetric) Name() string {
 	return m.name
 }
 
 // Set the metric's value to the given number.
-func (m *int64Metric) Set(n int64, fields ...string) {
+func (m *gaugeMetric) Set(n int64, fields ...string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.met.WithLabelValues(fields...).Set(float64(n))
@@ -84,7 +93,7 @@ func gaugeValue(metric *prometheus.GaugeVec, labels ...string) float64 {
 }
 
 // Values returns each field and its current value.
-func (m *int64Metric) Values() map[string]float64 {
+func (m *gaugeMetric) Values() map[string]float64 {
 	values := map[string]float64{}
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -147,4 +156,27 @@ func (m *counterMetric) Values() map[string]float64 {
 		values[fieldStr] = counterValue(m.met, fields...)
 	}
 	return values
+}
+
+// Clock sets the metric's value to the given duration in seconds
+func (m *gaugeMetric) Clock(t time.Duration, fields ...string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.met.WithLabelValues(fields...).Set(t.Seconds())
+	m.fields[strings.Join(fields, "|")] = true
+}
+
+// NewDuration returns a prometheus-implemented duration metric
+// A GagueVec is used instead of a SummaryVec since it shows changes in duration over time more clearly
+func NewDuration(name, desc string, fields ...string) metrics.Duration {
+	m := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: name,
+		Help: desc,
+	}, fields)
+	prometheus.MustRegister(m)
+	return &gaugeMetric{
+		name:   name,
+		fields: map[string]bool{},
+		met:    m,
+	}
 }

@@ -50,14 +50,14 @@ const componentName = "updater"
 // Metrics holds metrics relevant to the Updater.
 type Metrics struct {
 	UpdateState  metrics.Cyclic
-	DelaySeconds metrics.Int64
+	DelaySeconds metrics.Duration
 }
 
 // CreateMetrics creates metrics for this controller
 func CreateMetrics(factory metrics.Factory) *Metrics {
 	return &Metrics{
 		UpdateState:  factory.NewCyclic(componentName),
-		DelaySeconds: factory.NewInt64("delay", "Seconds updater is behind schedule", "component"),
+		DelaySeconds: factory.NewDuration("delay", "Seconds updater is behind schedule", "component"),
 	}
 }
 
@@ -65,9 +65,7 @@ func (mets *Metrics) delay(dur time.Duration) {
 	if mets == nil {
 		return
 	}
-
-	seconds := int64(dur.Seconds())
-	mets.DelaySeconds.Set(seconds, componentName)
+	mets.DelaySeconds.Clock(dur, componentName)
 }
 
 func (mets *Metrics) start() *metrics.CycleReporter {

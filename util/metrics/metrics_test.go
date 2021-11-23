@@ -27,7 +27,7 @@ func TestCyclic(t *testing.T) {
 	testcases := []struct {
 		name          string
 		method        func(Cyclic)
-		expectSeconds int64
+		expectSeconds time.Duration
 		expectFails   int64
 		expectSuccess int64
 		expectSkips   int64
@@ -39,7 +39,7 @@ func TestCyclic(t *testing.T) {
 				time.Sleep(1 * time.Second)
 				fin.Success()
 			},
-			expectSeconds: 1,
+			expectSeconds: 1 * time.Second,
 			expectSuccess: 1,
 		},
 		{
@@ -49,16 +49,18 @@ func TestCyclic(t *testing.T) {
 				time.Sleep(2 * time.Second)
 				fin.Fail()
 			},
-			expectSeconds: 2,
+			expectSeconds: 2 * time.Second,
 			expectFails:   1,
 		},
 		{
 			name: "skips",
 			method: func(c Cyclic) {
 				fin := c.Start()
+				time.Sleep(200 * time.Millisecond)
 				fin.Skip()
 			},
-			expectSkips: 1,
+			expectSeconds: 200 * time.Millisecond,
+			expectSkips:   1,
 		},
 		{
 			name: "counting",
@@ -78,14 +80,16 @@ func TestCyclic(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			var errorCounter, skipCounter, successCounter FakeCounter
-			cycleInt64 := FakeInt64{read: true}
+			cycleDuration := FakeDuration{read: true}
 
 			cyclic := Cyclic{
 				errors:       &errorCounter,
 				skips:        &skipCounter,
 				successes:    &successCounter,
-				cycleSeconds: &cycleInt64,
+				cycleSeconds: &cycleDuration,
 			}
+
+			fudge := 100 * time.Millisecond
 
 			test.method(cyclic)
 
@@ -98,8 +102,9 @@ func TestCyclic(t *testing.T) {
 			if test.expectSuccess != successCounter.count {
 				t.Errorf("Want %d successes, got %d", test.expectSuccess, successCounter.count)
 			}
-			if test.expectSeconds != cycleInt64.last {
-				t.Errorf("Expected %d seconds, got %d", test.expectSeconds, cycleInt64.last)
+
+			if cycleDuration.last < test.expectSeconds || (test.expectSeconds+fudge) < cycleDuration.last {
+				t.Errorf("Expected between %d and %d seconds, got %d", test.expectSeconds, test.expectSeconds+fudge, cycleDuration.last)
 			}
 		})
 	}
@@ -110,13 +115,13 @@ func TestCyclic_TolerateNilCounters(t *testing.T) {
 	for a, errorCounter := range []Counter{nil, &FakeCounter{}} {
 		for b, skipCounter := range []Counter{nil, &FakeCounter{}} {
 			for c, successCounter := range []Counter{nil, &FakeCounter{}} {
-				for d, cycleInt64 := range []Int64{nil, &FakeInt64{}} {
+				for d, cycleDuration := range []Duration{nil, &FakeDuration{}} {
 					t.Run(fmt.Sprintf("Error-%d Skip-%d Success-%d Cycle-%d", a, b, c, d), func(t *testing.T) {
 						cyclic := Cyclic{
 							errors:       errorCounter,
 							skips:        skipCounter,
 							successes:    successCounter,
-							cycleSeconds: cycleInt64,
+							cycleSeconds: cycleDuration,
 						}
 						var wg sync.WaitGroup
 						wg.Add(3)
@@ -161,10 +166,25 @@ type FakeInt64 struct {
 }
 
 func (f *FakeInt64) Name() string {
-	return "FakeCounter"
+	return "FakeInt64"
 }
 
 func (f *FakeInt64) Set(n int64, _ ...string) {
+	if f.read {
+		f.last = n
+	}
+}
+
+type FakeDuration struct {
+	read bool // Fake implementation not concurrent-safe
+	last time.Duration
+}
+
+func (f *FakeDuration) Name() string {
+	return "FakeDuration"
+}
+
+func (f *FakeDuration) Clock(n time.Duration, _ ...string) {
 	if f.read {
 		f.last = n
 	}

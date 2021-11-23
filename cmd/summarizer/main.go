@@ -29,7 +29,6 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
@@ -128,10 +127,7 @@ func main() {
 	}
 
 	client := gcs.NewClient(storageClient)
-	metrics := summarizer.CreateMetrics(metrics.Factory{
-		NewInt64:   prometheus.NewInt64,
-		NewCounter: prometheus.NewCounter,
-	})
+	metrics := summarizer.CreateMetrics(prometheus.NewFactory())
 	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")

@@ -36,10 +36,17 @@ type Counter interface {
 	Add(int64, ...string)
 }
 
+// Duration is a metric describing a length of time
+type Duration interface {
+	Metric
+	Clock(time.Duration, ...string)
+}
+
 // Factory is a collection of functions that create metrics
 type Factory struct {
-	NewInt64   func(name, desc string, fields ...string) Int64
-	NewCounter func(name, desc string, fields ...string) Counter
+	NewInt64    func(name, desc string, fields ...string) Int64
+	NewCounter  func(name, desc string, fields ...string) Counter
+	NewDuration func(name, desc string, fields ...string) Duration
 }
 
 // NewCyclic derives a cycle metric from the given metrics
@@ -49,7 +56,7 @@ func (f Factory) NewCyclic(componentName string) Cyclic {
 		errors:       f.NewCounter("errors", "Number of failed updates", fields...),
 		skips:        f.NewCounter("skips", "Number of skipped updates", fields...),
 		successes:    f.NewCounter("successes", "Number of successful updates", fields...),
-		cycleSeconds: f.NewInt64("cycle", "Seconds required to complete an update", fields...),
+		cycleSeconds: f.NewDuration("cycle_duration", "Seconds required to complete an update", fields...),
 		fields:       []string{componentName},
 	}
 }
@@ -60,7 +67,7 @@ type Cyclic struct {
 	errors       Counter
 	skips        Counter
 	successes    Counter
-	cycleSeconds Int64
+	cycleSeconds Duration
 }
 
 // Start returns a PeriodicReporter that logs metrics when one of its methods are called.
@@ -81,8 +88,7 @@ func (pr *CycleReporter) done() {
 	if pr == nil || pr.metric.cycleSeconds == nil {
 		return
 	}
-	seconds := int64(time.Since(pr.when).Seconds())
-	pr.metric.cycleSeconds.Set(seconds, pr.metric.fields...)
+	pr.metric.cycleSeconds.Clock(time.Since(pr.when), pr.metric.fields...)
 }
 
 // Success reports success
