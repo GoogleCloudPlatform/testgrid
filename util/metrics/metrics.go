@@ -39,7 +39,7 @@ type Counter interface {
 // Duration is a metric describing a length of time
 type Duration interface {
 	Metric
-	Clock(time.Duration, ...string)
+	Set(time.Duration, ...string)
 }
 
 // Factory is a collection of functions that create metrics
@@ -88,7 +88,7 @@ func (pr *CycleReporter) done() {
 	if pr == nil || pr.metric.cycleSeconds == nil {
 		return
 	}
-	pr.metric.cycleSeconds.Clock(time.Since(pr.when), pr.metric.fields...)
+	pr.metric.cycleSeconds.Set(time.Since(pr.when), pr.metric.fields...)
 }
 
 // Success reports success

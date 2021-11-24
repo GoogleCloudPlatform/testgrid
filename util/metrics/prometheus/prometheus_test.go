@@ -287,7 +287,7 @@ func TestDurationSet(t *testing.T) {
 				for n, fields := range set {
 					wg.Add(1)
 					go func(n time.Duration, fields []string) {
-						m.Clock(n, fields...)
+						m.Set(n, fields...)
 						m.(Valuer).Values() // Set and Values must be able to run concurrently
 						wg.Done()
 					}(n, fields)

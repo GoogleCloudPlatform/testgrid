@@ -184,7 +184,7 @@ func (f *FakeDuration) Name() string {
 	return "FakeDuration"
 }
 
-func (f *FakeDuration) Clock(n time.Duration, _ ...string) {
+func (f *FakeDuration) Set(n time.Duration, _ ...string) {
 	if f.read {
 		f.last = n
 	}

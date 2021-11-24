@@ -65,7 +65,7 @@ func (mets *Metrics) delay(dur time.Duration) {
 	if mets == nil {
 		return
 	}
-	mets.DelaySeconds.Clock(dur, componentName)
+	mets.DelaySeconds.Set(dur, componentName)
 }
 
 func (mets *Metrics) start() *metrics.CycleReporter {
