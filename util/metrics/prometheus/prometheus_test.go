@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -208,6 +209,94 @@ func TestCounterAdd(t *testing.T) {
 			got := m.(Valuer).Values()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Add() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDurationSet(t *testing.T) {
+	cases := []struct {
+		name   string
+		fields []string
+		sets   []map[time.Duration][]string
+		want   map[string]float64
+	}{
+		{
+			name: "zero",
+			want: map[string]float64{},
+		},
+		{
+			name:   "basic",
+			fields: []string{"component"},
+			sets: []map[time.Duration][]string{
+				{(1100 * time.Millisecond): {"updater"}},
+			},
+			want: map[string]float64{
+				"updater": float64(1.1),
+			},
+		},
+		{
+			name:   "fields",
+			fields: []string{"component", "source"},
+			sets: []map[time.Duration][]string{
+				{time.Second: {"updater", "prow"}},
+			},
+			want: map[string]float64{
+				"updater|prow": float64(1),
+			},
+		},
+		{
+			name:   "serial values",
+			fields: []string{"component"},
+			sets: []map[time.Duration][]string{
+				{time.Second: {"updater"}},
+				{time.Minute: {"updater"}},
+			},
+			want: map[string]float64{
+				"updater": float64(60),
+			},
+		},
+		{
+			name:   "complex",
+			fields: []string{"component", "source"},
+			sets: []map[time.Duration][]string{
+				{
+					time.Second:      {"updater", "prow"},
+					time.Minute:      {"updater", "google"},
+					time.Millisecond: {"summarizer", "google"},
+				},
+				{
+					time.Second:       {"updater", "prow"},
+					(2 * time.Second): {"summarizer", "google"},
+				},
+			},
+			want: map[string]float64{
+				"updater|prow":      float64(1),
+				"updater|google":    float64(60),
+				"summarizer|google": float64(2),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mName := strings.Replace(tc.name, " ", "_", -1) + "_duration"
+			m := NewDuration(mName, "fake desc", tc.fields...)
+			var wg sync.WaitGroup
+			for _, set := range tc.sets {
+				for n, fields := range set {
+					wg.Add(1)
+					go func(n time.Duration, fields []string) {
+						m.Set(n, fields...)
+						m.(Valuer).Values() // Set and Values must be able to run concurrently
+						wg.Done()
+					}(n, fields)
+				}
+				wg.Wait()
+			}
+			got := m.(Valuer).Values()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Set() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}

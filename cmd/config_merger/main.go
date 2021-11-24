@@ -25,7 +25,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/merger"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 
 	"github.com/sirupsen/logrus"
@@ -109,10 +108,7 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 
-	mets := merger.CreateMetrics(metrics.Factory{
-		NewInt64:   prometheus.NewInt64,
-		NewCounter: prometheus.NewCounter,
-	})
+	mets := merger.CreateMetrics(prometheus.NewFactory())
 
 	updateOnce := func(ctx context.Context) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)

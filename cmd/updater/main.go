@@ -31,7 +31,6 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
@@ -161,10 +160,7 @@ func main() {
 
 	groupUpdater := updater.GCS(client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 
-	mets := updater.CreateMetrics(metrics.Factory{
-		NewInt64:   prometheus.NewInt64,
-		NewCounter: prometheus.NewCounter,
-	})
+	mets := updater.CreateMetrics(prometheus.NewFactory())
 
 	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(opt.creds))
 	if err != nil {
