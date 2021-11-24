@@ -304,18 +304,18 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return groupPath, group, reader, nil
 	}
 
-	updateName := func(log *logrus.Entry, dashName string) error {
+	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 		dash := cfg.dashboard(dashName)
 		log.Debug("Summarizing dashboard")
 		summaryPath, err := summaryPath(configPath, summaryPathPrefix, dashName)
 		if err != nil {
-			return fmt.Errorf("summary path: %v", err)
+			return log, fmt.Errorf("summary path: %v", err)
 		}
 		sum, _, _, err := readSummary(ctx, client, *summaryPath)
 		if err != nil {
-			return fmt.Errorf("read %q: %v", *summaryPath, err)
+			return log, fmt.Errorf("read %q: %v", *summaryPath, err)
 		}
 
 		if sum == nil {
@@ -324,15 +324,30 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 		updateDashboard(ctx, client, dash, sum, findGroup)
 
-		log = log.WithField("path", summaryPath)
+		var healthyTests int
+		var failures int
+		for _, tab := range sum.TabSummaries {
+			failures += len(tab.FailingTestSummaries)
+			if h := tab.Healthiness; h != nil {
+				healthyTests += len(h.Tests)
+			}
+		}
+
+		log = log.WithFields(logrus.Fields{
+			"path":          summaryPath,
+			"tabs":          len(sum.TabSummaries),
+			"failures":      failures,
+			"healthy-tests": healthyTests,
+		})
 		if !confirm {
-			log.WithField("summary", sum).Info("Summarized")
-			return nil
+			return log, nil
 		}
-		if err := writeSummary(ctx, client, *summaryPath, sum); err != nil {
-			return fmt.Errorf("write: %w", err)
+		size, err := writeSummary(ctx, client, *summaryPath, sum)
+		log = log.WithField("bytes", size)
+		if err != nil {
+			return log, fmt.Errorf("write: %w", err)
 		}
-		return nil
+		return log, nil
 	}
 
 	var wg sync.WaitGroup
@@ -353,9 +368,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 				log := log.WithField("dashboard", dashName)
 				finish := mets.Summarize.Start()
-				if err := updateName(log, dashName); err != nil {
-					q.Fix(dashName, time.Now().Add(freq/2), false)
+				if log, err := updateName(log, dashName); err != nil {
 					finish.Fail()
+					q.Fix(dashName, time.Now().Add(freq/2), false)
 					log.WithError(err).Error("Failed to summarize dashboard")
 				} else {
 					finish.Success()
@@ -421,13 +436,13 @@ func readSummary(ctx context.Context, client gcs.Client, path gcs.Path) (*summar
 	return &sum, modified, gen, nil
 }
 
-func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *summarypb.DashboardSummary) error {
+func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *summarypb.DashboardSummary) (int, error) {
 	buf, err := proto.Marshal(sum)
 	if err != nil {
-		return fmt.Errorf("marshal: %v", err)
+		return 0, fmt.Errorf("marshal: %v", err)
 	}
-	_, err = client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache") // TODO(fejta): configurable cache value
-	return err
+	_, err = client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache")
+	return len(buf), err
 }
 
 func statPaths(ctx context.Context, log logrus.FieldLogger, client gcs.Stater, paths ...gcs.Path) []*storage.ObjectAttrs {
