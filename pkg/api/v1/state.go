@@ -119,13 +119,16 @@ func (s Server) ListHeaders(w http.ResponseWriter, r *http.Request) {
 
 	var dashboardTabResponse apipb.ListHeadersResponse
 	for _, gColumn := range grid.Columns {
-		sec, dec := math.Modf(gColumn.Started)
+		// TODO(#683): Remove timestamp conversion math
+		millis := gColumn.Started
+		sec := millis / 1000
+		nanos := math.Mod(millis, 1000) * 1e6
 		column := apipb.ListHeadersResponse_Header{
 			Name:  gColumn.Name,
 			Build: gColumn.Build,
 			Started: &timestamp.Timestamp{
 				Seconds: int64(sec),
-				Nanos:   int32(dec),
+				Nanos:   int32(nanos),
 			},
 			Extra:      gColumn.Extra,
 			HotlistIds: gColumn.HotlistIds,
