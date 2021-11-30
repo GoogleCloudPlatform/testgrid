@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 	"testing"
@@ -147,7 +146,6 @@ func TestDecodeRLE(t *testing.T) {
 }
 
 func TestListHeaders(t *testing.T) {
-	build1Started, build2Started := float64(1628893101099000), float64(1628893101080000)
 	tests := []TestSpec{
 		{
 			name: "Returns an error when there's no dashboard resource",
@@ -221,20 +219,59 @@ func TestListHeaders(t *testing.T) {
 						{
 							Build:   "99",
 							Hint:    "99",
-							Started: build1Started,
+							Started: 1635693255000, // Milliseconds
 							Extra:   []string{""},
 						},
 						{
 							Build:   "80",
 							Hint:    "80",
-							Started: build2Started,
+							Started: 1635779655000, // Milliseconds
 							Extra:   []string{"build80"},
 						},
 					},
 				},
 			},
 			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: `{"headers":[{"build":"99","started":{"seconds":` + fmt.Sprintf("%.0f", build1Started) + `},"extra":[""]},{"build":"80","started":{"seconds":` + fmt.Sprintf("%.0f", build2Started) + `},"extra":["build80"]}]}`,
+			expectedResponse: `{"headers":[{"build":"99","started":{"seconds":1635693255},"extra":[""]},{"build":"80","started":{"seconds":1635779655},"extra":["build80"]}]}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name: "Returns correct timestamps from a tab",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*pb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*pb.DashboardTab{
+								{
+									Name:          "tab 1",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			grid: map[string]*statepb.Grid{
+				"gs://default/grid/testgroupname": {
+					Columns: []*statepb.Column{
+						{
+							Build:   "99",
+							Hint:    "99",
+							Started: 1, // Milliseconds
+							Extra:   []string{""},
+						},
+						{
+							Build:   "80",
+							Hint:    "80",
+							Started: 1635779655123, // Milliseconds
+							Extra:   []string{"build80"},
+						},
+					},
+				},
+			},
+			endpoint:         "dashboard1/tabs/tab1/headers",
+			expectedResponse: `{"headers":[{"build":"99","started":{"nanos":1000000},"extra":[""]},{"build":"80","started":{"seconds":1635779655,"nanos":123000000},"extra":["build80"]}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
