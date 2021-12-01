@@ -17,14 +17,17 @@ limitations under the License.
 package gcs
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
-	"google.golang.org/api/iterator"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 )
 
 var (
@@ -44,8 +47,17 @@ func convertIsNotExistsErr(err error) error {
 	return err
 }
 
+// See https://en.wikipedia.org/wiki/File_URI_scheme#How_many_slashes
+var fileRegex = regexp.MustCompile(`file:\/+`)
+
 func cleanFilepath(path Path) string {
-	return strings.Replace(path.String(), "file://", "/", 1)
+	p := fileRegex.ReplaceAllString(path.String(), "/")
+	// TODO(michelle192837): Handle URLs vs. filepaths gracefully.
+	p, err := url.PathUnescape(p)
+	if err != nil {
+		return ""
+	}
+	return p
 }
 
 func (li *localIterator) Next() (*storage.ObjectAttrs, error) {
