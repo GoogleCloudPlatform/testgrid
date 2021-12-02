@@ -31,6 +31,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "gcs_test.go",
+        "local_gcs_test.go",
         "read_test.go",
         "sort_test.go",
     ],
