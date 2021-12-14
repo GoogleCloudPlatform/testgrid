@@ -753,8 +753,32 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 
 		log.WithField("currently", orig).Debug("Shrinking row data")
 
+		// drop perf data
+		var changed bool
 		for j := i; j < len(cols); j++ {
 			nc := len(cols[j].Cells)
+			if nc < 2 {
+				continue
+			}
+			changed = changed || stripCells(cols[j].Cells, orig, byteCeiling)
+		}
+
+		if changed {
+			grid = ConstructGrid(log, tg, cols, issues)
+			buf, err = gcs.MarshalGrid(grid)
+			if err != nil {
+				return nil, nil, fmt.Errorf("marshal grid: %w", err)
+			}
+
+			cur := len(buf)
+			if cur < byteCeiling {
+				return grid, buf, nil
+			}
+		}
+
+		// truncate cells
+		for j := i; j < len(cols); j++ {
+			nc := len(cols[j].Cells) - 1 // ignore injected stripCells row
 			if nc < 2 {
 				continue
 			}
@@ -806,11 +830,48 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 	return grid, buf, err
 }
 
+const truncatedRow = "Truncated"
+
+func removeProperties(cell *Cell) {
+	cell.Properties = nil
+}
+
+func stripCells(cells map[string]Cell, orig, max int) bool {
+	var changed bool
+	for name, cell := range cells {
+		var changedCell bool
+		if len(cell.Metrics) > 0 {
+			cell.Metrics = nil
+			changedCell = true
+		}
+		if len(cell.Properties) > 0 {
+			removeProperties(&cell)
+			changedCell = true
+		}
+		if len(cell.Message) > 0 {
+			cell.Message = ""
+			changedCell = true
+		}
+		if changedCell {
+			changed = true
+			cells[name] = cell
+		}
+	}
+	if changed {
+		cells[truncatedRow] = Cell{
+			Result:  statuspb.TestStatus_UNKNOWN,
+			ID:      truncatedRow,
+			Message: fmt.Sprintf("%d byte grid exceeds maximum size of %d bytes, removed messages, metrics and properties", orig, max),
+		}
+	}
+	return changed
+}
+
 func truncatedCells(orig, max, dropped int, entity string) map[string]Cell {
 	return map[string]Cell{
-		"Truncated": {
+		truncatedRow: {
 			Result:  statuspb.TestStatus_UNKNOWN,
-			ID:      "Truncated",
+			ID:      truncatedRow,
 			Message: fmt.Sprintf("%d %s grid exceeds maximum size of %d %ss, removed %d rows", orig, entity, max, entity, dropped),
 		},
 	}
