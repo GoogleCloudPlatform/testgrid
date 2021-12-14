@@ -33,7 +33,7 @@ type InflatedColumn struct {
 	// Column holds the header data.
 	Column *statepb.Column
 	// Cells holds each row's uncompressed data for this column.
-	Cells map[string]Cell
+	Cells map[string]Cell // TODO(fejta): *Cell
 }
 
 // Cell holds a row's values for a given column

@@ -18,9 +18,11 @@ package updater
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"sort"
@@ -2279,6 +2281,13 @@ func TestTruncateGrid(t *testing.T) {
 }
 
 func TestShrinkGrid(t *testing.T) {
+	random := func(i int) string {
+		b := make([]byte, i)
+		if _, err := rand.Read(b); err != nil {
+			t.Fatalf("rand.Read(%d): %v", i, err)
+		}
+		return base64.StdEncoding.EncodeToString(b)
+	}
 	cases := []struct {
 		name    string
 		ctx     context.Context
@@ -2332,6 +2341,87 @@ func TestShrinkGrid(t *testing.T) {
 			},
 			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 				return ConstructGrid(logrus.New(), tg, cols, issues)
+			},
+		},
+		{
+			name: "truncate only metrics, properties, messages",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 10; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: random(10000),
+								Metrics: map[string]float64{
+									random(4096): 7,
+								},
+								Properties: map[string]string{
+									"junk": random(100000),
+								},
+							}
+						}
+						return cells
+					}(),
+				},
+			},
+			ceiling: 200000,
+			want: func(tg *configpb.TestGroup, origCols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				logger := logrus.New()
+				grid := ConstructGrid(logger, tg, origCols, issues)
+				buf, _ := gcs.MarshalGrid(grid)
+				orig := len(buf)
+				cols := []InflatedColumn{
+					{
+						Column: &statepb.Column{
+							Name:  "hi",
+							Build: "there",
+						},
+						Cells: map[string]Cell{
+							"cell": {
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							},
+						},
+					},
+					{
+						Column: &statepb.Column{
+							Name:  "two-name",
+							Build: "two-build",
+						},
+						Cells: func() map[string]Cell {
+							cells := map[string]Cell{}
+
+							for i := 0; i < 10; i++ {
+								cells[fmt.Sprintf("cell-%d", i)] = Cell{
+									Result:  statuspb.TestStatus_FAIL,
+									Message: "foo",
+								}
+							}
+							stripCells(cells, orig, 100000)
+							return cells
+						}(),
+					},
+				}
+				return ConstructGrid(logger, tg, cols, issues)
 			},
 		},
 		{
@@ -2632,6 +2722,10 @@ func TestShrinkGrid(t *testing.T) {
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
 			}
+			var want *statepb.Grid
+			if tc.want != nil {
+				want = tc.want(tc.tg, tc.cols, tc.issues)
+			}
 			got, buf, err := shrinkGrid(tc.ctx, logrus.WithField("name", tc.name), tc.tg, tc.cols, tc.issues, tc.ceiling)
 			switch {
 			case err != nil:
@@ -2641,7 +2735,6 @@ func TestShrinkGrid(t *testing.T) {
 			case tc.err:
 				t.Errorf("shrinkGrid() failed to get an error, got %v", got)
 			default:
-				want := tc.want(tc.tg, tc.cols, tc.issues)
 				if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 					t.Errorf("shrinkGrid() got unexpected grid diff (-want +got):\n%s", diff)
 					return
