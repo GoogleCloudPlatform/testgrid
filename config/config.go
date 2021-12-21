@@ -17,21 +17,17 @@ limitations under the License.
 package config
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
-	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -518,38 +514,6 @@ func MarshalBytes(c *configpb.Configuration) ([]byte, error) {
 		return nil, err
 	}
 	return proto.Marshal(c)
-}
-
-// ReadGCS opens the config at path and unmarshals it into a Configuration proto.
-func ReadGCS(ctx context.Context, opener gcs.Opener, path gcs.Path) (*configpb.Configuration, error) {
-	r, _, err := opener.Open(ctx, path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open config: %v", err)
-	}
-	return Unmarshal(r)
-}
-
-// ReadPath reads the config from the specified local file path.
-func ReadPath(path string) (*configpb.Configuration, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open: %v", err)
-	}
-	return Unmarshal(f)
-}
-
-// Read will read the Configuration proto message from a local or gs:// path.
-//
-// The ctx and client are only relevant when path refers to GCS.
-func Read(ctx context.Context, path string, client *storage.Client) (*configpb.Configuration, error) {
-	if strings.HasPrefix(path, "gs://") {
-		gcsPath, err := gcs.NewPath(path)
-		if err != nil {
-			return nil, fmt.Errorf("bad path: %v", err)
-		}
-		return ReadGCS(ctx, gcs.NewClient(client), *gcsPath)
-	}
-	return ReadPath(path)
 }
 
 // FindTestGroup returns the configpb.TestGroup proto for a given TestGroup name.

@@ -31,6 +31,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 
+	"github.com/GoogleCloudPlatform/testgrid/config"
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
@@ -660,6 +661,7 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, 
 	var fc fakeClient
 	fc.Datastore = map[gcs.Path][]byte{}
 
+	config.InitCache()
 	for p, cfg := range configurations {
 		path, err := gcs.NewPath(p)
 		if err != nil {
@@ -716,7 +718,7 @@ func (f fakeClient) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, *st
 	if !exists {
 		return nil, nil, fmt.Errorf("fake file %s does not exist", path.String())
 	}
-	return ioutil.NopCloser(bytes.NewReader(data)), nil, nil
+	return ioutil.NopCloser(bytes.NewReader(data)), &storage.ReaderObjectAttrs{}, nil
 }
 
 func (f fakeClient) Upload(ctx context.Context, path gcs.Path, bytes []byte, b bool, s string) (*storage.ObjectAttrs, error) {
