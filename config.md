@@ -40,6 +40,7 @@ annotations:
   testgrid-alert-stale-results-hours: "12" # optionally, send an email if this many hours pass with no results at all.
   testgrid-in-cell-metric: "foo-metric"    # optionally, show the value of this metric as the text on a cell.
   testgrid-disable-prowjob-analysis: false # optionally, disable Prow job analysis if your results don't upload canonical Prow files.
+  testgrid-base-options: base-options      # optionally, sets 'base_options' tab option.
 
 ```
 
