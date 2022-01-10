@@ -424,7 +424,7 @@ func (fo fakeOpener) Open(_ context.Context, path gcs.Path) (io.ReadCloser, *sto
 	if o.err != nil {
 		return nil, nil, fmt.Errorf("injected open error: %w", o.err)
 	}
-	return ioutil.NopCloser(bytes.NewReader(o.buf)), nil, nil
+	return ioutil.NopCloser(bytes.NewReader(o.buf)), &storage.ReaderObjectAttrs{}, nil
 }
 
 type fakeObject struct {
