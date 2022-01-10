@@ -38,7 +38,7 @@ If you modify a .proto file, you'll also need to generate and check in the
 .pb.go files.
 
 Run `bazel run //hack:update-protos` to generate, and `bazel run //hack:verify-protos.sh`
-to verify.
+to verify. This command requires `python` to be installed.
 
 ## Testing
 
