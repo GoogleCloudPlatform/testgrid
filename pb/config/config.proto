@@ -449,6 +449,8 @@ message AutoBugOptions {
   // [BETA] Extra text displayed in opened bugs. e.g., for including a link to a
   // playbook.
   string note = 14;
+
+  reserved 15;
 }
 
 message HotlistIdFromSource {
