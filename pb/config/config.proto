@@ -423,7 +423,7 @@ message AutoBugOptions {
   message DefaultTestMetadata {
     int32 bug_component = 1;
     string owner = 2;
-    string cc = 3;
+    repeated string cc = 3;
   }
 
   // If provided: supplements `max_allowed_individual_bugs` field to raise a
