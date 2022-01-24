@@ -118,7 +118,7 @@ func (cs *configSnapshot) group(name string) *configpb.TestGroup {
 
 func (cs *configSnapshot) dashboardTestGroups(dashboardName string) (*configpb.Dashboard, map[string]*configpb.TestGroup) {
 	cs.lock.RLock()
-	defer cs.lock.RLock()
+	defer cs.lock.RUnlock()
 
 	d := cs.dashboards[dashboardName]
 	if d == nil {
