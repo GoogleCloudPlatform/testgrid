@@ -41,11 +41,15 @@ type ConditionalClient struct {
 func (cc *ConditionalClient) check(ctx context.Context, from, to *gcs.Path) error {
 	if from != nil && cc.read != nil {
 		attrs, err := cc.UploadClient.Stat(ctx, *from)
-		if err != nil {
+		switch {
+		case err != nil:
 			return err
-		}
-		if cc.read.GenerationMatch != 0 && cc.read.GenerationMatch != attrs.Generation {
-			return fmt.Errorf("bad generation: %w", &googleapi.Error{
+		case cc.read.GenerationMatch != 0 && cc.read.GenerationMatch != attrs.Generation:
+			return fmt.Errorf("bad genneration due to GenerationMatch: %w", &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			})
+		case cc.read.GenerationNotMatch != 0 && cc.read.GenerationNotMatch == attrs.Generation:
+			return fmt.Errorf("bad generation due to GenerationNotMatch: %w", &googleapi.Error{
 				Code: http.StatusPreconditionFailed,
 			})
 		}
@@ -62,7 +66,11 @@ func (cc *ConditionalClient) check(ctx context.Context, from, to *gcs.Path) erro
 		case err != nil:
 			return err
 		case cc.write.GenerationMatch != 0 && cc.write.GenerationMatch != attrs.Generation:
-			return fmt.Errorf("bad generation: %w", &googleapi.Error{
+			return fmt.Errorf("bad generation due to GenerationMatch: %w", &googleapi.Error{
+				Code: http.StatusPreconditionFailed,
+			})
+		case cc.write.GenerationNotMatch != 0 && cc.write.GenerationNotMatch == attrs.Generation:
+			return fmt.Errorf("bad generation due to GenerationNotMatch: %w", &googleapi.Error{
 				Code: http.StatusPreconditionFailed,
 			})
 		}

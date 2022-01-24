@@ -490,7 +490,7 @@ func TestTestGroupPath(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := testGroupPath(path, tc.gridPrefix, tc.groupName)
+			actual, err := TestGroupPath(path, tc.gridPrefix, tc.groupName)
 			switch {
 			case err != nil:
 				if tc.expected != nil {

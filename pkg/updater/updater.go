@@ -102,7 +102,7 @@ func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurr
 func gridPaths(configPath gcs.Path, gridPrefix string, groups []*configpb.TestGroup) ([]gcs.Path, error) {
 	paths := make([]gcs.Path, 0, len(groups))
 	for _, tg := range groups {
-		tgp, err := testGroupPath(configPath, gridPrefix, tg.Name)
+		tgp, err := TestGroupPath(configPath, gridPrefix, tg.Name)
 		if err != nil {
 			return nil, fmt.Errorf("%s bad group path: %w", tg.Name, err)
 		}
@@ -348,7 +348,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			return
 		}
 		fin := mets.start()
-		tgp, err := testGroupPath(configPath, gridPrefix, name)
+		tgp, err := TestGroupPath(configPath, gridPrefix, name)
 		if err != nil {
 			fin.Fail()
 			log.WithError(err).Error("Bad path")
@@ -405,8 +405,8 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	return q.Send(ctx, channel, freq)
 }
 
-// testGroupPath() returns the path to a test_group proto given this proto
-func testGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) {
+// TestGroupPath() returns the path to a test_group proto given this proto
+func TestGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) {
 	name := path.Join(gridPrefix, groupName)
 	u, err := url.Parse(name)
 	if err != nil {
