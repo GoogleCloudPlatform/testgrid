@@ -36,6 +36,7 @@ filegroup(
     srcs = [
         ":package-srcs",
         "//config/print:all-srcs",
+        "//config/snapshot:all-srcs",
         "//config/yamlcfg:all-srcs",
     ],
     tags = ["automanaged"],

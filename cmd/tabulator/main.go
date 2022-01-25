@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2022 The TestGrid Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,56 +21,53 @@ import (
 	"errors"
 	"flag"
 	"runtime"
-	"strings"
 	"time"
 
-	gpubsub "cloud.google.com/go/pubsub"
-	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
-	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
-	"github.com/GoogleCloudPlatform/testgrid/util"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/api/option"
 )
 
+// options configures the updater
 type options struct {
-	config            gcs.Path // gcs://path/to/config/proto
-	creds             string
-	confirm           bool
-	dashboards        util.Strings
-	concurrency       int
-	wait              time.Duration
-	gridPathPrefix    string
-	summaryPathPrefix string
-	pubsub            string
+	config             gcs.Path // gs://path/to/config/proto
+	creds              string
+	confirm            bool
+	concurrency        int
+	wait               time.Duration
+	gridPathPrefix     string
+	tabStatePathPrefix string
 
 	debug    bool
 	trace    bool
 	jsonLogs bool
 }
 
+// validate ensures reasonable options
 func (o *options) validate() error {
 	if o.config.String() == "" {
 		return errors.New("empty --config")
 	}
-	if o.concurrency == 0 {
+	if o.concurrency < 1 {
 		o.concurrency = 4 * runtime.NumCPU()
 	}
+
 	return nil
 }
 
+// gatherOptions reads options from flags
 func gatherOptions() options {
 	var o options
+
 	flag.Var(&o.config, "config", "gs://path/to/config.pb")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	flag.Var(&o.dashboards, "dashboard", "Only update named dashboards if set (repeateable)")
-	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
+	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
+
 	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Read grid states under this GCS path.")
-	flag.StringVar(&o.summaryPathPrefix, "summary-path", "summary", "Write summaries under this GCS path.")
-	flag.StringVar(&o.pubsub, "pubsub", "", "listen for test group updates at project/subscription")
+	flag.StringVar(&o.tabStatePathPrefix, "tab-state-path", "tabs", "Write tab states under this GCS path.")
 
 	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
@@ -80,25 +77,7 @@ func gatherOptions() options {
 	return o
 }
 
-func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridPrefix, credPath string) (summarizer.Fixer, error) {
-	if projectSub == "" {
-		return nil, nil
-	}
-	parts := strings.SplitN(projectSub, "/", 2)
-	if len(parts) != 2 {
-		return nil, errors.New("malformed project/subscription")
-	}
-	projID, subID := parts[0], parts[1]
-	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(credPath))
-	if err != nil {
-		logrus.WithError(err).Fatal("Failed to create pubsub client")
-	}
-	client := pubsub.NewClient(pubsubClient)
-	return summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix)
-}
-
 func main() {
-
 	opt := gatherOptions()
 	if err := opt.validate(); err != nil {
 		logrus.Fatalf("Invalid flags: %v", err)
@@ -106,7 +85,6 @@ func main() {
 	if !opt.confirm {
 		logrus.Warning("--confirm=false (DRY-RUN): will not write to gcs")
 	}
-
 	switch {
 	case opt.trace:
 		logrus.SetLevel(logrus.TraceLevel)
@@ -121,18 +99,22 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	storageClient, err := gcs.ClientWithCreds(ctx, opt.creds)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to read storage client")
+		logrus.WithError(err).Fatal("Failed to create storage client")
 	}
+	defer storageClient.Close()
 
 	client := gcs.NewClient(storageClient)
-	metrics := summarizer.CreateMetrics(prometheus.NewFactory())
-	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
-	if err != nil {
-		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
-	}
-	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.gridPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.wait, fixer); err != nil {
-		logrus.WithError(err).Error("Could not summarize")
+
+	logrus.WithFields(logrus.Fields{
+		"group": opt.concurrency,
+	}).Info("Configured concurrency")
+
+	mets := tabulator.CreateMetrics(prometheus.NewFactory())
+
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.wait, nil); err != nil {
+		logrus.WithError(err).Error("Could not tabulate")
 	}
 }
