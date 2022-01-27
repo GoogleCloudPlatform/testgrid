@@ -15,6 +15,7 @@ proto_library(
 
 go_proto_library(
     name = "testgrid_api_v1_go_proto",
+    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
     importpath = "github.com/GoogleCloudPlatform/testgrid/pb/api/v1",
     proto = ":testgrid_api_v1_proto",
     visibility = ["//visibility:public"],

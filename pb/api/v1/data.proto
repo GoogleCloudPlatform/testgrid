@@ -6,27 +6,76 @@ import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 import "pb/state/state.proto";
 
-// GET /dashboards
-// Lists dashboard names
+service TestGridData{
+  // GET /dashboards
+  // Lists dashboard names
+  rpc ListDashboard(ListDashboardRequest) returns (ListDashboardResponse) {}
+
+  // GET /dashboard-groups
+  // Lists the dashboard group names
+  rpc ListDashboardGroup(ListDashboardGroupRequest) returns (ListDashboardGroupResponse) {}
+
+  // GET /dashboards/{dashboard}/tabs
+  // Lists the dashboard tab names
+  rpc ListDashboardTabs(ListDashboardTabsRequest) returns (ListDashboardTabsResponse) {}
+
+  // GET /dashboards/{dashboard}
+  // Returns a Dashboard config's metadata
+  // Excludes subtabs, accessed through the /tabs list method instead
+  rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
+
+  // GET /dashboard-groups/{dashboard-group}
+  // Lists the dashboard names in that group
+  rpc GetDashboardGroup(GetDashboardGroupRequest) returns (GetDashboardGroupResponse) {}
+
+  // GET /dashboards/{dashboard}/tabs/{tab}
+  // Returns a tab’s configuration, as stored
+  // rpc GetDashboardTab(GetDashboardTabRequest) returns (GetDashboardTabResponse) {}
+
+  // GET /summary/{dashboard}
+  // GET /dashboards/{dashboard}/summary
+  // Returns a summary of this dashboard, as stored
+  // rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse) {}
+
+  // GET /dashboards/{dashboard}/tabs/{tab}/headers
+  // Returns the headers for grid results
+  rpc ListHeaders(ListHeadersRequest) returns (ListHeadersResponse) {}
+
+  // GET /dashboards/{dashboard}/tabs/{tab}/rows
+  // Returns information on grid rows, and data within those rows
+  rpc ListRows(ListRowsRequest) returns (ListRowsResponse) {}
+}
+
+message ListDashboardRequest {
+  string scope = 1;
+}
+
 message ListDashboardResponse {
   repeated Resource dashboards = 1;
 }
 
-// GET /dashboard-groups
-// Lists the dashboard group names
+message ListDashboardGroupRequest {
+  string scope = 1;
+}
+
 message ListDashboardGroupResponse {
   repeated Resource dashboard_groups = 1;
 }
 
-// GET /dashboards/{dashboard}/tabs
-// Lists the dashboard tab names
+message ListDashboardTabsRequest {
+  string scope = 1;
+  string dashboard = 2;
+}
+
 message ListDashboardTabsResponse {
   repeated Resource dashboard_tabs = 1;
 }
 
-// GET /dashboards/{dashboard}
-// Returns a Dashboard config's metadata
-// Excludes subtabs, accessed through the /tabs list method instead
+message GetDashboardRequest {
+  string scope = 1;
+  string dashboard = 2;
+}
+
 message GetDashboardResponse {
   // A list of notifications attached to this dashboard.
   // This is displayed on any dashboard tab in this dashboard.
@@ -44,23 +93,21 @@ message GetDashboardResponse {
   bool highlight_today = 4;
 }
 
-// GET /dashboard-groups/{dashboard-group}
-// Lists the dashboard names in that group
+message GetDashboardGroupRequest {
+  string scope = 1;
+  string dashboard_group = 2;
+}
+
 message GetDashboardGroupResponse {
   repeated Resource dashboards = 1;
 }
 
-// GET /dashboards/{dashboard}/tabs/{tab}
-// Returns a tab’s configuration, as stored
-//message GetDashboardTabResponse = config.DashboardTab
+message ListHeadersRequest {
+  string scope = 1;
+  string dashboard = 2;
+  string tab = 3;
+}
 
-// GET /summary/{dashboard}
-// GET /dashboards/{dashboard}/summary
-// Returns a summary of this dashboard, as stored
-//message GetSummaryResponse = summary.DashboardTabSummary
-
-// GET /dashboards/{dashboard}/tabs/{tab}/headers
-// Returns the headers for grid results
 message ListHeadersResponse {
   repeated Header headers = 1;
 
@@ -84,8 +131,12 @@ message ListHeadersResponse {
   }
 }
 
-// GET /dashboards/{dashboard}/tabs/{tab}/rows
-// Returns information on grid rows, and data within those rows
+message ListRowsRequest {
+  string scope = 1;
+  string dashboard = 2;
+  string tab = 3;
+}
+
 message ListRowsResponse {
   repeated Row rows = 1;
 
@@ -119,3 +170,4 @@ message Resource {
   string name = 1;
   string link = 2;
 }
+
