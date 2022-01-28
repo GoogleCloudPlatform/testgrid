@@ -17,6 +17,7 @@ limitations under the License.
 package snapshot
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -26,7 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/protobuf/proto"
 )
 
