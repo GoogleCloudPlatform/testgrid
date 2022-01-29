@@ -35,6 +35,7 @@ import (
 	"bitbucket.org/creachadair/stringset"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -96,106 +97,6 @@ func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath g
 	return cfg, attrs, nil
 }
 
-type configSnapshot struct {
-	dashboards map[string]*configpb.Dashboard
-	groups     map[string]*configpb.TestGroup
-	lock       sync.RWMutex
-}
-
-func (cs *configSnapshot) dashboard(name string) *configpb.Dashboard {
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	return cs.dashboards[name]
-}
-
-func (cs *configSnapshot) group(name string) *configpb.TestGroup {
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	return cs.groups[name]
-}
-
-func (cs *configSnapshot) dashboardTestGroups(dashboardName string) (*configpb.Dashboard, map[string]*configpb.TestGroup) {
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	d := cs.dashboards[dashboardName]
-	if d == nil {
-		return nil, nil
-	}
-	gs := make(map[string]*configpb.TestGroup, len(d.DashboardTab))
-	for _, tab := range d.DashboardTab {
-		n := tab.TestGroupName
-		gs[n] = cs.groups[n]
-	}
-	return d, gs
-}
-
-func (cs *configSnapshot) update(ctx context.Context, log logrus.FieldLogger, client gcs.ConditionalClient, configPath gcs.Path, summaryPathPrefix string, validDashboards []string, q *config.DashboardQueue, freq time.Duration) (*storage.ReaderObjectAttrs, error) {
-	cfg, attrs, err := fetchConfig(ctx, client, configPath, validDashboards)
-	if err != nil {
-		return nil, err
-	}
-
-	now := time.Now()
-
-	dashboards := cfg.Dashboards
-	paths := make([]gcs.Path, 0, len(dashboards))
-	for _, d := range dashboards {
-		path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
-		if err != nil {
-			return nil, fmt.Errorf("bad dashboard path: %s: %w", d.Name, err)
-		}
-		paths = append(paths, *path)
-	}
-
-	stats := gcs.Stat(ctx, client, 10, paths...)
-	whens := make(map[string]time.Time, len(stats))
-	var wg sync.WaitGroup
-	for i, stat := range stats {
-		name := dashboards[i].Name
-		switch {
-		case stat.Attrs != nil:
-			whens[name] = stat.Attrs.Updated.Add(freq)
-		default:
-			if errors.Is(stat.Err, storage.ErrObjectNotExist) {
-				wg.Add(1)
-				defer func(i int) {
-					defer wg.Done()
-					if _, err := lockDashboard(ctx, client, paths[i], 0); err != nil && !gcs.IsPreconditionFailed(err) {
-						log.WithError(err).WithField("path", paths[i]).Error("Failed to lock initial summary")
-					}
-				}(i)
-			} else {
-				log.WithError(err).WithField("path", paths[i]).Info("Failed to stat")
-			}
-			whens[name] = now
-		}
-
-	}
-
-	namedDashboards := make(map[string]*configpb.Dashboard, len(cfg.Dashboards))
-	for _, d := range cfg.Dashboards {
-		namedDashboards[d.Name] = d
-	}
-	namedGroups := make(map[string]*configpb.TestGroup, len(cfg.TestGroups))
-	for _, tg := range cfg.TestGroups {
-		namedGroups[tg.Name] = tg
-	}
-
-	when := now.Add(freq)
-	cs.lock.Lock()
-	defer cs.lock.Unlock()
-	cs.dashboards = namedDashboards
-	cs.groups = namedGroups
-	q.Init(log, cfg.Dashboards, when)
-	if err := q.FixAll(whens, false); err != nil {
-		log.WithError(err).Error("Failed to fix all dashboards based on last update time")
-	}
-	return attrs, nil
-}
-
 func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) (*storage.ObjectAttrs, error) {
 	var buf []byte
 	if generation == 0 {
@@ -225,13 +126,52 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	var q config.DashboardQueue
 
-	log.Debug("Fetching config...")
-	var cfg configSnapshot
-	cfgAttrs, err := cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboards, &q, freq)
-	if err != nil {
-		return fmt.Errorf("fetch config: %w", err)
+	onConfigUpdate := func(cfg *snapshot.Config) error {
+		dashboards := cfg.AllDashboards()
+		log := log.WithField("onConfigUpdate()", true)
+
+		paths := make([]gcs.Path, 0, len(dashboards))
+		for _, d := range dashboards {
+			path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
+			if err != nil {
+				log.WithError(err).WithField("dashboard", d.Name).Error("bad dashboard path")
+			}
+			paths = append(paths, *path)
+		}
+
+		stats := gcs.Stat(ctx, client, 10, paths...)
+		whens := make(map[string]time.Time, len(stats))
+		for i, stat := range stats {
+			name := dashboards[i].Name
+			switch {
+			case stat.Attrs != nil:
+				whens[name] = stat.Attrs.Updated.Add(freq)
+			default:
+				if errors.Is(stat.Err, storage.ErrObjectNotExist) {
+					defer func(i int) {
+						if _, err := lockDashboard(ctx, client, paths[i], 0); err != nil && !gcs.IsPreconditionFailed(err) {
+							log.WithError(err).WithField("path", paths[i]).Error("Failed to lock initial summary")
+						}
+					}(i)
+				} else {
+					log.WithError(stat.Err).WithField("path", paths[i]).Info("Failed to stat")
+				}
+				whens[name] = time.Now()
+			}
+		}
+
+		q.Init(log, cfg.AllDashboards(), time.Now().Add(freq))
+		if err := q.FixAll(whens, false); err != nil {
+			log.WithError(err).Error("Failed to fix all dashboards based on last update time")
+		}
+		return nil
 	}
-	log.Info("Fetched config")
+
+	log.Debug("Observing config...")
+	cfg, err := snapshot.Observe(ctx, log, client, configPath, onConfigUpdate)
+	if err != nil {
+		return fmt.Errorf("observe config: %w", err)
+	}
 
 	if fix != nil {
 		go func() {
@@ -244,8 +184,6 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	var lock sync.Mutex
 
 	go func() {
-		var cond storage.Conditions
-		cond.GenerationNotMatch = cfgAttrs.Generation
 		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
 		for {
 			lock.Lock()
@@ -272,16 +210,6 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				var err error
-				cfgAttrs, err = cfg.update(ctx, log, client, configPath, summaryPathPrefix, dashboards, &q, freq)
-				switch {
-				case err == nil:
-					log.Info("Configuration changed")
-					// Config changed, setup fixers again.
-					cond.GenerationNotMatch = cfgAttrs.Generation
-				case !gcs.IsPreconditionFailed(err):
-					log.WithError(err).Error("Failed to update configuration")
-				}
 			}
 
 		}
@@ -290,7 +218,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	// TODO(fejta): cache downloaded group?
 	findGroup := func(name string) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
-		group := cfg.group(name)
+		group := cfg.Group(name)
 		if group == nil {
 			return nil, nil, nil, nil
 		}
@@ -307,7 +235,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
-		dash := cfg.dashboard(dashName)
+		dash := cfg.Dashboard(dashName)
 		log.Debug("Summarizing dashboard")
 		summaryPath, err := summaryPath(configPath, summaryPathPrefix, dashName)
 		if err != nil {
