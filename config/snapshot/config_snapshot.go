@@ -96,6 +96,8 @@ func (cs *Config) DashboardTestGroups(dashboardName string) (*configpb.Dashboard
 	return d, gs
 }
 
+// OnConfigUpdate is a function to be called whenever the config is found to have changed
+// Errors returned by this will be logged, but will not stop the config update.
 type OnConfigUpdate func(*Config) error
 
 // Observe will continuously keep the config up-to-date.

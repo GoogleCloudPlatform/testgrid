@@ -11,6 +11,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//config:go_default_library",
+        "//config/snapshot:go_default_library",
         "//internal/result:go_default_library",
         "//pb/config:go_default_library",
         "//pb/state:go_default_library",
