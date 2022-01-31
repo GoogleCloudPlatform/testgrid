@@ -18,6 +18,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -31,167 +32,233 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-func (s Server) configPath(r *http.Request) (path *gcs.Path, isDefault bool, err error) {
-	scope := r.URL.Query().Get("scope")
+const scopeParam = "scope"
+
+func (s *Server) configPath(scope string) (path *gcs.Path, isDefault bool, err error) {
 	if scope != "" {
 		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", scope, "config"))
-		isDefault = false
-		return
+		return path, false, err
 	}
 	if s.DefaultBucket != "" {
 		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", s.DefaultBucket, "config"))
-		isDefault = true
-		return
+		return path, true, err
 	}
 	return nil, false, errors.New("no testgrid scope")
 }
 
-// passQueryParameters returns only the query parameters in the request that need to be passed through to links
-func passQueryParameters(r *http.Request) string {
-	if scope := r.URL.Query().Get("scope"); scope != "" {
+// queryParams returns only the query parameters in the request that need to be passed through to links
+func queryParams(scope string) string {
+	if scope != "" {
 		return fmt.Sprintf("?scope=%s", scope)
 	}
 	return ""
 }
 
-// getConfig will return a config file or will send an error to the http writer
-// If this function returns nil, no further writes should be made to 'w'
-func (s Server) getConfig(w http.ResponseWriter, r *http.Request) *configpb.Configuration {
-	configPath, isDefault, err := s.configPath(r)
+// getConfig will return a config file or will return an error.
+// Does not expose wrapped errors to the user, instead logging them to the console.
+func (s *Server) getConfig(ctx context.Context, scope string) (*configpb.Configuration, error) {
+	configPath, isDefault, err := s.configPath(scope)
 	if err != nil || configPath == nil {
-		http.Error(w, "Scope not specified", http.StatusBadRequest)
-		return nil
+		return nil, errors.New("Scope not specified")
 	}
 
-	cfg, err := config.ReadGCS(r.Context(), s.Client, *configPath)
+	cfg, err := config.ReadGCS(ctx, s.Client, *configPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Could not read config at %q", configPath.String()), http.StatusInternalServerError)
 		// Only log an error if we set and use a default scope, but can't access it.
 		// Otherwise, invalid requests will write useless logs.
 		if isDefault {
 			// TODO(chases2): Pass a logrus logger through the server object
 			logrus.WithError(err).Errorf("Can't read default config at %q; check permissions", configPath.String())
 		}
-		return nil
+		return nil, fmt.Errorf("Could not read config at %q", configPath.String())
 	}
-	return cfg
+	return cfg, nil
 }
 
-// ListDashboardGroups returns every dashboard group in TestGrid
-// Response json: ListDashboardGroupResponse
-func (s Server) ListDashboardGroups(w http.ResponseWriter, r *http.Request) {
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
-		return
+// ListDashboardGroup returns every dashboard group in TestGrid
+func (s *Server) ListDashboardGroup(ctx context.Context, req *apipb.ListDashboardGroupRequest) (*apipb.ListDashboardGroupResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
 	}
 
-	var groups apipb.ListDashboardGroupResponse
+	var resp apipb.ListDashboardGroupResponse
 	for _, group := range cfg.DashboardGroups {
 		rsc := apipb.Resource{
 			Name: group.Name,
-			Link: fmt.Sprintf("%s/dashboard-groups/%s%s", s.Host.String(), config.Normalize(group.Name), passQueryParameters(r)),
+			Link: fmt.Sprintf("%s/dashboard-groups/%s%s", s.Host.String(), config.Normalize(group.Name), queryParams(req.GetScope())),
 		}
-		groups.DashboardGroups = append(groups.DashboardGroups, &rsc)
+		resp.DashboardGroups = append(resp.DashboardGroups, &rsc)
+	}
+
+	return &resp, nil
+}
+
+// ListDashboardGroupHTTP returns every dashboard group in TestGrid
+// Response json: ListDashboardGroupResponse
+func (s Server) ListDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
+	req := apipb.ListDashboardGroupRequest{
+		Scope: r.URL.Query().Get(scopeParam),
+	}
+
+	groups, err := s.ListDashboardGroup(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
 	}
 
 	writeJSON(w, &groups)
 }
 
 // GetDashboardGroup returns a given dashboard group
-// Response json: GetDashboardGroupResponse
-func (s Server) GetDashboardGroup(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
-		return
+func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardGroupRequest) (*apipb.GetDashboardGroupResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
 	}
 
-	dashboardGroupKey := vars["dashboard-group"]
 	for _, group := range cfg.DashboardGroups {
-		if config.Normalize(group.Name) == dashboardGroupKey {
+		if config.Normalize(group.Name) == req.GetDashboardGroup() {
 			result := apipb.GetDashboardGroupResponse{}
 			for _, dash := range group.DashboardNames {
 				rsc := apipb.Resource{
 					Name: dash,
-					Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dash), passQueryParameters(r)),
+					Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dash), queryParams(req.GetScope())),
 				}
 				result.Dashboards = append(result.Dashboards, &rsc)
 			}
-			writeJSON(w, &result)
-			return
+			return &result, nil
 		}
 	}
-	http.Error(w, fmt.Sprintf("Dashboard group %q not found", vars["dashboard-group"]), http.StatusNotFound)
+	return nil, fmt.Errorf("Dashboard group %q not found", req.GetDashboardGroup())
 }
 
-// ListDashboards returns every dashboard in TestGrid
-// Response json: ListDashboardResponse
-func (s Server) ListDashboards(w http.ResponseWriter, r *http.Request) {
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
+// GetDashboardGroupHTTP returns a given dashboard group
+// Response json: GetDashboardGroupResponse
+func (s Server) GetDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	req := apipb.GetDashboardGroupRequest{
+		Scope:          r.URL.Query().Get(scopeParam),
+		DashboardGroup: vars["dashboard-group"],
+	}
+	resp, err := s.GetDashboardGroup(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	writeJSON(w, resp)
+}
 
-	var dashboardResponse apipb.ListDashboardResponse
+// ListDashboard returns every dashboard in TestGrid
+func (s *Server) ListDashboard(ctx context.Context, req *apipb.ListDashboardRequest) (*apipb.ListDashboardResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
+	}
+
+	var resp apipb.ListDashboardResponse
 	for _, dashboard := range cfg.Dashboards {
 		rsc := apipb.Resource{
 			Name: dashboard.Name,
-			Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dashboard.Name), passQueryParameters(r)),
+			Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dashboard.Name), queryParams(req.GetScope())),
 		}
-		dashboardResponse.Dashboards = append(dashboardResponse.Dashboards, &rsc)
+		resp.Dashboards = append(resp.Dashboards, &rsc)
 	}
 
-	writeJSON(w, &dashboardResponse)
+	return &resp, nil
 }
 
-// GetDashboard returns a given dashboard
-// Response json: GetDashboardResponse
-func (s Server) GetDashboard(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
+// ListDashboardsHTTP returns every dashboard in TestGrid
+// Response json: ListDashboardResponse
+func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
+	req := apipb.ListDashboardRequest{
+		Scope: r.URL.Query().Get(scopeParam),
+	}
+
+	dashboards, err := s.ListDashboard(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	dashboardKey := vars["dashboard"]
+	writeJSON(w, &dashboards)
+}
+
+// GetDashboardHTTP returns a given dashboard
+func (s *Server) GetDashboard(ctx context.Context, req *apipb.GetDashboardRequest) (*apipb.GetDashboardResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
+	}
+
 	for _, dashboard := range cfg.Dashboards {
-		if config.Normalize(dashboard.Name) == dashboardKey {
+		if config.Normalize(dashboard.Name) == req.GetDashboard() {
 			result := apipb.GetDashboardResponse{
 				DefaultTab:          dashboard.DefaultTab,
 				HighlightToday:      dashboard.HighlightToday,
 				SuppressFailingTabs: dashboard.DownplayFailingTabs,
 				Notifications:       dashboard.Notifications,
 			}
-			writeJSON(w, &result)
-			return
+			return &result, nil
 		}
 	}
-	http.Error(w, fmt.Sprintf("Dashboard %q not found", vars["dashboard"]), http.StatusNotFound)
+	return nil, fmt.Errorf("Dashboard %q not found", req.GetDashboard())
 }
 
-// ListDashboardTabs returns a given dashboard tabs
-// Response json: ListDashboardTabsResponse
-func (s Server) ListDashboardTabs(w http.ResponseWriter, r *http.Request) {
+// GetDashboardHTTP returns a given dashboard
+// Response json: GetDashboardResponse
+func (s Server) GetDashboardHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
+
+	req := apipb.GetDashboardRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: vars["dashboard"],
+	}
+	resp, err := s.GetDashboard(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	writeJSON(w, resp)
+}
 
-	dashboardKey := vars["dashboard"]
+// ListDashboardTabsHTTP returns a given dashboard tabs
+func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboardTabsRequest) (*apipb.ListDashboardTabsResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
+	}
+
 	var dashboardTabsResponse apipb.ListDashboardTabsResponse
 	for _, dashboard := range cfg.Dashboards {
-		if config.Normalize(dashboard.Name) == dashboardKey {
+		if config.Normalize(dashboard.Name) == req.GetDashboard() {
 			for _, tab := range dashboard.DashboardTab {
 				rsc := apipb.Resource{
 					Name: tab.Name,
-					Link: fmt.Sprintf("%s/dashboards/%s/tabs/%s%s", s.Host.String(), config.Normalize(dashboard.Name), config.Normalize(tab.Name), passQueryParameters(r)),
+					Link: fmt.Sprintf("%s/dashboards/%s/tabs/%s%s", s.Host.String(), config.Normalize(dashboard.Name), config.Normalize(tab.Name), queryParams(req.GetScope())),
 				}
 				dashboardTabsResponse.DashboardTabs = append(dashboardTabsResponse.DashboardTabs, &rsc)
 			}
-			writeJSON(w, &dashboardTabsResponse)
-			return
+			return &dashboardTabsResponse, nil
 		}
 	}
-	http.Error(w, fmt.Sprintf("Dashboard %q not found", vars["dashboard"]), http.StatusNotFound)
+	return nil, fmt.Errorf("Dashboard %q not found", req.GetDashboard())
+}
+
+// ListDashboardTabsHTTP returns a given dashboard tabs
+// Response json: ListDashboardTabsResponse
+func (s Server) ListDashboardTabsHTTP(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	req := apipb.ListDashboardTabsRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: vars["dashboard"],
+	}
+
+	resp, err := s.ListDashboardTabs(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(w, resp)
 }

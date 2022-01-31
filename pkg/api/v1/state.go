@@ -66,12 +66,12 @@ func (s Server) GroupGrid(configPath *gcs.Path, groupName string) (*statepb.Grid
 }
 
 // Grid fetch tab and grid info (columns, rows, ..etc)
-func (s Server) Grid(r *http.Request, cfg *configpb.Configuration, dashboardKey string, tabKey string) (*statepb.Grid, error) {
+func (s Server) Grid(scope string, cfg *configpb.Configuration, dashboardKey string, tabKey string) (*statepb.Grid, error) {
 	tab, err := findDashboardTab(cfg, dashboardKey, tabKey)
 	if err != nil {
 		return nil, err
 	}
-	configPath, _, err := s.configPath(r)
+	configPath, _, err := s.configPath(scope)
 	if err != nil {
 		return nil, err
 	}
@@ -98,23 +98,19 @@ func decodeRLE(encodedData []int32) []int32 {
 }
 
 // ListHeaders returns dashboard tab headers
-// Response json: ListHeadersResponse
-func (s Server) ListHeaders(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
-		return
+func (s *Server) ListHeaders(ctx context.Context, req *apipb.ListHeadersRequest) (*apipb.ListHeadersResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
 	}
 
-	dashboardKey, tabKey := vars["dashboard"], vars["tab"]
-	grid, err := s.Grid(r, cfg, dashboardKey, tabKey)
+	dashboardKey, tabKey := req.GetDashboard(), req.GetTab()
+	grid, err := s.Grid(req.GetScope(), cfg, dashboardKey, tabKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey), http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
 	}
 	if grid == nil {
-		http.Error(w, "Grid not found.", http.StatusNotFound)
-		return
+		return nil, errors.New("Grid not found.")
 	}
 
 	var dashboardTabResponse apipb.ListHeadersResponse
@@ -135,27 +131,41 @@ func (s Server) ListHeaders(w http.ResponseWriter, r *http.Request) {
 		}
 		dashboardTabResponse.Headers = append(dashboardTabResponse.Headers, &column)
 	}
-	writeJSON(w, &dashboardTabResponse)
+	return &dashboardTabResponse, nil
+}
+
+// ListHeadersHTTP returns dashboard tab headers
+// Response json: ListHeadersResponse
+func (s Server) ListHeadersHTTP(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	req := apipb.ListHeadersRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: vars["dashboard"],
+		Tab:       vars["tab"],
+	}
+	resp, err := s.ListHeaders(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, &resp)
 }
 
 // ListRows returns dashboard tab rows
-// Response json: ListRowsResponse
-func (s Server) ListRows(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cfg := s.getConfig(w, r)
-	if cfg == nil {
-		return
+func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*apipb.ListRowsResponse, error) {
+	cfg, err := s.getConfig(ctx, req.GetScope())
+	if err != nil {
+		return nil, err
 	}
 
-	dashboardKey, tabKey := vars["dashboard"], vars["tab"]
-	grid, err := s.Grid(r, cfg, dashboardKey, tabKey)
+	dashboardKey, tabKey := req.GetDashboard(), req.GetTab()
+	grid, err := s.Grid(req.GetScope(), cfg, dashboardKey, tabKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey), http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
 	}
 	if grid == nil {
-		http.Error(w, "Grid not found.", http.StatusNotFound)
-		return
+		return nil, errors.New("Grid not found.")
 	}
 
 	var dashboardTabResponse apipb.ListRowsResponse
@@ -179,5 +189,23 @@ func (s Server) ListRows(w http.ResponseWriter, r *http.Request) {
 		}
 		dashboardTabResponse.Rows = append(dashboardTabResponse.Rows, &row)
 	}
-	writeJSON(w, &dashboardTabResponse)
+	return &dashboardTabResponse, nil
+}
+
+// ListRowsHTTP returns dashboard tab rows
+// Response json: ListRowsResponse
+func (s Server) ListRowsHTTP(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	req := apipb.ListRowsRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: vars["dashboard"],
+		Tab:       vars["tab"],
+	}
+	resp, err := s.ListRows(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, &resp)
 }

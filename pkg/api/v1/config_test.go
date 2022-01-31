@@ -41,7 +41,7 @@ func TestConfigPath(t *testing.T) {
 	tests := []struct {
 		name          string
 		defaultBucket string
-		url           string
+		scopeParam    string
 		expected      *gcs.Path
 		expectDefault bool
 	}{
@@ -54,13 +54,13 @@ func TestConfigPath(t *testing.T) {
 		{
 			name:          "Use config if specified",
 			defaultBucket: "gs://wrong",
-			url:           "http://testgrid/api/v1/foo?scope=gs://example/path",
+			scopeParam:    "gs://example/path",
 			expected:      getPathOrDie(t, "gs://example/path/config"),
 		},
 		{
-			name:     "Do not require a default",
-			url:      "http://testgrid/api/v1/foo?scope=gs://example/path",
-			expected: getPathOrDie(t, "gs://example/path/config"),
+			name:       "Do not require a default",
+			scopeParam: "gs://example/path",
+			expected:   getPathOrDie(t, "gs://example/path/config"),
 		},
 		{
 			name: "Return error if no way to find config",
@@ -72,12 +72,7 @@ func TestConfigPath(t *testing.T) {
 				DefaultBucket: test.defaultBucket,
 			}
 
-			request, err := http.NewRequest("GET", test.url, nil)
-			if err != nil {
-				t.Fatalf("Can't form request")
-			}
-
-			result, isDefault, err := s.configPath(request)
+			result, isDefault, err := s.configPath(test.scopeParam)
 			if test.expected == nil && err == nil {
 				t.Fatalf("Expected an error, but got none")
 			}
@@ -93,7 +88,7 @@ func TestConfigPath(t *testing.T) {
 	}
 }
 
-func TestPassQueryParameters(t *testing.T) {
+func TestQueryParams(t *testing.T) {
 	tests := []struct {
 		name     string
 		url      string
@@ -119,7 +114,7 @@ func TestPassQueryParameters(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't create request for %s", test.url)
 			}
-			result := passQueryParameters(req)
+			result := queryParams(req.URL.Query().Get(scopeParam))
 			if result != test.expected {
 				t.Errorf("Want %q, but got %q", test.expected, result)
 			}
@@ -197,7 +192,7 @@ func TestListDashboardGroups(t *testing.T) {
 			name:             "Server error with unreadable config",
 			params:           "?scope=gs://bad-path",
 			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusInternalServerError,
+			expectedCode:     http.StatusNotFound,
 		},
 	}
 
@@ -298,7 +293,7 @@ func TestGetDashboardGroup(t *testing.T) {
 			name:             "Server error with unreadable config",
 			endpoint:         "group?scope=gs://bad-path",
 			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusInternalServerError,
+			expectedCode:     http.StatusNotFound,
 		},
 	}
 	RunTestsAgainstEndpoint(t, "/dashboard-groups/", tests)
@@ -364,7 +359,7 @@ func TestListDashboards(t *testing.T) {
 			name:             "Server error with unreadable config",
 			params:           "?scope=gs://bad-path",
 			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusInternalServerError,
+			expectedCode:     http.StatusNotFound,
 		},
 	}
 
@@ -498,7 +493,7 @@ func TestGetDashboard(t *testing.T) {
 			endpoint:         "dashboard",
 			params:           "?scope=gs://bad-path",
 			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusInternalServerError,
+			expectedCode:     http.StatusNotFound,
 		},
 	}
 	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
@@ -625,7 +620,7 @@ func TestGetDashboardTabs(t *testing.T) {
 			endpoint:         "dashboard1/tabs",
 			params:           "?scope=gs://bad-path",
 			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusInternalServerError,
+			expectedCode:     http.StatusNotFound,
 		},
 	}
 	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
