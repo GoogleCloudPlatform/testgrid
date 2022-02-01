@@ -30,4 +30,6 @@ message IssueState {
   repeated IssueInfo issue_info = 1;
 
   reserved 2;
+
+  reserved 3;
 }
