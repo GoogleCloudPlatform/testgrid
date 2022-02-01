@@ -173,6 +173,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return fmt.Errorf("observe config: %w", err)
 	}
 
+	q.Init(log, cfg.AllDashboards(), time.Now().Add(freq))
+
 	if fix != nil {
 		go func() {
 			fix(ctx, &q)
