@@ -115,7 +115,7 @@ func TestObserve(t *testing.T) {
 func TestTick(t *testing.T) {
 	tests := []struct {
 		name             string
-		cs               Config
+		cs               *Config
 		config           *configpb.Configuration
 		configGeneration int64
 		readErr          error
@@ -125,6 +125,7 @@ func TestTick(t *testing.T) {
 	}{
 		{
 			name: "Reads configs",
+			cs:   &Config{},
 			config: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
@@ -140,7 +141,7 @@ func TestTick(t *testing.T) {
 		},
 		{
 			name: "Updates configs",
-			cs: Config{
+			cs: &Config{
 				dashboards: map[string]*configpb.Dashboard{
 					"stale": {
 						Name: "stale",
@@ -165,7 +166,7 @@ func TestTick(t *testing.T) {
 		},
 		{
 			name: "Does not update same config",
-			cs: Config{
+			cs: &Config{
 				dashboards: map[string]*configpb.Dashboard{
 					"dashboard": {
 						Name: "dashboard",
@@ -189,7 +190,7 @@ func TestTick(t *testing.T) {
 		},
 		{
 			name: "Doesn't update on read error",
-			cs: Config{
+			cs: &Config{
 				dashboards: map[string]*configpb.Dashboard{
 					"dashboard": {
 						Name: "dashboard",

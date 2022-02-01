@@ -52,6 +52,8 @@ func CreateMetrics(factory metrics.Factory) *Metrics {
 // Fixer should adjust the dashboard queue until the context expires.
 type Fixer func(context.Context, *config.DashboardQueue) error
 
+// Update tab state with the given frequency continuously. If freq == 0, runs only once.
+//
 // For each dashboard/tab in the config, copy the testgroup state into the tab state.
 func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, confirm bool, freq time.Duration, fix Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
@@ -197,7 +199,7 @@ func tabStatePath(g gcs.Path, tabPrefix, dashboardName, tabName string) (*gcs.Pa
 	if err != nil {
 		return nil, fmt.Errorf("resolve reference: %w", err)
 	}
-	if err == nil && np.Bucket() != g.Bucket() {
+	if np.Bucket() != g.Bucket() {
 		return nil, fmt.Errorf("tabState %s should not change bucket", name)
 	}
 	return np, nil
