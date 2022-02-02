@@ -416,7 +416,7 @@ func TestGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) 
 	if err != nil {
 		return nil, fmt.Errorf("resolve reference: %w", err)
 	}
-	if err == nil && np.Bucket() != g.Bucket() {
+	if np.Bucket() != g.Bucket() {
 		return nil, fmt.Errorf("testGroup %s should not change bucket", name)
 	}
 	return np, nil
