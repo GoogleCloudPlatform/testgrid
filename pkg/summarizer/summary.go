@@ -111,6 +111,9 @@ func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.P
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
+// Fixer should adjust the dashboard queue until the context expires.
+type Fixer func(context.Context, *config.DashboardQueue) error
+
 // Update summary protos by reading the state protos defined in the config.
 //
 // Will use concurrency go routines to update dashboards in parallel.

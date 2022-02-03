@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "gcs.go",
         "inflate.go",
+        "persist.go",
         "pubsub.go",
         "read.go",
         "updater.go",
@@ -34,6 +35,7 @@ go_test(
     srcs = [
         "gcs_test.go",
         "inflate_test.go",
+        "persist_test.go",
         "pubsub_test.go",
         "read_test.go",
         "updater_test.go",

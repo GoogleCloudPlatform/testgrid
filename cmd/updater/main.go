@@ -39,6 +39,7 @@ import (
 // options configures the updater
 type options struct {
 	config           gcs.Path // gs://path/to/config/proto
+	persistQueue     gcs.Path
 	creds            string
 	confirm          bool
 	groups           util.Strings
@@ -97,6 +98,7 @@ func subscribeGCS(subs ...string) error {
 func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	var o options
 	fs.Var(&o.config, "config", "gs://path/to/config.pb")
+	fs.Var(&o.persistQueue, "persist-queue", "Load previous queue state from gs://path/to/queue-state.json and regularly save to it thereafter")
 	fs.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	fs.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	fs.Var(&o.groups, "test-group", "Only update named groups if set (repeatable)")
@@ -169,6 +171,11 @@ func main() {
 
 	fixers := []updater.Fixer{
 		updater.FixGCS(pubsub.NewClient(pubsubClient)),
+	}
+
+	if path := opt.persistQueue; path.String() != "" {
+		ticker := time.NewTicker(time.Minute)
+		fixers = append(fixers, updater.FixPersistent(client, path, ticker.C))
 	}
 
 	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait, fixers...); err != nil {
