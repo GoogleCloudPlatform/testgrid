@@ -32,9 +32,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Fixer should adjust the dashboard queue until the context expires.
-type Fixer func(context.Context, *config.DashboardQueue) error
-
 // FixGCS listens for GCS changes to test groups and schedules another update of its dashboards ~immediately.
 //
 // Returns when the context is canceled or a processing error occurs.

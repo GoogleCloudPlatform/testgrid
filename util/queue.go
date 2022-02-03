@@ -168,6 +168,17 @@ func (q *Queue) Fix(name string, when time.Time, later bool) error {
 	return nil
 }
 
+// Current status for each item in the queue.
+func (q *Queue) Current() map[string]time.Time {
+	currently := make(map[string]time.Time, len(q.queue))
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	for _, item := range q.queue {
+		currently[item.name] = item.when
+	}
+	return currently
+}
+
 // Status of the queue: depth, next item and when the next item is ready.
 func (q *Queue) Status() (int, *string, time.Time) {
 	q.lock.RLock()

@@ -25,7 +25,7 @@ import (
 
 // Uploader adds upload capabilities to a GCS client.
 type Uploader interface {
-	Upload(context.Context, Path, []byte, bool, string) (*storage.ObjectAttrs, error)
+	Upload(ctx context.Context, path Path, buf []byte, public bool, cacheControl string) (*storage.ObjectAttrs, error)
 }
 
 // Downloader can list files and open them for reading.
