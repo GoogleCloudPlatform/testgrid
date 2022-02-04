@@ -207,7 +207,7 @@ message TestGroup {
     }
   }
 
-  // Test annotations to look for. Adds custom short text overlays to results.
+  // Test annotations to look for. Adds custom icon to results.
   repeated TestAnnotation test_annotations = 31;
 
   // Maximum number of individual test methods to collect for any given test row.

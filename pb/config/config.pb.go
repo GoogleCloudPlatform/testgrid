@@ -475,7 +475,7 @@ type TestGroup struct {
 	// Whether to collect pass-fail data for test methods. Additional test cases
 	// will be added for each test method in a target.
 	EnableTestMethods bool `protobuf:"varint,30,opt,name=enable_test_methods,json=enableTestMethods,proto3" json:"enable_test_methods,omitempty"`
-	// Test annotations to look for. Adds custom short text overlays to results.
+	// Test annotations to look for. Adds custom icon to results.
 	TestAnnotations []*TestGroup_TestAnnotation `protobuf:"bytes,31,rep,name=test_annotations,json=testAnnotations,proto3" json:"test_annotations,omitempty"`
 	// Maximum number of individual test methods to collect for any given test row.
 	// If a test has more than this many methods, no methods will be displayed.

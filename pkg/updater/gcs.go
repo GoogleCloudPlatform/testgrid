@@ -316,6 +316,15 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 				c.Result = statuspb.TestStatus_PASS
 			}
 
+			for _, annotation := range opt.annotations {
+				_, ok := props[annotation.GetPropertyName()]
+				if !ok {
+					continue
+				}
+				c.Icon = annotation.ShortText
+				break
+			}
+
 			if f, ok := c.Metrics[opt.metricKey]; ok {
 				c.Icon = strconv.FormatFloat(f, 'g', 4, 64)
 			}
