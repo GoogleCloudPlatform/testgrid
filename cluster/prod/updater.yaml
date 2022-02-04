@@ -42,6 +42,7 @@ spec:
         - --group-concurrency=10
         - --group-timeout=20m
         - --json-logs
+        - --persist-queue=gs://k8s-testgrid/queue/updater.json
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid
         - --subscribe=oss-prow=k8s-testgrid/testgrid
         - --subscribe=istio-prow=k8s-testgrid/testgrid
