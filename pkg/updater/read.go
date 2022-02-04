@@ -167,6 +167,7 @@ type groupOptions struct {
 	addCellID      bool
 	metricKey      string
 	userKey        string
+	annotations    []*configpb.TestGroup_TestAnnotation
 }
 
 func makeOptions(group *configpb.TestGroup) groupOptions {
@@ -176,6 +177,7 @@ func makeOptions(group *configpb.TestGroup) groupOptions {
 		addCellID:      group.BuildOverrideStrftime != "",
 		metricKey:      group.ShortTextMetric,
 		userKey:        group.UserProperty,
+		annotations:    group.TestAnnotations,
 	}
 }
 

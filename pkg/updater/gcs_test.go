@@ -29,6 +29,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/metadata"
 	"github.com/GoogleCloudPlatform/testgrid/metadata/junit"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
@@ -993,6 +994,155 @@ func TestConvertResult(t *testing.T) {
 						Metrics: map[string]float64{
 							"food": 1,
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "annotations",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				annotations: []*configpb.TestGroup_TestAnnotation{
+					{
+						ShortText: "steak",
+						ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+							PropertyName: "fries",
+						},
+					},
+				},
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: &junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name: "no properties",
+										},
+										{
+											Name: "missing property",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"random", "thing"},
+												},
+											},
+										},
+										{
+											Name: "present",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "irrelevant"},
+												},
+											},
+										},
+										{
+											Name: "empty",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", ""},
+												},
+											},
+										},
+										{
+											Name: "multiple",
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "shoestring"},
+													{"fries", "curly"},
+												},
+											},
+										},
+										{
+											Name:    "annotation over failure",
+											Failure: pstr("boom"),
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "irrelevant"},
+												},
+											},
+										},
+										{
+											Name:    "annotation over error",
+											Errored: pstr("boom"),
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "irrelevant"},
+												},
+											},
+										},
+										{
+											Name:    "annotation over skip",
+											Skipped: pstr("boom"),
+											Properties: &junit.Properties{
+												PropertyList: []junit.Property{
+													{"fries", "irrelevant"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				Cells: map[string]Cell{
+					"." + overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+					"no properties": {
+						Result: statuspb.TestStatus_PASS,
+					},
+					"missing property": {
+						Result: statuspb.TestStatus_PASS,
+					},
+					"present": {
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "steak",
+					},
+					"empty": {
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "steak",
+					},
+					"multiple": {
+						Result: statuspb.TestStatus_PASS,
+						Icon:   "steak",
+					},
+					"annotation over failure": {
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "steak",
+						Message: "boom",
+					},
+					"annotation over error": {
+						Result:  statuspb.TestStatus_FAIL,
+						Icon:    "steak",
+						Message: "boom",
+					},
+					"annotation over skip": {
+						Result:  statuspb.TestStatus_PASS_WITH_SKIPS,
+						Icon:    "steak",
+						Message: "boom",
 					},
 				},
 			},
