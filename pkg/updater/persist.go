@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package updater reads the latest test results and saves updated state.
 package updater
 
 import (
