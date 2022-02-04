@@ -51,6 +51,7 @@ func FixPersistent(client PersistClient, path gcs.Path, tick <-chan time.Time) F
 		tryLoad := func() error {
 			reader, attrs, err := client.Open(ctx, path)
 			if errors.Is(err, storage.ErrObjectNotExist) {
+				log.Info("Previous persistent queue state does not exist.")
 				return nil
 			}
 			if err != nil {
