@@ -221,6 +221,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 
 		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
+		fixAll()
 		for {
 			lock.Lock()
 			activeDashboards := active.Elements()

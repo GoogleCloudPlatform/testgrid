@@ -135,10 +135,10 @@ func main() {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
 
-	fixers := []summarizer.Fixer{
-		fixer,
+	fixers := make([]summarizer.Fixer, 0, 2)
+	if fixer != nil {
+		fixers = append(fixers, fixer)
 	}
-
 	if path := opt.persistQueue; path.String() != "" {
 		const freq = time.Minute
 		ticker := time.NewTicker(freq)
