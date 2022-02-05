@@ -119,7 +119,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, summaryPathPrefix string, dashboards []string, confirm bool, freq time.Duration, fix Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, summaryPathPrefix string, dashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -129,7 +129,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	var q config.DashboardQueue
 
-	onConfigUpdate := func(cfg *snapshot.Config) error {
+	fixSnapshot := func(cfg *snapshot.Config) error {
 		dashboards := cfg.AllDashboards()
 		log := log.WithField("onConfigUpdate()", true)
 
@@ -137,31 +137,44 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		for _, d := range dashboards {
 			path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
 			if err != nil {
-				log.WithError(err).WithField("dashboard", d.Name).Error("bad dashboard path")
+				log.WithError(err).WithField("dashboard", d.Name).Error("Bad dashboard path")
 			}
 			paths = append(paths, *path)
 		}
 
 		stats := gcs.Stat(ctx, client, 10, paths...)
 		whens := make(map[string]time.Time, len(stats))
+		var wg sync.WaitGroup
 		for i, stat := range stats {
 			name := dashboards[i].Name
+			path := paths[i]
+			log := log.WithField("path", path)
 			switch {
 			case stat.Attrs != nil:
 				whens[name] = stat.Attrs.Updated.Add(freq)
 			default:
 				if errors.Is(stat.Err, storage.ErrObjectNotExist) {
-					defer func(i int) {
-						if _, err := lockDashboard(ctx, client, paths[i], 0); err != nil && !gcs.IsPreconditionFailed(err) {
-							log.WithError(err).WithField("path", paths[i]).Error("Failed to lock initial summary")
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						_, err := lockDashboard(ctx, client, path, 0)
+						switch {
+						case gcs.IsPreconditionFailed(err):
+							log.WithError(err).Debug("Lost race to create initial summary")
+						case err != nil:
+							log.WithError(err).Error("Failed to lock initial summary")
+						default:
+							log.Info("Created initial summary")
 						}
-					}(i)
+					}()
 				} else {
-					log.WithError(stat.Err).WithField("path", paths[i]).Info("Failed to stat")
+					log.WithError(stat.Err).Info("Failed to stat")
 				}
 				whens[name] = time.Now()
 			}
 		}
+
+		wg.Wait()
 
 		q.Init(log, cfg.AllDashboards(), time.Now().Add(freq))
 		if err := q.FixAll(whens, false); err != nil {
@@ -169,19 +182,20 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 		return nil
 	}
+	cfgChanged := make(chan *snapshot.Config)
 
+	onConfigUpdate := func(cfg *snapshot.Config) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case cfgChanged <- cfg:
+		}
+		return nil
+	}
 	log.Debug("Observing config...")
 	cfg, err := snapshot.Observe(ctx, log, client, configPath, onConfigUpdate)
 	if err != nil {
 		return fmt.Errorf("observe config: %w", err)
-	}
-
-	q.Init(log, cfg.AllDashboards(), time.Now().Add(freq))
-
-	if fix != nil {
-		go func() {
-			fix(ctx, &q)
-		}()
 	}
 
 	var active stringset.Set
@@ -189,6 +203,23 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	var lock sync.Mutex
 
 	go func() {
+		fixCtx, fixCancel := context.WithCancel(ctx)
+		var fixWg sync.WaitGroup
+		fixAll := func() {
+			n := len(fixers)
+			log.WithField("fixers", n).Trace("Starting fixers on current test groups...")
+			fixWg.Add(n)
+			for i, fix := range fixers {
+				go func(i int, fix Fixer) {
+					defer fixWg.Done()
+					if err := fix(fixCtx, &q); err != nil && !errors.Is(err, context.Canceled) {
+						log.WithError(err).WithField("fixer", i).Warning("Fixer failed")
+					}
+				}(i, fix)
+			}
+			log.Debug("Started fixers on current test groups")
+		}
+
 		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
 		for {
 			lock.Lock()
@@ -213,12 +244,26 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			select {
 			case <-ctx.Done():
 				ticker.Stop()
+				fixCancel()
+				fixWg.Wait()
 				return
+			case cfg := <-cfgChanged:
+				fixCancel()
+				fixWg.Wait()
+				fixSnapshot(cfg)
+				fixAll()
 			case <-ticker.C:
 			}
 
 		}
 	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case cfgChanged <- cfg:
+	}
+
 	dashboardNames := make(chan string)
 
 	// TODO(fejta): cache downloaded group?
@@ -241,6 +286,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 		dash := cfg.Dashboard(dashName)
+		if dash == nil {
+			return log, errors.New("dashboard not found")
+		}
 		log.Debug("Summarizing dashboard")
 		summaryPath, err := summaryPath(configPath, summaryPathPrefix, dashName)
 		if err != nil {

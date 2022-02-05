@@ -23,13 +23,13 @@ import (
 
 	"bitbucket.org/creachadair/stringset"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/util"
+	"github.com/GoogleCloudPlatform/testgrid/util/queue"
 	"github.com/sirupsen/logrus"
 )
 
 // DashboardQueue sends dashboard names at a specific frequency.
 type DashboardQueue struct {
-	util.Queue
+	queue.Queue
 	dashboards map[string]*configpb.Dashboard
 	groups     map[string]*stringset.Set
 
@@ -83,7 +83,7 @@ func (q *DashboardQueue) FixTestGroups(when time.Time, later bool, groups ...str
 // First call must be to Init().
 // Exported methods are safe to call concurrently.
 type TestGroupQueue struct {
-	util.Queue
+	queue.Queue
 	groups map[string]*configpb.TestGroup
 	lock   sync.RWMutex
 }

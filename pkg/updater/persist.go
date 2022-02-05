@@ -18,101 +18,19 @@ package updater
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/queue"
 	"github.com/sirupsen/logrus"
 )
 
-// PersistClient contains interfaces for reading from and writing to a Path.
-type PersistClient interface {
-	gcs.Uploader
-	gcs.Opener
-}
-
-// FixPersistent persists the queue to the remote path every tick.
-//
-// The first time it will load the state. Thereafter it will save the state.
-// This includes restarts due to expiring contexts -- it will just load once.
-func FixPersistent(client PersistClient, path gcs.Path, tick <-chan time.Time) Fixer {
-	var shouldSave bool
-	return func(ctx context.Context, logr logrus.FieldLogger, q *config.TestGroupQueue, _ []*configpb.TestGroup) error {
-		log := logr.WithField("path", path)
-
-		log.Debug("Using persistent state")
-
-		tryLoad := func() error {
-			reader, attrs, err := client.Open(ctx, path)
-			if errors.Is(err, storage.ErrObjectNotExist) {
-				log.Info("Previous persistent queue state does not exist.")
-				return nil
-			}
-			if err != nil {
-				return fmt.Errorf("open: %w", err)
-			}
-
-			defer reader.Close()
-			dec := json.NewDecoder(reader)
-			var whens map[string]time.Time
-			if err := dec.Decode(&whens); err != nil {
-				return fmt.Errorf("decode: %v", err)
-			}
-
-			current := q.Current()
-
-			for name := range whens {
-				if _, ok := current[name]; ok {
-					continue
-				}
-				delete(whens, name)
-			}
-
-			log.WithField("from", attrs.LastModified).Info("Fixing queue with persistent state.")
-			if err := q.FixAll(whens, false); err != nil {
-				return fmt.Errorf("fix all: %v", err)
-			}
-			return nil
-		}
-
-		trySave := func() error {
-			currently := q.Current()
-			buf, err := json.MarshalIndent(currently, "", "  ")
-			if err != nil {
-				return fmt.Errorf("marshal: %v", err)
-			}
-			_, err = client.Upload(ctx, path, buf, false, "")
-			return err
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-tick:
-			}
-
-			if shouldSave {
-				log.Trace("Saving persistent state...")
-				if err := trySave(); err != nil {
-					log.WithError(err).Error("Failed to save persistent state.")
-					continue
-				}
-				log.Debug("Saved persistent state.")
-			} else {
-				log.Trace("Loading persistent state...")
-				if err := tryLoad(); err != nil {
-					log.WithError(err).Error("Failed to load persistent state.")
-					continue
-				}
-				shouldSave = true
-				log.Debug("Loaded persistent state.")
-			}
-		}
+// FixPersistent persists the updater queue using queue.FixPersistent.
+func FixPersistent(log logrus.FieldLogger, client queue.PersistClient, path gcs.Path, tick <-chan time.Time) Fixer {
+	fix := queue.FixPersistent(log, client, path, tick)
+	return func(ctx context.Context, _ logrus.FieldLogger, q *config.TestGroupQueue, _ []*configpb.TestGroup) error {
+		return fix(ctx, &q.Queue)
 	}
 }

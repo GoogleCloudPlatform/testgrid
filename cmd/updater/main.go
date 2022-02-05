@@ -174,8 +174,10 @@ func main() {
 	}
 
 	if path := opt.persistQueue; path.String() != "" {
-		ticker := time.NewTicker(time.Minute)
-		fixers = append(fixers, updater.FixPersistent(client, path, ticker.C))
+		const freq = time.Minute
+		ticker := time.NewTicker(freq)
+		log := logrus.WithField("frequency", freq)
+		fixers = append(fixers, updater.FixPersistent(log, client, path, ticker.C))
 	}
 
 	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait, fixers...); err != nil {
