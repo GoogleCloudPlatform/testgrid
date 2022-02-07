@@ -36,6 +36,7 @@ import (
 
 type options struct {
 	config            gcs.Path // gcs://path/to/config/proto
+	persistQueue      gcs.Path
 	creds             string
 	confirm           bool
 	dashboards        util.Strings
@@ -63,6 +64,7 @@ func (o *options) validate() error {
 func gatherOptions() options {
 	var o options
 	flag.Var(&o.config, "config", "gs://path/to/config.pb")
+	flag.Var(&o.persistQueue, "persist-queue", "Load previous queue state from gs://path/to/queue-state.json and regularly save to it thereafter")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.Var(&o.dashboards, "dashboard", "Only update named dashboards if set (repeateable)")
@@ -132,7 +134,19 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
-	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.gridPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.wait, fixer); err != nil {
+
+	fixers := make([]summarizer.Fixer, 0, 2)
+	if fixer != nil {
+		fixers = append(fixers, fixer)
+	}
+	if path := opt.persistQueue; path.String() != "" {
+		const freq = time.Minute
+		ticker := time.NewTicker(freq)
+		log := logrus.WithField("frequency", freq)
+		fixers = append(fixers, summarizer.FixPersistent(log, client, path, ticker.C))
+	}
+
+	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.gridPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not summarize")
 	}
 }

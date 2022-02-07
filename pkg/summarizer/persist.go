@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes Authors.
+Copyright 2022 The TestGrid Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package updater
+package summarizer
 
 import (
 	"context"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
-	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/queue"
 	"github.com/sirupsen/logrus"
@@ -30,7 +29,7 @@ import (
 // FixPersistent persists the updater queue using queue.FixPersistent.
 func FixPersistent(log logrus.FieldLogger, client queue.PersistClient, path gcs.Path, tick <-chan time.Time) Fixer {
 	fix := queue.FixPersistent(log, client, path, tick)
-	return func(ctx context.Context, _ logrus.FieldLogger, q *config.TestGroupQueue, _ []*configpb.TestGroup) error {
-		return fix(ctx, &q.Queue)
+	return func(ctx context.Context, iq *config.DashboardQueue) error {
+		return fix(ctx, &iq.Queue)
 	}
 }
