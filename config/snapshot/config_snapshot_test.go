@@ -21,22 +21,24 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
-	"github.com/sirupsen/logrus"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestObserve(t *testing.T) {
+func TestObserve_OnInit(t *testing.T) {
 	tests := []struct {
 		name             string
 		config           *configpb.Configuration
 		configGeneration int64
-		readErr          error
-		expectDashboard  *configpb.Dashboard
+		gcsErr           error
+		expectInitial    *configpb.Dashboard
 		expectError      bool
 	}{
 		{
@@ -49,13 +51,13 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			configGeneration: 1,
-			expectDashboard: &configpb.Dashboard{
+			expectInitial: &configpb.Dashboard{
 				Name: "dashboard",
 			},
 		},
 		{
 			name:        "Returns error if config isn't present at startup",
-			readErr:     errors.New("can't read in this test"),
+			gcsErr:      errors.New("file missing"),
 			expectError: true,
 		},
 	}
@@ -70,87 +72,52 @@ func TestObserve(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			client := &fake.ConditionalClient{
-				UploadClient: fake.UploadClient{
-					Uploader: fake.Uploader{},
-					Client: fake.Client{
-						Lister: fake.Lister{},
-						Opener: fake.Opener{},
-					},
-					Stater: fake.Stater{},
-				},
-				Lock: &sync.RWMutex{},
-			}
-
+			client := fakeClient()
 			client.Opener[*path] = fake.Object{
 				Data: string(mustMarshalConfig(test.config)),
 				Attrs: &storage.ReaderObjectAttrs{
 					Generation: test.configGeneration,
 				},
-				ReadErr: test.readErr,
+				ReadErr: test.gcsErr,
 			}
 			client.Stater[*path] = fake.Stat{
 				Attrs: storage.ObjectAttrs{
 					Generation: test.configGeneration,
 				},
+				Err: test.gcsErr,
 			}
 
-			onUpdate := func(*Config) error {
-				return nil
+			snaps, err := Observe(ctx, nil, client, *path, nil)
+
+			if err != nil {
+				if !test.expectError {
+					t.Errorf("got unexpected error: %v", err)
+				}
+				return
 			}
 
-			cs, err := Observe(ctx, logrus.StandardLogger(), client, *path, onUpdate)
-
-			if (err != nil) != test.expectError {
-				t.Errorf("Error: got %v, expected? %t", err, test.expectError)
-			}
-
-			if result := cs.Dashboard("dashboard"); !proto.Equal(result, test.expectDashboard) {
-				t.Errorf("got dashboard %v, expected %v", result, test.expectDashboard)
+			select {
+			case cs := <-snaps:
+				if result := cs.Dashboards["dashboard"]; !proto.Equal(result, test.expectInitial) {
+					t.Errorf("got dashboard %v, expected %v", result, test.expectInitial)
+				}
+			case <-time.After(5 * time.Second):
+				t.Error("expected an initial snapshot, but got none")
 			}
 		})
 	}
 }
 
-func TestTick(t *testing.T) {
+func TestObserve_OnTick(t *testing.T) {
 	tests := []struct {
 		name             string
-		cs               *Config
 		config           *configpb.Configuration
 		configGeneration int64
-		readErr          error
+		gcsErr           error
 		expectDashboard  *configpb.Dashboard
-		expectUpdate     bool
-		expectError      bool
 	}{
 		{
-			name: "Reads configs",
-			cs:   &Config{},
-			config: &configpb.Configuration{
-				Dashboards: []*configpb.Dashboard{
-					{
-						Name: "dashboard",
-					},
-				},
-			},
-			configGeneration: 1,
-			expectDashboard: &configpb.Dashboard{
-				Name: "dashboard",
-			},
-			expectUpdate: true,
-		},
-		{
-			name: "Updates configs",
-			cs: &Config{
-				dashboards: map[string]*configpb.Dashboard{
-					"stale": {
-						Name: "stale",
-					},
-				},
-				attrs: storage.ReaderObjectAttrs{
-					Generation: 1,
-				},
-			},
+			name: "Reads new configs",
 			config: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
@@ -162,49 +129,168 @@ func TestTick(t *testing.T) {
 			expectDashboard: &configpb.Dashboard{
 				Name: "dashboard",
 			},
-			expectUpdate: true,
 		},
 		{
-			name: "Does not update same config",
-			cs: &Config{
-				dashboards: map[string]*configpb.Dashboard{
-					"dashboard": {
-						Name: "dashboard",
-					},
-				},
-				attrs: storage.ReaderObjectAttrs{
-					Generation: 1,
-				},
-			},
+			name: "Does not snapshot if generation match",
 			config: &configpb.Configuration{
 				Dashboards: []*configpb.Dashboard{
 					{
-						Name: "the-same",
+						Name: "dashboard",
 					},
 				},
 			},
 			configGeneration: 1,
-			expectDashboard: &configpb.Dashboard{
-				Name: "dashboard",
-			},
 		},
 		{
-			name: "Doesn't update on read error",
-			cs: &Config{
-				dashboards: map[string]*configpb.Dashboard{
-					"dashboard": {
-						Name: "dashboard",
-					},
+			name:             "Handles read error",
+			configGeneration: 2,
+			gcsErr:           errors.New("reading fails after init"),
+		},
+	}
+
+	path, err := gcs.NewPath("gs://config/example")
+	if err != nil {
+		t.Fatal("could not path")
+	}
+
+	initialConfig := &configpb.Configuration{
+		Dashboards: []*configpb.Dashboard{
+			{
+				Name: "old-dashboard",
+			},
+		},
+	}
+
+	now := time.Now()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			client := fakeClient()
+			client.Opener[*path] = fake.Object{
+				Data: string(mustMarshalConfig(initialConfig)),
+				Attrs: &storage.ReaderObjectAttrs{
+					Generation: 1,
 				},
-				attrs: storage.ReaderObjectAttrs{
+			}
+			client.Stater[*path] = fake.Stat{
+				Attrs: storage.ObjectAttrs{
+					Generation: 1,
+				},
+			}
+
+			ticker := make(chan time.Time)
+			defer close(ticker)
+			snaps, err := Observe(ctx, nil, client, *path, ticker)
+			if err != nil {
+				t.Fatalf("error in initial observe: %v", err)
+			}
+			<-snaps
+
+			// Change the config
+			client.Opener[*path] = fake.Object{
+				Data: string(mustMarshalConfig(test.config)),
+				Attrs: &storage.ReaderObjectAttrs{
+					Generation: test.configGeneration,
+				},
+				ReadErr: test.gcsErr,
+			}
+			client.Stater[*path] = fake.Stat{
+				Attrs: storage.ObjectAttrs{
+					Generation: test.configGeneration,
+				},
+				Err: test.gcsErr,
+			}
+
+			ticker <- now
+
+			if test.expectDashboard != nil {
+				select {
+				case cs := <-snaps:
+					if result := cs.Dashboards["dashboard"]; !proto.Equal(result, test.expectDashboard) {
+						t.Errorf("got dashboard %v, expected %v", result, test.expectDashboard)
+					}
+				case <-time.After(5 * time.Hour):
+					t.Error("expected a snapshot after tick, but got none")
+				}
+			} else {
+				select {
+				case cs := <-snaps:
+					t.Errorf("did not expect a snapshot, but got %v", cs)
+				default:
+				}
+			}
+		})
+	}
+}
+
+func TestObserve_Data(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *configpb.Configuration
+		expected *Config
+	}{
+		{
+			name: "Empty config",
+			expected: &Config{
+				Dashboards: map[string]*configpb.Dashboard{},
+				Groups:     map[string]*configpb.TestGroup{},
+				Attrs: storage.ReaderObjectAttrs{
 					Generation: 1,
 				},
 			},
-			readErr: errors.New("can't read in this test"),
-			expectDashboard: &configpb.Dashboard{
-				Name: "dashboard",
+		},
+		{
+			name: "Dashboards and TestGroups",
+			config: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name:       "chess",
+						DefaultTab: "Ke5",
+					},
+					{
+						Name:       "checkers",
+						DefaultTab: "10-15",
+					},
+				},
+				TestGroups: []*configpb.TestGroup{
+					{
+						Name:          "king",
+						DaysOfResults: 17,
+					},
+					{
+						Name:          "pawn",
+						DaysOfResults: 1,
+					},
+				},
 			},
-			expectError: true,
+			expected: &Config{
+				Dashboards: map[string]*configpb.Dashboard{
+					"chess": {
+						Name:       "chess",
+						DefaultTab: "Ke5",
+					},
+					"checkers": {
+						Name:       "checkers",
+						DefaultTab: "10-15",
+					},
+				},
+				Groups: map[string]*configpb.TestGroup{
+					"king": {
+						Name:          "king",
+						DaysOfResults: 17,
+					},
+					"pawn": {
+						Name:          "pawn",
+						DaysOfResults: 1,
+					},
+				},
+				Attrs: storage.ReaderObjectAttrs{
+					Generation: 1,
+				},
+			},
 		},
 	}
 
@@ -218,133 +304,35 @@ func TestTick(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			client := &fake.ConditionalClient{
-				UploadClient: fake.UploadClient{
-					Uploader: fake.Uploader{},
-					Client: fake.Client{
-						Lister: fake.Lister{},
-						Opener: fake.Opener{},
-					},
-					Stater: fake.Stater{},
-				},
-				Lock: &sync.RWMutex{},
-			}
-
+			client := fakeClient()
 			client.Opener[*path] = fake.Object{
 				Data: string(mustMarshalConfig(test.config)),
 				Attrs: &storage.ReaderObjectAttrs{
-					Generation: test.configGeneration,
+					Generation: 1,
 				},
-				ReadErr: test.readErr,
 			}
 			client.Stater[*path] = fake.Stat{
 				Attrs: storage.ObjectAttrs{
-					Generation: test.configGeneration,
+					Generation: 1,
 				},
 			}
 
-			var updated bool
-			onUpdate := func(*Config) error {
-				updated = true
-				return nil
+			snaps, err := Observe(ctx, nil, client, *path, nil)
+			if err != nil {
+				t.Fatalf("error in initial observe: %v", err)
 			}
 
-			reportsUpdate, err := test.cs.tick(ctx, client, *path, onUpdate)
-			if (err != nil) != test.expectError {
-				t.Errorf("Error: got %v, expected? %t", err, test.expectError)
+			select {
+			case cs := <-snaps:
+				if diff := cmp.Diff(test.expected, cs, protocmp.Transform()); diff != "" {
+					t.Errorf("(-want +got): %v", diff)
+				}
+			case <-time.After(5 * time.Second):
+				t.Error("expected an initial snapshot, but got none")
 			}
 
-			if reportsUpdate != test.expectUpdate {
-				t.Errorf("ReportsUpdate: got %t, expected %t", updated, test.expectUpdate)
-			}
-
-			if updated != test.expectUpdate {
-				t.Errorf("OnUpdate: got %t, expected %t", updated, test.expectUpdate)
-			}
-
-			if result := test.cs.Dashboard("dashboard"); !proto.Equal(result, test.expectDashboard) {
-				t.Errorf("got dashboard %v, expected %v", result, test.expectDashboard)
-			}
 		})
 	}
-}
-
-func TestGetters(t *testing.T) {
-	cs := Config{
-		dashboards: map[string]*configpb.Dashboard{
-			"corkboard": {
-				Name: "corkboard",
-				DashboardTab: []*configpb.DashboardTab{
-					{
-						Name:          "pushpins",
-						TestGroupName: "pegs",
-					},
-					{
-						Name:          "thumbtacks",
-						TestGroupName: "corks",
-					},
-				},
-			},
-			"chalkboard": {
-				Name: "chalkboard",
-			},
-		},
-		groups: map[string]*configpb.TestGroup{
-			"pegs": {
-				Name: "pegs",
-			},
-			"corks": {
-				Name: "corks",
-			},
-		},
-	}
-
-	tests := map[string]func(*testing.T){
-		"TestDashboard": func(t *testing.T) {
-			result := cs.Dashboard("corkboard")
-			if result.Name != "corkboard" {
-				t.Errorf("got %v, expected corkboard", result)
-			}
-		},
-		"TestGroup": func(t *testing.T) {
-			result := cs.Group("pegs")
-			if result.Name != "pegs" {
-				t.Errorf("got %v, expected pegs", result)
-			}
-		},
-		"TestDashboardTestGroups": func(t *testing.T) {
-			dash, groups := cs.DashboardTestGroups("corkboard")
-			if dash.Name != "corkboard" {
-				t.Errorf("got %v, expected corkboard", dash)
-			}
-			if g := groups["pushpins"]; g.Name != "pegs" {
-				t.Errorf("got %v, expected pegs", g)
-			}
-			if g := groups["thumbtacks"]; g.Name != "corks" {
-				t.Errorf("got %v, expected corks", g)
-			}
-		},
-		"TestAllDashboards": func(t *testing.T) {
-			dashes := cs.AllDashboards()
-			if len(dashes) != 2 {
-				t.Errorf("got %v, expected %d dashes", dashes, 2)
-			}
-		},
-	}
-
-	// Test for race conditions
-	var wg sync.WaitGroup
-	for _, test := range tests {
-		wg.Add(3)
-		for i := 0; i < 3; i++ {
-			test := test
-			go func() {
-				test(t)
-				wg.Done()
-			}()
-		}
-	}
-	wg.Wait()
 }
 
 func mustMarshalConfig(c *configpb.Configuration) []byte {
@@ -353,4 +341,18 @@ func mustMarshalConfig(c *configpb.Configuration) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func fakeClient() *fake.ConditionalClient {
+	return &fake.ConditionalClient{
+		UploadClient: fake.UploadClient{
+			Uploader: fake.Uploader{},
+			Client: fake.Client{
+				Lister: fake.Lister{},
+				Opener: fake.Opener{},
+			},
+			Stater: fake.Stater{},
+		},
+		Lock: &sync.RWMutex{},
+	}
 }

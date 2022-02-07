@@ -128,19 +128,22 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	log := logrus.WithField("config", configPath)
 
 	var q config.DashboardQueue
+	var cfg *snapshot.Config
 
-	fixSnapshot := func(cfg *snapshot.Config) error {
-		dashboards := cfg.AllDashboards()
+	fixSnapshot := func(newConfig *snapshot.Config) error {
 		baseLog := log
-		log := log.WithField("onConfigUpdate()", true)
+		log := log.WithField("fixSnapshot()", true)
+		cfg = newConfig
 
 		paths := make([]gcs.Path, 0, len(dashboards))
-		for _, d := range dashboards {
+		dashboards := make([]*configpb.Dashboard, 0, len(cfg.Dashboards))
+		for _, d := range cfg.Dashboards {
 			path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
 			if err != nil {
 				log.WithError(err).WithField("dashboard", d.Name).Error("Bad dashboard path")
 			}
 			paths = append(paths, *path)
+			dashboards = append(dashboards, d)
 		}
 
 		stats := gcs.Stat(ctx, client, 10, paths...)
@@ -177,29 +180,19 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 		wg.Wait()
 
-		q.Init(baseLog, cfg.AllDashboards(), time.Now().Add(freq))
+		q.Init(baseLog, dashboards, time.Now().Add(freq))
 		if err := q.FixAll(whens, false); err != nil {
 			log.WithError(err).Error("Failed to fix all dashboards based on last update time")
 		}
 		return nil
 	}
-	cfgChanged := make(chan *snapshot.Config)
 
-	onConfigUpdate := func(cfg *snapshot.Config) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case cfgChanged <- cfg:
-		}
-		return nil
-	}
 	log.Debug("Observing config...")
-	cfg, err := snapshot.Observe(ctx, log, client, configPath, onConfigUpdate)
+	cfgChanged, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
 	if err != nil {
 		return fmt.Errorf("observe config: %w", err)
 	}
-
-	q.Init(log, cfg.AllDashboards(), time.Now().Add(freq)) // Bootstrap queue before use
+	fixSnapshot(<-cfgChanged) // Bootstrap queue before use
 
 	var active stringset.Set
 	var waiting stringset.Set
@@ -251,12 +244,12 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				fixCancel()
 				fixWg.Wait()
 				return
-			case cfg := <-cfgChanged:
+			case newConfig := <-cfgChanged:
 				log.Info("Configuration changed")
 				fixCancel()
 				fixWg.Wait()
 				fixCtx, fixCancel = context.WithCancel(ctx)
-				fixSnapshot(cfg)
+				fixSnapshot(newConfig)
 				fixAll()
 			case <-ticker.C:
 			}
@@ -264,17 +257,11 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case cfgChanged <- cfg:
-	}
-
 	dashboardNames := make(chan string)
 
 	// TODO(fejta): cache downloaded group?
 	findGroup := func(name string) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
-		group := cfg.Group(name)
+		group := cfg.Groups[name]
 		if group == nil {
 			return nil, nil, nil, nil
 		}
@@ -291,7 +278,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
-		dash := cfg.Dashboard(dashName)
+		dash := cfg.Dashboards[dashName]
 		if dash == nil {
 			return log, errors.New("dashboard not found")
 		}

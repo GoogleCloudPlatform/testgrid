@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//config:go_default_library",
         "//config/snapshot:go_default_library",
+        "//pb/config:go_default_library",
         "//pkg/updater:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics:go_default_library",
