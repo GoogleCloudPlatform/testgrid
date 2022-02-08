@@ -329,6 +329,11 @@ type TestResultComparison_TestResultField struct {
 	// This will find the scalar field with the given name within the TestResult
 	// proto. The value of that field will be used to evaluate.
 	//
+	// Accepted junit values for junit results are:
+	//   name: name of the test case
+	//   error_count: 1 if the test case has an error message
+	//   failure_count: 1 if the test case has a failure message
+	//
 	// NOTE: Only supported for string and numerical values.
 	TestResultField string `protobuf:"bytes,3,opt,name=test_result_field,json=testResultField,proto3,oneof"`
 }
@@ -336,6 +341,9 @@ type TestResultComparison_TestResultField struct {
 type TestResultComparison_TestResultErrorField struct {
 	// This will find the field nested within the first error of the TestResult
 	// proto. The value of that field will be used to evaluate.
+	//
+	// Accepted values for junit results are:
+	//   exception_type: the failure and/or error message.
 	//
 	// NOTE: Only supported for string and numerical values
 	TestResultErrorField string `protobuf:"bytes,4,opt,name=test_result_error_field,json=testResultErrorField,proto3,oneof"`

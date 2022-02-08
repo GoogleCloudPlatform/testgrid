@@ -316,6 +316,10 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 				c.Result = statuspb.TestStatus_PASS
 			}
 
+			if override := CustomStatus(opt.rules, jUnitTestResult{&r}); override != nil {
+				c.Result = *override
+			}
+
 			for _, annotation := range opt.annotations {
 				_, ok := props[annotation.GetPropertyName()]
 				if !ok {
