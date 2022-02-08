@@ -29,6 +29,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	evalpb "github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
@@ -168,6 +169,7 @@ type groupOptions struct {
 	metricKey      string
 	userKey        string
 	annotations    []*configpb.TestGroup_TestAnnotation
+	rules          []*evalpb.Rule
 }
 
 func makeOptions(group *configpb.TestGroup) groupOptions {
@@ -178,6 +180,7 @@ func makeOptions(group *configpb.TestGroup) groupOptions {
 		metricKey:      group.ShortTextMetric,
 		userKey:        group.UserProperty,
 		annotations:    group.TestAnnotations,
+		rules:          group.GetCustomEvaluatorRuleSet().GetRules(),
 	}
 }
 

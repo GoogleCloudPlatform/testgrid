@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "eval.go",
         "gcs.go",
         "inflate.go",
         "persist.go",
@@ -18,6 +19,7 @@ go_library(
         "//metadata:go_default_library",
         "//metadata/junit:go_default_library",
         "//pb/config:go_default_library",
+        "//pb/custom_evaluator:go_default_library",
         "//pb/state:go_default_library",
         "//pb/test_status:go_default_library",
         "//pkg/pubsub:go_default_library",
@@ -34,6 +36,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "eval_test.go",
         "gcs_test.go",
         "inflate_test.go",
         "persist_test.go",
@@ -48,6 +51,7 @@ go_test(
         "//metadata:go_default_library",
         "//metadata/junit:go_default_library",
         "//pb/config:go_default_library",
+        "//pb/custom_evaluator:go_default_library",
         "//pb/state:go_default_library",
         "//pb/test_status:go_default_library",
         "//pkg/pubsub:go_default_library",
