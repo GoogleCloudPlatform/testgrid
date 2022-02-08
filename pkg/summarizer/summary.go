@@ -131,6 +131,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	fixSnapshot := func(cfg *snapshot.Config) error {
 		dashboards := cfg.AllDashboards()
+		baseLog := log
 		log := log.WithField("onConfigUpdate()", true)
 
 		paths := make([]gcs.Path, 0, len(dashboards))
@@ -176,7 +177,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 		wg.Wait()
 
-		q.Init(log, cfg.AllDashboards(), time.Now().Add(freq))
+		q.Init(baseLog, cfg.AllDashboards(), time.Now().Add(freq))
 		if err := q.FixAll(whens, false); err != nil {
 			log.WithError(err).Error("Failed to fix all dashboards based on last update time")
 		}
@@ -198,6 +199,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return fmt.Errorf("observe config: %w", err)
 	}
 
+	q.Init(log, cfg.AllDashboards(), time.Now().Add(freq)) // Bootstrap queue before use
+
 	var active stringset.Set
 	var waiting stringset.Set
 	var lock sync.Mutex
@@ -207,7 +210,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		var fixWg sync.WaitGroup
 		fixAll := func() {
 			n := len(fixers)
-			log.WithField("fixers", n).Trace("Starting fixers on current test groups...")
+			log.WithField("fixers", n).Trace("Starting fixers on current dashboards...")
 			fixWg.Add(n)
 			for i, fix := range fixers {
 				go func(i int, fix Fixer) {
@@ -217,7 +220,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 					}
 				}(i, fix)
 			}
-			log.Debug("Started fixers on current test groups")
+			log.Debug("Started fixers on current dashboards")
 		}
 
 		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
@@ -241,7 +244,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				log = log.WithField("sleep", -delay)
 			}
 			log = log.WithField("delay", delay.Round(time.Second))
-			log.Info("Updating groups")
+			log.Info("Updating dashboards")
 			select {
 			case <-ctx.Done():
 				ticker.Stop()
@@ -249,8 +252,10 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				fixWg.Wait()
 				return
 			case cfg := <-cfgChanged:
+				log.Info("Configuration changed")
 				fixCancel()
 				fixWg.Wait()
+				fixCtx, fixCancel = context.WithCancel(ctx)
 				fixSnapshot(cfg)
 				fixAll()
 			case <-ticker.C:
