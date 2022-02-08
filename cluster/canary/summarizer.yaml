@@ -43,6 +43,7 @@ spec:
         - --confirm
         - --grid-path=grid
         - --json-logs
+        - --persist-queue=gs://k8s-testgrid-canary/queue/summarizer.json
         - --pubsub=k8s-testgrid/canary-test-group-updates
         - --summary-path=summary
         - --wait=1h
