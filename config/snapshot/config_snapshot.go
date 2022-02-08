@@ -19,7 +19,6 @@ package snapshot
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -29,128 +28,61 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Config is a mapped representation of the config at a particular point in time
+// Config is a mapped representation of the config at a particular point in time.
+// Not concurrency-safe; meant for reading only
 type Config struct {
-	dashboards map[string]*configpb.Dashboard
-	groups     map[string]*configpb.TestGroup
-	attrs      storage.ReaderObjectAttrs
-	lock       sync.RWMutex
+	Dashboards map[string]*configpb.Dashboard
+	Groups     map[string]*configpb.TestGroup
+	Attrs      storage.ReaderObjectAttrs
 }
 
-// Dashboard returns a dashboard's configuration
-func (cs *Config) Dashboard(name string) *configpb.Dashboard {
-	if cs == nil {
-		return nil
+// Observe reads the config at configPath and return a ConfigSnapshot initially and, if a ticker is supplied, when the config changes
+// Returns an error instead if there is no file at configPath
+func Observe(ctx context.Context, log logrus.FieldLogger, client gcs.ConditionalClient, configPath gcs.Path, ticker <-chan time.Time) (<-chan *Config, error) {
+	ch := make(chan *Config)
+	if log == nil {
+		log = logrus.New()
 	}
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	return cs.dashboards[name]
-}
-
-// AllDashboards returns all dashboards
-func (cs *Config) AllDashboards() []*configpb.Dashboard {
-	if cs == nil {
-		return nil
-	}
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	db := make([]*configpb.Dashboard, len(cs.dashboards))
-	var i int
-	for _, d := range cs.dashboards {
-		db[i] = d
-		i++
-	}
-	return db
-}
-
-// Group returns a test group's configuration
-func (cs *Config) Group(name string) *configpb.TestGroup {
-	if cs == nil {
-		return nil
-	}
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	return cs.groups[name]
-}
-
-// DashboardTestGroups returns a dashboard's configuration and a map containing:
-//   Each dashboard tabs name -> the configuration of the test group backing it
-func (cs *Config) DashboardTestGroups(dashboardName string) (*configpb.Dashboard, map[string]*configpb.TestGroup) {
-	if cs == nil {
-		return nil, nil
-	}
-	cs.lock.RLock()
-	defer cs.lock.RUnlock()
-
-	d := cs.dashboards[dashboardName]
-	if d == nil {
-		return nil, nil
-	}
-	gs := make(map[string]*configpb.TestGroup, len(d.DashboardTab))
-	for _, tab := range d.DashboardTab {
-		gs[tab.Name] = cs.groups[tab.TestGroupName]
-	}
-	return d, gs
-}
-
-// OnConfigUpdate is a function to be called whenever the config is found to have changed
-// Errors returned by this will be logged, but will not stop the config update.
-type OnConfigUpdate func(*Config) error
-
-// Observe will continuously keep the config up-to-date.
-// If it the config changes, the callback will be called.
-// Runs continuously until the context expires.
-func Observe(ctx context.Context, log logrus.FieldLogger, client gcs.ConditionalClient, configPath gcs.Path, update OnConfigUpdate) (*Config, error) {
-	var cs Config
 	log = log.WithField("observed-path", configPath.String())
 
-	_, err := cs.update(ctx, client, configPath, nil)
+	initialSnap, err := updateHash(ctx, client, configPath, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can't read %q: %w", configPath.String(), err)
 	}
-	ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
+	var cond storage.Conditions
+	cond.GenerationNotMatch = initialSnap.Attrs.Generation
 
 	go func() {
+		defer close(ch)
+		ch <- initialSnap
+		if ticker == nil {
+			return
+		}
 		for {
-			changed, err := cs.tick(ctx, client, configPath, update)
-			if changed {
-				log.Infof("Configuration changed")
-			}
-			if err != nil {
-				log.Errorf("Error while observing config: %v", err)
-			}
-
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
 				return
-			case <-ticker.C:
+			case <-ticker:
+				snap, err := updateHash(ctx, client, configPath, &cond)
+				switch {
+				case err == nil:
+					// Configuration changed
+					ch <- snap
+					cond.GenerationNotMatch = snap.Attrs.Generation
+				case !gcs.IsPreconditionFailed(err):
+					log.WithError(err).Warning("Error while observing config")
+				}
 			}
+
 		}
 	}()
 
-	return &cs, nil
+	return ch, nil
 }
 
-func (cs *Config) tick(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, update OnConfigUpdate) (bool, error) {
-	var cond storage.Conditions
-	cond.GenerationNotMatch = cs.attrs.Generation
-	_, err := cs.update(ctx, client, configPath, &cond)
-	switch {
-	case err == nil:
-		// Configuration changed
-		return true, update(cs)
-	case !gcs.IsPreconditionFailed(err):
-		return false, err
-	}
-	return false, nil
-}
-
-func (cs *Config) update(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, cond *storage.Conditions) (*storage.ReaderObjectAttrs, error) {
-	cfg, attrs, err := fetchConfig(ctx, client.If(cond, cond), configPath)
+func updateHash(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, cond *storage.Conditions) (*Config, error) {
+	var cs Config
+	cfg, attrs, err := fetchConfig(ctx, client, configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -164,16 +96,12 @@ func (cs *Config) update(ctx context.Context, client gcs.ConditionalClient, conf
 		namedGroups[tg.Name] = tg
 	}
 
-	cs.lock.Lock()
-	defer cs.lock.Unlock()
-	cs.dashboards = namedDashboards
-	cs.groups = namedGroups
-	if attrs == nil {
-		cs.attrs = storage.ReaderObjectAttrs{}
-	} else {
-		cs.attrs = *attrs
+	cs.Dashboards = namedDashboards
+	cs.Groups = namedGroups
+	if attrs != nil {
+		cs.Attrs = *attrs
 	}
-	return attrs, nil
+	return &cs, nil
 }
 
 func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {

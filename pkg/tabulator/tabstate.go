@@ -25,11 +25,14 @@ import (
 	"time"
 
 	"bitbucket.org/creachadair/stringset"
+
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -71,21 +74,25 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}()
 	}
 
-	onUpdate := func(cfg *snapshot.Config) error {
-		// reinitialize all
-		q.Init(log, cfg.AllDashboards(), time.Now())
-		return nil
-	}
-
 	log.Debug("Observing config...")
-	cfg, err := snapshot.Observe(ctx, log, client, configPath, onUpdate)
+	cfgChanged, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
 	if err != nil {
 		return fmt.Errorf("error while observing config %q: %w", configPath.String(), err)
 	}
 
-	q.Init(log, cfg.AllDashboards(), time.Now())
+	var cfg *snapshot.Config
+	fixSnapshot := func(newConfig *snapshot.Config) {
+		cfg = newConfig
+		dashes := make([]*configpb.Dashboard, 0, len(cfg.Dashboards))
+		for _, dash := range cfg.Dashboards {
+			dashes = append(dashes, dash)
+		}
 
-	// Set up logging thread
+		q.Init(log, dashes, time.Now())
+	}
+
+	fixSnapshot(<-cfgChanged)
+
 	go func(ctx context.Context) {
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
@@ -106,7 +113,12 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			select {
 			case <-ctx.Done():
 				return
+			case newConfig := <-cfgChanged:
+				// TODO(chases2): stop all updating routines
+				fixSnapshot(newConfig)
+				// TODO(chases2): restart all updating routines
 			case <-ticker.C:
+				continue
 			}
 		}
 	}(ctx)
@@ -119,16 +131,19 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	dashboardNames := make(chan string)
 
 	update := func(log *logrus.Entry, dashName string) error {
-		_, tabs := cfg.DashboardTestGroups(dashName)
+		dashboard, ok := cfg.Dashboards[dashName]
+		if !ok {
+			return fmt.Errorf("No dashboard named %q", dashName)
+		}
 
-		for tabName, testGroup := range tabs {
-			fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, testGroup.Name)
+		for _, tab := range dashboard.GetDashboardTab() {
+			fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, tab.TestGroupName)
 			if err != nil {
-				return fmt.Errorf("can't make tg path %q: %w", testGroup.Name, err)
+				return fmt.Errorf("can't make tg path %q: %w", tab.TestGroupName, err)
 			}
-			toPath, err := tabStatePath(configPath, tabsPathPrefix, dashName, tabName)
+			toPath, err := tabStatePath(configPath, tabsPathPrefix, dashName, tab.Name)
 			if err != nil {
-				return fmt.Errorf("can't make dashtab path %s/%s: %w", dashName, tabName, err)
+				return fmt.Errorf("can't make dashtab path %s/%s: %w", dashName, tab.Name, err)
 			}
 			log.WithFields(logrus.Fields{
 				"from": fromPath.String(),
