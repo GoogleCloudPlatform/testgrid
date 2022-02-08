@@ -29,6 +29,7 @@ spec:
         - --confirm
         - --group-timeout=20m
         - --json-logs
+        - --persist-queue=gs://knative-own-testgrid/queue/updater.json
         - --subscribe=knative-prow=knative-tests/testgrid
         - --wait=1h
 ---
