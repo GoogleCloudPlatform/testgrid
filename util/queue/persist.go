@@ -73,12 +73,14 @@ func FixPersistent(logr logrus.FieldLogger, client PersistClient, path gcs.Path,
 				delete(whens, name)
 			}
 
-			log.WithField("from", attrs.LastModified).Info("Fixing queue with persistent state.")
+			log.WithField("from", attrs.LastModified).Info("Loaded previous state, syncing queue.")
 			if err := q.FixAll(whens, false); err != nil {
 				return fmt.Errorf("fix all: %v", err)
 			}
 			return nil
 		}
+
+		logSave := true
 
 		trySave := func() error {
 			currently := q.Current()
@@ -86,13 +88,18 @@ func FixPersistent(logr logrus.FieldLogger, client PersistClient, path gcs.Path,
 			if err != nil {
 				return fmt.Errorf("marshal: %v", err)
 			}
-			_, err = client.Upload(ctx, path, buf, false, "")
+			attrs, err := client.Upload(ctx, path, buf, false, "")
+			if logSave {
+				logSave = false
+				log.WithField("updated", attrs.Updated).Info("Wrote persistent state")
+			}
 			return err
 		}
 
 		for {
 			select {
 			case <-ctx.Done():
+				log.Debug("Stopped syncing persistent state")
 				return ctx.Err()
 			case <-tick:
 			}
