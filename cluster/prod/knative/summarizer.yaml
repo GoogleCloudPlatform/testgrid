@@ -28,6 +28,7 @@ spec:
         - --confirm
         - --json-logs
         - --wait=5m
+        # TODO(fejta): pubsub and persistent queue
 ---
 apiVersion: v1
 kind: ServiceAccount
