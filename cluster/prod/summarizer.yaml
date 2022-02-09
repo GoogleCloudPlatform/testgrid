@@ -41,6 +41,7 @@ spec:
         - --grid-path=grid
         - --json-logs
         - --pubsub=k8s-testgrid/test-group-updates
+        - --persist-queue=gs://k8s-testgrid/queue/summarizer.json
         - --summary-path=summary
         - --wait=5m
         resources:
