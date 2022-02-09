@@ -1,4 +1,4 @@
 {
-	"GoPrefix": "github.com/GoogleCloudPlatform/testgrid",
-	"AddSourcesRules": true
+  "GoPrefix": "github.com/GoogleCloudPlatform/testgrid",
+  "AddSourcesRules": true
 }
