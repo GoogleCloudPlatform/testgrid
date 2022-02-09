@@ -14,6 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package queue contains methods and structures for manipulating and persisting
+// data that should be repeatedly processed in a prioritized (but changing) order.
+//
+// Esepcially useful for combining with systems like pubsub to receive events
+// that change the order of queue processing.
 package queue
 
 import (

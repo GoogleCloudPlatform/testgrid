@@ -68,9 +68,9 @@ func numNE(a, b float64) bool {
 	return a != b
 }
 
-// Interface for accessing data about the the result.
+// TestResult defines the interface for accessing data about the result.
 type TestResult interface {
-	// Properties for the the test result.
+	// Properties for the test result.
 	Properties() map[string][]string
 	// Name of the test case
 	Name() string
