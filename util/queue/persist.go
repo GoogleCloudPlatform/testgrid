@@ -44,8 +44,29 @@ type Fixer func(context.Context, *Queue) error
 func FixPersistent(logr logrus.FieldLogger, client PersistClient, path gcs.Path, tick <-chan time.Time) Fixer {
 	var shouldSave bool
 	log := logr.WithField("path", path)
-	return func(ctx context.Context, q *Queue) error {
+	return func(parentCtx context.Context, q *Queue) error {
 		log.Debug("Using persistent state")
+
+		ctx, cancel := context.WithCancel(parentCtx)
+		defer cancel()
+		go func() { // allow a grace period for reads/writes
+			select {
+			case <-ctx.Done():
+				return
+			case <-parentCtx.Done():
+				timer := time.NewTimer(5 * time.Second)
+				select {
+				case <-ctx.Done():
+					if !timer.Stop() {
+						<-timer.C
+					}
+					return
+				case <-timer.C:
+					cancel()
+					return
+				}
+			}
+		}()
 
 		tryLoad := func() error {
 			reader, attrs, err := client.Open(ctx, path)
@@ -98,23 +119,37 @@ func FixPersistent(logr logrus.FieldLogger, client PersistClient, path gcs.Path,
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-parentCtx.Done():
 				log.Debug("Stopped syncing persistent state")
-				return ctx.Err()
+				return parentCtx.Err()
 			case <-tick:
 			}
 
 			if shouldSave {
 				log.Trace("Saving persistent state...")
 				if err := trySave(); err != nil {
-					log.WithError(err).Error("Failed to save persistent state.")
+					log := log.WithError(err)
+					var chirp func(...interface{})
+					if errors.Is(err, context.Canceled) {
+						chirp = log.Debug
+					} else {
+						chirp = log.Warning
+					}
+					chirp("Failed to save persistent state.")
 					continue
 				}
 				log.Debug("Saved persistent state.")
 			} else {
 				log.Trace("Loading persistent state...")
 				if err := tryLoad(); err != nil {
-					log.WithError(err).Error("Failed to load persistent state.")
+					log := log.WithError(err)
+					var chirp func(...interface{})
+					if errors.Is(err, context.Canceled) {
+						chirp = log.Debug
+					} else {
+						chirp = log.Warning
+					}
+					chirp("Failed to load persistent state.")
 					continue
 				}
 				shouldSave = true
