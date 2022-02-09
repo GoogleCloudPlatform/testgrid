@@ -45,12 +45,14 @@ func Observe(ctx context.Context, log logrus.FieldLogger, client gcs.Conditional
 	}
 	log = log.WithField("observed-path", configPath.String())
 
-	initialSnap, err := updateHash(ctx, client, configPath, nil)
+	initialSnap, err := updateHash(ctx, client, configPath)
 	if err != nil {
 		return nil, fmt.Errorf("can't read %q: %w", configPath.String(), err)
 	}
-	var cond storage.Conditions
-	cond.GenerationNotMatch = initialSnap.Attrs.Generation
+	cond := storage.Conditions{
+		GenerationNotMatch: initialSnap.Attrs.Generation,
+	}
+	client = client.If(&cond, nil)
 
 	go func() {
 		defer close(ch)
@@ -58,19 +60,25 @@ func Observe(ctx context.Context, log logrus.FieldLogger, client gcs.Conditional
 		if ticker == nil {
 			return
 		}
+	nextTick:
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker:
-				snap, err := updateHash(ctx, client, configPath, &cond)
-				switch {
-				case err == nil:
-					// Configuration changed
-					ch <- snap
+				snap, err := updateHash(ctx, client, configPath)
+				if err != nil {
+					if !gcs.IsPreconditionFailed(err) {
+						log.WithError(err).Warning("Error fetching updated config")
+					}
+					continue nextTick
+				}
+				// Configuration changed
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- snap:
 					cond.GenerationNotMatch = snap.Attrs.Generation
-				case !gcs.IsPreconditionFailed(err):
-					log.WithError(err).Warning("Error while observing config")
 				}
 			}
 
@@ -80,7 +88,7 @@ func Observe(ctx context.Context, log logrus.FieldLogger, client gcs.Conditional
 	return ch, nil
 }
 
-func updateHash(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, cond *storage.Conditions) (*Config, error) {
+func updateHash(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*Config, error) {
 	var cs Config
 	cfg, attrs, err := fetchConfig(ctx, client, configPath)
 	if err != nil {
@@ -104,7 +112,7 @@ func updateHash(ctx context.Context, client gcs.ConditionalClient, configPath gc
 	return &cs, nil
 }
 
-func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
+func fetchConfig(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
 	r, attrs, err := client.Open(ctx, configPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open: %w", err)
