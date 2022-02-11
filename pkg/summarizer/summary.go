@@ -66,37 +66,6 @@ type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, erro
 // groupFinder returns the named group as well as reader for the grid state
 type groupFinder func(string) (*gcs.Path, *configpb.TestGroup, gridReader, error)
 
-func fetchConfig(ctx context.Context, client gcs.ConditionalClient, configPath gcs.Path, dashboards []string) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
-	r, attrs, err := client.Open(ctx, configPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("open: %w", err)
-	}
-
-	cfg, err := config.Unmarshal(r)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unmarshal: %v", err)
-	}
-
-	if n := len(dashboards); n > 0 {
-		valid := stringset.New(dashboards...)
-		var found stringset.Set
-		dashes := make([]*configpb.Dashboard, 0, 1)
-		for _, d := range cfg.Dashboards {
-			name := d.Name
-			if !valid.Contains(name) {
-				continue
-			}
-			found.Add(name)
-			dashes = append(dashes, d)
-		}
-		if missing := valid.Diff(found); missing.Len() > 0 {
-			return nil, nil, fmt.Errorf("not found: %s", missing)
-		}
-		cfg.Dashboards = dashes
-	}
-	return cfg, attrs, nil
-}
-
 func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) (*storage.ObjectAttrs, error) {
 	var buf []byte
 	if generation == 0 {

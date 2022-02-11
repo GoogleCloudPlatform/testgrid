@@ -34,6 +34,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -130,27 +131,26 @@ func lockGroup(ctx context.Context, client gcs.ConditionalClient, path gcs.Path,
 	return gcs.Touch(ctx, client, path, generation, buf)
 }
 
-func testGroups(ctx context.Context, opener gcs.Opener, path gcs.Path, groupNames ...string) ([]*configpb.TestGroup, *storage.ReaderObjectAttrs, error) {
-	r, attrs, err := opener.Open(ctx, path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("open: %w", err)
-	}
-	cfg, err := config.Unmarshal(r)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unmarshal: %v", err)
-	}
+func testGroups(cfg *snapshot.Config, groupNames ...string) ([]*configpb.TestGroup, error) {
+	var groups []*configpb.TestGroup
+
 	if len(groupNames) == 0 {
-		return cfg.TestGroups, attrs, nil
+		groups = make([]*configpb.TestGroup, 0, len(groupNames))
+		for _, testConfig := range cfg.Groups {
+			groups = append(groups, testConfig)
+		}
+		return groups, nil
 	}
-	groups := make([]*configpb.TestGroup, 0, len(groupNames))
+
+	groups = make([]*configpb.TestGroup, 0, len(groupNames))
 	for _, groupName := range groupNames {
-		tg := config.FindTestGroup(groupName, cfg)
+		tg := cfg.Groups[groupName]
 		if tg == nil {
-			return nil, nil, fmt.Errorf("group %q not found", groupName)
+			return nil, fmt.Errorf("group %q not found", groupName)
 		}
 		groups = append(groups, tg)
 	}
-	return groups, attrs, nil
+	return groups, nil
 }
 
 type lastUpdated struct {
@@ -241,14 +241,16 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 
 	var q config.TestGroupQueue
 
-	log.Debug("Fetching config...")
-	groups, cfgAttrs, err := testGroups(ctx, client, configPath, groupNames...)
+	log.Debug("Observing config...")
+	newConfig, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
 	if err != nil {
-		return fmt.Errorf("read config: %v", err)
+		return fmt.Errorf("observe config: %w", err)
+
 	}
-	log.Info("Fetched config")
+	cfg := <-newConfig
+	groups, err := testGroups(cfg, groupNames...)
 	if err != nil {
-		return fmt.Errorf("test groups: %v", err)
+		return fmt.Errorf("filter test groups: %w", err)
 	}
 
 	q.Init(log, groups, time.Now().Add(freq))
@@ -268,6 +270,31 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	fixers = append(fixers, fixLastUpdated.Fix)
 
 	go func() {
+		ticker := time.NewTicker(time.Minute)
+		log := log
+		for {
+			depth, next, when := q.Status()
+			log := log.WithField("depth", depth)
+			if next != nil {
+				log = log.WithField("next", next.Name)
+			}
+			delay := time.Since(when)
+			if delay < 0 {
+				delay = 0
+				log = log.WithField("sleep", -delay)
+			}
+			log = log.WithField("delay", delay.Round(time.Second))
+			mets.delay(delay)
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				log.Info("Queue Status")
+			}
+		}
+	}()
+
+	go func() {
 		fixCtx, fixCancel := context.WithCancel(ctx)
 		var fixWg sync.WaitGroup
 		fixAll := func() {
@@ -285,46 +312,24 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			log.Debug("Started fixers on current test groups")
 		}
 		fixAll()
-		cond := storage.Conditions{GenerationNotMatch: cfgAttrs.Generation}
-		opener := client.If(&cond, &cond)
-		ticker := time.NewTicker(time.Minute) // TODO(fejta): subscribe to notifications
 		for {
-			depth, next, when := q.Status()
-			log := log.WithField("depth", depth)
-			qLog := log
-			if next != nil {
-				log = log.WithField("next", next.Name)
-			}
-			delay := time.Since(when)
-			if delay < 0 {
-				delay = 0
-				log = log.WithField("sleep", -delay)
-			}
-			log = log.WithField("delay", delay.Round(time.Second))
-			mets.delay(delay)
-			log.Info("Updating groups")
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
 				fixCancel()
 				return
-			case <-ticker.C:
-				groups, cfgAttrs, err = testGroups(ctx, opener, configPath, groupNames...)
-				switch {
-				case err == nil:
-					log.Info("Configuration changed")
-					// Config changed, setup fixers again.
-					cond.GenerationNotMatch = cfgAttrs.Generation
-					log.Trace("Cancelling fixers on old test groups...")
-					fixCancel()
-					fixWg.Wait()
-					q.Init(qLog, groups, time.Now().Add(freq))
-					log.Debug("Canceled fixers on old test groups")
-					fixCtx, fixCancel = context.WithCancel(ctx)
-					fixAll()
-				case !gcs.IsPreconditionFailed(err):
-					log.WithError(err).Error("Failed to update configuration")
+			case cfg := <-newConfig:
+				log.Info("Updating config")
+				groups, err = testGroups(cfg, groupNames...)
+				if err != nil {
+					log.Errorf("Error during config update: %v", err)
 				}
+				log.Debug("Cancelling fixers on old test groups...")
+				fixCancel()
+				fixWg.Wait()
+				q.Init(log, groups, time.Now().Add(freq))
+				log.Debug("Canceled fixers on old test groups")
+				fixCtx, fixCancel = context.WithCancel(ctx)
+				fixAll()
 			}
 		}
 	}()
