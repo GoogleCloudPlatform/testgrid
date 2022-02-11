@@ -212,14 +212,14 @@ func TestObserve_OnTick(t *testing.T) {
 					if result := cs.Dashboards["dashboard"]; !proto.Equal(result, test.expectDashboard) {
 						t.Errorf("got dashboard %v, expected %v", result, test.expectDashboard)
 					}
-				case <-time.After(5 * time.Hour):
+				case <-time.After(3 * time.Second):
 					t.Error("expected a snapshot after tick, but got none")
 				}
 			} else {
 				select {
 				case cs := <-snaps:
 					t.Errorf("did not expect a snapshot, but got %v", cs)
-				default:
+				case <-time.After(3 * time.Second):
 				}
 			}
 		})
