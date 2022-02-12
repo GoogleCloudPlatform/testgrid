@@ -23,6 +23,7 @@ k8s_objects(
         ":summarizer",
         ":updater",
         ":config_merger",
+        "tabulator",
     ],
 )
 
@@ -56,6 +57,13 @@ k8s_object(
     cluster = CLUSTER,
     kind = MULTI_KIND,
     template = "config_merger.yaml",
+)
+
+k8s_object(
+    name = "tabulator",
+    cluster = CLUSTER,
+    kind = MULTI_KIND,
+    template = "tabulator.yaml",
 )
 
 k8s_object(

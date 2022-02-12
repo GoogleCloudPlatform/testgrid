@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-tabulator
+  namespace: testgrid-canary
+  labels:
+    app: testgrid
+    channel: stable
+    component: tabulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      channel: stable
+      component: tabulator
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        channel: stable
+        component: tabulator
+    spec:
+      serviceAccountName: tabulator
+      containers:
+      - name: tabulator
+        image: gcr.io/k8s-testgrid/tabulator:latest # TODO(michelle192837): pin to a version that contains this PR
+        ports:
+        - name: metrics
+          containerPort: 2112
+        args:
+        - --config=gs://k8s-testgrid-canary/config
+        - --confirm
+        - --wait=15m
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    # Uses same as updater
+    iam.gke.io/gcp-service-account: testgrid-canary@k8s-testgrid.iam.gserviceaccount.com
+  name: tabulator
+  namespace: testgrid-canary
