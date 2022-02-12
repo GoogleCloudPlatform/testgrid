@@ -25,7 +25,7 @@ spec:
       serviceAccountName: tabulator
       containers:
       - name: tabulator
-        image: gcr.io/k8s-testgrid/tabulator:latest # TODO(michelle192837): pin to a version that contains this PR
+        image: gcr.io/k8s-testgrid/tabulator:v20220211-v0.0.121-22-gd538278
         ports:
         - name: metrics
           containerPort: 2112
