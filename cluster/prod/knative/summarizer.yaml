@@ -22,7 +22,7 @@ spec:
       serviceAccountName: summarizer
       containers:
       - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20220210-v0.0.121-16-g5bceb0c
+        image: gcr.io/k8s-testgrid/summarizer:v20220211-v0.0.121-22-gd538278
         args:
         - --config=gs://knative-own-testgrid/config
         - --confirm
