@@ -90,7 +90,7 @@ func (lc localClient) If(_, _ *storage.Conditions) ConditionalClient {
 func (lc localClient) Copy(ctx context.Context, from, to Path) (*storage.ObjectAttrs, error) {
 	buf, err := ioutil.ReadFile(cleanFilepath(from))
 	if err != nil {
-		return nil, err
+		return nil, convertIsNotExistsErr(err)
 	}
 	return lc.Upload(ctx, to, buf, false, "")
 }
@@ -118,7 +118,7 @@ func (lc localClient) Objects(ctx context.Context, path Path, delimiter, startOf
 func (lc localClient) Upload(ctx context.Context, path Path, buf []byte, _ bool, _ string) (*storage.ObjectAttrs, error) {
 	err := ioutil.WriteFile(cleanFilepath(path), buf, 0666)
 	if err != nil {
-		return nil, err
+		return nil, convertIsNotExistsErr(err)
 	}
 	return lc.Stat(ctx, path)
 }

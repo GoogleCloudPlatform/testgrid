@@ -18,6 +18,7 @@ package tabulator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"bitbucket.org/creachadair/stringset"
+	"cloud.google.com/go/storage"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
@@ -152,7 +154,11 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			if confirm {
 				_, err = client.Copy(ctx, *fromPath, *toPath)
 				if err != nil {
-					return fmt.Errorf("can't copy from %q to %q: %w", fromPath.String(), toPath.String(), err)
+					if errors.Is(err, storage.ErrObjectNotExist) {
+						log.WithError(err).Info("Original state does not exist.")
+					} else {
+						return fmt.Errorf("can't copy from %q to %q: %w", fromPath.String(), toPath.String(), err)
+					}
 				}
 			}
 		}
