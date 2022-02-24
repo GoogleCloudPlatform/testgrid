@@ -735,32 +735,32 @@ func TestConvertResult(t *testing.T) {
 										},
 										{
 											Name:    "failed no message",
-											Failure: pstr(""),
+											Failure: &junit.Failure{Value: *pstr("")},
 										},
 										{
 											Name:    "failed",
-											Failure: pstr("boom"),
+											Failure: &junit.Failure{Value: *pstr("boom")},
 										},
 										{
 											Name:    "failed other message",
-											Failure: pstr(""),
+											Failure: &junit.Failure{Value: *pstr("")},
 											Output:  pstr("irrelevant message"),
 										},
 										{
 											Name:    "errored no message",
-											Failure: pstr(""),
+											Failure: &junit.Failure{Value: *pstr("")},
 										},
 										{
 											Name:    "errored",
-											Failure: pstr("oh no"),
+											Failure: &junit.Failure{Value: *pstr("oh no")},
 										},
 										{
 											Name:    "invisible skip",
-											Skipped: pstr(""),
+											Skipped: &junit.Skipped{Value: *pstr("")},
 										},
 										{
 											Name:    "visible skip",
-											Skipped: pstr("tl;dr"),
+											Skipped: &junit.Skipped{Value: *pstr("tl;dr")},
 										},
 										{
 											Name:  "stderr message",
@@ -915,7 +915,7 @@ func TestConvertResult(t *testing.T) {
 													{"food", "1"},
 												},
 											},
-											Failure: pstr("boom"),
+											Failure: &junit.Failure{Value: *pstr("boom")},
 										},
 										{
 											Name: "preceds skip message",
@@ -924,7 +924,7 @@ func TestConvertResult(t *testing.T) {
 													{"food", "1"},
 												},
 											},
-											Skipped: pstr("tl;dr"),
+											Skipped: &junit.Skipped{Value: *pstr("tl;dr")},
 										},
 									},
 								},
@@ -1070,7 +1070,7 @@ func TestConvertResult(t *testing.T) {
 										},
 										{
 											Name:    "annotation over failure",
-											Failure: pstr("boom"),
+											Failure: &junit.Failure{Value: *pstr("boom")},
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
 													{"fries", "irrelevant"},
@@ -1079,7 +1079,7 @@ func TestConvertResult(t *testing.T) {
 										},
 										{
 											Name:    "annotation over error",
-											Errored: pstr("boom"),
+											Errored: &junit.Errored{Value: *pstr("boom")},
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
 													{"fries", "irrelevant"},
@@ -1088,7 +1088,7 @@ func TestConvertResult(t *testing.T) {
 										},
 										{
 											Name:    "annotation over skip",
-											Skipped: pstr("boom"),
+											Skipped: &junit.Skipped{Value: *pstr("boom")},
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
 													{"fries", "irrelevant"},
@@ -1371,7 +1371,7 @@ func TestConvertResult(t *testing.T) {
 										{
 											Name:    "same",
 											Time:    3,
-											Failure: pstr("ugh"),
+											Failure: &junit.Failure{Value: *pstr("ugh")},
 										},
 									},
 								},
@@ -2157,7 +2157,7 @@ func TestFlattenResults(t *testing.T) {
 									Results: []junit.Result{
 										{
 											Name:    "leaf",
-											Skipped: pstr("first"),
+											Skipped: &junit.Skipped{Value: *pstr("first")},
 										},
 									},
 								},
@@ -2165,7 +2165,7 @@ func TestFlattenResults(t *testing.T) {
 							Results: []junit.Result{
 								{
 									Name:    "branch",
-									Skipped: pstr("second"),
+									Skipped: &junit.Skipped{Value: *pstr("second")},
 								},
 							},
 						},
@@ -2173,7 +2173,7 @@ func TestFlattenResults(t *testing.T) {
 					Results: []junit.Result{
 						{
 							Name:    "trunk",
-							Skipped: pstr("third"),
+							Skipped: &junit.Skipped{Value: *pstr("third")},
 						},
 					},
 				},
@@ -2181,15 +2181,15 @@ func TestFlattenResults(t *testing.T) {
 			expected: []junit.Result{
 				{
 					Name:    "must.go.deeper.leaf",
-					Skipped: pstr("first"),
+					Skipped: &junit.Skipped{Value: *pstr("first")},
 				},
 				{
 					Name:    "must.go.branch",
-					Skipped: pstr("second"),
+					Skipped: &junit.Skipped{Value: *pstr("second")},
 				},
 				{
 					Name:    "must.trunk",
-					Skipped: pstr("third"),
+					Skipped: &junit.Skipped{Value: *pstr("third")},
 				},
 			},
 		},

@@ -130,10 +130,10 @@ func (jr jUnitTestResult) Failures() int {
 func (jr jUnitTestResult) Exceptions() []string {
 	options := make([]string, 0, 2)
 	if e := jr.Result.Errored; e != nil {
-		options = append(options, *e)
+		options = append(options, e.Value)
 	}
 	if f := jr.Result.Failure; f != nil {
-		options = append(options, *f)
+		options = append(options, f.Value)
 	}
 	return options
 }

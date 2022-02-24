@@ -99,12 +99,32 @@ type Result struct {
 	Name       string      `xml:"name,attr"`
 	Time       float64     `xml:"time,attr"`
 	ClassName  string      `xml:"classname,attr"`
-	Failure    *string     `xml:"failure,omitempty"`
 	Output     *string     `xml:"system-out,omitempty"`
 	Error      *string     `xml:"system-err,omitempty"`
-	Errored    *string     `xml:"error,omitempty"`
-	Skipped    *string     `xml:"skipped,omitempty"`
+	Errored    *Errored    `xml:"error,omitempty"`
+	Failure    *Failure    `xml:"failure,omitempty"`
+	Skipped    *Skipped    `xml:"skipped,omitempty"`
 	Properties *Properties `xml:"properties,omitempty"`
+}
+
+// Errored holds <error/> elements.
+type Errored struct {
+	Message string `xml:"message,attr"`
+	Type    string `xml:"type,attr"`
+	Value   string `xml:",chardata"`
+}
+
+// Failure holds <failure/> elements.
+type Failure struct {
+	Message string `xml:"message,attr"`
+	Type    string `xml:"type,attr"`
+	Value   string `xml:",chardata"`
+}
+
+// Skipped holds <skipped/> elements.
+type Skipped struct {
+	Message string `xml:"message,attr"`
+	Value   string `xml:",chardata"`
 }
 
 // SetProperty adds the specified property to the Result or replaces the
@@ -135,12 +155,12 @@ func (r *Result) SetProperty(name, value string) {
 func (r Result) Message(max int) string {
 	var msg string
 	switch {
-	case r.Errored != nil && *r.Errored != "":
-		msg = *r.Errored
-	case r.Failure != nil && *r.Failure != "":
-		msg = *r.Failure
-	case r.Skipped != nil && *r.Skipped != "":
-		msg = *r.Skipped
+	case r.Errored != nil && r.Errored.Value != "":
+		msg = r.Errored.Value
+	case r.Failure != nil && r.Failure.Value != "":
+		msg = r.Failure.Value
+	case r.Skipped != nil && r.Skipped.Value != "":
+		msg = r.Skipped.Value
 	case r.Error != nil && *r.Error != "":
 		msg = *r.Error
 	case r.Output != nil && *r.Output != "":
@@ -175,7 +195,17 @@ func truncatePointer(str *string, max int) {
 
 // Truncate ensures that strings do not exceed the specified length.
 func (r Result) Truncate(max int) {
-	for _, s := range []*string{r.Errored, r.Failure, r.Skipped, r.Error, r.Output} {
+	var errorVal, failureVal, skippedVal string
+	if r.Errored != nil {
+		errorVal = r.Errored.Value
+	}
+	if r.Failure != nil {
+		failureVal = r.Failure.Value
+	}
+	if r.Skipped != nil {
+		skippedVal = r.Skipped.Value
+	}
+	for _, s := range []*string{&errorVal, &failureVal, &skippedVal, r.Error, r.Output} {
 		truncatePointer(s, max)
 	}
 }
