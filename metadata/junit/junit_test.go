@@ -41,9 +41,9 @@ func TestMessage(t *testing.T) {
 		{
 			name: "errored takes top priority",
 			jr: Result{
-				Errored: pstr("errored-0"),
-				Failure: pstr("failure-1"),
-				Skipped: pstr("skipped-2"),
+				Errored: &Errored{Value: *pstr("errored-0")},
+				Failure: &Failure{Value: *pstr("failure-1")},
+				Skipped: &Skipped{Value: *pstr("skipped-2")},
 				Error:   pstr("error-3"),
 				Output:  pstr("output-4"),
 			},
@@ -52,8 +52,8 @@ func TestMessage(t *testing.T) {
 		{
 			name: "failure priorized over skipped, error and output",
 			jr: Result{
-				Failure: pstr("failure-0"),
-				Skipped: pstr("skipped-1"),
+				Failure: &Failure{Value: *pstr("failure-0")},
+				Skipped: &Skipped{Value: *pstr("skipped-1")},
 				Error:   pstr("error-2"),
 				Output:  pstr("output-3"),
 			},
@@ -62,7 +62,7 @@ func TestMessage(t *testing.T) {
 		{
 			name: "skipped prioritized over error, output",
 			jr: Result{
-				Skipped: pstr("skipped-1"),
+				Skipped: &Skipped{Value: *pstr("skipped-1")},
 				Error:   pstr("error-2"),
 				Output:  pstr("output-3"),
 			},
@@ -177,12 +177,12 @@ func TestParse(t *testing.T) {
 									{
 										Name:    "head",
 										Time:    3,
-										Failure: pstr(" failure message "),
+										Failure: &Failure{Message: "failure", Value: *pstr(" failure message ")},
 									},
 									{
 										Name:    "neck",
 										Time:    2,
-										Errored: pstr(" error message "),
+										Errored: &Errored{Message: "error", Value: *pstr(" error message ")},
 									},
 								},
 							},

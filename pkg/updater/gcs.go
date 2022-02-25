@@ -277,7 +277,7 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	// Append each result into the column
 	for _, suite := range result.suites {
 		for _, r := range flattenResults(suite.Suites.Suites...) {
-			if r.Skipped != nil && *r.Skipped == "" {
+			if r.Skipped != nil && r.Skipped.Value == "" {
 				continue
 			}
 			c := Cell{CellID: cellID}

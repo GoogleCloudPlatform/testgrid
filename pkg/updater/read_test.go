@@ -92,7 +92,7 @@ func makeJunit(passed, failed []string) string {
 		f := name
 		suite.Results = append(suite.Results, junit.Result{
 			Name:    name,
-			Failure: &f,
+			Failure: &junit.Failure{Value: f},
 		})
 	}
 	return xmlData(suite)
