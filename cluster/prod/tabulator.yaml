@@ -30,7 +30,7 @@ spec:
         - name: metrics
           containerPort: 2112
         args:
-        - --config=gs://k8s-testgrid-canary/config
+        - --config=gs://k8s-testgrid/config
         - --confirm
         - --wait=15m
 ---
