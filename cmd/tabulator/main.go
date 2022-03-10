@@ -21,12 +21,17 @@ import (
 	"errors"
 	"flag"
 	"runtime"
+	"strings"
 	"time"
 
+	gpubsub "cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/api/option"
 )
 
 // options configures the updater
@@ -38,6 +43,7 @@ type options struct {
 	wait               time.Duration
 	gridPathPrefix     string
 	tabStatePathPrefix string
+	pubsub             string
 
 	debug    bool
 	trace    bool
@@ -68,6 +74,7 @@ func gatherOptions() options {
 
 	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.tabStatePathPrefix, "tab-state-path", "tabs", "Write tab states under this GCS path.")
+	flag.StringVar(&o.pubsub, "pubsub", "", "listen for test group updates at project/subscription")
 
 	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
@@ -112,9 +119,35 @@ func main() {
 		"group": opt.concurrency,
 	}).Info("Configured concurrency")
 
+	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
+	if err != nil {
+		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
+	}
+
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.wait, nil); err != nil {
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.wait, fixer); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
+}
+
+func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridPrefix, credPath string) (tabulator.Fixer, error) {
+	if projectSub == "" {
+		return nil, nil
+	}
+	parts := strings.SplitN(projectSub, "/", 2)
+	if len(parts) != 2 {
+		return nil, errors.New("malformed project/subscription")
+	}
+	projID, subID := parts[0], parts[1]
+	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(credPath))
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to create pubsub client")
+	}
+	client := pubsub.NewClient(pubsubClient)
+	fixer, err := summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix)
+	if fixer != nil {
+		return tabulator.Fixer(fixer), err
+	}
+	return nil, err
 }
