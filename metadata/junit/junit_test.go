@@ -39,7 +39,29 @@ func TestMessage(t *testing.T) {
 			name: "basically works",
 		},
 		{
-			name: "errored takes top priority",
+			name: "errored takes top priority with message and value",
+			jr: Result{
+				Errored: &Errored{Message: "errored-0-msg", Value: *pstr("errored-0")},
+				Failure: &Failure{Message: "failure-1-msg", Value: *pstr("failure-1")},
+				Skipped: &Skipped{Message: "skipped-2-msg", Value: *pstr("skipped-2")},
+				Error:   pstr("error-3"),
+				Output:  pstr("output-4"),
+			},
+			expected: "errored-0-msg\nerrored-0",
+		},
+		{
+			name: "errored takes top priority with message",
+			jr: Result{
+				Errored: &Errored{Message: "errored-0-msg"},
+				Failure: &Failure{Message: "failure-1-msg"},
+				Skipped: &Skipped{Message: "skipped-2-msg"},
+				Error:   pstr("error-3"),
+				Output:  pstr("output-4"),
+			},
+			expected: "errored-0-msg",
+		},
+		{
+			name: "errored takes top priority with value",
 			jr: Result{
 				Errored: &Errored{Value: *pstr("errored-0")},
 				Failure: &Failure{Value: *pstr("failure-1")},
@@ -49,8 +71,29 @@ func TestMessage(t *testing.T) {
 			},
 			expected: "errored-0",
 		},
+
 		{
-			name: "failure priorized over skipped, error and output",
+			name: "failure priorized over skipped, error and output with message and value",
+			jr: Result{
+				Failure: &Failure{Message: "failure-0-msg", Value: *pstr("failure-0")},
+				Skipped: &Skipped{Message: "skipped-1-msg", Value: *pstr("skipped-1")},
+				Error:   pstr("error-2"),
+				Output:  pstr("output-3"),
+			},
+			expected: "failure-0-msg\nfailure-0",
+		},
+		{
+			name: "failure priorized over skipped, error and output with message",
+			jr: Result{
+				Failure: &Failure{Message: "failure-0-msg"},
+				Skipped: &Skipped{Message: "skipped-1-msg"},
+				Error:   pstr("error-2"),
+				Output:  pstr("output-3"),
+			},
+			expected: "failure-0-msg",
+		},
+		{
+			name: "failure priorized over skipped, error and output with value",
 			jr: Result{
 				Failure: &Failure{Value: *pstr("failure-0")},
 				Skipped: &Skipped{Value: *pstr("skipped-1")},
@@ -60,7 +103,25 @@ func TestMessage(t *testing.T) {
 			expected: "failure-0",
 		},
 		{
-			name: "skipped prioritized over error, output",
+			name: "skipped prioritized over error, output with message and value",
+			jr: Result{
+				Skipped: &Skipped{Message: "skipped-1-msg", Value: *pstr("skipped-1")},
+				Error:   pstr("error-2"),
+				Output:  pstr("output-3"),
+			},
+			expected: "skipped-1-msg\nskipped-1",
+		},
+		{
+			name: "skipped prioritized over error, output with message",
+			jr: Result{
+				Skipped: &Skipped{Message: "skipped-1-msg"},
+				Error:   pstr("error-2"),
+				Output:  pstr("output-3"),
+			},
+			expected: "skipped-1-msg",
+		},
+		{
+			name: "skipped prioritized over error, output with value",
 			jr: Result{
 				Skipped: &Skipped{Value: *pstr("skipped-1")},
 				Error:   pstr("error-2"),
@@ -149,10 +210,10 @@ func TestParse(t *testing.T) {
                                 <testsuite name="knee">
                                     <testcase name="bone" time="6" />
                                     <testcase name="head" time="3" >
-										<failure message="failure"> failure message </failure>
+										<failure type="failure" message="failure message attribute"> failure message body </failure>
 									</testcase>
                                     <testcase name="neck" time="2" >
-										<error message="error"> error message </error>
+										<error type="error" message="error message attribute"> error message body </error>
 									</testcase>
                                 </testsuite>
                                 <testcase name="word" time="7" />
@@ -177,12 +238,12 @@ func TestParse(t *testing.T) {
 									{
 										Name:    "head",
 										Time:    3,
-										Failure: &Failure{Message: "failure", Value: *pstr(" failure message ")},
+										Failure: &Failure{Type: "failure", Message: "failure message attribute", Value: *pstr(" failure message body ")},
 									},
 									{
 										Name:    "neck",
 										Time:    2,
-										Errored: &Errored{Message: "error", Value: *pstr(" error message ")},
+										Errored: &Errored{Type: "error", Message: "error message attribute", Value: *pstr(" error message body ")},
 									},
 								},
 							},

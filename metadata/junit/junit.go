@@ -155,12 +155,12 @@ func (r *Result) SetProperty(name, value string) {
 func (r Result) Message(max int) string {
 	var msg string
 	switch {
-	case r.Errored != nil && r.Errored.Value != "":
-		msg = r.Errored.Value
-	case r.Failure != nil && r.Failure.Value != "":
-		msg = r.Failure.Value
-	case r.Skipped != nil && r.Skipped.Value != "":
-		msg = r.Skipped.Value
+	case r.Errored != nil && (r.Errored.Message != "" || r.Errored.Value != ""):
+		msg = composeMessage(r.Errored.Message, r.Errored.Value)
+	case r.Failure != nil && (r.Failure.Message != "" || r.Failure.Value != ""):
+		msg = composeMessage(r.Failure.Message, r.Failure.Value)
+	case r.Skipped != nil && (r.Skipped.Message != "" || r.Skipped.Value != ""):
+		msg = composeMessage(r.Skipped.Message, r.Skipped.Value)
 	case r.Error != nil && *r.Error != "":
 		msg = *r.Error
 	case r.Output != nil && *r.Output != "":
@@ -171,6 +171,23 @@ func (r Result) Message(max int) string {
 		return msg
 	}
 	return fmt.Sprintf("invalid utf8: %s", strings.ToValidUTF8(msg, "?"))
+}
+
+func composeMessage(messages ...string) string {
+	nonEmptyMessages := []string{}
+	for _, m := range messages {
+		if m != "" {
+			nonEmptyMessages = append(nonEmptyMessages, m)
+		}
+	}
+	messageBuilder := strings.Builder{}
+	for i, m := range nonEmptyMessages {
+		messageBuilder.WriteString(m)
+		if i+1 < len(nonEmptyMessages) {
+			messageBuilder.WriteRune('\n')
+		}
+	}
+	return messageBuilder.String()
 }
 
 func truncate(s string, max int) string {
