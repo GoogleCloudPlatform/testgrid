@@ -41,6 +41,7 @@ import (
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/golang/protobuf/proto"
@@ -64,7 +65,7 @@ func CreateMetrics(factory metrics.Factory) *Metrics {
 type gridReader func(ctx context.Context) (io.ReadCloser, time.Time, int64, error)
 
 // groupFinder returns the named group as well as reader for the grid state
-type groupFinder func(string) (*gcs.Path, *configpb.TestGroup, gridReader, error)
+type groupFinder func(dashboardName string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error)
 
 func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.Path, generation int64) (*storage.ObjectAttrs, error) {
 	var buf []byte
@@ -88,7 +89,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, summaryPathPrefix string, dashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabPathPrefix, summaryPathPrefix string, dashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -228,13 +229,20 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	dashboardNames := make(chan string)
 
+	pather := groupPather{
+		configPath: configPath,
+		tabPrefix:  tabPathPrefix,
+		gridPrefix: gridPathPrefix,
+	}
+
 	// TODO(fejta): cache downloaded group?
-	findGroup := func(name string) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
+	findGroup := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
+		name := tab.TestGroupName
 		group := cfg.Groups[name]
 		if group == nil {
 			return nil, nil, nil, nil
 		}
-		groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(gridPathPrefix, name)})
+		groupPath, err := pather.lookup(dash, tab.Name, name)
 		if err != nil {
 			return nil, group, nil, err
 		}
@@ -335,6 +343,19 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	defer close(dashboardNames)
 
 	return q.Send(ctx, dashboardNames, freq)
+}
+
+type groupPather struct {
+	configPath gcs.Path
+	tabPrefix  string
+	gridPrefix string
+}
+
+func (gp groupPather) lookup(dash, tab, testgroup string) (*gcs.Path, error) {
+	if gp.tabPrefix != "" {
+		return tabulator.TabStatePath(gp.configPath, gp.tabPrefix, dash, tab)
+	}
+	return gp.configPath.ResolveReference(&url.URL{Path: path.Join(gp.gridPrefix, testgroup)})
 }
 
 var (
@@ -446,14 +467,13 @@ func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dash
 
 	var paths []gcs.Path
 	for _, tab := range dash.DashboardTab {
-		groupName := tab.TestGroupName
-		groupPath, group, groupReader, err := findGroup(groupName)
+		groupPath, group, groupReader, err := findGroup(dash.Name, tab)
 		if err != nil {
 			tabSummaries[tab.Name] = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Error reading group info: %v", err))
 			continue
 		}
 		if group == nil {
-			tabSummaries[tab.Name] = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Test group does not exist: %q", groupName))
+			tabSummaries[tab.Name] = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Test group does not exist: %q", tab.TestGroupName))
 			continue
 		}
 		info := groupInfos[*groupPath]

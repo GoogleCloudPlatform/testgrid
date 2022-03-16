@@ -31,6 +31,7 @@ type Server struct {
 	Host           *url.URL
 	DefaultBucket  string
 	GridPathPrefix string
+	TabPathPrefix  string
 	Timeout        time.Duration
 }
 

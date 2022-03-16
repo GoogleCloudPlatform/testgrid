@@ -29,12 +29,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
-
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/golang/protobuf/proto"
 )
 
 func TestConfigPath(t *testing.T) {
@@ -650,11 +649,18 @@ func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []TestSpec
 // Helper Functions
 ///////////////////
 
+var (
+	serverDefaultBucket  = "gs://default"
+	serverGridPathPrefix = "grid"
+	serverTabPathPrefix  = ""
+)
+
 func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, grids map[string]*statepb.Grid) Server {
 	t.Helper()
 
-	var fc fakeClient
-	fc.Datastore = map[gcs.Path][]byte{}
+	fc := fakeClient{
+		Datastore: map[gcs.Path][]byte{},
+	}
 
 	config.InitCache()
 	for p, cfg := range configurations {
@@ -688,10 +694,11 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, 
 
 	return Server{
 		Client:         fc,
-		Host:           host,
-		DefaultBucket:  "gs://default",
-		GridPathPrefix: "grid",
-		Timeout:        10 * time.Minute,
+		Host:           host,                 // Needs test coverage
+		DefaultBucket:  serverDefaultBucket,  // Needs test coverage
+		GridPathPrefix: serverGridPathPrefix, // Needs test coverage
+		TabPathPrefix:  serverTabPathPrefix,
+		Timeout:        10 * time.Minute, // Needs test coverage
 	}
 }
 

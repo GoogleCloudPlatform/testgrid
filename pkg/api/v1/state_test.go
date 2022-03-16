@@ -17,12 +17,16 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"net/http"
 	"reflect"
 	"testing"
 
+	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestFindDashboardTab(t *testing.T) {
@@ -31,7 +35,8 @@ func TestFindDashboardTab(t *testing.T) {
 		config       *pb.Configuration
 		dashboardKey string
 		tabKey       string
-		expected     *pb.DashboardTab
+		wantDash     string
+		wantTab      *pb.DashboardTab
 	}{
 		{
 			name: "returns nil if no dashboards exists",
@@ -40,7 +45,6 @@ func TestFindDashboardTab(t *testing.T) {
 			},
 			dashboardKey: "dashboard1",
 			tabKey:       "tab1",
-			expected:     nil,
 		},
 		{
 			name: "return nil if no dashboards match",
@@ -53,7 +57,6 @@ func TestFindDashboardTab(t *testing.T) {
 			},
 			dashboardKey: "dashboard1",
 			tabKey:       "tab1",
-			expected:     nil,
 		},
 		{
 			name: "return nil if no tab match",
@@ -71,7 +74,6 @@ func TestFindDashboardTab(t *testing.T) {
 			},
 			dashboardKey: "dashboard1",
 			tabKey:       "tab1",
-			expected:     nil,
 		},
 		{
 			name: "return correct tab if match found",
@@ -89,7 +91,8 @@ func TestFindDashboardTab(t *testing.T) {
 			},
 			dashboardKey: "dashboard1",
 			tabKey:       "tab1",
-			expected: &pb.DashboardTab{
+			wantDash:     "dashboard1",
+			wantTab: &pb.DashboardTab{
 				Name: "tab-1",
 			},
 		},
@@ -98,11 +101,14 @@ func TestFindDashboardTab(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result, _ := findDashboardTab(test.config, test.dashboardKey, test.tabKey)
-			if (test.expected == nil && result != nil) || result.String() != test.expected.String() {
-				t.Errorf("Want %s, but got %s", test.expected.String(), result.String())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dash, result, _ := findDashboardTab(tc.config, tc.dashboardKey, tc.tabKey)
+			if dash != tc.wantDash {
+				t.Errorf("findDashboardTab() got dashboard %q, wanted %q", dash, tc.wantDash)
+			}
+			if diff := cmp.Diff(tc.wantTab, result, protocmp.Transform()); diff != "" {
+				t.Errorf("findDashboardTab() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -145,6 +151,79 @@ func TestDecodeRLE(t *testing.T) {
 	}
 }
 
+func TestRoute(t *testing.T) {
+	tests := []TestSpec{
+		{
+			name: "Returns an error when there's no dashboard resource",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {},
+			},
+			endpoint:         "missingdashboard/tabs/tabname/headers",
+			expectedResponse: "Dashboard {\"missingdashboard\"} or tab {\"tabname\"} not found\n",
+			expectedCode:     http.StatusNotFound,
+		},
+		{
+			name: "Returns empty headers list from a tab",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*pb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*pb.DashboardTab{
+								{
+									Name:          "tab 1",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			grid: map[string]*statepb.Grid{
+				"gs://default/grid/testgroupname": {},
+			},
+			endpoint:         "dashboard1/tabs/tab1/headers",
+			expectedResponse: `{}`,
+			expectedCode:     http.StatusOK,
+		},
+		{
+			name: "Returns an error when there's no dashboard resource",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {},
+			},
+			endpoint:         "missingdashboard/tabs/tabname/rows",
+			expectedResponse: "Dashboard {\"missingdashboard\"} or tab {\"tabname\"} not found\n",
+			expectedCode:     http.StatusNotFound,
+		},
+		{
+			name: "Returns empty rows list from a tab",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*pb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*pb.DashboardTab{
+								{
+									Name:          "tab 1",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			grid: map[string]*statepb.Grid{
+				"gs://default/grid/testgroupname": {},
+			},
+			endpoint:         "dashboard1/tabs/tab1/rows",
+			expectedResponse: `{}`,
+			expectedCode:     http.StatusOK,
+		},
+	}
+	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
+}
+
+// TODO(fejta): test request/response
 func TestListHeaders(t *testing.T) {
 	tests := []TestSpec{
 		{
@@ -288,15 +367,26 @@ func TestListHeaders(t *testing.T) {
 }
 
 func TestListRows(t *testing.T) {
-	tests := []TestSpec{
+	tests := []struct {
+		name   string
+		config map[string]*pb.Configuration
+		grid   map[string]*statepb.Grid
+		patch  func(*Server)
+		req    *apipb.ListRowsRequest
+		want   *apipb.ListRowsResponse
+		err    bool
+	}{
 		{
 			name: "Returns an error when there's no dashboard resource",
 			config: map[string]*pb.Configuration{
 				"gs://default/config": {},
 			},
-			endpoint:         "missingdashboard/tabs/tabname/rows",
-			expectedResponse: "Dashboard {\"missingdashboard\"} or tab {\"tabname\"} not found\n",
-			expectedCode:     http.StatusNotFound,
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "missing",
+				Tab:       "irrelevant",
+			},
+			err: true,
 		},
 		{
 			name: "Returns an error when there's no tab resource",
@@ -310,9 +400,12 @@ func TestListRows(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs/tab1/rows",
-			expectedResponse: "Dashboard {\"dashboard1\"} or tab {\"tab1\"} not found\n",
-			expectedCode:     http.StatusNotFound,
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "Dashboard1",
+				Tab:       "irrelevant",
+			},
+			err: true,
 		},
 		{
 			name: "Returns empty rows list from a tab",
@@ -334,9 +427,12 @@ func TestListRows(t *testing.T) {
 			grid: map[string]*statepb.Grid{
 				"gs://default/grid/testgroupname": {},
 			},
-			endpoint:         "dashboard1/tabs/tab1/rows",
-			expectedResponse: `{}`,
-			expectedCode:     http.StatusOK,
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "dashboard1",
+				Tab:       "tab1",
+			},
+			want: &apipb.ListRowsResponse{},
 		},
 		{
 			name: "Returns correct rows from a tab",
@@ -369,19 +465,107 @@ func TestListRows(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs/tab1/rows",
-			expectedResponse: `{"rows":[{"name":"tabrow1","cells":[{"result":1,"cell_id":"cell-1"},{"result":1,"cell_id":"cell-2"}]}]}`,
-			expectedCode:     http.StatusOK,
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "dashboard1",
+				Tab:       "tab1",
+			},
+			want: &apipb.ListRowsResponse{
+				Rows: []*apipb.ListRowsResponse_Row{
+					{
+						Name: "tabrow1",
+						Cells: []*apipb.ListRowsResponse_Cell{
+							{
+								Result: 1,
+								CellId: "cell-1",
+							},
+							{
+								Result: 1,
+								CellId: "cell-2",
+							},
+						},
+					},
+				},
+			},
 		},
 		{
-			name: "Server error with unreadable config",
+			name: "Returns tab from tab state",
 			config: map[string]*pb.Configuration{
-				"gs://default/config": {},
+				"gs://default/config": {
+					Dashboards: []*pb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*pb.DashboardTab{
+								{
+									Name:          "tab 1",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
 			},
-			endpoint:         "dashboard1/tabs/tab1/rows",
-			expectedResponse: "Dashboard {\"dashboard1\"} or tab {\"tab1\"} not found\n",
-			expectedCode:     http.StatusNotFound,
+			grid: map[string]*statepb.Grid{
+				"gs://default/look-ma-tabs/Dashboard1/tab%201": {
+					Rows: []*statepb.Row{
+						{
+							Name:     "tabrow1",
+							Id:       "tabrow1",
+							Results:  []int32{1, 2},
+							CellIds:  []string{"cell-1", "cell-2"},
+							Messages: []string{"tab soda", "", "", ""},
+							Icons:    []string{"", "", "", ""},
+						},
+					},
+				},
+			},
+			patch: func(s *Server) {
+				s.TabPathPrefix = "look-ma-tabs"
+			},
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "dashboard1",
+				Tab:       "tab1",
+			},
+			want: &apipb.ListRowsResponse{
+				Rows: []*apipb.ListRowsResponse_Row{
+					{
+						Name: "tabrow1",
+						Cells: []*apipb.ListRowsResponse_Cell{
+							{
+								Result:  1,
+								CellId:  "cell-1",
+								Message: "tab soda",
+							},
+							{
+								Result: 1,
+								CellId: "cell-2",
+							},
+						},
+					},
+				},
+			},
 		},
 	}
-	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, tc.grid)
+			if tc.patch != nil {
+				tc.patch(&server)
+			}
+			got, err := server.ListRows(context.Background(), tc.req)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("ListRows() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Error("ListRows() failed to receive an error")
+			default:
+				if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("ListRows() got unexpected diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
 }

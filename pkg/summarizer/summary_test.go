@@ -74,6 +74,7 @@ func TestUpdateDashboard(t *testing.T) {
 		name     string
 		dash     *configpb.Dashboard
 		groups   map[string]fakeGroup
+		tabMode  bool
 		expected *summarypb.DashboardSummary
 		err      bool
 	}{
@@ -294,7 +295,8 @@ func TestUpdateDashboard(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			finder := func(name string) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
+			finder := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
+				name := tab.TestGroupName
 				if name == "inject-error" {
 					return nil, nil, nil, errors.New("injected find group error")
 				}
@@ -302,7 +304,10 @@ func TestUpdateDashboard(t *testing.T) {
 				if !ok {
 					return nil, nil, nil, nil
 				}
-				path, err := gcs.NewPath("gs://bucket/grid/" + name)
+				var path *gcs.Path
+				var err error
+
+				path, err = gcs.NewPath(fmt.Sprintf("gs://bucket/grid/%s/%s", dash, name))
 				if err != nil {
 					t.Helper()
 					t.Fatalf("Failed to create path: %v", err)
@@ -315,7 +320,7 @@ func TestUpdateDashboard(t *testing.T) {
 			var actual summarypb.DashboardSummary
 			client := fake.Stater{}
 			for name, group := range tc.groups {
-				path, err := gcs.NewPath("gs://bucket/grid/" + name)
+				path, err := gcs.NewPath(fmt.Sprintf("gs://bucket/grid/%s/%s", tc.dash.Name, name))
 				if err != nil {
 					t.Errorf("Failed to create Path: %v", err)
 				}
@@ -329,6 +334,92 @@ func TestUpdateDashboard(t *testing.T) {
 			updateDashboard(context.Background(), client, tc.dash, &actual, finder)
 			if diff := cmp.Diff(tc.expected, &actual, protocmp.Transform()); diff != "" {
 				t.Errorf("updateDashboard() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGroupPatherLookup(t *testing.T) {
+	mustPath := func(s string) *gcs.Path {
+		p, err := gcs.NewPath(s)
+		if err != nil {
+			t.Helper()
+			t.Fatalf("gcs.NewPath(%q) got error: %v", s, err)
+		}
+		return p
+	}
+
+	cases := []struct {
+		name      string
+		gp        groupPather
+		dash      string
+		tab       string
+		testgroup string
+		want      *gcs.Path
+		err       bool
+	}{
+		{
+			name: "empty",
+			want: &gcs.Path{},
+		},
+		{
+			name: "test group",
+			gp: groupPather{
+				configPath: *mustPath("gs://prefix/config"),
+				gridPrefix: "grid",
+			},
+			testgroup: "hello",
+			want:      mustPath("gs://prefix/grid/hello"),
+		},
+		{
+			name: "from tab state",
+			gp: groupPather{
+				configPath: *mustPath("gs://prefix/config"),
+				gridPrefix: "ignore",
+				tabPrefix:  "tabs",
+			},
+			dash:      "hi",
+			tab:       "there",
+			testgroup: "bad",
+			want:      mustPath("gs://prefix/tabs/hi/there"),
+		},
+		{
+			name: "interesting tab",
+			gp: groupPather{
+				configPath: *mustPath("gs://prefix/config"),
+				gridPrefix: "ignore",
+				tabPrefix:  "tabs",
+			},
+			dash:      "hi",
+			tab:       "My favorite tab!",
+			testgroup: "bad",
+			want: func() *gcs.Path {
+				p := mustPath("gs://prefix/tabs/hi/My favorite tab!")
+				u := p.URL()
+				u.RawPath = ""
+				if err := p.SetURL(&u); err != nil {
+					t.Fatalf("SetURL(%v) got unexpected error: %v", u, err)
+				}
+				return p
+			}(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.gp.lookup(tc.dash, tc.tab, tc.testgroup)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("lookup() got unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("lookup() failed to return an error, got %s", got)
+			default:
+				// TODO(fejta): replace all AllowUnexported(gcs.Path{}) instances with a cmp.Transfomer
+				if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(gcs.Path{})); diff != "" {
+					t.Errorf("lookup() got unexpected diff (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}

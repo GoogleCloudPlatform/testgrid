@@ -68,7 +68,7 @@ func TestTabStatePath(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := tabStatePath(*path, tc.tabStatePrefix, tc.dashboardName, tc.tabName)
+			actual, err := TabStatePath(*path, tc.tabStatePrefix, tc.dashboardName, tc.tabName)
 			switch {
 			case err != nil:
 				if tc.expected != nil {

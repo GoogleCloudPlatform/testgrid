@@ -30,44 +30,48 @@ import (
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/gorilla/mux"
 )
 
 // findDashboardTab locates dashboard tab in config
-func findDashboardTab(cfg *configpb.Configuration, dashboardKey string, tabKey string) (*configpb.DashboardTab, error) {
+// TODO(fejta): use the raw dashboard and tab name, not its config.Normalize() equivalent.
+func findDashboardTab(cfg *configpb.Configuration, dashboardKey string, tabKey string) (string, *configpb.DashboardTab, error) {
 	if cfg == nil {
-		return nil, errors.New("invalid config")
+		return "", nil, errors.New("empty config")
 	}
+	// TODO(fejta): switch to map lookup
 	for _, dashboard := range cfg.Dashboards {
 		if config.Normalize(dashboard.Name) == dashboardKey {
 			for _, tab := range dashboard.DashboardTab {
 				if config.Normalize(tab.Name) == tabKey {
-					return tab, nil
+					return dashboard.Name, tab, nil
 				}
 			}
-			return nil, fmt.Errorf("Dashboard {%q} not found", dashboardKey)
+			return "", nil, fmt.Errorf("Dashboard {%q} not found", dashboardKey)
 		}
 	}
-	return nil, fmt.Errorf("Tab {%q} not found", tabKey)
+	return "", nil, fmt.Errorf("Tab {%q} not found", tabKey)
 }
 
 // GroupGrid fetch tab group name grid info (columns, rows, ..etc)
-func (s Server) GroupGrid(configPath *gcs.Path, groupName string) (*statepb.Grid, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), s.Timeout)
-	defer cancel()
+func (s Server) GroupGrid(ctx context.Context, configPath *gcs.Path, groupName string) (*statepb.Grid, error) {
 	groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(s.GridPathPrefix, groupName)})
+	if err != nil {
+		return nil, fmt.Errorf("resolve: %v", err)
+	}
 	grid, _, err := gcs.DownloadGrid(ctx, s.Client, *groupPath)
 	if err != nil {
-		return nil, fmt.Errorf("load %s: %v", groupName, err)
+		return nil, fmt.Errorf("load: %w", err)
 	}
 	return grid, err
 }
 
 // Grid fetch tab and grid info (columns, rows, ..etc)
-func (s Server) Grid(scope string, cfg *configpb.Configuration, dashboardKey string, tabKey string) (*statepb.Grid, error) {
-	tab, err := findDashboardTab(cfg, dashboardKey, tabKey)
+func (s Server) Grid(ctx context.Context, scope string, cfg *configpb.Configuration, dashboardKey string, tabKey string) (*statepb.Grid, error) {
+	dash, tab, err := findDashboardTab(cfg, dashboardKey, tabKey)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +79,15 @@ func (s Server) Grid(scope string, cfg *configpb.Configuration, dashboardKey str
 	if err != nil {
 		return nil, err
 	}
-	grid, err := s.GroupGrid(configPath, tab.TestGroupName)
-	if err != nil {
-		return nil, err
+	if s.TabPathPrefix == "" {
+		return s.GroupGrid(ctx, configPath, tab.TestGroupName)
 	}
-	return grid, nil
+	path, err := tabulator.TabStatePath(*configPath, s.TabPathPrefix, dash, tab.Name)
+	if err != nil {
+		return nil, fmt.Errorf("tab state path: %v", err)
+	}
+	grid, _, err := gcs.DownloadGrid(ctx, s.Client, *path)
+	return grid, err
 }
 
 // decodeRLE decodes the run length encoded data
@@ -99,13 +107,16 @@ func decodeRLE(encodedData []int32) []int32 {
 
 // ListHeaders returns dashboard tab headers
 func (s *Server) ListHeaders(ctx context.Context, req *apipb.ListHeadersRequest) (*apipb.ListHeadersResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
+	defer cancel()
+
 	cfg, err := s.getConfig(ctx, req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
 	dashboardKey, tabKey := req.GetDashboard(), req.GetTab()
-	grid, err := s.Grid(req.GetScope(), cfg, dashboardKey, tabKey)
+	grid, err := s.Grid(ctx, req.GetScope(), cfg, dashboardKey, tabKey)
 	if err != nil {
 		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
 	}
@@ -154,13 +165,17 @@ func (s Server) ListHeadersHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ListRows returns dashboard tab rows
 func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*apipb.ListRowsResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
+	defer cancel()
+
+	// this should be factored out of this function
 	cfg, err := s.getConfig(ctx, req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
 	dashboardKey, tabKey := req.GetDashboard(), req.GetTab()
-	grid, err := s.Grid(req.GetScope(), cfg, dashboardKey, tabKey)
+	grid, err := s.Grid(ctx, req.GetScope(), cfg, dashboardKey, tabKey)
 	if err != nil {
 		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
 	}
@@ -168,14 +183,17 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 		return nil, errors.New("Grid not found.")
 	}
 
-	var dashboardTabResponse apipb.ListRowsResponse
+	dashboardTabResponse := apipb.ListRowsResponse{
+		Rows: make([]*apipb.ListRowsResponse_Row, 0, len(grid.Rows)),
+	}
 	for _, gRow := range grid.Rows {
+		cellsCount := len(gRow.CellIds)
 		row := apipb.ListRowsResponse_Row{
 			Name:   gRow.Name,
 			Issues: gRow.Issues,
 			Alert:  gRow.AlertInfo,
+			Cells:  make([]*apipb.ListRowsResponse_Cell, 0, cellsCount),
 		}
-		cellsCount := len(gRow.CellIds)
 		gRowDecodedResults := decodeRLE(gRow.Results)
 		// loop through CellIds, Messages, Icons slices and build cell struct objects
 		for cellIdx := 0; cellIdx < cellsCount; cellIdx++ {

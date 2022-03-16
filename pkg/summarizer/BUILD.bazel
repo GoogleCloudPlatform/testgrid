@@ -21,6 +21,7 @@ go_library(
         "//pkg/pubsub:go_default_library",
         "//pkg/summarizer/analyzers:go_default_library",
         "//pkg/summarizer/common:go_default_library",
+        "//pkg/tabulator:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics:go_default_library",
         "//util/queue:go_default_library",
