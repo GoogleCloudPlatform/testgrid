@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package summarizer
+package tabulator
 
 import (
 	"context"
@@ -35,11 +35,7 @@ import (
 // FixGCS listens for GCS changes to test groups and schedules another update of its dashboards ~immediately.
 //
 // Returns when the context is canceled or a processing error occurs.
-func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID string, configPath gcs.Path, gridPathPrefix, tabPathPrefix string) (Fixer, error) {
-	if tabPathPrefix != "" {
-		gridPathPrefix = tabPathPrefix
-	}
-
+func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID string, configPath gcs.Path, gridPathPrefix string) (Fixer, error) {
 	if !strings.HasSuffix(gridPathPrefix, "/") && gridPathPrefix != "" {
 		gridPathPrefix += "/"
 	}
@@ -70,11 +66,11 @@ func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID stri
 			}
 		}()
 		defer wg.Wait()
-		return processGCSNotifications(ctx, log, q, *gridPath, tabPathPrefix != "", ch)
+		return processGCSNotifications(ctx, log, q, *gridPath, ch)
 	}, nil
 }
 
-func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *config.DashboardQueue, gridPrefix gcs.Path, findDashboard bool, senders <-chan *pubsub.Notification) error {
+func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *config.DashboardQueue, gridPrefix gcs.Path, senders <-chan *pubsub.Notification) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -83,7 +79,7 @@ func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *con
 			if !ok {
 				return nil
 			}
-			group := processNotification(gridPrefix, findDashboard, notice)
+			group := processNotification(gridPrefix, notice)
 			if group == nil {
 				continue
 			}
@@ -101,18 +97,15 @@ func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *con
 	}
 }
 
-// Return the test group/dashboard associated with the notification.
-func processNotification(gridPrefix gcs.Path, wantDashboard bool, n *pubsub.Notification) *string {
+// Return the test group associated with the notification.
+func processNotification(gridPrefix gcs.Path, n *pubsub.Notification) *string {
 	if gridPrefix.Bucket() != n.Path.Bucket() {
 		return nil
 	}
-
-	dir, base := path.Split(n.Path.Object()) // gs://prefix/TEST_GROUP
-	if wantDashboard && len(dir) > 0 {       // Actually, gs://prefix/DASH/TAB
-		dir, base = path.Split(dir[:len(dir)-1])
-	}
+	dir, base := path.Split(n.Path.Object())
 	if dir != gridPrefix.Object() {
 		return nil
 	}
-	return &base // gs://prefix/TEST_GROUP
+
+	return &base
 }

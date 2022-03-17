@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package summarizer
+package tabulator
 
 import (
 	"testing"
@@ -34,11 +34,10 @@ func TestProcessNotification(t *testing.T) {
 	}
 	pstr := func(s string) *string { return &s }
 	cases := []struct {
-		name          string
-		prefix        gcs.Path
-		notice        *pubsub.Notification
-		findDashboard bool
-		want          *string
+		name   string
+		prefix gcs.Path
+		notice *pubsub.Notification
+		want   *string
 	}{
 		{
 			name:   "basically works",
@@ -74,28 +73,11 @@ func TestProcessNotification(t *testing.T) {
 			},
 			want: pstr("foo"),
 		},
-		{
-			name:   "match dashboard via tab notification",
-			prefix: mustPath("gs://bucket/prefix/"),
-			notice: &pubsub.Notification{
-				Path: mustPath("gs://bucket/prefix/good/riddance"),
-			},
-			findDashboard: true,
-			want:          pstr("good"),
-		},
-		{
-			name:   "ignore tabless dashboard",
-			prefix: mustPath("gs://bucket/prefix/"),
-			notice: &pubsub.Notification{
-				Path: mustPath("gs://bucket/prefix/just-dashboard"),
-			},
-			findDashboard: true,
-		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := processNotification(tc.prefix, tc.findDashboard, tc.notice)
+			got := processNotification(tc.prefix, tc.notice)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("processNotification() got unexpected diff (-want +got):\n%s", diff)
 			}
