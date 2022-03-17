@@ -17,6 +17,9 @@ limitations under the License.
 package gcs
 
 import (
+	"context"
+	"os"
+	"path"
 	"testing"
 )
 
@@ -53,6 +56,10 @@ func TestCleanFilepath(t *testing.T) {
 			path: "file:///path/to/something",
 			want: "/path/to/something",
 		},
+		{
+			path: "file:/base/valid-in gcs!",
+			want: `/base/valid-in gcs!`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -64,6 +71,59 @@ func TestCleanFilepath(t *testing.T) {
 			}
 			if got := cleanFilepath(p); got != tc.want {
 				t.Errorf("cleanFilepath(%v) got %q, want %q", p, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUpload_UploadsToLocalStorage(t *testing.T) {
+	tests := []struct {
+		name        string
+		destination string
+		ExpectErr   bool
+		ExpectStat  bool
+	}{
+		{
+			name:       "won't upload nothing",
+			ExpectErr:  true,
+			ExpectStat: true,
+		},
+		{
+			name:        "uploads files",
+			destination: "foo",
+			ExpectStat:  true,
+		},
+		{
+			name:        "uploads nested files",
+			destination: "foo/bar",
+			ExpectStat:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			client := NewLocalClient()
+			base := t.TempDir()
+
+			location, err := NewPath(path.Join(base, tc.destination))
+			if err != nil || location == nil {
+				t.Fatalf("Fatal error with location %v; %v", location, err)
+			}
+
+			_, err = client.Upload(ctx, *location, []byte("some-content"), false, "")
+			if tc.ExpectErr && err == nil {
+				t.Error("Expected error, but got none")
+			}
+			if !tc.ExpectErr && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			if tc.ExpectStat {
+				_, err = os.Stat(path.Join(base, tc.destination))
+				if err != nil {
+					t.Errorf("Stat failed: %v", err)
+				}
 			}
 		})
 	}

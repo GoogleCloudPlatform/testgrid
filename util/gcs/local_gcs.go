@@ -116,7 +116,12 @@ func (lc localClient) Objects(ctx context.Context, path Path, delimiter, startOf
 }
 
 func (lc localClient) Upload(ctx context.Context, path Path, buf []byte, _ bool, _ string) (*storage.ObjectAttrs, error) {
-	err := ioutil.WriteFile(cleanFilepath(path), buf, 0666)
+	cleanPath := cleanFilepath(path)
+	dirName := filepath.Dir(cleanPath)
+	// swallow this error; dir may already exist, but it must exist to WriteFile for local storage only
+	os.MkdirAll(dirName, os.ModePerm)
+
+	err := ioutil.WriteFile(cleanPath, buf, 0666)
 	if err != nil {
 		return nil, convertIsNotExistsErr(err)
 	}
