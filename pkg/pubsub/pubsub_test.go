@@ -98,6 +98,16 @@ func TestSendToReceivers(t *testing.T) {
 						},
 					},
 					{
+						ID: "bad-hash-path",
+						Attributes: map[string]string{
+							keyBucket:     "random-bucket",
+							keyObject:     "ignore-path#with-a-hash",
+							keyTime:       now.Add(time.Second).Format(time.RFC3339),
+							keyEvent:      string(Delete),
+							keyGeneration: "50",
+						},
+					},
+					{
 						ID: "bad-time",
 						Attributes: map[string]string{
 							keyBucket:     "foo",
@@ -145,6 +155,7 @@ func TestSendToReceivers(t *testing.T) {
 			wantAcks: fakeAcker{
 				acks: []string{
 					"good-bar",
+					"bad-hash-path",
 					"good-random-event",
 					"good-old-bar",
 				},
