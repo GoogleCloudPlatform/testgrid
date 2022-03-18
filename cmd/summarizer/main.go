@@ -84,7 +84,7 @@ func gatherOptions() options {
 	return o
 }
 
-func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridPrefix, credPath string) (summarizer.Fixer, error) {
+func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridPrefix, tabPrefix, credPath string) (summarizer.Fixer, error) {
 	if projectSub == "" {
 		return nil, nil
 	}
@@ -98,7 +98,7 @@ func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridP
 		logrus.WithError(err).Fatal("Failed to create pubsub client")
 	}
 	client := pubsub.NewClient(pubsubClient)
-	return summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix)
+	return summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix, tabPrefix)
 }
 
 func main() {
@@ -132,7 +132,7 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 	metrics := summarizer.CreateMetrics(prometheus.NewFactory())
-	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
+	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.tabPathPrefix, opt.creds)
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}

@@ -26,7 +26,6 @@ import (
 
 	gpubsub "cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/pubsub"
-	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics/prometheus"
@@ -145,9 +144,5 @@ func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridP
 		logrus.WithError(err).Fatal("Failed to create pubsub client")
 	}
 	client := pubsub.NewClient(pubsubClient)
-	fixer, err := summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix)
-	if fixer != nil {
-		return tabulator.Fixer(fixer), err
-	}
-	return nil, err
+	return tabulator.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix)
 }

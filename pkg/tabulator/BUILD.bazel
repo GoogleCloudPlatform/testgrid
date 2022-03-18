@@ -2,13 +2,17 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["tabstate.go"],
+    srcs = [
+        "pubsub.go",
+        "tabstate.go",
+    ],
     importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/tabulator",
     visibility = ["//visibility:public"],
     deps = [
         "//config:go_default_library",
         "//config/snapshot:go_default_library",
         "//pb/config:go_default_library",
+        "//pkg/pubsub:go_default_library",
         "//pkg/updater:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics:go_default_library",
@@ -20,9 +24,13 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["tabstate_test.go"],
+    srcs = [
+        "pubsub_test.go",
+        "tabstate_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
+        "//pkg/pubsub:go_default_library",
         "//util/gcs:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
     ],

@@ -15,7 +15,6 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//pkg/pubsub:go_default_library",
-        "//pkg/summarizer:go_default_library",
         "//pkg/tabulator:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics/prometheus:go_default_library",
