@@ -450,7 +450,7 @@ message AutoBugOptions {
   // playbook.
   string note = 14;
 
-  reserved 15;
+  reserved 15, 16;
 }
 
 message HotlistIdFromSource {
