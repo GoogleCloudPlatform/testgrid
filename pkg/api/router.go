@@ -35,6 +35,7 @@ type RouterOptions struct {
 	Hostname       *url.URL
 	HomeBucket     string
 	GridPathPrefix string
+	TabPathPrefix  string
 	Timeout        time.Duration
 }
 
@@ -63,6 +64,7 @@ func GetRouter(options RouterOptions, storageClient *storage.Client) (*mux.Route
 		Host:           options.Hostname.ResolveReference(v1InfixURL),
 		DefaultBucket:  options.HomeBucket,
 		GridPathPrefix: options.GridPathPrefix,
+		TabPathPrefix:  options.TabPathPrefix,
 		Timeout:        options.Timeout,
 	}
 	v1.Route(sub1, s)

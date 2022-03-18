@@ -52,3 +52,47 @@ spec:
             cpu: "2"
             memory: "100G"
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-summarizer-tabs
+  namespace: testgrid
+  labels:
+    app: testgrid
+    component: summarizer-tabs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer-tabs
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        component: summarizer-tabs
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20220225-v0.0.122-3-gccb5325
+        ports:
+        - name: metrics
+          containerPort: 2112
+        args:
+        - --config=gs://k8s-testgrid/config
+        - --grid-path=tabs
+        - --json-logs
+        - --pubsub=k8s-testgrid/tab-updates
+        - --persist-queue=gs://k8s-testgrid/queue/summarizer-tabs.json
+        - --summary-path=summary-temp
+        - --wait=5m
+        # --confirm
+        resources:
+          requests:
+            cpu: "1"
+            memory: "50G"
+          limits:
+            cpu: "2"
+            memory: "100G"
+---

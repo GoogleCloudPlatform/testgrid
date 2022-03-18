@@ -55,3 +55,50 @@ spec:
             cpu: "2"
             memory: "100G"
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-summarizer-tabs
+  namespace: testgrid-canary
+  labels:
+    app: testgrid
+    channel: stable
+    component: summarizer-tabs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      channel: stable
+      component: summarizer-tabs
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        channel: stable
+        component: summarizer-tabs
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20220225-v0.0.122-3-gccb5325
+        ports:
+        - name: metrics
+          containerPort: 2112
+        args:
+        - --config=gs://k8s-testgrid-canary/config
+        - --grid-path=tabs
+        - --json-logs
+        - --persist-queue=gs://k8s-testgrid-canary/queue/summarizer-tabs.json
+        - --pubsub=k8s-testgrid/canary-tabs-updates
+        - --summary-path=summary-temp
+        - --wait=1h
+        # --confirm
+        resources:
+          requests:
+            cpu: "1"
+            memory: "50G"
+          limits:
+            cpu: "2"
+            memory: "100G"
+---

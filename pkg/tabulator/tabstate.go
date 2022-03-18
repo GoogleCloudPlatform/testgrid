@@ -143,7 +143,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			if err != nil {
 				return fmt.Errorf("can't make tg path %q: %w", tab.TestGroupName, err)
 			}
-			toPath, err := tabStatePath(configPath, tabsPathPrefix, dashName, tab.Name)
+			toPath, err := TabStatePath(configPath, tabsPathPrefix, dashName, tab.Name)
 			if err != nil {
 				return fmt.Errorf("can't make dashtab path %s/%s: %w", dashName, tab.Name, err)
 			}
@@ -210,17 +210,17 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	return q.Send(ctx, dashboardNames, freq)
 }
 
-func tabStatePath(g gcs.Path, tabPrefix, dashboardName, tabName string) (*gcs.Path, error) {
+func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string) (*gcs.Path, error) {
 	name := path.Join(tabPrefix, dashboardName, tabName)
 	u, err := url.Parse(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url %s: %w", name, err)
 	}
-	np, err := g.ResolveReference(u)
+	np, err := configPath.ResolveReference(u)
 	if err != nil {
 		return nil, fmt.Errorf("resolve reference: %w", err)
 	}
-	if np.Bucket() != g.Bucket() {
+	if np.Bucket() != configPath.Bucket() {
 		return nil, fmt.Errorf("tabState %s should not change bucket", name)
 	}
 	return np, nil
