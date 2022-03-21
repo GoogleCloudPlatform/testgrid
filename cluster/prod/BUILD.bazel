@@ -23,9 +23,17 @@ k8s_objects(
         ":updater",
         ":config_merger",
         ":tabulator",
+        ":knative-prod",
+    ],
+)
+
+k8s_objects(
+    name = "knative-prod",  # TODO(fejta): move to knative dir
+    objects = [
         ":knative-namespace",  # Must be first
         ":knative-summarizer",
         ":knative-updater",
+        ":knative-tabulator",
     ],
 )
 
@@ -69,6 +77,13 @@ k8s_object(
 )
 
 k8s_object(
+    name = "knative-namespace",
+    cluster = CLUSTER,
+    kind = "Namespace",
+    template = "knative/namespace.yaml",
+)
+
+k8s_object(
     name = "knative-updater",
     cluster = CLUSTER,
     kind = MULTI_KIND,
@@ -83,10 +98,10 @@ k8s_object(
 )
 
 k8s_object(
-    name = "knative-namespace",
+    name = "knative-tabulator",
     cluster = CLUSTER,
-    kind = "Namespace",
-    template = "knative/namespace.yaml",
+    kind = MULTI_KIND,
+    template = "knative/tabulator.yaml",
 )
 
 filegroup(

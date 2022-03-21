@@ -32,7 +32,7 @@ spec:
         args:
         - --config=gs://knative-own-testgrid/config
         - --wait=15m
-        # --confirm
+        - --confirm
 ---
 apiVersion: v1
 kind: ServiceAccount
