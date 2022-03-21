@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-tabulator
+  namespace: knative
+  labels:
+    app: testgrid
+    channel: stable
+    component: tabulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      channel: stable
+      component: tabulator
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        channel: stable
+        component: tabulator
+    spec:
+      serviceAccountName: tabulator
+      containers:
+      - name: tabulator
+        image: gcr.io/k8s-testgrid/tabulator:v20220318-v0.0.124-9-gcddacc1
+        ports:
+        - name: metrics
+          containerPort: 2112
+        args:
+        - --config=gs://knative-own-testgrid/config
+        - --wait=15m
+        # --confirm
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    # Uses same as updater
+    iam.gke.io/gcp-service-account: testgrid-updater@knative-tests.iam.gserviceaccount.com
+  name: tabulator
+  namespace: knative
