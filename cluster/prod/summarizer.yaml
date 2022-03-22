@@ -81,7 +81,8 @@ spec:
           containerPort: 2112
         args:
         - --config=gs://k8s-testgrid/config
-        - --grid-path=tabs
+        - --grid-path=unused
+        - --tab-path=tabs
         - --json-logs
         - --pubsub=k8s-testgrid/tab-updates
         - --persist-queue=gs://k8s-testgrid/queue/summarizer-tabs.json
