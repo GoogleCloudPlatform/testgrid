@@ -43,8 +43,9 @@ spec:
         - --confirm
         - --grid-path=grid
         - --json-logs
-        - --persist-queue=gs://k8s-testgrid-canary/queue/summarizer.json
-        - --pubsub=k8s-testgrid/canary-test-group-updates
+        # TODO(fejta): remove
+        # --persist-queue=gs://k8s-testgrid-canary/queue/summarizer.json
+        # --pubsub=k8s-testgrid/canary-test-group-updates
         - --summary-path=summary-old
         - --wait=1h
         resources:
