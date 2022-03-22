@@ -87,7 +87,8 @@ spec:
           containerPort: 2112
         args:
         - --config=gs://k8s-testgrid-canary/config
-        - --grid-path=tabs
+        - --grid-path=unused
+        - --tab-path=tabs
         - --json-logs
         - --persist-queue=gs://k8s-testgrid-canary/queue/summarizer-tabs.json
         - --pubsub=k8s-testgrid/canary-tab-updates
