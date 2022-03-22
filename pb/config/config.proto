@@ -365,6 +365,8 @@ message TestMetadataOptions {
 
   // Apply following metadata if this regex matches a test’s failure message.
   string message_regex = 5;
+
+  reserved 6;
 }
 
 message AutoBugOptions {
