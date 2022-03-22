@@ -33,7 +33,8 @@ spec:
         - --config=gs://k8s-testgrid-canary/config
         - --confirm
         - --wait=15m
-        # TODO(fejta): --pubsub, --persist-queue, turn down old summarizer
+        - --pubsub=k8s-testgrid/canary-test-group-updates
+        # TODO(fejta): --persist-queue=gs://k8s-testgrid-canary/queue/summarizer.json
 ---
 apiVersion: v1
 kind: ServiceAccount
