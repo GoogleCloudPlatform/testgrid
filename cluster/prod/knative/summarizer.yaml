@@ -28,7 +28,8 @@ spec:
         - --confirm
         - --json-logs
         - --wait=5m
-        # TODO(fejta): pubsub and persistent queue
+        - --persist-queue=gs://knative-own-testgrid/queue/summarizer.json
+        - --pubsub=knative-tests/test-group-updates
 ---
 apiVersion: v1
 kind: ServiceAccount
