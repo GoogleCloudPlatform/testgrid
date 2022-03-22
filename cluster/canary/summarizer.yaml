@@ -93,7 +93,7 @@ spec:
         - --pubsub=k8s-testgrid/canary-tab-updates
         - --summary-path=summary-temp
         - --wait=1h
-        # --confirm
+        - --confirm
         resources:
           requests:
             cpu: "1"
