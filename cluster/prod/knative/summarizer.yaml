@@ -31,6 +31,44 @@ spec:
         - --persist-queue=gs://knative-own-testgrid/queue/summarizer.json
         - --pubsub=knative-tests/test-group-updates
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-summarizer-tabs
+  namespace: knative
+  labels:
+    app: testgrid
+    component: summarizer-tabs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer-tabs
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        component: summarizer-tabs
+    spec:
+      serviceAccountName: summarizer
+      containers:
+      - name: summarizer
+        image: gcr.io/k8s-testgrid/summarizer:v20220318-v0.0.124-9-gcddacc1
+        ports:
+        - name: metrics
+          containerPort: 2112
+        args:
+        - --config=gs://knative-own-testgrid/config
+        - --grid-path=unused
+        - --tab-path=tabs
+        - --json-logs
+        - --pubsub=knative-tests/tab-updates
+        - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
+        - --summary-path=summary-temp
+        - --wait=5m
+        # --confirm
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
