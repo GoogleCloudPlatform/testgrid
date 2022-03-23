@@ -88,7 +88,7 @@ spec:
         - --persist-queue=gs://k8s-testgrid/queue/summarizer-tabs.json
         - --summary-path=summary-temp
         - --wait=5m
-        # --confirm
+        - --confirm
         resources:
           requests:
             cpu: "1"
