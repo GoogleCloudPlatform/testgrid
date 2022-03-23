@@ -36,6 +36,7 @@ import (
 // options configures the updater
 type options struct {
 	config             gcs.Path // gs://path/to/config/proto
+	persistQueue       gcs.Path
 	creds              string
 	confirm            bool
 	concurrency        int
@@ -66,6 +67,7 @@ func gatherOptions() options {
 	var o options
 
 	flag.Var(&o.config, "config", "gs://path/to/config.pb")
+	flag.Var(&o.persistQueue, "persist-queue", "Load previous queue state from gs://path/to/queue-state.json and regularly save to it thereafter")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
@@ -118,14 +120,25 @@ func main() {
 		"group": opt.concurrency,
 	}).Info("Configured concurrency")
 
+	fixers := make([]tabulator.Fixer, 0, 2)
+
 	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.creds)
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
+	if fixer != nil {
+		fixers = append(fixers, fixer)
+	}
+	if path := opt.persistQueue; path.String() != "" {
+		const freq = time.Minute
+		ticker := time.NewTicker(freq)
+		log := logrus.WithField("frequency", freq)
+		fixers = append(fixers, tabulator.FixPersistent(log, client, path, ticker.C))
+	}
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.wait, fixer); err != nil {
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
 }
