@@ -107,6 +107,8 @@ message TestMetadata {
   // When present, only file a bug for failed tests with same error type.
   // Otherwise, always file a bug.
   string error_type = 5;
+
+  reserved 6;
 }
 
 // TestGrid columns (also known as TestCycle).
