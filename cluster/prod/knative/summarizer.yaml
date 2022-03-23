@@ -67,7 +67,7 @@ spec:
         - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
         - --summary-path=summary-temp
         - --wait=5m
-        # --confirm
+        - --confirm
 ---
 apiVersion: v1
 kind: ServiceAccount
