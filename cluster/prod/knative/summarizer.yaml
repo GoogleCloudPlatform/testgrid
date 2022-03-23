@@ -30,6 +30,7 @@ spec:
         - --wait=5m
         - --persist-queue=gs://knative-own-testgrid/queue/summarizer.json
         - --pubsub=knative-tests/test-group-updates
+        - --summary-path=summary-old
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -65,7 +66,7 @@ spec:
         - --json-logs
         - --pubsub=knative-tests/tab-updates
         - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
-        - --summary-path=summary-temp
+        - --summary-path=summary
         - --wait=5m
         - --confirm
 ---
