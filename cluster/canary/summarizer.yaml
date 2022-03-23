@@ -11,54 +11,6 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: testgrid-summarizer
-  namespace: testgrid-canary
-  labels:
-    app: testgrid
-    channel: stable
-    component: summarizer
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: testgrid
-      channel: stable
-      component: summarizer
-  template:
-    metadata:
-      labels:
-        app: testgrid
-        channel: stable
-        component: summarizer
-    spec:
-      serviceAccountName: summarizer
-      containers:
-      - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20220318-v0.0.124-15-g14183d1
-        ports:
-        - name: metrics
-          containerPort: 2112
-        args:
-        - --config=gs://k8s-testgrid-canary/config
-        - --confirm
-        - --grid-path=grid
-        - --json-logs
-        # TODO(fejta): remove
-        # --persist-queue=gs://k8s-testgrid-canary/queue/summarizer.json
-        # --pubsub=k8s-testgrid/canary-test-group-updates
-        - --summary-path=summary-old
-        - --wait=1h
-        resources:
-          requests:
-            cpu: "1"
-            memory: "50G"
-          limits:
-            cpu: "2"
-            memory: "100G"
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: testgrid-summarizer-tabs
   namespace: testgrid-canary
   labels:
@@ -88,14 +40,14 @@ spec:
           containerPort: 2112
         args:
         - --config=gs://k8s-testgrid-canary/config
+        - --confirm
         - --grid-path=unused
-        - --tab-path=tabs
         - --json-logs
         - --persist-queue=gs://k8s-testgrid-canary/queue/summarizer-tabs.json
         - --pubsub=k8s-testgrid/canary-tab-updates
         - --summary-path=summary
+        - --tab-path=tabs
         - --wait=1h
-        - --confirm
         resources:
           requests:
             cpu: "1"
