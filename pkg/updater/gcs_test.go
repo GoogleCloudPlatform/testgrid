@@ -1748,6 +1748,86 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "override build key",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				buildKey: "my-build-id",
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Metadata: metadata.Metadata{
+							"my-build-id": "id-1",
+						},
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+			},
+			id: "McLovin",
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+					Build:   "id-1",
+					Hint:    "McLovin",
+				},
+				Cells: map[string]Cell{
+					"." + overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+				},
+			},
+		},
+		{
+			name: "override build key missing",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			opt: groupOptions{
+				buildKey: "my-build-id",
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Metadata: metadata.Metadata{
+							"something": "hello",
+						},
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+			},
+			id: "McLovin",
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+					Build:   "",
+					Hint:    "McLovin",
+				},
+				Cells: map[string]Cell{
+					"." + overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {

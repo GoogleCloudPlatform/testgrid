@@ -167,6 +167,7 @@ type groupOptions struct {
 	analyzeProwJob bool
 	addCellID      bool
 	metricKey      string
+	buildKey       string
 	userKey        string
 	annotations    []*configpb.TestGroup_TestAnnotation
 	rules          []*evalpb.Rule
@@ -178,6 +179,7 @@ func makeOptions(group *configpb.TestGroup) groupOptions {
 		analyzeProwJob: !group.DisableProwjobAnalysis,
 		addCellID:      group.BuildOverrideStrftime != "",
 		metricKey:      group.ShortTextMetric,
+		buildKey:       group.BuildOverrideConfigurationValue,
 		userKey:        group.UserProperty,
 		annotations:    group.TestAnnotations,
 		rules:          group.GetCustomEvaluatorRuleSet().GetRules(),
