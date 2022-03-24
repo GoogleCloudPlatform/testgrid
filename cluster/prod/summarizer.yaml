@@ -42,7 +42,7 @@ spec:
         - --json-logs
         - --pubsub=k8s-testgrid/test-group-updates
         - --persist-queue=gs://k8s-testgrid/queue/summarizer.json
-        - --summary-path=summary
+        - --summary-path=summary-old
         - --wait=5m
         resources:
           requests:
@@ -86,7 +86,7 @@ spec:
         - --json-logs
         - --pubsub=k8s-testgrid/tab-updates
         - --persist-queue=gs://k8s-testgrid/queue/summarizer-tabs.json
-        - --summary-path=summary-temp
+        - --summary-path=summary
         - --wait=5m
         - --confirm
         resources:
