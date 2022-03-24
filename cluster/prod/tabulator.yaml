@@ -32,9 +32,9 @@ spec:
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --wait=15m
         - --pubsub=k8s-testgrid/test-group-updates
-        # --persist-queue=gs://k8s-testgrid/queue/tabulator.json
+        - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
+        - --wait=1h
 ---
 apiVersion: v1
 kind: ServiceAccount

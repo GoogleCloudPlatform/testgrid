@@ -31,10 +31,10 @@ spec:
           containerPort: 2112
         args:
         - --config=gs://knative-own-testgrid/config
-        - --wait=15m
         - --confirm
+        - --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
         - --pubsub=knative-tests/test-group-updates
-        # --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
+        - --wait=1h
 ---
 apiVersion: v1
 kind: ServiceAccount
