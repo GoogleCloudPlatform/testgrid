@@ -11,50 +11,6 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: testgrid-summarizer
-  namespace: testgrid
-  labels:
-    component: summarizer
-    app: testgrid
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: testgrid
-      component: summarizer
-  template:
-    metadata:
-      labels:
-        component: summarizer
-        app: testgrid
-    spec:
-      serviceAccountName: summarizer
-      containers:
-      - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20220323-v0.0.124-47-g734ed81
-        ports:
-        - name: metrics
-          containerPort: 2112
-        args:
-        - --config=gs://k8s-testgrid/config
-        - --confirm
-        - --grid-path=grid
-        - --json-logs
-        # --pubsub=k8s-testgrid/test-group-updates
-        # --persist-queue=gs://k8s-testgrid/queue/summarizer.json
-        - --summary-path=summary-old
-        - --wait=24h
-        resources:
-          requests:
-            cpu: "1"
-            memory: "50G"
-          limits:
-            cpu: "2"
-            memory: "100G"
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: testgrid-summarizer-tabs
   namespace: testgrid
   labels:

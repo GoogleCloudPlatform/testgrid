@@ -2,39 +2,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: testgrid-summarizer
-  namespace: knative
-  labels:
-    component: summarizer
-    app: testgrid
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: testgrid
-      component: summarizer
-  template:
-    metadata:
-      labels:
-        component: summarizer
-        app: testgrid
-    spec:
-      serviceAccountName: summarizer
-      containers:
-      - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20220323-v0.0.124-47-g734ed81
-        args:
-        - --config=gs://knative-own-testgrid/config
-        - --confirm
-        - --json-logs
-        # --persist-queue=gs://knative-own-testgrid/queue/summarizer.json
-        # --pubsub=knative-tests/test-group-updates
-        - --summary-path=summary-old
-        - --wait=24h
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: testgrid-summarizer-tabs
   namespace: knative
   labels:
