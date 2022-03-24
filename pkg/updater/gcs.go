@@ -380,9 +380,23 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 		}
 	}
 
+	buildID := id
+	if opt.buildKey != "" {
+		metadata := result.finished.Metadata.Strings()
+		if metadata != nil {
+			buildID = metadata[opt.buildKey]
+		}
+		if buildID == "" {
+			log.WithFields(logrus.Fields{
+				"metadata":         result.finished.Metadata.Strings(),
+				"overrideBuildKey": opt.buildKey,
+			}).Warning("No override build ID found in metadata.")
+		}
+	}
+
 	out := InflatedColumn{
 		Column: &statepb.Column{
-			Build:   id,
+			Build:   buildID,
 			Started: float64(result.started.Timestamp * 1000),
 			Hint:    id,
 		},

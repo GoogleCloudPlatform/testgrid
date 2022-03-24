@@ -262,7 +262,9 @@ message TestGroup {
   // is present, it will override all the other short text values.
   string short_text_metric = 43;
 
-  reserved 44;
+  // The key of a key-value pair in metadata (a 'configuration value').
+  // This overrides the default build with the value from the key-value pair.
+  string build_override_configuration_value = 44;
 
   // If true, only associate bugs with test methods if that test method is
   // mentioned in the bug. If false, bugs will be associated with all test
@@ -330,7 +332,7 @@ message TestGroup {
   // These can be substituted into LinkTemplates.
   string user_property = 56;
 
-  reserved 58,59;
+  reserved 57 to 59;
 
   // disable_prowjob_analysis 62
 }
