@@ -32,7 +32,7 @@ bind-service-accounts() {
   members=($(existing-members "$gsa" "$role"))
   rolemsg=${role#*iam.}
   for k8s_sa in "$@"; do
-    member="serviceAccount:$k8s_project.svc.id.goog[$k8s_ns/$k8s_sa]" 
+    member="serviceAccount:$k8s_project.svc.id.goog[$k8s_ns/$k8s_sa]"
     membermsg=$k8s_ns/$k8s_sa
     add=y
     for m in "${members[@]}"; do

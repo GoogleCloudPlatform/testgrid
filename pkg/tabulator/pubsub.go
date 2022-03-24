@@ -89,7 +89,7 @@ func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *con
 				"group":        group,
 				"when":         when,
 				"notification": notice,
-			}).Trace("Fixing groups from gcs notifcation")
+			}).Trace("Fixing groups from gcs notification")
 			if err := q.FixTestGroups(when, false, *group); err != nil {
 				return err
 			}
