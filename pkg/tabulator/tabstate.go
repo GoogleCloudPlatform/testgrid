@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package tabulator processes test group state into tab state.
 package tabulator
 
 import (
@@ -228,6 +229,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	return q.Send(ctx, dashboardNames, freq)
 }
 
+// TabStatePath returns the path for a given tab.
 func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string) (*gcs.Path, error) {
 	name := path.Join(tabPrefix, dashboardName, tabName)
 	u, err := url.Parse(name)

@@ -86,7 +86,8 @@ message AlertInfo {
   // A list of IDs for issue hotlists related to this failure.
   repeated string hotlist_ids = 13;
 
-  // Dynamic email list, route email alerts to these instead of the configured defaults.
+  // Dynamic email list, route email alerts to these instead of the configured
+  // defaults.
   repeated string email_addresses = 15;
 }
 
@@ -133,14 +134,18 @@ message Column {
   // An optional hint for the updater.
   string hint = 6;
 
-  // Dynamic email list, route email alerts to these instead of the configured defaults.
+  // Dynamic email list, route email alerts to these instead of the configured
+  // defaults.
   repeated string email_addresses = 7;
 }
 
 // TestGrid rows (also known as TestRow)
 message Row {
-  string name = 1;  // Display name, which might process id to append/filter info.
-  string id = 2;  // raw id for the row, such as the bazel target or golang package.
+  // Display name, which might process id to append/filter info.
+  string name = 1;
+
+  // raw id for the row, such as the bazel target or golang package.
+  string id = 2;
 
   // Results for this row, run-length encoded to reduce size/improve
   // performance. Thus (encoded -> decoded equivalent):
