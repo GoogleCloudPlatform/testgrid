@@ -34,7 +34,7 @@ spec:
         - --confirm
         - --wait=15m
         - --pubsub=k8s-testgrid/canary-test-group-updates
-        # TODO(fejta): --persist-queue=gs://k8s-testgrid-canary/queue/summarizer.json
+        - --persist-queue=gs://k8s-testgrid-canary/queue/tabulator.json
 ---
 apiVersion: v1
 kind: ServiceAccount
