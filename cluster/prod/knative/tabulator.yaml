@@ -33,6 +33,8 @@ spec:
         - --config=gs://knative-own-testgrid/config
         - --wait=15m
         - --confirm
+        - --pubsub=knative-tests/test-group-updates
+        # --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
 ---
 apiVersion: v1
 kind: ServiceAccount
