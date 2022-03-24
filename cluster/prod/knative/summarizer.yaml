@@ -27,10 +27,10 @@ spec:
         - --config=gs://knative-own-testgrid/config
         - --confirm
         - --json-logs
-        - --wait=5m
-        - --persist-queue=gs://knative-own-testgrid/queue/summarizer.json
-        - --pubsub=knative-tests/test-group-updates
+        # --persist-queue=gs://knative-own-testgrid/queue/summarizer.json
+        # --pubsub=knative-tests/test-group-updates
         - --summary-path=summary-old
+        - --wait=24h
 ---
 apiVersion: apps/v1
 kind: Deployment

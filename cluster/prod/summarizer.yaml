@@ -40,10 +40,10 @@ spec:
         - --confirm
         - --grid-path=grid
         - --json-logs
-        - --pubsub=k8s-testgrid/test-group-updates
-        - --persist-queue=gs://k8s-testgrid/queue/summarizer.json
+        # --pubsub=k8s-testgrid/test-group-updates
+        # --persist-queue=gs://k8s-testgrid/queue/summarizer.json
         - --summary-path=summary-old
-        - --wait=5m
+        - --wait=24h
         resources:
           requests:
             cpu: "1"
