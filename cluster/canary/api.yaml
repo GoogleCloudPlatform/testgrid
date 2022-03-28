@@ -29,6 +29,7 @@ spec:
         args:
         - --scope=gs://k8s-testgrid-canary
         - --port=8080
+        - --tab=tabs
 ---
 apiVersion: v1
 kind: ServiceAccount
