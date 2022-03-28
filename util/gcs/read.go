@@ -413,7 +413,7 @@ type SuitesMeta struct {
 }
 
 const (
-	maxSize int64 = 100e6 // 100 million, coarce to int not float
+	maxSize int64 = 200e6 // 200 million, coarce to int not float
 )
 
 func readSuites(ctx context.Context, opener Opener, p Path) (*junit.Suites, error) {
