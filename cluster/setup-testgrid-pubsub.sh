@@ -33,9 +33,8 @@ log() {
 apply() {
     log "$create_topic" -t "$topic" -p '' "$bucket"
 
-    # TODO(fejta): filter to correct prefixes (/grid /tabs)
-    log "$create_sub" -t "$topic" -b "$bot" -p "$project" "$group_sub"
-    log "$create_sub" -t "$topic" -b "$bot" -p "$project" "$tab_sub"
+    log "$create_sub" -t "$topic" -b "$bot" -p "$project" -f "$group_prefix" "$group_sub"
+    log "$create_sub" -t "$topic" -b "$bot" -p "$project" -f "$tab_prefix" "$tab_sub"
 }
 
 project=k8s-testgrid
@@ -44,6 +43,8 @@ bucket=gs://k8s-testgrid
 topic="projects/$project/topics/testgrid"
 group_sub=test-group-updates
 tab_sub=tab-updates
+group_prefix=""
+tab_prefix=""
 bot=serviceAccount:updater@k8s-testgrid.iam.gserviceaccount.com
 apply
 
@@ -52,5 +53,7 @@ bucket=gs://k8s-testgrid-canary
 topic="projects/$project/topics/canary-testgrid"
 group_sub=canary-test-group-updates
 tab_sub=canary-tab-updates
+group_prefix="grid/"
+tab_prefix="tabs/"
 bot=serviceAccount:testgrid-canary@k8s-testgrid.iam.gserviceaccount.com
 apply
