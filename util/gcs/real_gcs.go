@@ -18,6 +18,7 @@ package gcs
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -59,7 +60,33 @@ func (rgc realGCSClient) handle(path Path, cond *storage.Conditions) *storage.Ob
 
 func (rgc realGCSClient) Copy(ctx context.Context, from, to Path) (*storage.ObjectAttrs, error) {
 	fromH := rgc.handle(from, rgc.readCond)
-	return rgc.handle(to, rgc.writeCond).CopierFrom(fromH).Run(ctx)
+	a, err := rgc.handle(to, rgc.writeCond).CopierFrom(fromH).Run(ctx)
+	err = wrapGoogleAPIError(err) // so errors.Is(err, storage.ErrObjectNotExist) works
+	return a, err
+}
+
+func wrapGoogleAPIError(err error) error {
+	var e *googleapi.Error
+	if !errors.As(err, &e) || e.Code != http.StatusNotFound {
+		return err
+	}
+	return wrappedStorageError{
+		storageErr: storage.ErrObjectNotExist,
+		err:        e,
+	}
+}
+
+type wrappedStorageError struct {
+	storageErr error
+	err        error
+}
+
+func (e wrappedStorageError) Error() string {
+	return e.err.Error()
+}
+
+func (e wrappedStorageError) Unwrap() error {
+	return e.storageErr
 }
 
 func (rgc realGCSClient) Open(ctx context.Context, path Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
