@@ -33,6 +33,7 @@ go_test(
         "gcs_test.go",
         "local_gcs_test.go",
         "read_test.go",
+        "real_gcs_test.go",
         "sort_test.go",
     ],
     embed = [":go_default_library"],
