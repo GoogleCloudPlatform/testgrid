@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"bitbucket.org/creachadair/stringset"
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -334,6 +335,75 @@ func TestUpdateDashboard(t *testing.T) {
 			updateDashboard(context.Background(), client, tc.dash, &actual, finder)
 			if diff := cmp.Diff(tc.expected, &actual, protocmp.Transform()); diff != "" {
 				t.Errorf("updateDashboard() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFilterDashboards(t *testing.T) {
+	cases := []struct {
+		name       string
+		dashboards map[string]*configpb.Dashboard
+		allowed    []string
+		want       map[string]*configpb.Dashboard
+	}{
+		{
+			name: "empty",
+		},
+		{
+			name: "basic",
+			dashboards: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+			},
+			want: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+			},
+		},
+		{
+			name: "zero",
+			dashboards: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+			},
+			allowed: []string{"nothing"},
+			want:    map[string]*configpb.Dashboard{},
+		},
+		{
+			name: "both",
+			dashboards: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+				"world": {Name: "there"},
+			},
+			allowed: []string{"hi", "there"},
+			want: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+				"world": {Name: "there"},
+			},
+		},
+		{
+			name: "one",
+			dashboards: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+				"drop":  {Name: "cuss-word"},
+				"world": {Name: "there"},
+			},
+			allowed: []string{"hi", "there", "drop"}, // target name, not key
+			want: map[string]*configpb.Dashboard{
+				"hello": {Name: "hi"},
+				"world": {Name: "there"},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var allowed stringset.Set
+			if tc.allowed != nil {
+				allowed = stringset.New(tc.allowed...)
+			}
+
+			got := filterDashboards(tc.dashboards, allowed)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("filterDashboards() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
