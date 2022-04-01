@@ -2369,6 +2369,35 @@ func TestLatestGreen(t *testing.T) {
 			first:    true,
 			expected: "accept second-after-failure",
 		},
+		{
+			name: "multiple failing columns fixed",
+			rows: []*statepb.Row{
+				{
+					Name: "fail then pass",
+					Results: []int32{
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 1,
+					},
+				},
+				{
+					Name: "also fail then pass",
+					Results: []int32{
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+			},
+			cols: []*statepb.Column{
+				{
+					Extra: []string{"skip-first-col-with-fail"},
+				},
+				{
+					Extra: []string{"accept second-after-failure"},
+				},
+			},
+			first:    true,
+			expected: "accept second-after-failure",
+		},
 	}
 
 	for _, tc := range cases {
