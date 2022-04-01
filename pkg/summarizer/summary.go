@@ -89,7 +89,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabPathPrefix, summaryPathPrefix string, dashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -100,13 +100,16 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	var q config.DashboardQueue
 	var cfg *snapshot.Config
 
+	allowed := stringset.New(allowedDashboards...)
 	fixSnapshot := func(newConfig *snapshot.Config) error {
 		baseLog := log
 		log := log.WithField("fixSnapshot()", true)
+		newConfig.Dashboards = filterDashboards(newConfig.Dashboards, allowed)
 		cfg = newConfig
 
-		paths := make([]gcs.Path, 0, len(dashboards))
-		dashboards := make([]*configpb.Dashboard, 0, len(cfg.Dashboards))
+		dashCap := len(cfg.Dashboards)
+		paths := make([]gcs.Path, 0, dashCap)
+		dashboards := make([]*configpb.Dashboard, 0, dashCap)
 		for _, d := range cfg.Dashboards {
 			path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
 			if err != nil {
@@ -343,6 +346,20 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	defer close(dashboardNames)
 
 	return q.Send(ctx, dashboardNames, freq)
+}
+
+func filterDashboards(dashboards map[string]*configpb.Dashboard, allowed stringset.Set) map[string]*configpb.Dashboard {
+	if allowed.Len() == 0 {
+		return dashboards
+	}
+
+	for key, d := range dashboards {
+		if allowed.Contains(d.Name) {
+			continue
+		}
+		delete(dashboards, key)
+	}
+	return dashboards
 }
 
 type groupPather struct {
