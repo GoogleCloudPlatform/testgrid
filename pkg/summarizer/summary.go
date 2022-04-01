@@ -1011,7 +1011,6 @@ func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
 			}
 			if result == statuspb.TestStatus_FLAKY || result == statuspb.TestStatus_FAIL || result == statuspb.TestStatus_UNKNOWN {
 				failures = true
-				break
 			}
 		}
 		if failures || !passes {
