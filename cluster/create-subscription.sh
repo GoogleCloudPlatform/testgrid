@@ -23,7 +23,7 @@ exp=24h
 project=
 role=roles/pubsub.subscriber
 topic=
-prefix=
+filter=
 
 while getopts "t:p:a:e:b:f:" flag; do
     case "$flag" in
@@ -32,7 +32,7 @@ while getopts "t:p:a:e:b:f:" flag; do
         e) exp=$OPTARG;;
         p) project=$OPTARG;;
         t) topic=$OPTARG;;
-        f) prefix=$OPTARG;;
+        f) filter=$OPTARG;;
     esac
 done
 
@@ -47,7 +47,7 @@ if [[ $# -lt 1 || -z "$topic" ]]; then
     echo "  -p PROJ : project to create subscription" >&2
     echo "  -r ROLE : role to bind" >&2
     echo "  -t TOPIC: projects/TOPIC_PROJ/topics/TOPIC" >&2
-    echo "  -f PREFIX: filter on object names with this prefix" >&2
+    echo "  -f FILTER: only include messages matching this filter" >&2
     echo >&2
     echo "More info: gcloud pusbsub subscriptions" >&2
     exit 1
@@ -67,25 +67,25 @@ log() {
 
 verb=create
 create_arg=("--topic=$topic" "$@")
-prefix_args=()
-prefix_arg=""
-if [ -n "$prefix" ];then
-   prefix_arg="hasPrefix(attributes.objectId, \"$prefix\")"
-   prefix_args=("--message-filter=$prefix_arg")
+filter_args=()
+filter_arg=""
+if [ -n "$filter" ];then
+   filter_arg="$filter"
+    filter_args=("--message-filter=$filter_arg")
 fi
 
 old=$(gcloud pubsub subscriptions describe "--project=$project" "$name" --format='value(topic)' 2>/dev/null || true)
 old_filter=$(gcloud pubsub subscriptions describe "--project=$project" "$name" --format='value(filter)' 2>/dev/null || true)
 
 if [[ -n "$old" ]]; then
-    if [[ "$old" == "$topic" && "$old_filter" == "$prefix_arg" ]]; then
+    if [[ "$old" == "$topic" && "$old_filter" == "$filter_arg" ]]; then
         echo "Subscription already exists, updating."
         verb=update
         create_arg=()
-        prefix_args=()
+        filter_args=()
     else
         echo "WARNING: $project/$name already subscribed to $old (filter: $old_filter)." >&2
-        read -p "Delete and replace with a subscription to $topic (filter: $prefix) [yes/NO]: " answer
+        read -p "Delete and replace with a subscription to $topic (filter: $filter_arg) [yes/NO]: " answer
         case $answer in
             y*|Y*) ;;
             *) exit 1
@@ -97,7 +97,7 @@ fi
 log gcloud pubsub subscriptions "$verb" \
     "--project=$project" "$name" \
     "--ack-deadline=$ack" "--expiration-period=$exp" \
-    "${prefix_args[@]}" "${create_arg[@]}"
+    "${filter_args[@]}" "${create_arg[@]}"
 
 # Add bindings to subscription
 
