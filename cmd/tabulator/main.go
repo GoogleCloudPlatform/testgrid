@@ -39,6 +39,7 @@ type options struct {
 	persistQueue       gcs.Path
 	creds              string
 	confirm            bool
+	filter             bool
 	concurrency        int
 	wait               time.Duration
 	gridPathPrefix     string
@@ -70,6 +71,7 @@ func gatherOptions() options {
 	flag.Var(&o.persistQueue, "persist-queue", "Load previous queue state from gs://path/to/queue-state.json and regularly save to it thereafter")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
+	flag.BoolVar(&o.filter, "filter", false, "Filters out data according to the tab's configuration")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 
@@ -138,7 +140,7 @@ func main() {
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.wait, fixers...); err != nil {
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.confirm, opt.filter, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
 }
