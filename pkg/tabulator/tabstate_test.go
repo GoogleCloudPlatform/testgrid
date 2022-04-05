@@ -17,10 +17,18 @@ limitations under the License.
 package tabulator
 
 import (
+	"bytes"
+	"compress/zlib"
+	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
+
+	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
 )
 
 func TestTabStatePath(t *testing.T) {
@@ -91,4 +99,113 @@ func newPathOrDie(s string) *gcs.Path {
 		panic(err)
 	}
 	return p
+}
+
+// TODO(chases2): once filtering, remove "identical". Test filtering elsewhere
+func Test_CaclulateState(t *testing.T) {
+	example_grid := statepb.Grid{
+		LastTimeUpdated: 12345,
+		Rows: []*statepb.Row{
+			{Name: "whatever data"},
+		},
+	}
+
+	testcases := []struct {
+		name                string
+		existingState       fake.Object
+		confirm             bool
+		expectError         bool
+		expectUpload        bool
+		expectIdenticalCopy bool
+	}{
+		{
+			name:        "Fails if data is missing",
+			expectError: true,
+		},
+		{
+			name: "Does not write without confirm",
+			existingState: func() fake.Object {
+				return fake.Object{
+					Data: string(compress(gridBuf(&example_grid))),
+				}
+			}(),
+			confirm:     false,
+			expectError: false,
+		},
+		{
+			name: "Fails with uncompressed grid",
+			existingState: func() fake.Object {
+				return fake.Object{
+					Data: string(gridBuf(&example_grid)),
+				}
+			}(),
+			expectError: true,
+		},
+		{
+			name: "Writes identical data",
+			existingState: func() fake.Object {
+				return fake.Object{
+					Data: string(compress(gridBuf(&example_grid))),
+				}
+			}(),
+			confirm:             true,
+			expectUpload:        true,
+			expectIdenticalCopy: true,
+		},
+	}
+
+	fromPath := newPathOrDie("gs://example/from")
+	toPath := newPathOrDie("gs://example/to")
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			client := fake.UploadClient{
+				Client: fake.Client{
+					Opener: fake.Opener{
+						*fromPath: tc.existingState,
+					},
+				},
+				Uploader: fake.Uploader{},
+			}
+
+			log := logrus.New().WithField("test", true)
+
+			err := tabulate(ctx, client, log, *fromPath, *toPath, tc.confirm)
+			if tc.expectError == (err == nil) {
+				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
+			}
+			res, ok := client.Uploader[*toPath]
+			if ok != tc.expectUpload {
+				t.Errorf("Wrong upload: want %t, got %v", tc.expectUpload, ok)
+			}
+			if tc.expectIdenticalCopy {
+				if !cmp.Equal(res.Buf, []byte(tc.existingState.Data)) {
+					t.Error("Expected identical copy, but wasn't identical")
+					t.Logf("Got %v, want %v", res.Buf, []byte(tc.existingState.Data))
+				}
+			}
+		})
+	}
+}
+
+func gridBuf(grid *statepb.Grid) []byte {
+	buf, err := proto.Marshal(grid)
+	if err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+func compress(buf []byte) []byte {
+	var zbuf bytes.Buffer
+	zw := zlib.NewWriter(&zbuf)
+	if _, err := zw.Write(buf); err != nil {
+		panic(err)
+	}
+	if err := zw.Close(); err != nil {
+		panic(err)
+	}
+	return zbuf.Bytes()
 }
