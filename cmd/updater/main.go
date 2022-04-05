@@ -38,18 +38,19 @@ import (
 
 // options configures the updater
 type options struct {
-	config           gcs.Path // gs://path/to/config/proto
-	persistQueue     gcs.Path
-	creds            string
-	confirm          bool
-	groups           util.Strings
-	groupConcurrency int
-	buildConcurrency int
-	wait             time.Duration
-	groupTimeout     time.Duration
-	buildTimeout     time.Duration
-	gridPrefix       string
-	subscriptions    util.Strings
+	config            gcs.Path // gs://path/to/config/proto
+	persistQueue      gcs.Path
+	creds             string
+	confirm           bool
+	groups            util.Strings
+	groupConcurrency  int
+	buildConcurrency  int
+	wait              time.Duration
+	groupTimeout      time.Duration
+	buildTimeout      time.Duration
+	gridPrefix        string
+	subscriptions     util.Strings
+	reprocessOnChange bool
 
 	debug    bool
 	trace    bool
@@ -106,6 +107,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	fs.Var(&o.subscriptions, "subscribe", "gcs-prefix=project-id/sub-id (repeatable)")
+	fs.BoolVar(&o.reprocessOnChange, "reprocess-on-change", false, "Replace last week of results when config changes when set")
 
 	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
@@ -160,7 +162,7 @@ func main() {
 		"build": opt.buildConcurrency,
 	}).Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
+	groupUpdater := updater.GCS(client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, opt.reprocessOnChange)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
