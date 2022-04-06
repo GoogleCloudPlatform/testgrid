@@ -22,10 +22,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
-	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
 
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
@@ -101,13 +101,16 @@ func newPathOrDie(s string) *gcs.Path {
 	return p
 }
 
-// TODO(chases2): once filtering, remove "identical". Test filtering elsewhere
 func Test_CaclulateState(t *testing.T) {
-	example_grid := statepb.Grid{
+	exampleGrid := statepb.Grid{
 		LastTimeUpdated: 12345,
 		Rows: []*statepb.Row{
 			{Name: "whatever data"},
 		},
+	}
+
+	tabConfig := configpb.DashboardTab{
+		Name: "no filters",
 	}
 
 	testcases := []struct {
@@ -126,7 +129,7 @@ func Test_CaclulateState(t *testing.T) {
 			name: "Does not write without confirm",
 			existingState: func() fake.Object {
 				return fake.Object{
-					Data: string(compress(gridBuf(&example_grid))),
+					Data: string(compress(gridBuf(&exampleGrid))),
 				}
 			}(),
 			confirm:     false,
@@ -136,16 +139,16 @@ func Test_CaclulateState(t *testing.T) {
 			name: "Fails with uncompressed grid",
 			existingState: func() fake.Object {
 				return fake.Object{
-					Data: string(gridBuf(&example_grid)),
+					Data: string(gridBuf(&exampleGrid)),
 				}
 			}(),
 			expectError: true,
 		},
 		{
-			name: "Writes identical data",
+			name: "Writes identical data when no filter is specified",
 			existingState: func() fake.Object {
 				return fake.Object{
-					Data: string(compress(gridBuf(&example_grid))),
+					Data: string(compress(gridBuf(&exampleGrid))),
 				}
 			}(),
 			confirm:             true,
@@ -170,9 +173,7 @@ func Test_CaclulateState(t *testing.T) {
 				Uploader: fake.Uploader{},
 			}
 
-			log := logrus.New().WithField("test", true)
-
-			err := tabulate(ctx, client, log, *fromPath, *toPath, tc.confirm)
+			err := tabulate(ctx, client, &tabConfig, *fromPath, *toPath, tc.confirm)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}
