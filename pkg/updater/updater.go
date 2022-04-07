@@ -86,7 +86,7 @@ func (mets *Metrics) start() *metrics.CycleReporter {
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
+func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool) GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
 		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
 			log.Debug("Skipping non-kubernetes client group")
@@ -96,7 +96,7 @@ func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurr
 		defer cancel()
 		gcsColReader := gcsColumnReader(colClient, buildTimeout, concurrency)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess)
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess, reprocessOnChange)
 	}
 }
 
@@ -471,12 +471,12 @@ func groupPaths(tg *configpb.TestGroup) ([]gcs.Path, error) {
 // return the 8th and later columns.
 //
 // Running columns more than 3 days old are not considered.
-func truncateRunning(cols []InflatedColumn) []InflatedColumn {
+func truncateRunning(cols []InflatedColumn, floorTime time.Time) []InflatedColumn {
 	if len(cols) == 0 {
 		return cols
 	}
 
-	floor := float64(time.Now().Add(-72*time.Hour).UTC().Unix() * 1000)
+	floor := float64(floorTime.UTC().Unix() * 1000)
 
 	for i := len(cols) - 1; i >= 0; i-- {
 		if cols[i].Column.Started < floor {
@@ -546,7 +546,7 @@ var (
 )
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
+func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration, reprocessOnChange bool) (bool, error) {
 	log := alog.(logrus.Ext1FieldLogger) // Add trace method
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -596,8 +596,18 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		if cols, issues, err = InflateGrid(ctx, old, stop, time.Now().Add(-reprocess)); err != nil {
 			return false, fmt.Errorf("inflate: %w", err)
 		}
+		var floor time.Time
+		if reprocessOnChange {
+			when := time.Now().Add(-7 * 24 * time.Hour)
+			if col := reprocessColumn(old, tg, when); col != nil {
+				cols = append(cols, *col)
+				floor = when
+			}
+		} else {
+			floor = time.Now().Add(-72 * time.Hour)
+		}
 		SortStarted(tg, cols) // Our processing requires descending start time.
-		oldCols = truncateRunning(cols)
+		oldCols = truncateRunning(cols, floor)
 	}
 	var cols []InflatedColumn
 	var unreadColumns bool
@@ -687,6 +697,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	if err != nil {
 		return false, fmt.Errorf("shrink grid: %v", err)
 	}
+	grid.Config = tg
 
 	log = log.WithField("url", gridPath).WithField("bytes", len(buf))
 	if !write {
@@ -730,6 +741,24 @@ func truncateGrid(cols []InflatedColumn, cellCeiling int) bool {
 		cols[max].Cells = truncatedCells(cells, cellCeiling, dropped, "cell")
 	}
 	return max > 0
+}
+
+// reprocessColumn returns a column with a running result if the previous config differs from the current one
+func reprocessColumn(old *statepb.Grid, currentCfg *configpb.TestGroup, when time.Time) *InflatedColumn {
+	if old.Config == nil || old.Config.String() == currentCfg.String() {
+		return nil
+	}
+
+	return &InflatedColumn{
+		Column: &statepb.Column{
+			Started: float64(when.UTC().Unix() * 1000),
+		},
+		Cells: map[string]Cell{
+			"reprocess": {
+				Result: statuspb.TestStatus_RUNNING,
+			},
+		},
+	}
 }
 
 func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {

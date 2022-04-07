@@ -82,7 +82,7 @@ func TestGCS(t *testing.T) {
 			// either because the context is canceled or things like client are unset)
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			updater := GCS(nil, 0, 0, 0, false, SortStarted)
+			updater := GCS(nil, 0, 0, 0, false, SortStarted, false)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tc.fail {
@@ -417,7 +417,7 @@ func TestUpdate(t *testing.T) {
 			}
 
 			if tc.groupUpdater == nil {
-				tc.groupUpdater = GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
+				tc.groupUpdater = GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted, false)
 			}
 			err := Update(
 				ctx,
@@ -554,6 +554,7 @@ func mustGrid(grid *statepb.Grid) []byte {
 
 func TestTruncateRunning(t *testing.T) {
 	now := float64(time.Now().UTC().Unix() * 1000)
+	floor := time.Now().Add(-72 * time.Hour)
 	ancient := float64(time.Now().Add(-74*time.Hour).UTC().Unix() * 1000)
 	cases := []struct {
 		name     string
@@ -770,7 +771,7 @@ func TestTruncateRunning(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := truncateRunning(tc.cols)
+			actual := truncateRunning(tc.cols, floor)
 			expected := tc.cols
 			if tc.expected != nil {
 				expected = tc.expected(expected)
@@ -1057,6 +1058,7 @@ func TestListBuilds(t *testing.T) {
 }
 
 func TestInflateDropAppend(t *testing.T) {
+	const dayAgo = 60 * 60 * 24
 	now := time.Now().Unix()
 	uploadPath := newPathOrDie("gs://fake/upload/location")
 	defaultTimeout := 5 * time.Minute
@@ -1095,21 +1097,22 @@ func TestInflateDropAppend(t *testing.T) {
 		}
 	}
 	cases := []struct {
-		name         string
-		ctx          context.Context
-		builds       []fakeBuild
-		group        *configpb.TestGroup
-		concurrency  int
-		skipWrite    bool
-		colReader    func(builds []fakeBuild) ColumnReader
-		colSorter    ColumnSorter
-		reprocess    time.Duration
-		groupTimeout *time.Duration
-		buildTimeout *time.Duration
-		current      *fake.Object
-		byteCeiling  int
-		expected     *fakeUpload
-		err          bool
+		name              string
+		ctx               context.Context
+		builds            []fakeBuild
+		group             *configpb.TestGroup
+		concurrency       int
+		skipWrite         bool
+		colReader         func(builds []fakeBuild) ColumnReader
+		colSorter         ColumnSorter
+		reprocess         time.Duration
+		reprocessOnChange bool
+		groupTimeout      *time.Duration
+		buildTimeout      *time.Duration
+		current           *fake.Object
+		byteCeiling       int
+		expected          *fakeUpload
+		err               bool
 	}{
 		{
 			name: "basically works",
@@ -1697,6 +1700,280 @@ func TestInflateDropAppend(t *testing.T) {
 			},
 		},
 		{
+			name: "skip reprocess",
+			group: &configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+			},
+			reprocess: 10 * time.Second,
+			builds: []fakeBuild{
+				{
+					id:      "current",
+					started: jsonStarted(now),
+				},
+			},
+			current: &fake.Object{
+				Data: string(mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "should reprocess",
+							Started: float64(now * 1000),
+							Extra:   []string{""},
+						},
+						{
+							Build:   "at boundary",
+							Hint:    "1 should disappear",
+							Started: float64(now-9) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "past boundary",
+							Hint:    "1 running",
+							Started: float64(now-40) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "paster boundary",
+							Hint:    "1 maybe fix",
+							Started: float64(now-50) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "pastest boundary",
+							Hint:    "1 oldest",
+							Started: float64(now-60) * 1000,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "old data",
+								Icon:    "should reprocess",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "maybe reprocess",
+								Icon:    "?",
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "current",
+							Started: float64(now) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "paster boundary",
+							Hint:    "1 maybe fix",
+							Started: float64(now-50) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "pastest boundary",
+							Hint:    "1 oldest",
+							Started: float64(now-60) * 1000,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "Build still running...",
+								Icon:    "R",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "maybe reprocess",
+								Icon:    "?",
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
+			},
+		},
+		{
+			name: "reprocess",
+			group: &configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+					{
+						ConfigurationValue: "Commit",
+					},
+				},
+				DaysOfResults: 30,
+			},
+			reprocess:         10 * time.Second,
+			reprocessOnChange: true,
+			builds: []fakeBuild{
+				{
+					id:      "current",
+					started: jsonStarted(now),
+				},
+			},
+			current: &fake.Object{
+				Data: string(mustGrid(&statepb.Grid{
+					Config: &configpb.TestGroup{
+						GcsPrefix: "bucket/path/to/build/",
+						ColumnHeader: []*configpb.TestGroup_ColumnHeader{
+							{
+								ConfigurationValue: "Commit",
+							},
+						},
+						DaysOfResults: 20,
+					},
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "should reprocess",
+							Started: float64(now * 1000),
+							Extra:   []string{""},
+						},
+						{
+							Build:   "at boundary",
+							Hint:    "1 should disappear",
+							Started: float64(now-9) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "past boundary",
+							Hint:    "1 running",
+							Started: float64(now-40) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "paster boundary",
+							Hint:    "1 maybe fix",
+							Started: float64(now-50-dayAgo) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "pastest boundary",
+							Hint:    "1 oldest",
+							Started: float64(now-60-10*dayAgo) * 1000,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "old data",
+								Icon:    "should reprocess",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "delete me",
+								Icon:    "me too",
+							},
+							cell{
+								Result:  statuspb.TestStatus_FLAKY,
+								Message: "maybe reprocess",
+								Icon:    "?",
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				})),
+			},
+			expected: &fakeUpload{
+				Buf: mustGrid(&statepb.Grid{
+					Columns: []*statepb.Column{
+						{
+							Build:   "current",
+							Hint:    "current",
+							Started: float64(now) * 1000,
+							Extra:   []string{""},
+						},
+						{
+							Build:   "pastest boundary",
+							Hint:    "1 oldest",
+							Started: float64(now-60-10*dayAgo) * 1000,
+							Extra:   []string{"keep"},
+						},
+					},
+					Rows: []*statepb.Row{
+						setupRow(
+							&statepb.Row{
+								Name: "build." + overallRow,
+								Id:   "build." + overallRow,
+							},
+							cell{
+								Result:  statuspb.TestStatus_RUNNING,
+								Message: "Build still running...",
+								Icon:    "R",
+							},
+							cell{
+								Result:  statuspb.TestStatus_PASS,
+								Message: "keep me",
+								Icon:    "yes stay",
+							},
+						),
+					},
+				}),
+				CacheControl: "no-cache",
+				WorldRead:    gcs.DefaultACL,
+				Generation:   1,
+			},
+		},
+		{
 			// short reprocessing time depends on our reprocessing running columns outside this timeframe.
 			name: "running", // reprocess everything at least as new as the running column
 			group: &configpb.TestGroup{
@@ -2081,6 +2358,7 @@ func TestInflateDropAppend(t *testing.T) {
 				colReader,
 				tc.colSorter,
 				tc.reprocess,
+				tc.reprocessOnChange,
 			)
 			switch {
 			case err != nil:
@@ -2275,6 +2553,58 @@ func TestTruncateGrid(t *testing.T) {
 			truncateGrid(tc.cols, tc.ceiling)
 			if diff := cmp.Diff(tc.want, tc.cols, protocmp.Transform()); diff != "" {
 				t.Errorf("truncateGrid() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestReprocessColumn(t *testing.T) {
+
+	now := time.Now()
+
+	cases := []struct {
+		name string
+		old  *statepb.Grid
+		cfg  *configpb.TestGroup
+		when time.Time
+		want *InflatedColumn
+	}{
+		{
+			name: "empty",
+			old:  &statepb.Grid{},
+		},
+		{
+			name: "same",
+			old: &statepb.Grid{
+				Config: &configpb.TestGroup{Name: "same"},
+			},
+			cfg: &configpb.TestGroup{Name: "same"},
+		},
+		{
+			name: "changed",
+			old: &statepb.Grid{
+				Config: &configpb.TestGroup{Name: "old"},
+			},
+			cfg:  &configpb.TestGroup{Name: "new"},
+			when: now,
+			want: &InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now.Unix() * 1000),
+				},
+				Cells: map[string]Cell{
+					"reprocess": {
+						Result: statuspb.TestStatus_RUNNING,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reprocessColumn(tc.old, tc.cfg, tc.when)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("reprocessColumn() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
 	}
