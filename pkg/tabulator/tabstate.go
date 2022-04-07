@@ -64,8 +64,9 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 
 // Update tab state with the given frequency continuously. If freq == 0, runs only once.
 //
-// For each dashboard/tab in the config, copy the testgroup state into the tab state.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, confirm, filter bool, freq time.Duration, fixers ...Fixer) error {
+// Copies the grid into the tab state. If filter is set, will remove unneeded data.
+// Runs on each dashboard in allowedDashboards, or all of them in the config if not specified
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedDashboards []string, confirm, filter bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -85,6 +86,19 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	var cfg *snapshot.Config
 	fixSnapshot := func(newConfig *snapshot.Config) {
 		cfg = newConfig
+		if len(allowedDashboards) != 0 {
+			dashes := make([]*configpb.Dashboard, 0, len(allowedDashboards))
+			for _, d := range allowedDashboards {
+				dash, ok := cfg.Dashboards[d]
+				if !ok {
+					log.Errorf("Could not find requested dashboard %q in config", d)
+					continue
+				}
+				dashes = append(dashes, dash)
+			}
+			q.Init(log, dashes, time.Now())
+			return
+		}
 		dashes := make([]*configpb.Dashboard, 0, len(cfg.Dashboards))
 		for _, dash := range cfg.Dashboards {
 			dashes = append(dashes, dash)
