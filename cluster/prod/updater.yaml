@@ -44,8 +44,6 @@ spec:
         - --json-logs
         - --persist-queue=gs://k8s-testgrid/queue/updater.json
         - --reprocess-on-change
-        - --reprocess-group-on-change=testgrid-canary-autobump
-        - --reprocess-group-on-change=ci-oss-test-infra-autobump-prow
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid
         - --subscribe=oss-prow=k8s-testgrid/testgrid
         - --subscribe=istio-prow=k8s-testgrid/testgrid
