@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package tabulator processes test group state into tab state.
 package tabulator
 
 import (
@@ -24,6 +23,8 @@ import (
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestFilterGrid(t *testing.T) {
@@ -32,7 +33,7 @@ func TestFilterGrid(t *testing.T) {
 		baseOptions string
 		rows        []*statepb.Row
 		expected    []*statepb.Row
-		err         bool
+		expectError bool
 	}{
 		{
 			name: "basically works",
@@ -40,7 +41,7 @@ func TestFilterGrid(t *testing.T) {
 		{
 			name:        "bad options returns error",
 			baseOptions: "%z",
-			err:         true,
+			expectError: true,
 		},
 		{
 			name: "everything works",
@@ -133,14 +134,14 @@ func TestFilterGrid(t *testing.T) {
 			baseOptions: url.Values{
 				includeFilter: []string{"this.("},
 			}.Encode(),
-			err: true,
+			expectError: true,
 		},
 		{
 			name: "bad exclude regexp errors",
 			baseOptions: url.Values{
 				excludeFilter: []string{"this.("},
 			}.Encode(),
-			err: true,
+			expectError: true,
 		},
 	}
 
@@ -157,17 +158,15 @@ func TestFilterGrid(t *testing.T) {
 				}
 			}
 			actual, err := filterGrid(tc.baseOptions, tc.rows)
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Error("failed to return an error")
-			case !reflect.DeepEqual(actual, tc.expected):
-				t.Errorf("%s != expected %s", actual, tc.expected)
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
 			}
-
+			if tc.expectError && err == nil {
+				t.Error("failed to return an error")
+			}
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("(-want, +got): %s", diff)
+			}
 		})
 	}
 }
