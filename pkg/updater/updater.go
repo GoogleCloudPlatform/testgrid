@@ -602,7 +602,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		var floor time.Time
 		if reprocessOnChange {
 			when := time.Now().Add(-7 * 24 * time.Hour)
-			if col := reprocessColumn(old, tg, when); col != nil {
+			if col := reprocessColumn(log, old, tg, when); col != nil {
 				cols = append(cols, *col)
 				floor = when
 			}
@@ -747,10 +747,12 @@ func truncateGrid(cols []InflatedColumn, cellCeiling int) bool {
 }
 
 // reprocessColumn returns a column with a running result if the previous config differs from the current one
-func reprocessColumn(old *statepb.Grid, currentCfg *configpb.TestGroup, when time.Time) *InflatedColumn {
+func reprocessColumn(log logrus.FieldLogger, old *statepb.Grid, currentCfg *configpb.TestGroup, when time.Time) *InflatedColumn {
 	if old.Config == nil || old.Config.String() == currentCfg.String() {
 		return nil
 	}
+
+	log.WithField("since", when.Round(time.Minute)).Info("Reprocessing results after changed config")
 
 	return &InflatedColumn{
 		Column: &statepb.Column{

@@ -2602,7 +2602,7 @@ func TestReprocessColumn(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := reprocessColumn(tc.old, tc.cfg, tc.when)
+			got := reprocessColumn(logrus.WithField("name", tc.name), tc.old, tc.cfg, tc.when)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("reprocessColumn() got unexpected diff (-want +got):\n%s", diff)
 			}
