@@ -201,7 +201,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				}
 			}
 			if filter {
-				err := tabulate(ctx, client, log, *fromPath, *toPath, confirm)
+				err := tabulate(ctx, client, tab, *fromPath, *toPath, confirm)
 				if err != nil {
 					if errors.Is(errors.Unwrap(err), storage.ErrObjectNotExist) {
 						log.WithError(err).Info("Original state does not exist")
@@ -276,7 +276,7 @@ func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string)
 	return np, nil
 }
 
-func tabulate(ctx context.Context, client gcs.Client, log *logrus.Entry, testGroupPath, tabStatePath gcs.Path, confirm bool) error {
+func tabulate(ctx context.Context, client gcs.Client, cfg *configpb.DashboardTab, testGroupPath, tabStatePath gcs.Path, confirm bool) error {
 	r, _, err := client.Open(ctx, testGroupPath)
 	if err != nil {
 		return fmt.Errorf("client.Open(%s): %w", testGroupPath.String(), err)
@@ -296,8 +296,11 @@ func tabulate(ctx context.Context, client gcs.Client, log *logrus.Entry, testGro
 		return fmt.Errorf("proto.Unmarshal: %w", err)
 	}
 
-	// TODO(chases2): From summarizer: filterGrid()
-	// g is an uninflated grid; filtering is done without inflating
+	newRows, err := filterGrid(cfg.GetBaseOptions(), g.GetRows())
+	if err != nil {
+		return fmt.Errorf("filterGrid: %w", err)
+	}
+	g.Rows = newRows
 
 	if confirm {
 		buf, err = proto.Marshal(&g)
