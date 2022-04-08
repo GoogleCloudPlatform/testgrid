@@ -35,6 +35,7 @@ spec:
         - --wait=15m
         - --pubsub=k8s-testgrid/canary-test-group-updates
         - --persist-queue=gs://k8s-testgrid-canary/queue/tabulator.json
+        - --filter
 ---
 apiVersion: v1
 kind: ServiceAccount
