@@ -51,6 +51,7 @@ type options struct {
 	gridPrefix        string
 	subscriptions     util.Strings
 	reprocessOnChange bool
+	reprocessList     util.Strings
 
 	debug    bool
 	trace    bool
@@ -108,6 +109,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	fs.Var(&o.subscriptions, "subscribe", "gcs-prefix=project-id/sub-id (repeatable)")
 	fs.BoolVar(&o.reprocessOnChange, "reprocess-on-change", false, "Replace last week of results when config changes when set")
+	fs.Var(&o.reprocessList, "reprocess-group-on-change", "Limit reprocessing to specific groups if set (repeatable)")
 
 	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")

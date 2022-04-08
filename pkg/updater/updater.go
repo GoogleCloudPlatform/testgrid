@@ -32,6 +32,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"bitbucket.org/creachadair/stringset"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
@@ -86,7 +87,8 @@ func (mets *Metrics) start() *metrics.CycleReporter {
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool) GroupUpdater {
+func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool, reprocessGroups ...string) GroupUpdater {
+	reprocessable := stringset.New(reprocessGroups...)
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
 		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
 			log.Debug("Skipping non-kubernetes client group")
@@ -96,7 +98,8 @@ func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurr
 		defer cancel()
 		gcsColReader := gcsColumnReader(colClient, buildTimeout, concurrency)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess, reprocessOnChange)
+		canReprocess := reprocessOnChange && (reprocessable.Len() == 0 || reprocessable.Contains(tg.Name))
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess, canReprocess)
 	}
 }
 
