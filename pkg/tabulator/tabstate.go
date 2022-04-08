@@ -18,12 +18,9 @@ limitations under the License.
 package tabulator
 
 import (
-	"bytes"
-	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"path"
 	"sync"
@@ -32,12 +29,12 @@ import (
 	"bitbucket.org/creachadair/stringset"
 	"cloud.google.com/go/storage"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
@@ -66,7 +63,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 //
 // Copies the grid into the tab state. If filter is set, will remove unneeded data.
 // Runs on each dashboard in allowedDashboards, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedDashboards []string, confirm, filter bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedDashboards []string, confirm, filter, dropEmptyCols bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -201,13 +198,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				}
 			}
 			if filter {
-				err := tabulate(ctx, client, tab, *fromPath, *toPath, confirm)
+				err := tabulate(ctx, client, tab, *fromPath, *toPath, confirm, dropEmptyCols)
 				if err != nil {
-					if errors.Is(errors.Unwrap(err), storage.ErrObjectNotExist) {
-						log.WithError(err).Info("Original state does not exist")
-					} else {
-						return fmt.Errorf("can't calculate state: %w", err)
-					}
+					return fmt.Errorf("can't calculate state: %w", err)
 				}
 			}
 		}
@@ -276,50 +269,63 @@ func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string)
 	return np, nil
 }
 
-func tabulate(ctx context.Context, client gcs.Client, cfg *configpb.DashboardTab, testGroupPath, tabStatePath gcs.Path, confirm bool) error {
-	r, _, err := client.Open(ctx, testGroupPath)
+func tabulate(ctx context.Context, client gcs.Client, cfg *configpb.DashboardTab, testGroupPath, tabStatePath gcs.Path, confirm, dropEmptyCols bool) error {
+	rawGrid, _, err := gcs.DownloadGrid(ctx, client, testGroupPath)
 	if err != nil {
-		return fmt.Errorf("client.Open(%s): %w", testGroupPath.String(), err)
-	}
-	defer r.Close()
-	z, err := zlib.NewReader(r)
-	if err != nil {
-		return fmt.Errorf("zlib.NewReader: %w", err)
-	}
-	defer z.Close()
-	buf, err := ioutil.ReadAll(z)
-	if err != nil {
-		return fmt.Errorf("ioutil.ReadAll: %w", err)
-	}
-	var g statepb.Grid
-	if err = proto.Unmarshal(buf, &g); err != nil {
-		return fmt.Errorf("proto.Unmarshal: %w", err)
+		return fmt.Errorf("downloadGrid(%s): %w", testGroupPath, err)
 	}
 
-	newRows, err := filterGrid(cfg.GetBaseOptions(), g.GetRows())
+	filterRows, err := filterGrid(cfg.GetBaseOptions(), rawGrid.GetRows())
 	if err != nil {
 		return fmt.Errorf("filterGrid: %w", err)
 	}
-	g.Rows = newRows
+	rawGrid.Rows = filterRows
+
+	// TODO(chases2): Instead of inflate/drop/rewrite, move to inflate/drop/append
+	grid, _, err := updater.InflateGrid(ctx, rawGrid, time.Time{}, time.Now())
+	if err != nil {
+		return fmt.Errorf("inflateGrid: %w", err)
+	}
+	if dropEmptyCols {
+		grid = dropEmptyColumns(grid)
+	}
 
 	if confirm {
-		buf, err = proto.Marshal(&g)
-		if err != nil {
-			return fmt.Errorf("proto.Marshal: %w", err)
+		var newGrid statepb.Grid
+		rows := map[string]*statepb.Row{} // For fast target => row lookup
+
+		for _, col := range grid {
+			// TODO(chases2): refactor updater.ConstructGrid so that the tabulator also sets alerts, but not other things
+			updater.AppendColumn(&newGrid, rows, col)
 		}
 
-		var zbuf bytes.Buffer
-		zw := zlib.NewWriter(&zbuf)
-		_, err = zw.Write(buf)
+		buf, err := gcs.MarshalGrid(&newGrid)
 		if err != nil {
-			return fmt.Errorf("zlib.Write: %w", err)
+			return fmt.Errorf("marshalGrid: %w", err)
 		}
-		zw.Close()
 
-		_, err = client.Upload(ctx, tabStatePath, zbuf.Bytes(), false, "")
+		_, err = client.Upload(ctx, tabStatePath, buf, false, "")
 		if err != nil {
-			return fmt.Errorf("client.Upload(%s): %w", tabStatePath.String(), err)
+			return fmt.Errorf("client.Upload(%s): %w", tabStatePath, err)
 		}
 	}
 	return nil
+}
+
+// dropEmptyColumns drops every column in-place that has no results
+func dropEmptyColumns(grid []updater.InflatedColumn) []updater.InflatedColumn {
+	result := make([]updater.InflatedColumn, 0, len(grid))
+	for i, col := range grid {
+		for _, cell := range col.Cells {
+			if cell.Result != test_status.TestStatus_NO_RESULT {
+				result = append(result, grid[i])
+				break
+			}
+		}
+	}
+	if len(result) == 0 && len(grid) != 0 {
+		// If everything would be dropped, keep the first column so there's something left
+		result = grid[0:1]
+	}
+	return result
 }
