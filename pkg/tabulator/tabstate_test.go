@@ -24,9 +24,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	"github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
 )
@@ -101,25 +104,196 @@ func newPathOrDie(s string) *gcs.Path {
 	return p
 }
 
-func Test_CaclulateState(t *testing.T) {
-	exampleGrid := statepb.Grid{
-		LastTimeUpdated: 12345,
-		Rows: []*statepb.Row{
-			{Name: "whatever data"},
+func Test_DropEmptyColumns(t *testing.T) {
+	testcases := []struct {
+		name     string
+		grid     []updater.InflatedColumn
+		expected []updater.InflatedColumn
+	}{
+		{
+			name:     "empty",
+			grid:     []updater.InflatedColumn{},
+			expected: []updater.InflatedColumn{},
+		},
+		{
+			name:     "nil",
+			grid:     nil,
+			expected: []updater.InflatedColumn{},
+		},
+		{
+			name: "drops empty column",
+			grid: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{Name: "full"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
+						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: test_status.TestStatus_FAIL},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "empty"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "sparse"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_TIMED_OUT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+			},
+			expected: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{Name: "full"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
+						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: test_status.TestStatus_FAIL},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "sparse"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_TIMED_OUT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+			},
+		},
+		{
+			name: "drop multiple columns in a row",
+			grid: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{Name: "empty"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "nothing"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "full"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
+						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: test_status.TestStatus_FAIL},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "zero"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "nada"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+			},
+			expected: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{Name: "full"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
+						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: test_status.TestStatus_FAIL},
+					},
+				},
+			},
+		},
+		{
+			name: "don't drop everything",
+			grid: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{Name: "first"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "empty"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+				{
+					Column: &statepb.Column{Name: "nada"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+			},
+			expected: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{Name: "first"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: test_status.TestStatus_NO_RESULT},
+						"second": {Result: test_status.TestStatus_NO_RESULT},
+						"third":  {Result: test_status.TestStatus_NO_RESULT},
+					},
+				},
+			},
 		},
 	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := dropEmptyColumns(tc.grid)
+			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("(-got, +want): %s", diff)
+			}
+		})
+	}
+}
+
+func Test_Tabulate(t *testing.T) {
+	var exampleGrid statepb.Grid
+	updater.AppendColumn(&exampleGrid, map[string]*statepb.Row{}, updater.InflatedColumn{
+		Column: &statepb.Column{Name: "full"},
+		Cells: map[string]updater.Cell{
+			"first":  {Result: test_status.TestStatus_BUILD_PASSED},
+			"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
+			"third":  {Result: test_status.TestStatus_FAIL},
+		},
+	})
 
 	tabConfig := configpb.DashboardTab{
 		Name: "no filters",
 	}
 
 	testcases := []struct {
-		name                string
-		existingState       fake.Object
-		confirm             bool
-		expectError         bool
-		expectUpload        bool
-		expectIdenticalCopy bool
+		name          string
+		existingState fake.Object
+		confirm       bool
+		expectError   bool
+		expectUpload  bool
 	}{
 		{
 			name:        "Fails if data is missing",
@@ -145,15 +319,14 @@ func Test_CaclulateState(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "Writes identical data when no filter is specified",
+			name: "Writes data when upload is expected",
 			existingState: func() fake.Object {
 				return fake.Object{
 					Data: string(compress(gridBuf(&exampleGrid))),
 				}
 			}(),
-			confirm:             true,
-			expectUpload:        true,
-			expectIdenticalCopy: true,
+			confirm:      true,
+			expectUpload: true,
 		},
 	}
 
@@ -173,19 +346,14 @@ func Test_CaclulateState(t *testing.T) {
 				Uploader: fake.Uploader{},
 			}
 
-			err := tabulate(ctx, client, &tabConfig, *fromPath, *toPath, tc.confirm)
+			err := tabulate(ctx, client, &tabConfig, *fromPath, *toPath, tc.confirm, true)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}
 			res, ok := client.Uploader[*toPath]
-			if ok != tc.expectUpload {
+			uploaded := ok && (len(res.Buf) != 0)
+			if uploaded != tc.expectUpload {
 				t.Errorf("Wrong upload: want %t, got %v", tc.expectUpload, ok)
-			}
-			if tc.expectIdenticalCopy {
-				if !cmp.Equal(res.Buf, []byte(tc.existingState.Data)) {
-					t.Error("Expected identical copy, but wasn't identical")
-					t.Logf("Got %v, want %v", res.Buf, []byte(tc.existingState.Data))
-				}
 			}
 		})
 	}

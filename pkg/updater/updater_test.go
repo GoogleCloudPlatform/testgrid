@@ -4705,7 +4705,7 @@ func TestAppendColumn(t *testing.T) {
 			for _, r := range tc.grid.Rows {
 				rows[r.Name] = r
 			}
-			appendColumn(tc.grid, rows, tc.col)
+			AppendColumn(tc.grid, rows, tc.col)
 			sort.SliceStable(tc.grid.Rows, func(i, j int) bool {
 				return tc.grid.Rows[i].Name < tc.grid.Rows[j].Name
 			})

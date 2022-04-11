@@ -1084,7 +1084,7 @@ func ConstructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []Inf
 	}
 
 	for _, col := range cols {
-		appendColumn(&grid, rows, col)
+		AppendColumn(&grid, rows, col)
 	}
 
 	dropEmptyRows(log, &grid, rows)
@@ -1261,14 +1261,14 @@ func appendCell(row *statepb.Row, cell Cell, start, count int) {
 	row.Issues = append(row.Issues, cell.Issues...)
 }
 
-// appendColumn adds the build column to the grid.
+// AppendColumn adds the build column to the grid.
 //
 // This handles details like:
 // * rows appearing/disappearing in the middle of the run.
 // * adding auto metadata like duration, commit as well as any user-added metadata
 // * extracting build metadata into the appropriate column header
 // * Ensuring row names are unique and formatted with metadata
-func appendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated InflatedColumn) {
+func AppendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated InflatedColumn) {
 	grid.Columns = append(grid.Columns, inflated.Column)
 	colIdx := len(grid.Columns) - 1
 
