@@ -35,6 +35,14 @@ spec:
         - --pubsub=k8s-testgrid/test-group-updates
         - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
         - --wait=1h
+        - --filter
+        resources:
+          requests:
+            cpu: "30"
+            memory: "75G"
+          limits:
+            cpu: "40"
+            memory: "150G"
 ---
 apiVersion: v1
 kind: ServiceAccount
