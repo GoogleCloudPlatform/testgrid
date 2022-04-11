@@ -35,6 +35,14 @@ spec:
         - --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
         - --pubsub=knative-tests/test-group-updates
         - --wait=1h
+        - --filter
+        resources:
+          requests:
+            cpu: "30"
+            memory: "75G"
+          limits:
+            cpu: "40"
+            memory: "150G"
 ---
 apiVersion: v1
 kind: ServiceAccount
