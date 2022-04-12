@@ -34,7 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
-	"github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	tspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
@@ -317,7 +317,7 @@ func dropEmptyColumns(grid []updater.InflatedColumn) []updater.InflatedColumn {
 	result := make([]updater.InflatedColumn, 0, len(grid))
 	for i, col := range grid {
 		for _, cell := range col.Cells {
-			if cell.Result != test_status.TestStatus_NO_RESULT {
+			if cell.Result != tspb.TestStatus_NO_RESULT {
 				result = append(result, grid[i])
 				break
 			}
