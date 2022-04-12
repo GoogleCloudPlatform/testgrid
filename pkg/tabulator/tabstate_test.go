@@ -28,7 +28,7 @@ import (
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
-	"github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	tspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
@@ -126,25 +126,25 @@ func Test_DropEmptyColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{Name: "full"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
-						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
-						"third":  {Result: test_status.TestStatus_FAIL},
+						"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+						"second": {Result: tspb.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: tspb.TestStatus_FAIL},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "empty"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "sparse"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_TIMED_OUT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_TIMED_OUT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 			},
@@ -152,17 +152,17 @@ func Test_DropEmptyColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{Name: "full"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
-						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
-						"third":  {Result: test_status.TestStatus_FAIL},
+						"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+						"second": {Result: tspb.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: tspb.TestStatus_FAIL},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "sparse"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_TIMED_OUT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_TIMED_OUT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 			},
@@ -173,41 +173,41 @@ func Test_DropEmptyColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{Name: "empty"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "nothing"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "full"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
-						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
-						"third":  {Result: test_status.TestStatus_FAIL},
+						"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+						"second": {Result: tspb.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: tspb.TestStatus_FAIL},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "zero"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "nada"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 			},
@@ -215,9 +215,9 @@ func Test_DropEmptyColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{Name: "full"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_BUILD_PASSED},
-						"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
-						"third":  {Result: test_status.TestStatus_FAIL},
+						"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+						"second": {Result: tspb.TestStatus_PASS_WITH_SKIPS},
+						"third":  {Result: tspb.TestStatus_FAIL},
 					},
 				},
 			},
@@ -228,25 +228,25 @@ func Test_DropEmptyColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{Name: "first"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "empty"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 				{
 					Column: &statepb.Column{Name: "nada"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 			},
@@ -254,9 +254,9 @@ func Test_DropEmptyColumns(t *testing.T) {
 				{
 					Column: &statepb.Column{Name: "first"},
 					Cells: map[string]updater.Cell{
-						"first":  {Result: test_status.TestStatus_NO_RESULT},
-						"second": {Result: test_status.TestStatus_NO_RESULT},
-						"third":  {Result: test_status.TestStatus_NO_RESULT},
+						"first":  {Result: tspb.TestStatus_NO_RESULT},
+						"second": {Result: tspb.TestStatus_NO_RESULT},
+						"third":  {Result: tspb.TestStatus_NO_RESULT},
 					},
 				},
 			},
@@ -278,9 +278,9 @@ func Test_Tabulate(t *testing.T) {
 	updater.AppendColumn(&exampleGrid, map[string]*statepb.Row{}, updater.InflatedColumn{
 		Column: &statepb.Column{Name: "full"},
 		Cells: map[string]updater.Cell{
-			"first":  {Result: test_status.TestStatus_BUILD_PASSED},
-			"second": {Result: test_status.TestStatus_PASS_WITH_SKIPS},
-			"third":  {Result: test_status.TestStatus_FAIL},
+			"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+			"second": {Result: tspb.TestStatus_PASS_WITH_SKIPS},
+			"third":  {Result: tspb.TestStatus_FAIL},
 		},
 	})
 
