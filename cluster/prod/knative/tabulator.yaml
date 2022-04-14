@@ -36,7 +36,6 @@ spec:
         - --pubsub=knative-tests/test-group-updates
         - --wait=1h
         - --filter
-        - --filter-columns
         resources:
           requests:
             cpu: "30"
