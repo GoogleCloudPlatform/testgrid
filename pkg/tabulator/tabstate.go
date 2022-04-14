@@ -281,25 +281,27 @@ func tabulate(ctx context.Context, client gcs.Client, cfg *configpb.DashboardTab
 	}
 	rawGrid.Rows = filterRows
 
-	// TODO(chases2): Instead of inflate/drop/rewrite, move to inflate/drop/append
-	grid, _, err := updater.InflateGrid(ctx, rawGrid, time.Time{}, time.Now())
-	if err != nil {
-		return fmt.Errorf("inflateGrid: %w", err)
-	}
 	if dropEmptyCols {
-		grid = dropEmptyColumns(grid)
-	}
+		// TODO(chases2): Instead of inflate/drop/rewrite, move to inflate/drop/append
+		inflatedGrid, _, err := updater.InflateGrid(ctx, rawGrid, time.Time{}, time.Now())
+		if err != nil {
+			return fmt.Errorf("inflateGrid: %w", err)
+		}
 
-	if confirm {
+		inflatedGrid = dropEmptyColumns(inflatedGrid)
+
 		var newGrid statepb.Grid
 		rows := map[string]*statepb.Row{} // For fast target => row lookup
 
-		for _, col := range grid {
+		for _, col := range inflatedGrid {
 			// TODO(chases2): refactor updater.ConstructGrid so that the tabulator also sets alerts, but not other things
 			updater.AppendColumn(&newGrid, rows, col)
 		}
+		rawGrid = &newGrid
+	}
 
-		buf, err := gcs.MarshalGrid(&newGrid)
+	if confirm {
+		buf, err := gcs.MarshalGrid(rawGrid)
 		if err != nil {
 			return fmt.Errorf("marshalGrid: %w", err)
 		}
