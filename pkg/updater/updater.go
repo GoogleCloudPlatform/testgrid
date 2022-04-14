@@ -768,7 +768,7 @@ func reprocessColumn(log logrus.FieldLogger, old *statepb.Grid, currentCfg *conf
 
 func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
 	// Hopefully the grid is small enough...
-	grid := ConstructGrid(log, tg, cols, issues)
+	grid := constructGridFromGroupConfig(log, tg, cols, issues)
 	buf, err := gcs.MarshalGrid(grid)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal grid: %w", err)
@@ -803,7 +803,7 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 		}
 
 		if changed {
-			grid = ConstructGrid(log, tg, cols, issues)
+			grid = constructGridFromGroupConfig(log, tg, cols, issues)
 			buf, err = gcs.MarshalGrid(grid)
 			if err != nil {
 				return nil, nil, fmt.Errorf("marshal grid: %w", err)
@@ -823,7 +823,7 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 			}
 			cols[j].Cells = truncatedCells(orig, byteCeiling, nc, "byte")
 		}
-		grid = ConstructGrid(log, tg, cols, issues)
+		grid = constructGridFromGroupConfig(log, tg, cols, issues)
 		buf, err = gcs.MarshalGrid(grid)
 		if err != nil {
 			return nil, nil, fmt.Errorf("marshal grid: %w", err)
@@ -855,7 +855,7 @@ func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGr
 		cols = groupColumns(tg, cols)
 
 		// Hopefully it is the right size...
-		grid = ConstructGrid(log, tg, cols, issues)
+		grid = constructGridFromGroupConfig(log, tg, cols, issues)
 		buf, err = gcs.MarshalGrid(grid)
 		if err != nil {
 			return nil, nil, fmt.Errorf("marshal grid: %w", err)
@@ -1073,14 +1073,12 @@ func days(d float64) time.Duration {
 // ConstructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func ConstructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[string][]string, failuresToAlert, passesToDisableAlert int, useCommitAsBuildID bool, userProperty string) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
-	failsOpen := int(group.NumFailuresToAlert)
-	passesClose := int(group.NumPassesToDisableAlert)
-	if failsOpen > 0 && passesClose == 0 {
-		passesClose = 1
+	if failuresToAlert > 0 && passesToDisableAlert == 0 {
+		passesToDisableAlert = 1
 	}
 
 	for _, col := range cols {
@@ -1105,8 +1103,7 @@ func ConstructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []Inf
 		})
 	}
 
-	usesK8sClient := group.UseKubernetesClient || (group.GetResultSource().GetGcsConfig() != nil)
-	alertRows(grid.Columns, grid.Rows, failsOpen, passesClose, usesK8sClient, group.GetUserProperty())
+	alertRows(grid.Columns, grid.Rows, failuresToAlert, passesToDisableAlert, useCommitAsBuildID, userProperty)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
 	})
@@ -1130,6 +1127,14 @@ func ConstructGrid(log logrus.FieldLogger, group *configpb.TestGroup, cols []Inf
 		})
 	}
 	return &grid
+}
+
+// constructGridFromGroupConfig will append all the inflatedColumns into the returned Grid.
+//
+// The returned Grid has correctly compressed row values.
+func constructGridFromGroupConfig(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+	usesK8sClient := group.UseKubernetesClient || (group.GetResultSource().GetGcsConfig() != nil)
+	return ConstructGrid(log, cols, issues, int(group.GetNumFailuresToAlert()), int(group.GetNumPassesToDisableAlert()), usesK8sClient, group.GetUserProperty())
 }
 
 func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*statepb.Row) {
@@ -1306,14 +1311,14 @@ func AppendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated Inf
 }
 
 // alertRows configures the alert for every row that has one.
-func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int, useKubernetesClient bool, userProperty string) {
+func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int, useCommitAsBuildID bool, userProperty string) {
 	for _, r := range rows {
-		r.AlertInfo = alertRow(cols, r, openFailures, closePasses, useKubernetesClient, userProperty)
+		r.AlertInfo = alertRow(cols, r, openFailures, closePasses, useCommitAsBuildID, userProperty)
 	}
 }
 
 // alertRow returns an AlertInfo proto if there have been failuresToOpen consecutive failures more recently than passesToClose.
-func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int, useKubernetesClient bool, userPropertyName string) *statepb.AlertInfo {
+func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int, useCommitAsBuildID bool, userPropertyName string) *statepb.AlertInfo {
 	if failuresToOpen == 0 {
 		return nil
 	}
@@ -1393,7 +1398,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 			userPropertyName: row.UserProperty[latestFailIdx],
 		}
 	}
-	return alertInfo(totalFailures, msg, id, latestID, userProperties, firstFail, latestFail, latestPass, useKubernetesClient)
+	return alertInfo(totalFailures, msg, id, latestID, userProperties, firstFail, latestFail, latestPass, useCommitAsBuildID)
 }
 
 // alertInfo returns an alert proto with the configured fields

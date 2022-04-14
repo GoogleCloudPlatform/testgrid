@@ -2670,7 +2670,7 @@ func TestShrinkGrid(t *testing.T) {
 				},
 			},
 			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
-				return ConstructGrid(logrus.New(), tg, cols, issues)
+				return constructGridFromGroupConfig(logrus.New(), tg, cols, issues)
 			},
 		},
 		{
@@ -2716,7 +2716,7 @@ func TestShrinkGrid(t *testing.T) {
 			ceiling: 200000,
 			want: func(tg *configpb.TestGroup, origCols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 				logger := logrus.New()
-				grid := ConstructGrid(logger, tg, origCols, issues)
+				grid := constructGridFromGroupConfig(logger, tg, origCols, issues)
 				buf, _ := gcs.MarshalGrid(grid)
 				orig := len(buf)
 				cols := []InflatedColumn{
@@ -2751,7 +2751,7 @@ func TestShrinkGrid(t *testing.T) {
 						}(),
 					},
 				}
-				return ConstructGrid(logger, tg, cols, issues)
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
 			},
 		},
 		{
@@ -2822,12 +2822,12 @@ func TestShrinkGrid(t *testing.T) {
 					},
 				}
 				logger := logrus.New()
-				grid := ConstructGrid(logger, tg, cols, issues)
+				grid := constructGridFromGroupConfig(logger, tg, cols, issues)
 				buf, _ := gcs.MarshalGrid(grid)
 				orig := len(buf)
 				cols[1].Cells = truncatedCells(orig, 1000, len(cols[1].Cells), "byte")
 
-				return ConstructGrid(logger, tg, cols, issues)
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
 			},
 		},
 		{
@@ -2922,7 +2922,7 @@ func TestShrinkGrid(t *testing.T) {
 					},
 				}
 				logger := logrus.New()
-				grid := ConstructGrid(logger, tg, cols, issues)
+				grid := constructGridFromGroupConfig(logger, tg, cols, issues)
 				buf, _ := gcs.MarshalGrid(grid)
 				orig := len(buf)
 				// Shrink row data for second column
@@ -2933,7 +2933,7 @@ func TestShrinkGrid(t *testing.T) {
 				cols[1].Cells["cell"] = cols[2].Cells["cell"]
 				cols = cols[:2]
 
-				return ConstructGrid(logger, tg, cols, issues)
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
 			},
 		},
 		{
@@ -2991,7 +2991,7 @@ func TestShrinkGrid(t *testing.T) {
 			ceiling: 100,
 			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 				logger := logrus.New()
-				return ConstructGrid(logger, tg, cols, issues)
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
 			},
 		},
 		{
@@ -3042,7 +3042,7 @@ func TestShrinkGrid(t *testing.T) {
 			},
 			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 				logger := logrus.New()
-				return ConstructGrid(logger, tg, cols, issues)
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
 			},
 		},
 	}
@@ -3746,6 +3746,377 @@ func TestGroupColumns(t *testing.T) {
 
 func TestConstructGrid(t *testing.T) {
 	cases := []struct {
+		name                    string
+		cols                    []inflatedColumn
+		numFailuresToAlert      int
+		numPassesToDisableAlert int
+		issues                  map[string][]string
+		expected                *statepb.Grid
+	}{
+		{
+			name:     "basically works",
+			expected: &statepb.Grid{},
+		},
+		{
+			name: "multiple columns",
+			cols: []inflatedColumn{
+				{
+					Column: &statepb.Column{Build: "15"},
+					Cells: map[string]cell{
+						"green": {
+							Result: statuspb.TestStatus_PASS,
+						},
+						"red": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"only-15": {
+							Result: statuspb.TestStatus_FLAKY,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "10"},
+					Cells: map[string]cell{
+						"full": {
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "cell",
+							Icon:    "icon",
+							Message: "message",
+							Metrics: map[string]float64{
+								"elapsed": 1,
+								"keys":    2,
+							},
+							UserProperty: "food",
+						},
+						"green": {
+							Result: statuspb.TestStatus_PASS,
+						},
+						"red": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"only-10": {
+							Result: statuspb.TestStatus_FLAKY,
+						},
+					},
+				},
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Build: "15"},
+					{Build: "10"},
+				},
+				Rows: []*statepb.Row{
+					setupRow(
+						&statepb.Row{
+							Name:         "full",
+							Id:           "full",
+							UserProperty: []string{},
+						},
+						emptyCell,
+						cell{
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "cell",
+							Icon:    "icon",
+							Message: "message",
+							Metrics: map[string]float64{
+								"elapsed": 1,
+								"keys":    2,
+							},
+							UserProperty: "food",
+						},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "green",
+							Id:   "green",
+						},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "only-10",
+							Id:   "only-10",
+						},
+						emptyCell,
+						cell{Result: statuspb.TestStatus_FLAKY},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "only-15",
+							Id:   "only-15",
+						},
+						cell{Result: statuspb.TestStatus_FLAKY},
+						emptyCell,
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "red",
+							Id:   "red",
+						},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+					),
+				},
+			},
+		},
+		{
+			name:                    "open alert",
+			numFailuresToAlert:      2,
+			numPassesToDisableAlert: 2,
+			cols: []inflatedColumn{
+				{
+					Column: &statepb.Column{Build: "4"},
+					Cells: map[string]cell{
+						"just-flaky": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"broken": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "3"},
+					Cells: map[string]cell{
+						"just-flaky": {
+							Result: statuspb.TestStatus_PASS,
+						},
+						"broken": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Build: "4"},
+					{Build: "3"},
+				},
+				Rows: []*statepb.Row{
+					setupRow(
+						&statepb.Row{
+							Name: "broken",
+							Id:   "broken",
+						},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "just-flaky",
+							Id:   "just-flaky",
+						},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+				},
+			},
+		},
+		{
+			name:                    "close alert",
+			numFailuresToAlert:      1,
+			numPassesToDisableAlert: 2,
+			cols: []inflatedColumn{
+				{
+					Column: &statepb.Column{Build: "4"},
+					Cells: map[string]cell{
+						"still-broken": {
+							Result: statuspb.TestStatus_PASS,
+						},
+						"fixed": {
+							Result: statuspb.TestStatus_PASS,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "3"},
+					Cells: map[string]cell{
+						"still-broken": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"fixed": {
+							Result: statuspb.TestStatus_PASS,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "2"},
+					Cells: map[string]cell{
+						"still-broken": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"fixed": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "1"},
+					Cells: map[string]cell{
+						"still-broken": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"fixed": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Build: "4"},
+					{Build: "3"},
+					{Build: "2"},
+					{Build: "1"},
+				},
+				Rows: []*statepb.Row{
+					setupRow(
+						&statepb.Row{
+							Name: "fixed",
+							Id:   "fixed",
+						},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "still-broken",
+							Id:   "still-broken",
+						},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+					),
+				},
+			},
+		},
+		{
+			name: "issues",
+			cols: []inflatedColumn{
+				{
+					Column: &statepb.Column{Build: "15"},
+					Cells: map[string]cell{
+						"row": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{
+								"from-cell-15",
+								"should-deduplicate-from-both",
+								"should-deduplicate-from-row",
+								"should-deduplicate-from-cell",
+								"should-deduplicate-from-cell",
+							},
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "10"},
+					Cells: map[string]cell{
+						"row": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{
+								"from-cell-10",
+								"should-deduplicate-from-row",
+							},
+						},
+						"other": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{"fun"},
+						},
+						"sort": {
+							Result: statuspb.TestStatus_PASS,
+							Issues: []string{
+								"3-is-second",
+								"100-is-last",
+								"2-is-first",
+							},
+						},
+					},
+				},
+			},
+			issues: map[string][]string{
+				"row": {
+					"from-argument",
+					"should-deduplicate-from-arg",
+					"should-deduplicate-from-arg",
+					"should-deduplicate-from-both",
+				},
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Build: "15"},
+					{Build: "10"},
+				},
+				Rows: []*statepb.Row{
+					setupRow(
+						&statepb.Row{
+							Name:   "other",
+							Id:     "other",
+							Issues: []string{"fun"},
+						},
+						cell{Result: statuspb.TestStatus_NO_RESULT},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "row",
+							Id:   "row",
+							Issues: []string{
+								"should-deduplicate-from-row",
+								"should-deduplicate-from-cell",
+								"should-deduplicate-from-both",
+								"should-deduplicate-from-arg",
+								"from-cell-15",
+								"from-cell-10",
+								"from-argument",
+							},
+						},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "sort",
+							Id:   "sort",
+							Issues: []string{
+								"100-is-last",
+								"3-is-second",
+								"2-is-first",
+							},
+						},
+						cell{Result: statuspb.TestStatus_NO_RESULT},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.cols, tc.issues, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty")
+			alertRows(tc.expected.Columns, tc.expected.Rows, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty")
+			for _, row := range tc.expected.Rows {
+				sort.SliceStable(row.Metric, func(i, j int) bool {
+					return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
+				})
+				sort.SliceStable(row.Metrics, func(i, j int) bool {
+					return sortorder.NaturalLess(row.Metrics[i].Name, row.Metrics[j].Name)
+				})
+			}
+			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
+				t.Errorf("ConstructGrid() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TODO(chases2): redundant with TestConstructGrid
+func TestConstructGridFromTestGroupConfig(t *testing.T) {
+	cases := []struct {
 		name     string
 		group    *configpb.TestGroup
 		cols     []inflatedColumn
@@ -4102,7 +4473,7 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.group, tc.cols, tc.issues)
+			actual := constructGridFromGroupConfig(logrus.WithField("name", tc.name), tc.group, tc.cols, tc.issues)
 			failuresOpen := int(tc.group.NumFailuresToAlert)
 			passesClose := int(tc.group.NumPassesToDisableAlert)
 			if failuresOpen > 0 && passesClose == 0 {
