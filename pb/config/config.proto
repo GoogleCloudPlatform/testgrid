@@ -123,9 +123,9 @@ message TestGroup {
   // DEPRECATED: use DashboardTabAlertOptions > num_failures_to_alert
   int32 num_failures_to_alert = 12 [deprecated = true];
 
-  // Whether to automatically file bugs, and what component to file them to.
-  // Requires further implementation of additional components.
-  int32 bug_component = 13;
+  // DEPRECATED: use dashboard_tab.beta_autobug_options.beta_autobug_component
+  // instead.
+  int32 bug_component = 13 [deprecated = true];
 
   // Default code search path for searching regressions. Overridden by
   // code_search_path in DashboardTab.
@@ -230,8 +230,8 @@ message TestGroup {
   //  contains tag1, but not tag2: test_tag_pattern = 'tag1 -tag2'
   string test_tag_pattern = 35;
 
-  // Options for auto-filed bugs, if enabled.
-  AutoBugOptions auto_bug_options = 36;
+  // DEPRECATED: use dashboard_tab.beta_autobug_options instead.
+  AutoBugOptions auto_bug_options = 36 [deprecated = true];
 
   // Max number of days any single test can take.
   int32 max_test_runtime_hours = 37;
