@@ -14,3 +14,9 @@ node_modules/
 *.iml
 .vscode/*
 /vendor/
+
+## terraform output
+*.tfvars
+*.terraform/
+prow/oss/terraform/state.tf
+*.terraform.lock.hcl
