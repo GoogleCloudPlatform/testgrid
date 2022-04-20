@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
@@ -274,13 +275,311 @@ func Test_DropEmptyColumns(t *testing.T) {
 }
 
 func Test_Tabulate(t *testing.T) {
+	testcases := []struct {
+		name     string
+		grid     *statepb.Grid
+		dashCfg  *configpb.DashboardTab
+		dropCols bool
+		expected *statepb.Grid
+	}{
+		{
+			name:     "empty grid is tolerated",
+			grid:     &statepb.Grid{},
+			dashCfg:  &configpb.DashboardTab{},
+			expected: &statepb.Grid{},
+		},
+		{
+			name: "basic grid",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "okay"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+						"second": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "still-ok"},
+					Cells: map[string]updater.Cell{
+						"first":  {Result: tspb.TestStatus_BUILD_PASSED},
+						"second": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Name: "okay"},
+					{Name: "still-ok"},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "first",
+						Id:      "first",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 2},
+					},
+					{
+						Name:    "second",
+						Id:      "second",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 2},
+					},
+				},
+			},
+		},
+		{
+			name: "Filters out regex tabs",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "okay"},
+					Cells: map[string]updater.Cell{
+						"first": {Result: tspb.TestStatus_BUILD_PASSED},
+						"bad":   {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "still-ok"},
+					Cells: map[string]updater.Cell{
+						"first": {Result: tspb.TestStatus_BUILD_PASSED},
+						"bad":   {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name:        "tab",
+				BaseOptions: "exclude-filter-by-regex=bad",
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Name: "okay"},
+					{Name: "still-ok"},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "first",
+						Id:      "first",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 2},
+					},
+				},
+			},
+		},
+		{
+			name: "Filters out regex tabs, but does not yet drop columns",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "okay"},
+					Cells: map[string]updater.Cell{
+						"first": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "weird"},
+					Cells: map[string]updater.Cell{
+						"bad": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "still-ok"},
+					Cells: map[string]updater.Cell{
+						"first": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name:        "tab",
+				BaseOptions: "exclude-filter-by-regex=bad",
+			},
+			dropCols: false,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Name: "okay"},
+					{Name: "weird"},
+					{Name: "still-ok"},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "first",
+						Id:      "first",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1, int32(tspb.TestStatus_NO_RESULT), 1, int32(tspb.TestStatus_BUILD_PASSED), 1},
+					},
+				},
+			},
+		},
+		{
+			name: "Filters out regex tabs, dropping empty columns when asked",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "okay"},
+					Cells: map[string]updater.Cell{
+						"first": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "weird"},
+					Cells: map[string]updater.Cell{
+						"bad": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "still-ok"},
+					Cells: map[string]updater.Cell{
+						"first": {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name:        "tab",
+				BaseOptions: "exclude-filter-by-regex=bad",
+			},
+			dropCols: true,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Name: "okay"},
+					{Name: "still-ok"},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "first",
+						Id:      "first",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 2},
+					},
+				},
+			},
+		},
+		{
+			name: "copies alerts while not dropping empty columns",
+			grid: func() *statepb.Grid {
+				var g statepb.Grid
+				r := map[string]*statepb.Row{}
+				updater.AppendColumn(&g, r, updater.InflatedColumn{
+					Column: &statepb.Column{Name: "result"},
+					Cells: map[string]updater.Cell{
+						"bad": {Result: tspb.TestStatus_BUILD_FAIL},
+					},
+				})
+				g.Rows[0].AlertInfo = &statepb.AlertInfo{
+					FailCount: 999,
+				}
+				return &g
+			}(),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+			},
+			dropCols: false,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Name: "result"},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "bad",
+						Id:      "bad",
+						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 1},
+						AlertInfo: &statepb.AlertInfo{
+							FailCount: 999,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "calculate alerts after dropping empty columns",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "final"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+						"flaky":  {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "middle"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+						"flaky":  {Result: tspb.TestStatus_BUILD_FAIL},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "initial"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+						"flaky":  {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+				AlertOptions: &configpb.DashboardTabAlertOptions{
+					NumFailuresToAlert:      1,
+					NumPassesToDisableAlert: 1,
+				},
+			},
+			dropCols: true,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{Name: "final"},
+					{Name: "middle"},
+					{Name: "initial"},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "okay",
+						Id:      "okay",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 3},
+					},
+					{
+						Name:    "broken",
+						Id:      "broken",
+						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 3},
+						AlertInfo: &statepb.AlertInfo{
+							FailCount: 3,
+						},
+					},
+					{
+						Name:    "flaky",
+						Id:      "flaky",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1, int32(tspb.TestStatus_BUILD_FAIL), 1, int32(tspb.TestStatus_BUILD_PASSED), 1},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, &configpb.TestGroup{}, tc.dropCols)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			diff := cmp.Diff(actual, tc.expected, protocmp.Transform(),
+				protocmp.IgnoreFields(&statepb.Row{}, "cell_ids", "icons", "messages", "user_property", "properties"), // mostly empty
+				protocmp.IgnoreFields(&statepb.AlertInfo{}, "fail_time"),                                              // import not needed to determine if alert was set
+				protocmp.SortRepeatedFields(&statepb.Grid{}, "rows"))                                                  // rows have no canonical order
+			if diff != "" {
+				t.Errorf("(-got, +want): %s", diff)
+			}
+		})
+	}
+}
+
+func buildGrid(t *testing.T, cols ...updater.InflatedColumn) *statepb.Grid {
+	t.Helper()
+	var g statepb.Grid
+	r := map[string]*statepb.Row{}
+	for _, col := range cols {
+		updater.AppendColumn(&g, r, col)
+	}
+	return &g
+}
+
+func Test_CreateTabState(t *testing.T) {
 	var exampleGrid statepb.Grid
 	updater.AppendColumn(&exampleGrid, map[string]*statepb.Row{}, updater.InflatedColumn{
 		Column: &statepb.Column{Name: "full"},
 		Cells: map[string]updater.Cell{
-			"first":  {Result: tspb.TestStatus_BUILD_PASSED},
-			"second": {Result: tspb.TestStatus_PASS_WITH_SKIPS},
-			"third":  {Result: tspb.TestStatus_FAIL},
+			"some data": {Result: tspb.TestStatus_BUILD_PASSED},
 		},
 	})
 
@@ -346,7 +645,7 @@ func Test_Tabulate(t *testing.T) {
 				Uploader: fake.Uploader{},
 			}
 
-			err := tabulate(ctx, client, &tabConfig, *fromPath, *toPath, tc.confirm, true)
+			err := createTabState(ctx, logrus.New(), client, &tabConfig, &configpb.TestGroup{}, *fromPath, *toPath, tc.confirm, true)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}
