@@ -108,7 +108,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	fs.Var(&o.subscriptions, "subscribe", "gcs-prefix=project-id/sub-id (repeatable)")
-	fs.BoolVar(&o.reprocessOnChange, "reprocess-on-change", false, "Replace last week of results when config changes when set")
+	fs.BoolVar(&o.reprocessOnChange, "reprocess-on-change", true, "Replace last week of results when config changes when set")
 	fs.Var(&o.reprocessList, "reprocess-group-on-change", "Limit reprocessing to specific groups if set (repeatable)")
 
 	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")

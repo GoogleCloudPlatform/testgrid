@@ -120,11 +120,12 @@ func TestGatherFlagOptions(t *testing.T) {
 				ceil = 4
 			}
 			expected := options{
-				buildTimeout:     3 * time.Minute,
-				buildConcurrency: ceil,
-				groupConcurrency: runtime.NumCPU(),
-				groupTimeout:     10 * time.Minute,
-				gridPrefix:       "grid",
+				buildTimeout:      3 * time.Minute,
+				buildConcurrency:  ceil,
+				groupConcurrency:  runtime.NumCPU(),
+				groupTimeout:      10 * time.Minute,
+				gridPrefix:        "grid",
+				reprocessOnChange: true,
 			}
 			if tc.expected != nil {
 				tc.expected(&expected)
