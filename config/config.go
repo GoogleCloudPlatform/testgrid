@@ -208,9 +208,15 @@ func validateReferencesExist(c *configpb.Configuration) error {
 	return mErr
 }
 
-// validateName validates an entity name is non-empty and contains no prefix that overlaps with a
-// TestGrid file prefix, post-normalization.
+// TODO(michelle192837): Remove '/' and '–' from this regex.
+var nameRegex = regexp.MustCompile("^[a-zA-Z0-9_.~<>()|\\[\\]\",@/ –-]+$")
+
+// validateName validates an entity name is well-formed.
 func validateName(s string) error {
+	if !nameRegex.MatchString(s) {
+		return fmt.Errorf("names must conform to the regex %q", nameRegex.String())
+	}
+
 	name := Normalize(s)
 
 	if len(name) < minNameLength {

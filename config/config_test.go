@@ -420,6 +420,27 @@ func TestValidateName(t *testing.T) {
 			pass:  true,
 		},
 		{
+			name:  "weird characters",
+			input: "[my] dash/tab (this_poem.of-sorts~) <@special1>",
+			pass:  true,
+		},
+		{
+			name:  "backslash",
+			input: "my\\dash",
+		},
+		{
+			name:  "colon",
+			input: "my:dash",
+		},
+		{
+			name:  "question",
+			input: "my?dash",
+		},
+		{
+			name:  "semicolon",
+			input: "my;dash",
+		},
+		{
 			name:  "Valid name",
 			input: "some-test-group",
 			pass:  true,
