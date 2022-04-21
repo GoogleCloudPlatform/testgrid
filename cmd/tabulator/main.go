@@ -42,6 +42,7 @@ type options struct {
 	confirm            bool
 	filter             bool
 	dropEmptyCols      bool
+	calculateStats     bool
 	dashboards         util.Strings
 	concurrency        int
 	wait               time.Duration
@@ -75,6 +76,7 @@ func gatherOptions() options {
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.BoolVar(&o.dropEmptyCols, "filter-columns", false, "Drops empty columns after filtering")
+	flag.BoolVar(&o.calculateStats, "column-stats", false, "Calculates stats for broken columns")
 	flag.Var(&o.dashboards, "dashboard", "Only update named dashboards if set (repeateable)")
 	flag.BoolVar(&o.filter, "filter", false, "Filters out data according to the tab's configuration")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
@@ -145,7 +147,7 @@ func main() {
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.dashboards.Strings(), opt.confirm, opt.filter, opt.dropEmptyCols, opt.wait, fixers...); err != nil {
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.concurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.dashboards.Strings(), opt.confirm, opt.filter, opt.dropEmptyCols, opt.calculateStats, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
 }

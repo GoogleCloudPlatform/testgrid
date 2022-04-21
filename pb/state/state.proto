@@ -137,6 +137,20 @@ message Column {
   // Dynamic email list, route email alerts to these instead of the configured
   // defaults.
   repeated string email_addresses = 7;
+
+  // Status totals for the column.
+  // Only written in tab state, if a broken threshold is defined for columns.
+  Stats stats = 8;
+}
+
+message Stats {
+  int32 fail_count = 1;
+  int32 pass_count = 2;
+  int32 total_count = 3;
+  // True if this column has any in-progress runs.
+  bool pending = 4;
+  // True if a broken threshold is defined, and this column's fail/total ratio exceeds it.
+  bool broken = 5;
 }
 
 // TestGrid rows (also known as TestRow)
