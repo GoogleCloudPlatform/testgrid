@@ -276,11 +276,12 @@ func Test_DropEmptyColumns(t *testing.T) {
 
 func Test_Tabulate(t *testing.T) {
 	testcases := []struct {
-		name     string
-		grid     *statepb.Grid
-		dashCfg  *configpb.DashboardTab
-		dropCols bool
-		expected *statepb.Grid
+		name           string
+		grid           *statepb.Grid
+		dashCfg        *configpb.DashboardTab
+		dropCols       bool
+		calculateStats bool
+		expected       *statepb.Grid
 	}{
 		{
 			name:     "empty grid is tolerated",
@@ -542,6 +543,217 @@ func Test_Tabulate(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "calculate stats",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "final"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+						"flaky":  {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "middle"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+						"flaky":  {Result: tspb.TestStatus_BUILD_FAIL},
+					},
+				},
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "initial"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+						"flaky":  {Result: tspb.TestStatus_BUILD_PASSED},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+				AlertOptions: &configpb.DashboardTabAlertOptions{
+					NumFailuresToAlert:      1,
+					NumPassesToDisableAlert: 1,
+				},
+				BrokenColumnThreshold: 0.5,
+			},
+			dropCols:       true,
+			calculateStats: true,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Name: "final",
+						Stats: &statepb.Stats{
+							PassCount:  2,
+							FailCount:  1,
+							TotalCount: 3,
+						},
+					},
+					{
+						Name: "middle",
+						Stats: &statepb.Stats{
+							PassCount:  1,
+							FailCount:  2,
+							TotalCount: 3,
+							Broken:     true,
+						},
+					},
+					{
+						Name: "initial",
+						Stats: &statepb.Stats{
+							PassCount:  2,
+							FailCount:  1,
+							TotalCount: 3,
+						},
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "okay",
+						Id:      "okay",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 3},
+					},
+					{
+						Name:    "broken",
+						Id:      "broken",
+						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 3},
+						AlertInfo: &statepb.AlertInfo{
+							FailCount: 3,
+						},
+					},
+					{
+						Name:    "flaky",
+						Id:      "flaky",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1, int32(tspb.TestStatus_BUILD_FAIL), 1, int32(tspb.TestStatus_BUILD_PASSED), 1},
+					},
+				},
+			},
+		},
+		{
+			name: "calculate stats, no broken threshold",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "initial"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+				AlertOptions: &configpb.DashboardTabAlertOptions{
+					NumFailuresToAlert:      1,
+					NumPassesToDisableAlert: 1,
+				},
+			},
+			dropCols:       true,
+			calculateStats: true,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Name: "initial",
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "okay",
+						Id:      "okay",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1},
+					},
+					{
+						Name:    "broken",
+						Id:      "broken",
+						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 1},
+						AlertInfo: &statepb.AlertInfo{
+							FailCount: 1,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "calculate stats, drop columns false",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "initial"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+				AlertOptions: &configpb.DashboardTabAlertOptions{
+					NumFailuresToAlert:      1,
+					NumPassesToDisableAlert: 1,
+				},
+			},
+			dropCols:       false,
+			calculateStats: true,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Name: "initial",
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "okay",
+						Id:      "okay",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1},
+					},
+					{
+						Name:    "broken",
+						Id:      "broken",
+						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 1},
+					},
+				},
+			},
+		},
+		{
+			name: "calculate stats, calculate stats false",
+			grid: buildGrid(t,
+				updater.InflatedColumn{
+					Column: &statepb.Column{Name: "initial"},
+					Cells: map[string]updater.Cell{
+						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
+						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
+					},
+				}),
+			dashCfg: &configpb.DashboardTab{
+				Name: "tab",
+				AlertOptions: &configpb.DashboardTabAlertOptions{
+					NumFailuresToAlert:      1,
+					NumPassesToDisableAlert: 1,
+				},
+				BrokenColumnThreshold: 0.5,
+			},
+			dropCols:       true,
+			calculateStats: false,
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Name: "initial",
+					},
+				},
+				Rows: []*statepb.Row{
+					{
+						Name:    "okay",
+						Id:      "okay",
+						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1},
+					},
+					{
+						Name:    "broken",
+						Id:      "broken",
+						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 1},
+						AlertInfo: &statepb.AlertInfo{
+							FailCount: 1,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -549,7 +761,7 @@ func Test_Tabulate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, &configpb.TestGroup{}, tc.dropCols)
+			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, &configpb.TestGroup{}, tc.dropCols, tc.calculateStats)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -645,7 +857,7 @@ func Test_CreateTabState(t *testing.T) {
 				Uploader: fake.Uploader{},
 			}
 
-			err := createTabState(ctx, logrus.New(), client, &tabConfig, &configpb.TestGroup{}, *fromPath, *toPath, tc.confirm, true)
+			err := createTabState(ctx, logrus.New(), client, &tabConfig, &configpb.TestGroup{}, *fromPath, *toPath, tc.confirm, true, true)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}

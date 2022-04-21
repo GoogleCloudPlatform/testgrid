@@ -3744,6 +3744,198 @@ func TestGroupColumns(t *testing.T) {
 	}
 }
 
+// TODO(amerai): This is kind of, but not quite, redundant with summary.gridMetrics().
+func TestColumnStats(t *testing.T) {
+	passCell := Cell{Result: statuspb.TestStatus_PASS}
+	failCell := Cell{Result: statuspb.TestStatus_FAIL}
+
+	cases := []struct {
+		name            string
+		cells           map[string]Cell
+		brokenThreshold float32
+		want            *statepb.Stats
+	}{
+		{
+			name:            "nil",
+			brokenThreshold: 0.5,
+			want:            nil,
+		},
+		{
+			name:            "empty",
+			brokenThreshold: 0.5,
+			cells:           map[string]Cell{},
+			want:            &statepb.Stats{},
+		},
+		{
+			name: "nil, no threshold",
+			want: nil,
+		},
+		{
+			name:  "empty, no threshold",
+			cells: map[string]Cell{},
+			want:  nil,
+		},
+		{
+			name: "no threshold",
+			cells: map[string]Cell{
+				"a": passCell,
+				"b": failCell,
+			},
+			want: nil,
+		},
+		{
+			name:            "blank",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": emptyCell,
+				"b": emptyCell,
+				"c": emptyCell,
+				"d": emptyCell,
+			},
+			want: &statepb.Stats{
+				PassCount:  0,
+				FailCount:  0,
+				TotalCount: 0,
+			},
+		},
+		{
+			name:            "passing",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": passCell,
+				"b": passCell,
+				"c": passCell,
+				"d": passCell,
+			},
+			want: &statepb.Stats{
+				PassCount:  4,
+				FailCount:  0,
+				TotalCount: 4,
+			},
+		},
+		{
+			name:            "failing",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": failCell,
+				"b": failCell,
+				"c": failCell,
+				"d": failCell,
+			},
+			want: &statepb.Stats{
+				PassCount:  0,
+				FailCount:  4,
+				TotalCount: 4,
+				Broken:     true,
+			},
+		},
+		{
+			name:            "mix, not broken",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": passCell,
+				"b": passCell,
+				"c": failCell,
+				"d": passCell,
+			},
+			want: &statepb.Stats{
+				PassCount:  3,
+				FailCount:  1,
+				TotalCount: 4,
+			},
+		},
+		{
+			name:            "mix, broken",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": failCell,
+				"b": passCell,
+				"c": failCell,
+				"d": failCell,
+			},
+			want: &statepb.Stats{
+				PassCount:  1,
+				FailCount:  3,
+				TotalCount: 4,
+				Broken:     true,
+			},
+		},
+		{
+			name:            "mix, blank cells",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": failCell,
+				"b": passCell,
+				"c": emptyCell,
+				"d": emptyCell,
+				"e": failCell,
+				"f": passCell,
+				"g": failCell,
+				"h": emptyCell,
+			},
+			want: &statepb.Stats{
+				PassCount:  2,
+				FailCount:  3,
+				TotalCount: 5,
+				Broken:     true,
+			},
+		},
+		{
+			name:            "pending",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": failCell,
+				"b": passCell,
+				"c": passCell,
+				"d": {Result: statuspb.TestStatus_RUNNING},
+			},
+			want: &statepb.Stats{
+				PassCount:  2,
+				FailCount:  1,
+				TotalCount: 4,
+				Pending:    true,
+			},
+		},
+		{
+			name:            "advanced",
+			brokenThreshold: 0.5,
+			cells: map[string]Cell{
+				"a": failCell,
+				"b": passCell,
+				"c": emptyCell,
+				"d": {Result: statuspb.TestStatus_BLOCKED},
+				"e": {Result: statuspb.TestStatus_BUILD_FAIL},
+				"f": {Result: statuspb.TestStatus_BUILD_PASSED},
+				"g": {Result: statuspb.TestStatus_CANCEL},
+				"h": {Result: statuspb.TestStatus_CATEGORIZED_ABORT},
+				"i": {Result: statuspb.TestStatus_CATEGORIZED_FAIL},
+				"j": {Result: statuspb.TestStatus_FLAKY},
+				"k": {Result: statuspb.TestStatus_PASS_WITH_ERRORS},
+				"l": {Result: statuspb.TestStatus_PASS_WITH_SKIPS},
+				"m": {Result: statuspb.TestStatus_TIMED_OUT},
+				"n": {Result: statuspb.TestStatus_TOOL_FAIL},
+				"o": {Result: statuspb.TestStatus_UNKNOWN},
+				"p": {Result: statuspb.TestStatus_RUNNING},
+			},
+			want: &statepb.Stats{
+				PassCount:  4,
+				FailCount:  5,
+				TotalCount: 15,
+				Pending:    true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := columnStats(tc.cells, tc.brokenThreshold)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("columnStats(%v, %f) got unexpected diff (-want +got):\n%s", tc.cells, tc.brokenThreshold, diff)
+			}
+		})
+	}
+}
+
 func TestConstructGrid(t *testing.T) {
 	cases := []struct {
 		name                    string
@@ -3751,6 +3943,7 @@ func TestConstructGrid(t *testing.T) {
 		numFailuresToAlert      int
 		numPassesToDisableAlert int
 		issues                  map[string][]string
+		brokenThreshold         float32
 		expected                *statepb.Grid
 	}{
 		{
@@ -3804,6 +3997,125 @@ func TestConstructGrid(t *testing.T) {
 				Columns: []*statepb.Column{
 					{Build: "15"},
 					{Build: "10"},
+				},
+				Rows: []*statepb.Row{
+					setupRow(
+						&statepb.Row{
+							Name:         "full",
+							Id:           "full",
+							UserProperty: []string{},
+						},
+						emptyCell,
+						cell{
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "cell",
+							Icon:    "icon",
+							Message: "message",
+							Metrics: map[string]float64{
+								"elapsed": 1,
+								"keys":    2,
+							},
+							UserProperty: "food",
+						},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "green",
+							Id:   "green",
+						},
+						cell{Result: statuspb.TestStatus_PASS},
+						cell{Result: statuspb.TestStatus_PASS},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "only-10",
+							Id:   "only-10",
+						},
+						emptyCell,
+						cell{Result: statuspb.TestStatus_FLAKY},
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "only-15",
+							Id:   "only-15",
+						},
+						cell{Result: statuspb.TestStatus_FLAKY},
+						emptyCell,
+					),
+					setupRow(
+						&statepb.Row{
+							Name: "red",
+							Id:   "red",
+						},
+						cell{Result: statuspb.TestStatus_FAIL},
+						cell{Result: statuspb.TestStatus_FAIL},
+					),
+				},
+			},
+		},
+		{
+			name:            "multiple columns with threshold",
+			brokenThreshold: 0.3,
+			cols: []inflatedColumn{
+				{
+					Column: &statepb.Column{Build: "15"},
+					Cells: map[string]cell{
+						"green": {
+							Result: statuspb.TestStatus_PASS,
+						},
+						"red": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"only-15": {
+							Result: statuspb.TestStatus_FLAKY,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{Build: "10"},
+					Cells: map[string]cell{
+						"full": {
+							Result:  statuspb.TestStatus_PASS,
+							CellID:  "cell",
+							Icon:    "icon",
+							Message: "message",
+							Metrics: map[string]float64{
+								"elapsed": 1,
+								"keys":    2,
+							},
+							UserProperty: "food",
+						},
+						"green": {
+							Result: statuspb.TestStatus_PASS,
+						},
+						"red": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"only-10": {
+							Result: statuspb.TestStatus_FLAKY,
+						},
+					},
+				},
+			},
+			expected: &statepb.Grid{
+				Columns: []*statepb.Column{
+					{
+						Build: "15",
+						Stats: &statepb.Stats{
+							FailCount:  1,
+							PassCount:  1,
+							TotalCount: 3,
+							Broken:     true,
+						},
+					},
+					{
+						Build: "10",
+						Stats: &statepb.Stats{
+							FailCount:  1,
+							PassCount:  2,
+							TotalCount: 4,
+						},
+					},
 				},
 				Rows: []*statepb.Row{
 					setupRow(
@@ -4097,7 +4409,7 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.cols, tc.issues, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty")
+			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.cols, tc.issues, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty", tc.brokenThreshold)
 			alertRows(tc.expected.Columns, tc.expected.Rows, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty")
 			for _, row := range tc.expected.Rows {
 				sort.SliceStable(row.Metric, func(i, j int) bool {

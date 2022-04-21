@@ -1073,7 +1073,7 @@ func days(d float64) time.Duration {
 // ConstructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[string][]string, failuresToAlert, passesToDisableAlert int, useCommitAsBuildID bool, userProperty string) *statepb.Grid {
+func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[string][]string, failuresToAlert, passesToDisableAlert int, useCommitAsBuildID bool, userProperty string, brokenThreshold float32) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -1082,6 +1082,9 @@ func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[str
 	}
 
 	for _, col := range cols {
+		if brokenThreshold > 0.0 && col.Column != nil {
+			col.Column.Stats = columnStats(col.Cells, brokenThreshold)
+		}
 		AppendColumn(&grid, rows, col)
 	}
 
@@ -1134,7 +1137,7 @@ func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[str
 // The returned Grid has correctly compressed row values.
 func constructGridFromGroupConfig(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 	usesK8sClient := group.UseKubernetesClient || (group.GetResultSource().GetGcsConfig() != nil)
-	return ConstructGrid(log, cols, issues, int(group.GetNumFailuresToAlert()), int(group.GetNumPassesToDisableAlert()), usesK8sClient, group.GetUserProperty())
+	return ConstructGrid(log, cols, issues, int(group.GetNumFailuresToAlert()), int(group.GetNumPassesToDisableAlert()), usesK8sClient, group.GetUserProperty(), 0.0)
 }
 
 func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*statepb.Row) {
@@ -1416,6 +1419,46 @@ func alertInfo(failures int32, msg, cellID, latestCellID string, userProperties 
 		EmailAddresses:    emailAddresses(fail),
 		HotlistIds:        hotlistIDs(fail),
 		Properties:        userProperties,
+	}
+}
+
+func columnStats(cells map[string]Cell, brokenThreshold float32) *statepb.Stats {
+	var passes, fails, total int32
+	var pending bool
+	if brokenThreshold <= 0.0 {
+		return nil
+	}
+	if cells == nil {
+		return nil
+	}
+	for _, cell := range cells {
+		if cell.Result == statuspb.TestStatus_RUNNING {
+			pending = true
+		}
+		status := result.Coalesce(cell.Result, false)
+		switch status {
+		case statuspb.TestStatus_PASS:
+			passes++
+			total++
+		case statuspb.TestStatus_FAIL:
+			fails++
+			total++
+		case statuspb.TestStatus_FLAKY, statuspb.TestStatus_UNKNOWN:
+			total++
+		default:
+			// blank cell or unrecognized status, do nothing
+		}
+	}
+	var failRatio float32
+	if total != 0.0 {
+		failRatio = float32(fails) / float32(total)
+	}
+	return &statepb.Stats{
+		FailCount:  fails,
+		PassCount:  passes,
+		TotalCount: total,
+		Pending:    pending,
+		Broken:     failRatio > brokenThreshold,
 	}
 }
 
