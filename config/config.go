@@ -209,7 +209,7 @@ func validateReferencesExist(c *configpb.Configuration) error {
 }
 
 // TODO(michelle192837): Remove '/' and '–' from this regex.
-var nameRegex = regexp.MustCompile("^[a-zA-Z0-9_.~<>()|\\[\\]\",@/ –-]+$")
+var nameRegex = regexp.MustCompile(`^[a-zA-Z0-9_.~<>()|\[\]",@/ –-]+$`)
 
 // validateName validates an entity name is well-formed.
 func validateName(s string) error {
