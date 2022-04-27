@@ -230,8 +230,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 				if err := update(log, dashName); err != nil {
 					finish.Fail()
-					q.Fix(dashName, time.Now().Add(freq/2), false)
-					log.WithError(err).Error("Failed to generate tab state")
+					retry := time.Now().Add(freq / 10)
+					q.Fix(dashName, retry, true)
+					log.WithError(err).WithField("retry-at", retry).Error("Failed to generate tab state")
 				} else {
 					finish.Success()
 					log.Info("Built tab state")
