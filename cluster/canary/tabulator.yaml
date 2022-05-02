@@ -36,6 +36,7 @@ spec:
         - --pubsub=k8s-testgrid/canary-test-group-updates
         - --persist-queue=gs://k8s-testgrid-canary/queue/tabulator.json
         - --filter
+        - --filter-columns
         resources:
           requests:
             cpu: "30"
