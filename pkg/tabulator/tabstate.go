@@ -63,7 +63,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 //
 // Copies the grid into the tab state. If filter is set, will remove unneeded data.
 // Runs on each dashboard in allowedDashboards, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedDashboards []string, confirm, filter, dropEmptyCols, calculateStats bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedDashboards []string, confirm, filter, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -199,7 +199,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			}
 			if filter {
 				groupCfg := cfg.Groups[tab.GetTestGroupName()]
-				err := createTabState(ctx, log, client, tab, groupCfg, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats)
+				err := createTabState(ctx, log, client, tab, groupCfg, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
 				if err != nil {
 					return fmt.Errorf("can't calculate state: %w", err)
 				}
@@ -272,7 +272,7 @@ func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string)
 }
 
 // tabulate cuts the passed-in grid down to only the part that needs to be displayed by the UI.
-func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, dropEmptyCols, calculateStats bool) (*statepb.Grid, error) {
+func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, dropEmptyCols, calculateStats, useTabAlertSettings bool) (*statepb.Grid, error) {
 	filterRows, err := filterGrid(tabCfg.GetBaseOptions(), grid.GetRows())
 	if err != nil {
 		return nil, fmt.Errorf("filterGrid: %w", err)
@@ -293,19 +293,27 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 		if calculateStats {
 			brokenThreshold = tabCfg.GetBrokenColumnThreshold()
 		}
-		grid = updater.ConstructGrid(log, inflatedGrid, issues, int(tabCfg.GetAlertOptions().GetNumFailuresToAlert()), int(tabCfg.GetAlertOptions().GetNumPassesToDisableAlert()), usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
+		var alert, unalert int
+		if useTabAlertSettings {
+			alert = int(tabCfg.GetAlertOptions().GetNumFailuresToAlert())
+			unalert = int(tabCfg.GetAlertOptions().GetNumPassesToDisableAlert())
+		} else {
+			alert = int(groupCfg.GetNumFailuresToAlert())
+			unalert = int(groupCfg.GetNumPassesToDisableAlert())
+		}
+		grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
 	}
 	return grid, nil
 }
 
 // createTabState creates the tab state from the group state
-func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, dashCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, testGroupPath, tabStatePath gcs.Path, confirm, dropEmptyCols, calculateStats bool) error {
+func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, dashCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, testGroupPath, tabStatePath gcs.Path, confirm, dropEmptyCols, calculateStats, useTabAlerts bool) error {
 	rawGrid, _, err := gcs.DownloadGrid(ctx, client, testGroupPath)
 	if err != nil {
 		return fmt.Errorf("downloadGrid(%s): %w", testGroupPath, err)
 	}
 
-	grid, err := tabulate(ctx, log, rawGrid, dashCfg, groupCfg, dropEmptyCols, calculateStats)
+	grid, err := tabulate(ctx, log, rawGrid, dashCfg, groupCfg, dropEmptyCols, calculateStats, useTabAlerts)
 	if err != nil {
 		return fmt.Errorf("tabulate: %w", err)
 	}
