@@ -36,6 +36,7 @@ spec:
         - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
         - --wait=1h
         - --filter
+        - --filter-columns
         resources:
           requests:
             cpu: "30"
