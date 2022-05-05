@@ -109,7 +109,7 @@ func FixPersistent(logr logrus.FieldLogger, client PersistClient, path gcs.Path,
 			if err != nil {
 				return fmt.Errorf("marshal: %v", err)
 			}
-			attrs, err := client.Upload(ctx, path, buf, false, "")
+			attrs, err := client.Upload(ctx, path, buf, gcs.DefaultACL, gcs.NoCache)
 			if err == nil && logSave {
 				logSave = false
 				log.WithField("updated", attrs.Updated).Info("Wrote persistent state")

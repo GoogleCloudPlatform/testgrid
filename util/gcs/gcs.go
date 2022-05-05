@@ -168,10 +168,13 @@ func calcCRC(buf []byte) uint32 {
 }
 
 const (
-	// DefaultACL for this upload
+	// Use DefaultACL for this upload.
 	DefaultACL = false
-	// PublicRead ACL for this upload.
+	// Use PublicRead ACL for this upload.
 	PublicRead = true
+	// May cache, but only after verifying.
+	// See https://cloud.google.com/storage/docs/metadata#cache-control
+	NoCache = "no-cache"
 )
 
 // Upload writes bytes to the specified Path by converting the client and path into an ObjectHandle.

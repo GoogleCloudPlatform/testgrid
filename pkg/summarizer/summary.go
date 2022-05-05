@@ -422,7 +422,7 @@ func writeSummary(ctx context.Context, client gcs.Client, path gcs.Path, sum *su
 	if err != nil {
 		return 0, fmt.Errorf("marshal: %v", err)
 	}
-	_, err = client.Upload(ctx, path, buf, gcs.DefaultACL, "no-cache")
+	_, err = client.Upload(ctx, path, buf, gcs.DefaultACL, gcs.NoCache)
 	return len(buf), err
 }
 

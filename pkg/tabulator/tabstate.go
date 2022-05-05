@@ -328,7 +328,7 @@ func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		return fmt.Errorf("marshalGrid: %w", err)
 	}
 
-	_, err = client.Upload(ctx, tabStatePath, buf, false, "")
+	_, err = client.Upload(ctx, tabStatePath, buf, gcs.DefaultACL, gcs.NoCache)
 	if err != nil {
 		return fmt.Errorf("client.Upload(%s): %w", tabStatePath, err)
 	}
