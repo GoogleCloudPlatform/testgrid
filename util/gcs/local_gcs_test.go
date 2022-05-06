@@ -111,7 +111,7 @@ func TestUpload_UploadsToLocalStorage(t *testing.T) {
 				t.Fatalf("Fatal error with location %v; %v", location, err)
 			}
 
-			_, err = client.Upload(ctx, *location, []byte("some-content"), false, "")
+			_, err = client.Upload(ctx, *location, []byte("some-content"), DefaultACL, NoCache)
 			if tc.ExpectErr && err == nil {
 				t.Error("Expected error, but got none")
 			}

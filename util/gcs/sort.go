@@ -136,7 +136,7 @@ func Touch(ctx context.Context, client ConditionalClient, path Path, generation 
 
 	// New group, upload the bytes for this situation.
 	cond.DoesNotExist = true
-	return client.If(&cond, &cond).Upload(ctx, path, genZero, DefaultACL, "no-cache")
+	return client.If(&cond, &cond).Upload(ctx, path, genZero, DefaultACL, NoCache)
 }
 
 // Sort the builds by monotonically decreasing original prefix base name.
