@@ -30,7 +30,7 @@ import (
 func FixPersistent(log logrus.FieldLogger, client queue.PersistClient, path gcs.Path, tick <-chan time.Time) Fixer {
 	log = log.WithField("path", path)
 	fix := queue.FixPersistent(log, client, path, tick)
-	return func(ctx context.Context, iq *config.DashboardQueue) error {
+	return func(ctx context.Context, iq *config.TestGroupQueue) error {
 		return fix(ctx, &iq.Queue)
 	}
 }
