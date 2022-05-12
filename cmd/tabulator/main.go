@@ -77,8 +77,8 @@ func gatherOptions() options {
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.Var(&o.groups, "group", "Only update named test group if set (repeateable)")
-	flag.BoolVar(&o.filter, "filter", false, "Filters out data according to the tab's configuration") // TODO(chases2): Switch to default
-	flag.BoolVar(&o.dropEmptyCols, "filter-columns", false, "Drops empty columns after filtering")    // TODO(chases2): Enable, then remove flag
+	flag.BoolVar(&o.filter, "filter", true, "Filters out data according to the tab's configuration") // TODO: Delete
+	flag.BoolVar(&o.dropEmptyCols, "filter-columns", false, "Drops empty columns after filtering")   // TODO(chases2): Enable, then remove flag
 	flag.BoolVar(&o.useTabAlertSettings, "tab-alerts", false, "Use newer tab settings while caculating alerts")
 	flag.BoolVar(&o.calculateStats, "column-stats", false, "Calculates stats for broken columns")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of groups to concurrently update if non-zero")
