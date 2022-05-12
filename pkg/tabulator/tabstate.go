@@ -56,14 +56,32 @@ func CreateMetrics(factory metrics.Factory) *Metrics {
 	}
 }
 
-// Fixer should adjust the dashboard queue until the context expires.
-type Fixer func(context.Context, *config.DashboardQueue) error
+type view struct {
+	dashboard *configpb.Dashboard
+	tab       *configpb.DashboardTab
+}
+
+func getViews(cfg *snapshot.Config) map[string][]view {
+	groupToTabs := make(map[string][]view, len(cfg.Groups))
+
+	for _, dashboard := range cfg.Dashboards {
+		for _, tab := range dashboard.DashboardTab {
+			g := tab.TestGroupName
+			groupToTabs[g] = append(groupToTabs[g], view{dashboard, tab})
+		}
+	}
+
+	return groupToTabs
+}
+
+// Fixer should adjust the queue until the context expires.
+type Fixer func(context.Context, *config.TestGroupQueue) error
 
 // Update tab state with the given frequency continuously. If freq == 0, runs only once.
 //
 // Copies the grid into the tab state. If filter is set, will remove unneeded data.
-// Runs on each dashboard in allowedDashboards, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedDashboards []string, confirm, filter, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
+// Observes each test group in allowedGroups, or all of them in the config if not specified
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, filter, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -72,7 +90,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	}
 	log := logrus.WithField("config", configPath)
 
-	var q config.DashboardQueue
+	var q config.TestGroupQueue
 
 	log.Debug("Observing config...")
 	cfgChanged, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
@@ -81,27 +99,33 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	}
 
 	var cfg *snapshot.Config
+	var groupToTabs map[string][]view
 	fixSnapshot := func(newConfig *snapshot.Config) {
 		cfg = newConfig
-		if len(allowedDashboards) != 0 {
-			dashes := make([]*configpb.Dashboard, 0, len(allowedDashboards))
-			for _, d := range allowedDashboards {
-				dash, ok := cfg.Dashboards[d]
+		groupToTabs = getViews(cfg)
+
+		if len(allowedGroups) != 0 {
+			groups := make([]*configpb.TestGroup, 0, len(allowedGroups))
+			for _, group := range allowedGroups {
+				c, ok := cfg.Groups[group]
 				if !ok {
-					log.Errorf("Could not find requested dashboard %q in config", d)
+					log.Errorf("Could not find requested group %q in config", c)
 					continue
 				}
-				dashes = append(dashes, dash)
+				groups = append(groups, c)
 			}
-			q.Init(log, dashes, time.Now())
+
+			q.Init(log, groups, time.Now())
 			return
-		}
-		dashes := make([]*configpb.Dashboard, 0, len(cfg.Dashboards))
-		for _, dash := range cfg.Dashboards {
-			dashes = append(dashes, dash)
+
 		}
 
-		q.Init(log, dashes, time.Now())
+		groups := make([]*configpb.TestGroup, 0, len(cfg.Groups))
+		for _, group := range cfg.Groups {
+			groups = append(groups, group)
+		}
+
+		q.Init(log, groups, time.Now())
 	}
 
 	fixSnapshot(<-cfgChanged)
@@ -111,7 +135,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		var fixWg sync.WaitGroup
 		fixAll := func() {
 			n := len(fixers)
-			log.WithField("fixers", n).Debug("Starting fixers on current dashboards...")
+			log.WithField("fixers", n).Debug("Starting fixers on current groups...")
 			fixWg.Add(n)
 			for i, fix := range fixers {
 				go func(i int, fix Fixer) {
@@ -121,7 +145,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 					}
 				}(i, fix)
 			}
-			log.WithField("fixers", n).Info("Started fixers on current dashboards.")
+			log.WithField("fixers", n).Info("Started fixers on current groups.")
 		}
 
 		ticker := time.NewTicker(time.Minute)
@@ -164,23 +188,18 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	var waiting stringset.Set
 	var lock sync.Mutex
 
-	dashboardNames := make(chan string)
+	channel := make(chan *configpb.TestGroup)
 
-	update := func(log *logrus.Entry, dashName string) error {
-		dashboard, ok := cfg.Dashboards[dashName]
-		if !ok {
-			return fmt.Errorf("no dashboard named %q", dashName)
-		}
-
-		for _, tab := range dashboard.GetDashboardTab() {
-			log := log.WithField("tab", tab.GetName())
-			fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, tab.TestGroupName)
+	update := func(log *logrus.Entry, group *configpb.TestGroup) error {
+		for _, view := range groupToTabs[group.Name] {
+			log := log.WithField("dashboard", view.dashboard.Name).WithField("tab", view.tab.Name)
+			fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, view.tab.TestGroupName)
 			if err != nil {
-				return fmt.Errorf("can't make tg path %q: %w", tab.TestGroupName, err)
+				return fmt.Errorf("can't make tg path %q: %w", view.tab.TestGroupName, err)
 			}
-			toPath, err := TabStatePath(configPath, tabsPathPrefix, dashName, tab.Name)
+			toPath, err := TabStatePath(configPath, tabsPathPrefix, view.dashboard.Name, view.tab.Name)
 			if err != nil {
-				return fmt.Errorf("can't make dashtab path %s/%s: %w", dashName, tab.Name, err)
+				return fmt.Errorf("can't make dashtab path %s/%s: %w", view.dashboard.Name, view.tab.Name, err)
 			}
 			log.WithFields(logrus.Fields{
 				"from": fromPath.String(),
@@ -198,8 +217,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				}
 			}
 			if filter {
-				groupCfg := cfg.Groups[tab.GetTestGroupName()]
-				err := createTabState(ctx, log, client, tab, groupCfg, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
+				err := createTabState(ctx, log, client, view.tab, group, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
 				if err != nil {
 					return fmt.Errorf("can't calculate state: %w", err)
 				}
@@ -214,24 +232,24 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			defer wg.Done()
-			for dashName := range dashboardNames {
+			for group := range channel {
 				lock.Lock()
-				start := active.Add(dashName)
+				start := active.Add(group.Name)
 				if !start {
-					waiting.Add(dashName)
+					waiting.Add(group.Name)
 				}
 				lock.Unlock()
 				if !start {
 					continue
 				}
 
-				log := log.WithField("dashboard", dashName)
+				log := log.WithField("group", group.Name)
 				finish := mets.UpdateState.Start()
 
-				if err := update(log, dashName); err != nil {
+				if err := update(log, group); err != nil {
 					finish.Fail()
 					retry := time.Now().Add(freq / 10)
-					q.Fix(dashName, retry, true)
+					q.Fix(group.Name, retry, true)
 					log.WithError(err).WithField("retry-at", retry).Error("Failed to generate tab state")
 				} else {
 					finish.Success()
@@ -239,19 +257,19 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				}
 
 				lock.Lock()
-				active.Discard(dashName)
-				restart := waiting.Discard(dashName)
+				active.Discard(group.Name)
+				restart := waiting.Discard(group.Name)
 				lock.Unlock()
 				if restart {
-					q.Fix(dashName, time.Now(), false)
+					q.Fix(group.Name, time.Now(), false)
 				}
 			}
 		}()
 	}
 	defer wg.Wait()
-	defer close(dashboardNames)
+	defer close(channel)
 
-	return q.Send(ctx, dashboardNames, freq)
+	return q.Send(ctx, channel, freq)
 }
 
 // TabStatePath returns the path for a given tab.

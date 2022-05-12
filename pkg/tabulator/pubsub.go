@@ -43,7 +43,7 @@ func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID stri
 	if err != nil {
 		return nil, err
 	}
-	return func(ctx context.Context, q *config.DashboardQueue) error {
+	return func(ctx context.Context, q *config.TestGroupQueue) error {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		ch := make(chan *pubsub.Notification)
@@ -70,7 +70,7 @@ func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID stri
 	}, nil
 }
 
-func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *config.DashboardQueue, gridPrefix gcs.Path, senders <-chan *pubsub.Notification) error {
+func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *config.TestGroupQueue, gridPrefix gcs.Path, senders <-chan *pubsub.Notification) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -90,7 +90,7 @@ func processGCSNotifications(ctx context.Context, log logrus.FieldLogger, q *con
 				"when":         when,
 				"notification": notice,
 			}).Trace("Fixing groups from gcs notification")
-			if err := q.FixTestGroups(when, false, *group); err != nil {
+			if err := q.Fix(*group, when, false); err != nil {
 				return err
 			}
 		}
