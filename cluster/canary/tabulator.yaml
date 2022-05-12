@@ -41,10 +41,10 @@ spec:
         resources:
           requests:
             cpu: "30"
-            memory: "75G"
+            memory: "25G"
           limits:
             cpu: "40"
-            memory: "150G"
+            memory: "50G"
 ---
 apiVersion: v1
 kind: ServiceAccount
