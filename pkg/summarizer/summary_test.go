@@ -36,6 +36,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/testing/protocmp"
 
@@ -295,6 +296,7 @@ func TestUpdateDashboard(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5)
 		t.Run(tc.name, func(t *testing.T) {
 			finder := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 				name := tab.TestGroupName
@@ -332,7 +334,7 @@ func TestUpdateDashboard(t *testing.T) {
 					},
 				}
 			}
-			updateDashboard(context.Background(), client, tc.dash, &actual, finder)
+			updateDashboard(context.Background(), client, tc.dash, &actual, finder, tabUpdater)
 			if diff := cmp.Diff(tc.expected, &actual, protocmp.Transform()); diff != "" {
 				t.Errorf("updateDashboard() got unexpected diff (-want +got):\n%s", diff)
 			}
