@@ -255,6 +255,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return groupPath, group, reader, nil
 	}
 
+	tabUpdater := tabUpdatePool(ctx, log, concurrency)
+
 	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
@@ -276,7 +278,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			sum = &summarypb.DashboardSummary{}
 		}
 
-		updateDashboard(ctx, client, dash, sum, findGroup)
+		// TODO(fejta): refactor to note whether there is more work
+		updateDashboard(ctx, client, dash, sum, findGroup, tabUpdater)
 
 		var healthyTests int
 		var failures int
@@ -455,7 +458,7 @@ func tabStatus(dashName, tabName, msg string) *summarypb.DashboardTabSummary {
 // updateDashboard will summarize all the tabs.
 //
 // Errors summarizing tabs are displayed on the summary for the dashboard.
-func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder) {
+func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder, tabUpdater *tabUpdater) {
 	log := logrus.WithField("dashboard", dash.Name)
 
 	var graceCtx context.Context
@@ -535,42 +538,134 @@ func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dash
 		return delays[paths[i]] > delays[paths[j]]
 	})
 
-	// update the summaries, starting with most delayed
-nextPath:
-	for _, path := range paths {
-		info := groupInfos[path]
-		log := log.WithField("group", path)
-		for _, tab := range info.tabs {
-			log := log.WithField("tab", tab.Name)
-			delay := delays[path]
-			if delay == 0 {
-				log.Debug("Already up to date")
-				continue
-			} else if delay == -1 {
-				log.Debug("No grid state to process")
+	// Now let's update the tab summaries in parallel, starting with most delayed
+
+	type future struct {
+		log    *logrus.Entry
+		name   string
+		result func() (*summarypb.DashboardTabSummary, error)
+	}
+
+	// channel to receive updated tabs
+	ch := make(chan future)
+
+	// request an update for each tab, starting with the least recently modified one.
+	go func() {
+		defer close(ch)
+		tabUpdater.lock.Lock()
+		defer tabUpdater.lock.Unlock()
+		for _, path := range paths {
+			info := groupInfos[path]
+			log := log.WithField("group", path)
+			for _, tab := range info.tabs {
+				log := log.WithField("tab", tab.Name)
+				delay := delays[path]
+				if delay == 0 {
+					log.Debug("Already up to date")
+					continue
+				} else if delay == -1 {
+					log.Debug("No grid state to process")
+				}
+				log = log.WithField("delay", delay)
+				if err := graceCtx.Err(); err != nil {
+					log.WithError(err).Info("Interrupted")
+					return
+				}
+				log.Debug("Reqeuesting tab summary update")
+				f := tabUpdater.update(ctx, tab, info.group, info.reader)
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- future{log, tab.Name, f}:
+				}
 			}
-			log = log.WithField("delay", delay)
-			if err := graceCtx.Err(); err != nil {
-				log.WithError(err).Info("Interrupted")
-				break nextPath
-			}
-			log.Debug("Updating tab summary")
-			s, err := updateTab(ctx, tab, info.group, info.reader)
-			if err != nil {
-				s = tabStatus(dash.Name, tab.Name, fmt.Sprintf("Error attempting to summarize tab: %v", err))
-				log = log.WithError(err)
-			} else {
-				s.DashboardName = dash.Name
-			}
-			tabSummaries[tab.Name] = s
-			log.Trace("Updated tab summary")
 		}
+	}()
+
+	// Update the summary for any tabs that give a response
+	for fut := range ch {
+		tabName := fut.name
+		log.Trace("Waiting for updated tab summary response")
+		s, err := fut.result()
+		if err != nil {
+			s = tabStatus(dash.Name, tabName, fmt.Sprintf("Error attempting to summarize tab: %v", err))
+			log = log.WithError(err)
+		} else {
+			s.DashboardName = dash.Name
+		}
+		tabSummaries[tabName] = s
+		log.Trace("Updated tab summary")
 	}
 
 	// assemble them back into the dashboard summary.
 	sum.TabSummaries = make([]*summarypb.DashboardTabSummary, len(dash.DashboardTab))
 	for idx, tab := range dash.DashboardTab {
 		sum.TabSummaries[idx] = tabSummaries[tab.Name]
+	}
+}
+
+type tabUpdater struct {
+	lock   sync.Mutex
+	update func(context.Context, *configpb.DashboardTab, *configpb.TestGroup, gridReader) func() (*summarypb.DashboardTabSummary, error)
+}
+
+func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int) *tabUpdater {
+	type request struct {
+		ctx   context.Context
+		tab   *configpb.DashboardTab
+		group *configpb.TestGroup
+		read  gridReader
+		sum   *summarypb.DashboardTabSummary
+		err   error
+		wg    sync.WaitGroup
+	}
+
+	ch := make(chan *request, concurrency)
+
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	log = log.WithField("concurrency", concurrency)
+	log.Info("Starting up worker pool")
+
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			for req := range ch {
+				req.sum, req.err = updateTab(req.ctx, req.tab, req.group, req.read)
+				req.wg.Done()
+			}
+		}()
+	}
+
+	go func() {
+		<-poolCtx.Done()
+		log.Info("Shutting down worker pool")
+		close(ch)
+		wg.Wait()
+		log.Info("Worker pool stopped")
+	}()
+
+	updateTabViaPool := func(ctx context.Context, tab *configpb.DashboardTab, group *configpb.TestGroup, groupReader gridReader) func() (*summarypb.DashboardTabSummary, error) {
+		req := &request{
+			ctx:   ctx,
+			tab:   tab,
+			group: group,
+			read:  groupReader,
+		}
+		req.wg.Add(1)
+		select {
+		case <-ctx.Done():
+			return func() (*summarypb.DashboardTabSummary, error) { return nil, ctx.Err() }
+		case ch <- req:
+			return func() (*summarypb.DashboardTabSummary, error) {
+				req.wg.Wait()
+				return req.sum, req.err
+			}
+		}
+	}
+
+	return &tabUpdater{
+		update: updateTabViaPool,
 	}
 }
 
