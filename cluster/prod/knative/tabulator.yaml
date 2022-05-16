@@ -32,11 +32,12 @@ spec:
         args:
         - --config=gs://knative-own-testgrid/config
         - --confirm
+        - --filter
+        - --filter-columns
+        - --json-logs
         - --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
         - --pubsub=knative-tests/test-group-updates
         - --wait=1h
-        - --filter
-        - --filter-columns
         resources:
           requests:
             cpu: "30"
