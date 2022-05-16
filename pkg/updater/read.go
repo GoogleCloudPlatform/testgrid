@@ -48,7 +48,7 @@ func hintStarted(cols []InflatedColumn) string {
 	return hint
 }
 
-func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency int) ColumnReader {
+func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, readResult *resultReader) ColumnReader {
 	return func(ctx context.Context, parentLog logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time, receivers chan<- InflatedColumn) error {
 		tgPaths, err := groupPaths(tg)
 		if err != nil {
@@ -69,16 +69,101 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, concurrency 
 		}
 		log.WithField("total", len(builds)).Debug("Listed builds")
 
-		readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers)
+		readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers, readResult)
 		return nil
 	}
 }
 
+func resultReaderPool(poolCtx context.Context, log *logrus.Entry, concurrency int) *resultReader {
+
+	type request struct {
+		ctx    context.Context
+		client gcs.Downloader
+		build  gcs.Build
+		stop   time.Time
+		res    *gcsResult
+		err    error
+		wg     sync.WaitGroup
+	}
+
+	ch := make(chan *request, concurrency)
+
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	log = log.WithField("concurrency", concurrency)
+	log.Info("Starting up result reader pool")
+
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			for req := range ch {
+				req.res, req.err = readResult(req.ctx, req.client, req.build, req.stop)
+				req.wg.Done()
+			}
+		}()
+	}
+
+	go func() {
+		<-poolCtx.Done()
+		log.Info("Shutting down result reader pool")
+		close(ch)
+		wg.Wait()
+		log.Info("Result reader pool stopped")
+	}()
+
+	readResultViaPool := func(ctx context.Context, client gcs.Downloader, build gcs.Build, stop time.Time) func() (*gcsResult, error) {
+
+		req := &request{
+			ctx:    ctx,
+			client: client,
+			build:  build,
+			stop:   stop,
+		}
+		req.wg.Add(1)
+		select {
+		case <-ctx.Done():
+			return func() (*gcsResult, error) { return nil, ctx.Err() }
+		case ch <- req: // wait for request to get onto the queue
+			return func() (*gcsResult, error) {
+				req.wg.Wait()
+				return req.res, req.err
+			}
+		}
+	}
+
+	return &resultReader{
+		lock: &sync.Mutex{},
+		read: readResultViaPool,
+	}
+}
+
+func basicResultReader() *resultReader {
+
+	var lock sync.RWMutex
+	readResult := func(ctx context.Context, client gcs.Downloader, build gcs.Build, stop time.Time) func() (*gcsResult, error) {
+		return func() (*gcsResult, error) {
+			return readResult(ctx, client, build, stop)
+		}
+	}
+	return &resultReader{
+		lock: lock.RLocker(),
+		read: readResult,
+	}
+}
+
+type resultReader struct {
+	lock sync.Locker
+	read func(context.Context, gcs.Downloader, gcs.Build, time.Time) func() (*gcsResult, error)
+}
+
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn) {
+func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn, readResult *resultReader) {
 	if len(builds) == 0 {
 		return
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	nameCfg := makeNameConfig(group)
 	var heads []string
@@ -86,44 +171,70 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 		heads = append(heads, h.ConfigurationValue)
 	}
 
-	// TODO(fejta): restore inter-build concurrency
-	var failures int // since last good column
-	var extra []string
-	var started float64
+	type resp struct {
+		build gcs.Build
+		res   func() (*gcsResult, error)
+	}
+
+	ch := make(chan resp)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// TODO(fejta): restore inter-build concurrency
+		var failures int // since last good column
+		var extra []string
+		var started float64
+		for resp := range ch {
+			b := resp.build
+			log := log.WithField("build", b)
+			result, err := resp.res()
+			id := path.Base(b.Path.Object())
+			var col InflatedColumn
+			if err != nil {
+				failures++
+				log.WithError(err).Trace("Failed to read build")
+				if extra == nil {
+					extra = make([]string, len(heads))
+				}
+				when := started + 0.01*float64(failures)
+				if err == errAncient {
+					col = ancientColumn(id, when, extra)
+				} else {
+					msg := fmt.Sprintf("Failed to download %s: %s", b, err.Error())
+					col = erroredColumn(id, when, extra, msg)
+				}
+			} else {
+				col = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
+				log.WithField("rows", len(col.Cells)).Debug("Read result")
+				failures = 0
+				extra = col.Column.Extra
+				started = col.Column.Started
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case receivers <- col:
+			}
+		}
+	}()
+	defer wg.Wait()
+
+	defer close(ch)
+	readResult.lock.Lock()
+	defer readResult.lock.Unlock()
 	for i := len(builds) - 1; i >= 0; i-- {
 		b := builds[i]
-		log := log.WithField("build", b)
-		buildCtx, cancelBuild := context.WithTimeout(ctx, buildTimeout)
-		log.Trace("Reading result")
-		result, err := readResult(buildCtx, client, b, stop)
-		cancelBuild()
-		id := path.Base(b.Path.Object())
-		var col InflatedColumn
-		if err != nil {
-			failures++
-			log.WithError(err).Trace("Failed to read build")
-			if extra == nil {
-				extra = make([]string, len(heads))
-			}
-			when := started + 0.01*float64(failures)
-			if err == errAncient {
-				col = ancientColumn(id, when, extra)
-			} else {
-				msg := fmt.Sprintf("Failed to download %s: %s", b, err.Error())
-				col = erroredColumn(id, when, extra, msg)
-			}
-		} else {
-			col = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
-			log.WithField("rows", len(col.Cells)).Debug("Read result")
-			failures = 0
-			extra = col.Column.Extra
-			started = col.Column.Started
+		r := resp{
+			build: b,
+			res:   readResult.read(ctx, client, b, stop),
 		}
-
 		select {
 		case <-ctx.Done():
 			return
-		case receivers <- col:
+		case ch <- r:
 		}
 	}
 }

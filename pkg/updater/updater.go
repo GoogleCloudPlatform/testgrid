@@ -83,12 +83,21 @@ func (mets *Metrics) start() *metrics.CycleReporter {
 // compiling any new columns and inserting them into the front and then uploading
 // the proto to GCS.
 //
+// Disable pooled downloads with a nil poolCtx, otherwise at most concurrency builds
+// will be downloaded at the same time.
+//
 // Return true if there are more results to process.
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool, reprocessGroups ...string) GroupUpdater {
+func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool, reprocessGroups ...string) GroupUpdater {
 	reprocessable := stringset.New(reprocessGroups...)
+	var readResult *resultReader
+	if poolCtx != nil {
+		readResult = resultReaderPool(poolCtx, logrus.WithField("pool", "readResult"), concurrency)
+	} else {
+		readResult = basicResultReader()
+	}
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
 		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
 			log.Debug("Skipping non-kubernetes client group")
@@ -96,7 +105,7 @@ func GCS(colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurr
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
-		gcsColReader := gcsColumnReader(colClient, buildTimeout, concurrency)
+		gcsColReader := gcsColumnReader(colClient, buildTimeout, readResult)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
 		canReprocess := reprocessOnChange && (reprocessable.Len() == 0 || reprocessable.Contains(tg.Name))
 		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess, canReprocess)
