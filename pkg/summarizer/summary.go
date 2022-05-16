@@ -257,21 +257,21 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	tabUpdater := tabUpdatePool(ctx, log, concurrency)
 
-	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, error) {
+	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 		dash := cfg.Dashboards[dashName]
 		if dash == nil {
-			return log, errors.New("dashboard not found")
+			return log, false, errors.New("dashboard not found")
 		}
 		log.Debug("Summarizing dashboard")
 		summaryPath, err := summaryPath(configPath, summaryPathPrefix, dashName)
 		if err != nil {
-			return log, fmt.Errorf("summary path: %v", err)
+			return log, false, fmt.Errorf("summary path: %v", err)
 		}
 		sum, _, _, err := readSummary(ctx, client, *summaryPath)
 		if err != nil {
-			return log, fmt.Errorf("read %q: %v", *summaryPath, err)
+			return log, false, fmt.Errorf("read %q: %v", *summaryPath, err)
 		}
 
 		if sum == nil {
@@ -279,7 +279,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 
 		// TODO(fejta): refactor to note whether there is more work
-		updateDashboard(ctx, client, dash, sum, findGroup, tabUpdater)
+		more := updateDashboard(ctx, client, dash, sum, findGroup, tabUpdater)
 
 		var healthyTests int
 		var failures int
@@ -297,14 +297,14 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			"healthy-tests": healthyTests,
 		})
 		if !confirm {
-			return log, nil
+			return log, more, nil
 		}
 		size, err := writeSummary(ctx, client, *summaryPath, sum)
 		log = log.WithField("bytes", size)
 		if err != nil {
-			return log, fmt.Errorf("write: %w", err)
+			return log, more, fmt.Errorf("write: %w", err)
 		}
-		return log, nil
+		return log, more, nil
 	}
 
 	var wg sync.WaitGroup
@@ -325,12 +325,16 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 				log := log.WithField("dashboard", dashName)
 				finish := mets.Summarize.Start()
-				if log, err := updateName(log, dashName); err != nil {
+				if log, more, err := updateName(log, dashName); err != nil {
 					finish.Fail()
 					q.Fix(dashName, time.Now().Add(freq/2), false)
 					log.WithError(err).Error("Failed to summarize dashboard")
 				} else {
 					finish.Success()
+					if more {
+						q.Fix(dashName, time.Now(), false)
+						log = log.WithField("more", more)
+					}
 					log.Info("Summarized dashboard")
 				}
 
@@ -458,7 +462,9 @@ func tabStatus(dashName, tabName, msg string) *summarypb.DashboardTabSummary {
 // updateDashboard will summarize all the tabs.
 //
 // Errors summarizing tabs are displayed on the summary for the dashboard.
-func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder, tabUpdater *tabUpdater) {
+//
+// Returns true when there is more work to to.
+func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder, tabUpdater *tabUpdater) bool {
 	log := logrus.WithField("dashboard", dash.Name)
 
 	var graceCtx context.Context
@@ -585,6 +591,7 @@ func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dash
 	// Update the summary for any tabs that give a response
 	for fut := range ch {
 		tabName := fut.name
+		log := fut.log
 		log.Trace("Waiting for updated tab summary response")
 		s, err := fut.result()
 		if err != nil {
@@ -602,6 +609,8 @@ func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dash
 	for idx, tab := range dash.DashboardTab {
 		sum.TabSummaries[idx] = tabSummaries[tab.Name]
 	}
+
+	return graceCtx.Err() != nil
 }
 
 type tabUpdater struct {
