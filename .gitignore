@@ -14,7 +14,9 @@ node_modules/
 *.iml
 .vscode/*
 /vendor/
-
+# profiling outputs
+mem.out
+cpu.out
 ## terraform output
 *.tfvars
 *.terraform/
