@@ -32,7 +32,6 @@ spec:
         args:
         - --config=gs://knative-own-testgrid/config
         - --confirm
-        - --filter
         - --filter-columns
         - --json-logs
         - --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
