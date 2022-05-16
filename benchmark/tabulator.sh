@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2022 The Kubernetes Authors.
+# Copyright 2022 The TestGrid Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,15 +20,10 @@ set -o pipefail
 # Time the tabultor to compare algorithm differences.
 # Runs across the entire configuration once; ignoring events.
 
-# TODO: Populate these buckets
-SRC_BUCKET=""   # An example state to operate on
-WORK_BUCKET=""  # A bucket to work in
+SRC_BUCKET="gs://testgrid-canary"   # An example state to operate on
+WORK_BUCKET="/tmp/testgrid-state"  # A bucket to work in. Can be GCS or Local
 
-if [[ -z ${SRC_BUCKET} || -z ${WORK_BUCKET} ]]; then
-    echo "Must edit script to add buckets"
-    exit 1
-fi
-
-gsutil -m rsync -r ${SRC_BUCKET} ${WORK_BUCKET}
-bazel build //cmd/tabulator
-/usr/bin/time -v bazel run //cmd/tabulator -- --config="${WORK_BUCKET}/config" --confirm --filter --filter-columns $@
+# Tabulator uses config and testgroup state as inputs
+gsutil -m cp ${SRC_BUCKET}/config ${WORK_BUCKET}/config
+gsutil -m rsync -r ${SRC_BUCKET}/grid ${WORK_BUCKET}/grid
+go test --bench="BenchmarkTabulator" --benchmem --cpuprofile cpu.out --memprofile mem.out --config="${WORK_BUCKET}/config"

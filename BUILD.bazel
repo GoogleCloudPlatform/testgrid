@@ -22,6 +22,7 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
+        "//benchmark:all-srcs",
         "//cluster/canary:all-srcs",
         "//cluster/prod:all-srcs",
         "//cmd/api:all-srcs",
