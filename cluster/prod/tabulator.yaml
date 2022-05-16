@@ -32,11 +32,12 @@ spec:
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --pubsub=k8s-testgrid/test-group-updates
-        - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
-        - --wait=1h
         - --filter
         - --filter-columns
+        - --json-logs
+        - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
+        - --pubsub=k8s-testgrid/test-group-updates
+        - --wait=1h
         resources:
           requests:
             cpu: "30"
