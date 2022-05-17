@@ -198,13 +198,14 @@ func TestReadColumns(t *testing.T) {
 	yes := true
 	var no bool
 	cases := []struct {
-		name        string
-		ctx         context.Context
-		builds      []fakeBuild
-		group       configpb.TestGroup
-		stop        time.Time
-		dur         time.Duration
-		concurrency int
+		name               string
+		ctx                context.Context
+		builds             []fakeBuild
+		group              configpb.TestGroup
+		stop               time.Time
+		dur                time.Duration
+		concurrency        int
+		readResultOverride *resultReader
 
 		expected []InflatedColumn
 		err      bool
@@ -555,6 +556,132 @@ func TestReadColumns(t *testing.T) {
 							},
 						},
 						"build." + podInfoRow: podInfoPassCell,
+					},
+				},
+			},
+		},
+		{
+			name:               "high concurrency works with basic reader",
+			concurrency:        4,
+			readResultOverride: basicResultReader(),
+			builds: []fakeBuild{
+				{
+					id: "13",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 13}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 26),
+							Passed:    &yes,
+						}),
+					},
+					podInfo: podInfoSuccess,
+				},
+				{
+					id: "12",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 12}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 24),
+							Passed:    &yes,
+						}),
+					},
+				},
+				{
+					id: "11",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 11}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 22),
+							Passed:    &yes,
+						}),
+					},
+					podInfo: podInfoSuccess,
+				},
+				{
+					id: "10",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 10}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 20),
+							Passed:    &yes,
+						}),
+					},
+				},
+			},
+			group: configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+			},
+			expected: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "13",
+						Hint:    "13",
+						Started: float64(now+13) * 1000,
+					},
+					Cells: map[string]cell{
+						"build." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 13 / 60.0,
+							},
+						},
+						"build." + podInfoRow: podInfoPassCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "12",
+						Hint:    "12",
+						Started: float64(now+12) * 1000,
+					},
+					Cells: map[string]cell{
+						"build." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 12 / 60.0,
+							},
+						},
+						"build." + podInfoRow: podInfoMissingCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "11",
+						Hint:    "11",
+						Started: float64(now+11) * 1000,
+					},
+					Cells: map[string]cell{
+						"build." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 11 / 60.0,
+							},
+						},
+						"build." + podInfoRow: podInfoPassCell,
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Build:   "10",
+						Hint:    "10",
+						Started: float64(now+10) * 1000,
+					},
+					Cells: map[string]cell{
+						"build." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 10 / 60.0,
+							},
+						},
+						"build." + podInfoRow: podInfoMissingCell,
 					},
 				},
 			},
@@ -961,6 +1088,10 @@ func TestReadColumns(t *testing.T) {
 		},
 	}
 
+	poolCtx, poolCancel := context.WithCancel(context.Background())
+	defer poolCancel()
+	readResultPool := resultReaderPool(poolCtx, logrus.WithField("pool", "readResult"), 10)
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			path := newPathOrDie("gs://" + tc.group.GcsPrefix)
@@ -1002,7 +1133,12 @@ func TestReadColumns(t *testing.T) {
 
 			}()
 
-			readColumns(ctx, client, logrus.WithField("name", tc.name), &tc.group, builds, tc.stop, tc.dur, ch)
+			readResult := tc.readResultOverride
+			if readResult == nil {
+				readResult = readResultPool
+			}
+
+			readColumns(ctx, client, logrus.WithField("name", tc.name), &tc.group, builds, tc.stop, tc.dur, ch, readResult)
 			close(ch)
 			wg.Wait()
 

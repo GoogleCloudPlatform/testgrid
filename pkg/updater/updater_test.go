@@ -82,7 +82,7 @@ func TestGCS(t *testing.T) {
 			// either because the context is canceled or things like client are unset)
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			updater := GCS(nil, 0, 0, 0, false, SortStarted, false)
+			updater := GCS(nil, nil, 0, 0, 0, false, SortStarted, false)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tc.fail {
@@ -417,7 +417,7 @@ func TestUpdate(t *testing.T) {
 			}
 
 			if tc.groupUpdater == nil {
-				tc.groupUpdater = GCS(client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted, false)
+				tc.groupUpdater = GCS(nil, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted, false)
 			}
 			err := Update(
 				ctx,
@@ -2308,8 +2308,11 @@ func TestInflateDropAppend(t *testing.T) {
 
 			}
 
+			var readResult *resultReader
 			if tc.concurrency == 0 {
-				tc.concurrency = 1
+				readResult = basicResultReader()
+			} else {
+				readResult = resultReaderPool(ctx, logrus.WithField("name", tc.name), tc.concurrency)
 			}
 			if tc.groupTimeout == nil {
 				tc.groupTimeout = &defaultTimeout
@@ -2341,7 +2344,7 @@ func TestInflateDropAppend(t *testing.T) {
 			}
 			client.Lister[buildsPath] = fi
 
-			colReader := gcsColumnReader(client, *tc.buildTimeout, tc.concurrency)
+			colReader := gcsColumnReader(client, *tc.buildTimeout, readResult)
 			if tc.colReader != nil {
 				colReader = tc.colReader(tc.builds)
 			}
