@@ -32,7 +32,6 @@ spec:
         args:
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --filter
         - --filter-columns
         - --json-logs
         - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
