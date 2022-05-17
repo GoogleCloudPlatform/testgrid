@@ -201,7 +201,7 @@ func TestReadColumns(t *testing.T) {
 		name               string
 		ctx                context.Context
 		builds             []fakeBuild
-		group              configpb.TestGroup
+		group              *configpb.TestGroup
 		stop               time.Time
 		dur                time.Duration
 		concurrency        int
@@ -242,7 +242,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -319,7 +319,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
 					{
@@ -400,7 +400,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 				TestNameConfig: &configpb.TestNameConfig{
 					NameFormat: "name %s - context %s - thread %s",
@@ -519,7 +519,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -616,7 +616,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -741,7 +741,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -866,7 +866,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -970,7 +970,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -1078,7 +1078,7 @@ func TestReadColumns(t *testing.T) {
 					},
 				},
 			},
-			group: configpb.TestGroup{
+			group: &configpb.TestGroup{
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
@@ -1094,6 +1094,9 @@ func TestReadColumns(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.group == nil {
+				tc.group = &configpb.TestGroup{}
+			}
 			path := newPathOrDie("gs://" + tc.group.GcsPrefix)
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
@@ -1138,7 +1141,7 @@ func TestReadColumns(t *testing.T) {
 				readResult = readResultPool
 			}
 
-			readColumns(ctx, client, logrus.WithField("name", tc.name), &tc.group, builds, tc.stop, tc.dur, ch, readResult)
+			readColumns(ctx, client, logrus.WithField("name", tc.name), tc.group, builds, tc.stop, tc.dur, ch, readResult)
 			close(ch)
 			wg.Wait()
 

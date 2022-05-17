@@ -185,7 +185,7 @@ func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, &dashboards)
 }
 
-// GetDashboardHTTP returns a given dashboard
+// GetDashboard returns a given dashboard
 func (s *Server) GetDashboard(ctx context.Context, req *apipb.GetDashboardRequest) (*apipb.GetDashboardResponse, error) {
 	cfg, err := s.getConfig(ctx, req.GetScope())
 	if err != nil {
@@ -223,7 +223,7 @@ func (s Server) GetDashboardHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
-// ListDashboardTabsHTTP returns a given dashboard tabs
+// ListDashboardTabs returns a given dashboard tabs
 func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboardTabsRequest) (*apipb.ListDashboardTabsResponse, error) {
 	cfg, err := s.getConfig(ctx, req.GetScope())
 	if err != nil {

@@ -36,6 +36,7 @@ var (
 
 const cacheRefreshInterval = 5 * time.Minute
 
+// Config holds a config proto and when it was fetched.
 type Config struct {
 	proto     *configpb.Configuration
 	lastFetch time.Time

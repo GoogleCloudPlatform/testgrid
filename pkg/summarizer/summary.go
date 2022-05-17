@@ -577,7 +577,7 @@ func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dash
 					log.WithError(err).Info("Interrupted")
 					return
 				}
-				log.Debug("Reqeuesting tab summary update")
+				log.Debug("Requesting tab summary update")
 				f := tabUpdater.update(ctx, tab, info.group, info.reader)
 				select {
 				case <-ctx.Done():

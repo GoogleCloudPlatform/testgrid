@@ -121,7 +121,7 @@ func (s *Server) ListHeaders(ctx context.Context, req *apipb.ListHeadersRequest)
 		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
 	}
 	if grid == nil {
-		return nil, errors.New("Grid not found.")
+		return nil, errors.New("grid not found")
 	}
 
 	var dashboardTabResponse apipb.ListHeadersResponse
@@ -180,7 +180,7 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
 	}
 	if grid == nil {
-		return nil, errors.New("Grid not found.")
+		return nil, errors.New("grid not found")
 	}
 
 	dashboardTabResponse := apipb.ListRowsResponse{
