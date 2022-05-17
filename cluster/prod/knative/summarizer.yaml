@@ -28,14 +28,13 @@ spec:
           containerPort: 2112
         args:
         - --config=gs://knative-own-testgrid/config
-        - --grid-path=unused
-        - --tab-path=tabs
-        - --json-logs
-        - --pubsub=knative-tests/tab-updates
-        - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
-        - --summary-path=summary
-        - --wait=5m
         - --confirm
+        - --grid-path=unused
+        - --json-logs
+        - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
+        - --pubsub=knative-tests/tab-updates
+        - --tab-path=tabs
+        - --wait=5m
 ---
 apiVersion: v1
 kind: ServiceAccount
