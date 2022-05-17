@@ -42,7 +42,7 @@ type options struct {
 	dashboards        util.Strings
 	concurrency       int
 	wait              time.Duration
-	gridPathPrefix    string
+	gridPathPrefix    string // TODO(fejta): remove
 	summaryPathPrefix string
 	pubsub            string
 	tabPathPrefix     string
@@ -74,7 +74,7 @@ func gatherOptions() options {
 	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.summaryPathPrefix, "summary-path", "summary", "Write summaries under this GCS path.")
 	flag.StringVar(&o.pubsub, "pubsub", "", "listen for test group updates at project/subscription")
-	flag.StringVar(&o.tabPathPrefix, "tab-path", "", "Read from tab state instead of test group")
+	flag.StringVar(&o.tabPathPrefix, "tab-path", "tabs", "Read from tab state instead of test group")
 
 	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
