@@ -41,7 +41,7 @@ func gatherOptions() (options, error) {
 	flag.StringVar(&o.port, "port", "8080", "Port to deploy to")
 	flag.StringVar(&o.hostString, "host", "", "Friendly hostname used to serve links")
 	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
-	flag.StringVar(&o.router.TabPathPrefix, "tab", "", "Read tab path states under this path")
+	flag.StringVar(&o.router.TabPathPrefix, "tab", "tabs", "Read tab path states under this path")
 	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to merge everything in one loop")
 	flag.Parse()
 
