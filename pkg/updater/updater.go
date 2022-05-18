@@ -422,7 +422,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	return q.Send(ctx, channel, freq)
 }
 
-// TestGroupPath() returns the path to a test_group proto given this proto
+// TestGroupPath returns the path to a test_group proto given this proto
 func TestGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) {
 	name := path.Join(gridPrefix, groupName)
 	u, err := url.Parse(name)

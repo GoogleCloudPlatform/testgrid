@@ -168,11 +168,11 @@ func calcCRC(buf []byte) uint32 {
 }
 
 const (
-	// Use DefaultACL for this upload.
+	// DefaultACL will use the default acl for this upload.
 	DefaultACL = false
-	// Use PublicRead ACL for this upload.
+	// PublicRead will use a ACL for this upload.
 	PublicRead = true
-	// May cache, but only after verifying.
+	// NoCache may cache, but only after verifying.
 	// See https://cloud.google.com/storage/docs/metadata#cache-control
 	NoCache = "no-cache"
 )

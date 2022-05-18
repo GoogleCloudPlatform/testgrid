@@ -28,6 +28,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+// NewFactory constructs a new metrics factory
 func NewFactory() metrics.Factory {
 	return metrics.Factory{
 		NewInt64:    NewInt64,
