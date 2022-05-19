@@ -29,7 +29,6 @@ spec:
         args:
         - --config=gs://knative-own-testgrid/config
         - --confirm
-        - --grid-path=unused
         - --json-logs
         - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
         - --pubsub=knative-tests/tab-updates

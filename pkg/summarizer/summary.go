@@ -89,7 +89,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -232,12 +232,6 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	dashboardNames := make(chan string)
 
-	pather := groupPather{
-		configPath: configPath,
-		tabPrefix:  tabPathPrefix,
-		gridPrefix: gridPathPrefix,
-	}
-
 	// TODO(fejta): cache downloaded group?
 	findGroup := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 		name := tab.TestGroupName
@@ -245,7 +239,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		if group == nil {
 			return nil, nil, nil, nil
 		}
-		groupPath, err := pather.lookup(dash, tab.Name, name)
+		groupPath, err := tabulator.TabStatePath(configPath, tabPathPrefix, dash, tab.Name)
 		if err != nil {
 			return nil, group, nil, err
 		}
@@ -367,19 +361,6 @@ func filterDashboards(dashboards map[string]*configpb.Dashboard, allowed strings
 		delete(dashboards, key)
 	}
 	return dashboards
-}
-
-type groupPather struct {
-	configPath gcs.Path
-	tabPrefix  string
-	gridPrefix string
-}
-
-func (gp groupPather) lookup(dash, tab, testgroup string) (*gcs.Path, error) {
-	if gp.tabPrefix != "" {
-		return tabulator.TabStatePath(gp.configPath, gp.tabPrefix, dash, tab)
-	}
-	return gp.configPath.ResolveReference(&url.URL{Path: path.Join(gp.gridPrefix, testgroup)})
 }
 
 var (
