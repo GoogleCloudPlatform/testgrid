@@ -15,6 +15,7 @@ node_modules/
 .vscode/*
 /vendor/
 # profiling outputs
+benchmark.test
 mem.out
 cpu.out
 ## terraform output

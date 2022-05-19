@@ -26,8 +26,8 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/creachadair/stringset"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
@@ -40,6 +40,7 @@ import (
 )
 
 const componentName = "tabulator"
+const writeTimeout = 10 * time.Minute
 
 // Metrics holds metrics relevant to this controller.
 type Metrics struct {
@@ -55,18 +56,24 @@ func CreateMetrics(factory metrics.Factory) *Metrics {
 	}
 }
 
-type view struct {
+type writeTask struct {
 	dashboard *configpb.Dashboard
 	tab       *configpb.DashboardTab
+	group     *configpb.TestGroup
+	data      *statepb.Grid //TODO(chases2): change to inflatedColumns (and additional data) once "filter-columns" is used everywhere
 }
 
-func getViews(cfg *snapshot.Config) map[string][]view {
-	groupToTabs := make(map[string][]view, len(cfg.Groups))
+func mapTasks(cfg *snapshot.Config) map[string][]writeTask {
+	groupToTabs := make(map[string][]writeTask, len(cfg.Groups))
 
 	for _, dashboard := range cfg.Dashboards {
 		for _, tab := range dashboard.DashboardTab {
 			g := tab.TestGroupName
-			groupToTabs[g] = append(groupToTabs[g], view{dashboard, tab})
+			groupToTabs[g] = append(groupToTabs[g], writeTask{
+				dashboard: dashboard,
+				tab:       tab,
+				group:     cfg.Groups[dashboard.Name],
+			})
 		}
 	}
 
@@ -80,12 +87,12 @@ type Fixer func(context.Context, *config.TestGroupQueue) error
 //
 // Copies the grid into the tab state, removing unneeded data.
 // Observes each test group in allowedGroups, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, readConcurrency, writeConcurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if concurrency < 1 {
-		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
+	if readConcurrency < 1 || writeConcurrency < 1 {
+		return fmt.Errorf("concurrency must be positive, got read %d and write %d", readConcurrency, writeConcurrency)
 	}
 	log := logrus.WithField("config", configPath)
 
@@ -98,10 +105,10 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	}
 
 	var cfg *snapshot.Config
-	var groupToTabs map[string][]view
+	var tasksPerGroup map[string][]writeTask
 	fixSnapshot := func(newConfig *snapshot.Config) {
 		cfg = newConfig
-		groupToTabs = getViews(cfg)
+		tasksPerGroup = mapTasks(cfg)
 
 		if len(allowedGroups) != 0 {
 			groups := make([]*configpb.TestGroup, 0, len(allowedGroups))
@@ -170,7 +177,12 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				fixCancel()
 				fixWg.Wait()
 				return
-			case newConfig := <-cfgChanged:
+			case newConfig, ok := <-cfgChanged:
+				if !ok {
+					log.Info("Configuration channel closed")
+					cfgChanged = nil
+					continue
+				}
 				log.Info("Configuration changed")
 				fixCancel()
 				fixWg.Wait()
@@ -182,81 +194,129 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 	}(ctx)
 
-	// Set up threads
-	var active stringset.Set
-	var waiting stringset.Set
-	var lock sync.Mutex
+	// Set up worker pools
+	groups := make(chan *configpb.TestGroup)
+	tasks := make(chan writeTask)
+	var tabLock sync.Mutex
 
-	channel := make(chan *configpb.TestGroup)
+	read := func(ctx context.Context, log *logrus.Entry, group *configpb.TestGroup) error {
+		if group == nil {
+			return errors.New("nil group to read")
+		}
 
-	update := func(log *logrus.Entry, group *configpb.TestGroup) error {
-		for _, view := range groupToTabs[group.Name] {
-			log := log.WithField("dashboard", view.dashboard.Name).WithField("tab", view.tab.Name)
-			fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, view.tab.TestGroupName)
-			if err != nil {
-				return fmt.Errorf("can't make tg path %q: %w", view.tab.TestGroupName, err)
-			}
-			toPath, err := TabStatePath(configPath, tabsPathPrefix, view.dashboard.Name, view.tab.Name)
-			if err != nil {
-				return fmt.Errorf("can't make dashtab path %s/%s: %w", view.dashboard.Name, view.tab.Name, err)
-			}
-			log.WithFields(logrus.Fields{
-				"from": fromPath.String(),
-				"to":   toPath.String(),
-			}).Info("Calculating state")
+		fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, group.Name)
+		if err != nil {
+			return fmt.Errorf("can't make tg path %q: %w", group.Name, err)
+		}
 
-			err = createTabState(ctx, log, client, view.tab, group, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
-			if err != nil {
-				return fmt.Errorf("can't calculate state: %w", err)
+		log.WithField("from", fromPath.String()).Info("Reading state")
+
+		grid, _, err := gcs.DownloadGrid(ctx, client, *fromPath)
+		if err != nil {
+			return fmt.Errorf("downloadGrid(%s): %w", fromPath, err)
+		}
+
+		tabLock.Lock()
+		defer tabLock.Unlock()
+		// lock out all other readers so that all these tabs get handled as soon as possible
+		for _, task := range tasksPerGroup[group.Name] {
+			log := log.WithFields(logrus.Fields{
+				"group":     task.group.GetName(),
+				"dashboard": task.dashboard.GetName(),
+				"tab":       task.tab.GetName(),
+			})
+			select {
+			case <-ctx.Done():
+				log.Debug("Skipping irrelevant task")
+				continue
+			default:
+				out := task
+				out.data = proto.Clone(grid).(*statepb.Grid)
+				log.Debug("Requesting write task")
+				tasks <- out
 			}
 		}
 		return nil
 	}
 
 	// Run threads continuously
-	var wg sync.WaitGroup
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
+	var readWg, writeWg sync.WaitGroup
+	readWg.Add(readConcurrency)
+	for i := 0; i < readConcurrency; i++ {
 		go func() {
-			defer wg.Done()
-			for group := range channel {
-				lock.Lock()
-				start := active.Add(group.Name)
-				if !start {
-					waiting.Add(group.Name)
-				}
-				lock.Unlock()
-				if !start {
-					continue
-				}
-
-				log := log.WithField("group", group.Name)
-				finish := mets.UpdateState.Start()
-
-				if err := update(log, group); err != nil {
-					finish.Fail()
-					retry := time.Now().Add(freq / 10)
-					q.Fix(group.Name, retry, true)
-					log.WithError(err).WithField("retry-at", retry).Error("Failed to generate tab state")
-				} else {
-					finish.Success()
-					log.Info("Built tab state")
-				}
-
-				lock.Lock()
-				active.Discard(group.Name)
-				restart := waiting.Discard(group.Name)
-				lock.Unlock()
-				if restart {
-					q.Fix(group.Name, time.Now(), false)
+			defer readWg.Done()
+			for group := range groups {
+				readCtx, cancel := context.WithCancel(ctx)
+				log = log.WithField("group", group.Name)
+				err := read(readCtx, log, group)
+				cancel()
+				if err != nil {
+					next := time.Now().Add(freq / 10)
+					q.Fix(group.Name, next, false)
+					log.WithError(err).WithField("retry-at", next).Error("failed to read, retry later")
 				}
 			}
 		}()
 	}
-	defer wg.Wait()
-	defer close(channel)
+	writeWg.Add(writeConcurrency)
+	for i := 0; i < writeConcurrency; i++ {
+		go func() {
+			defer writeWg.Done()
+			for task := range tasks {
+				writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
+				finish := mets.UpdateState.Start()
+				log = log.WithField("dashboard", task.dashboard.Name).WithField("tab", task.tab.Name)
+				err := createTabState(writeCtx, log, client, task, configPath, tabsPathPrefix, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
+				cancel()
+				if err != nil {
+					finish.Fail()
+					log.Errorf("write: %v", err)
+					continue
+				}
+				finish.Success()
+			}
+		}()
+	}
 
-	return q.Send(ctx, channel, freq)
+	defer writeWg.Wait()
+	defer close(tasks)
+	defer readWg.Wait()
+	defer close(groups)
+
+	return q.Send(ctx, groups, freq)
+}
+
+// createTabState creates the tab state from the group state
+func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, task writeTask, configPath gcs.Path, tabsPathPrefix string, confirm, dropEmptyCols, calculateStats, useTabAlerts bool) error {
+	location, err := TabStatePath(configPath, tabsPathPrefix, task.dashboard.Name, task.tab.Name)
+	if err != nil {
+		return fmt.Errorf("can't make dashtab path %s/%s: %w", task.dashboard.Name, task.tab.Name, err)
+	}
+
+	log.WithFields(logrus.Fields{
+		"to": location.String(),
+	}).Info("Calculating state")
+
+	grid, err := tabulate(ctx, log, task.data, task.tab, task.group, dropEmptyCols, calculateStats, useTabAlerts)
+	if err != nil {
+		return fmt.Errorf("tabulate: %w", err)
+	}
+
+	if !confirm {
+		log.Debug("Successfully created tab state; discarding")
+		return nil
+	}
+
+	buf, err := gcs.MarshalGrid(grid)
+	if err != nil {
+		return fmt.Errorf("marshalGrid: %w", err)
+	}
+
+	_, err = client.Upload(ctx, *location, buf, gcs.DefaultACL, gcs.NoCache)
+	if err != nil {
+		return fmt.Errorf("client.Upload(%s): %w", location, err)
+	}
+	return nil
 }
 
 // TabStatePath returns the path for a given tab.
@@ -278,6 +338,9 @@ func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string)
 
 // tabulate cuts the passed-in grid down to only the part that needs to be displayed by the UI.
 func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, dropEmptyCols, calculateStats, useTabAlertSettings bool) (*statepb.Grid, error) {
+	if grid == nil {
+		return nil, errors.New("no grid")
+	}
 	filterRows, err := filterGrid(tabCfg.GetBaseOptions(), grid.GetRows())
 	if err != nil {
 		return nil, fmt.Errorf("filterGrid: %w", err)
@@ -293,7 +356,7 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 
 		inflatedGrid = dropEmptyColumns(inflatedGrid)
 
-		usesK8sClient := groupCfg.UseKubernetesClient || (groupCfg.GetResultSource().GetGcsConfig() != nil)
+		usesK8sClient := groupCfg.GetUseKubernetesClient() || (groupCfg.GetResultSource().GetGcsConfig() != nil)
 		var brokenThreshold float32
 		if calculateStats {
 			brokenThreshold = tabCfg.GetBrokenColumnThreshold()
@@ -309,36 +372,6 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 		grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
 	}
 	return grid, nil
-}
-
-// createTabState creates the tab state from the group state
-func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, dashCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, testGroupPath, tabStatePath gcs.Path, confirm, dropEmptyCols, calculateStats, useTabAlerts bool) error {
-	rawGrid, _, err := gcs.DownloadGrid(ctx, client, testGroupPath)
-	if err != nil {
-		return fmt.Errorf("downloadGrid(%s): %w", testGroupPath, err)
-	}
-
-	grid, err := tabulate(ctx, log, rawGrid, dashCfg, groupCfg, dropEmptyCols, calculateStats, useTabAlerts)
-	if err != nil {
-		return fmt.Errorf("tabulate: %w", err)
-	}
-
-	if !confirm {
-		logrus.Debug("Successfully created tab state; discarding")
-		return nil
-	}
-
-	buf, err := gcs.MarshalGrid(grid)
-	if err != nil {
-		return fmt.Errorf("marshalGrid: %w", err)
-	}
-
-	_, err = client.Upload(ctx, tabStatePath, buf, gcs.DefaultACL, gcs.NoCache)
-	if err != nil {
-		return fmt.Errorf("client.Upload(%s): %w", tabStatePath, err)
-	}
-	return nil
-
 }
 
 // dropEmptyColumns drops every column in-place that has no results
