@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"bitbucket.org/creachadair/stringset"
-	"cloud.google.com/go/storage"
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
@@ -79,9 +78,9 @@ type Fixer func(context.Context, *config.TestGroupQueue) error
 
 // Update tab state with the given frequency continuously. If freq == 0, runs only once.
 //
-// Copies the grid into the tab state. If filter is set, will remove unneeded data.
+// Copies the grid into the tab state, removing unneeded data.
 // Observes each test group in allowedGroups, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, filter, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -205,22 +204,10 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				"from": fromPath.String(),
 				"to":   toPath.String(),
 			}).Info("Calculating state")
-			if !filter && confirm {
-				// copy-only mode
-				_, err = client.Copy(ctx, *fromPath, *toPath)
-				if err != nil {
-					if errors.Is(err, storage.ErrObjectNotExist) {
-						log.WithError(err).Info("Original state does not exist.")
-					} else {
-						return fmt.Errorf("can't copy from %q to %q: %w", fromPath.String(), toPath.String(), err)
-					}
-				}
-			}
-			if filter {
-				err := createTabState(ctx, log, client, view.tab, group, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
-				if err != nil {
-					return fmt.Errorf("can't calculate state: %w", err)
-				}
+
+			err = createTabState(ctx, log, client, view.tab, group, *fromPath, *toPath, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
+			if err != nil {
+				return fmt.Errorf("can't calculate state: %w", err)
 			}
 		}
 		return nil
