@@ -223,8 +223,10 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 	defer wg.Wait()
 
 	defer close(ch)
-	readResult.lock.Lock()
-	defer readResult.lock.Unlock()
+	if len(builds) > 2 {
+		readResult.lock.Lock()
+		defer readResult.lock.Unlock()
+	}
 	for i := len(builds) - 1; i >= 0; i-- {
 		b := builds[i]
 		r := resp{
