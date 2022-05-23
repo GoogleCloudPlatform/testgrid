@@ -30,7 +30,7 @@ spec:
       serviceAccountName: updater
       containers:
       - name: updater
-        image: gcr.io/k8s-testgrid/updater:v20220517-v0.0.137-39-gb3934fe7
+        image: gcr.io/k8s-testgrid/updater:v20220523-v0.0.138-17-g53b71c7e
         ports:
         - name: metrics
           containerPort: 2112
