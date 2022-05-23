@@ -943,10 +943,8 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 	if len(alerts) > 0 {
 		return summarypb.DashboardTabSummary_FAIL
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	results := results(ctx, grid.Rows)
+	results := result.Map(grid.Rows)
 	moreCols := true
 	var found bool
 	// We want to look at recent columns, skipping over any that are still running.
@@ -956,8 +954,8 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 		var running bool
 		// One result off each column since we don't know which
 		// cells are running ahead of time.
-		for _, resultCh := range results {
-			r, ok := <-resultCh
+		for _, resultF := range results {
+			r, ok := resultF()
 			if !ok {
 				continue
 			}
@@ -1013,10 +1011,7 @@ func allLinkedIssues(rows []*statepb.Row) []string {
 
 // Culminate set of metrics related to a section of the Grid
 func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold float32) (int, int, int, int, bool) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	results := results(ctx, rows)
+	results := result.Map(rows)
 	var passingCells int
 	var filledCells int
 	var passingCols int
@@ -1030,9 +1025,10 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 		var passes int
 		var failures int
 		var other int
-		for _, ch := range results {
+		for _, iter := range results {
 			// TODO(fejta): fail old running cols
-			status := coalesceResult(<-ch, result.IgnoreRunning)
+			r, _ := iter()
+			status := coalesceResult(r, result.IgnoreRunning)
 			if result.Passing(status) {
 				passes++
 				passingCells++
@@ -1083,14 +1079,13 @@ const noGreens = "no recent greens"
 //
 // Returns the build, first extra column header and/or a no recent greens message.
 func latestGreen(grid *statepb.Grid, useFirstExtra bool) string {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	results := results(ctx, grid.Rows)
+	results := result.Map(grid.Rows)
 	for _, col := range grid.Columns {
 		var failures bool
 		var passes bool
-		for _, resultCh := range results {
-			result := coalesceResult(<-resultCh, result.ShowRunning)
+		for _, resultF := range results {
+			r, _ := resultF()
+			result := coalesceResult(r, result.ShowRunning)
 			if result == statuspb.TestStatus_PASS {
 				passes = true
 			}
@@ -1142,14 +1137,4 @@ func shouldRunHealthiness(tab *configpb.DashboardTab) bool {
 // coalesceResult reduces the result to PASS, NO_RESULT, FAIL or FLAKY.
 func coalesceResult(rowResult statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatus {
 	return result.Coalesce(rowResult, ignoreRunning)
-}
-
-// resultIter returns a channel that outputs the result for each column, decoding the run-length-encoding.
-func resultIter(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
-	return result.Iter(ctx, results)
-}
-
-// results returns a per-column result output channel for each row.
-func results(ctx context.Context, rows []*statepb.Row) map[string]<-chan statuspb.TestStatus {
-	return result.Map(ctx, rows)
 }

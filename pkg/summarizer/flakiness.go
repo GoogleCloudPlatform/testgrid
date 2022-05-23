@@ -17,7 +17,6 @@ limitations under the License.
 package summarizer
 
 import (
-	"context"
 	"regexp"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
@@ -91,9 +90,6 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 	// TODO (itsazhuhere@): consider refactoring/using summary.go's gridMetrics function
 	// as it does very similar data collection.
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Multiply by 1000 because currently Column.Started is in milliseconds; this is used
 	// for comparisons later. startTime and endTime will be used in a Timestamp later that
 	// requires seconds, so we would like to impact that at little as possible.
@@ -117,16 +113,20 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 	}
 
 	// result.Map is written in a way that assumes each test/row name is unique
-	rowResults := result.Map(ctx, grid.Rows)
-	failingColumns := failingColumns(ctx, len(grid.Columns), grid.Rows)
+	rowResults := result.Map(grid.Rows)
+	failingColumns := failingColumns(len(grid.Columns), grid.Rows)
 
-	for key, ch := range rowResults {
+	for key, f := range rowResults {
 		if !isValidTestName(key) {
 			continue
 		}
 		rowToMessageIndex := 0
 		i := -1
-		for nextRowResult := range ch {
+		for {
+			nextRowResult, more := f()
+			if !more {
+				break
+			}
 			i++
 			if i >= len(grid.Columns) {
 				break
@@ -179,9 +179,9 @@ func parseGrid(grid *statepb.Grid, startTime int, endTime int) ([]*common.GridMe
 
 // failingColumns iterates over the grid in column-major order
 // and returns a slice of bool indicating whether a column is 100% failing.
-func failingColumns(ctx context.Context, numColumns int, rows []*statepb.Row) []bool {
+func failingColumns(numColumns int, rows []*statepb.Row) []bool {
 	// Convert to map of iterators to handle run-length encoding.
-	rowResults := result.Map(ctx, rows)
+	rowResults := result.Map(rows)
 	out := make([]bool, numColumns)
 	if len(rows) <= 1 {
 		// If we only have one test, don't do this metric.
@@ -190,7 +190,7 @@ func failingColumns(ctx context.Context, numColumns int, rows []*statepb.Row) []
 	for i := 0; i < numColumns; i++ {
 		out[i] = true
 		for _, row := range rowResults {
-			rr, more := <-row
+			rr, more := row()
 			if !more {
 				continue
 			}

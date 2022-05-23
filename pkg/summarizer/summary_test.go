@@ -2561,31 +2561,19 @@ func TestResultIter(t *testing.T) {
 				statuspb.TestStatus_PASS,
 			},
 		},
-		{
-			name: "cancel aborts early",
-			in: []int32{
-				int32(statuspb.TestStatus_PASS), 50,
-			},
-			cancel: 2,
-			expected: []statuspb.TestStatus{
-				statuspb.TestStatus_PASS,
-				statuspb.TestStatus_PASS,
-			},
-		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			out := resultIter(ctx, tc.in)
+			iter := result.Iter(tc.in)
 			var actual []statuspb.TestStatus
 			var idx int
-			for val := range out {
-				idx++
-				if tc.cancel > 0 && idx == tc.cancel {
-					cancel()
+			for {
+				val, ok := iter()
+				if !ok {
+					return
 				}
+				idx++
 				actual = append(actual, val)
 			}
 			if !reflect.DeepEqual(actual, tc.expected) {
