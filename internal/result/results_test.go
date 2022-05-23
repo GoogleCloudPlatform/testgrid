@@ -256,9 +256,8 @@ func TestIter(t *testing.T) {
 
 const totalResults = 10e6
 
-func benchmarkResults() []int32 {
+func benchmarkResults(remain int32) []int32 {
 	rand.Seed(42)
-	var remain int32 = totalResults
 
 	var statuses []int32
 	for num := range statuspb.TestStatus_name {
@@ -278,27 +277,20 @@ func benchmarkResults() []int32 {
 	return results
 }
 
-func BenchmarkIterSlow(b *testing.B) {
-	results := benchmarkResults()
-	ch := iterSlow(context.Background(), results)
-	b.ResetTimer()
-	var n int
-	for i := 0; i < b.N; i++ {
+func BenchmarkIter(b *testing.B) {
+
+	loopCh := func(results []int32) int32 {
+		var n int32
+		ch := iterSlow(context.Background(), results)
 		for range ch {
 			n++
 		}
+		return n
 	}
-	if n != totalResults {
-		b.Fatal(n)
-	}
-}
 
-func BenchmarkIterFast(b *testing.B) {
-	results := benchmarkResults()
-	f := iterFast(results)
-	b.ResetTimer()
-	var n int
-	for i := 0; i < b.N; i++ {
+	loopF := func(results []int32) int32 {
+		var n int32
+		f := iterFast(results)
 		for {
 			_, more := f()
 			if !more {
@@ -306,8 +298,51 @@ func BenchmarkIterFast(b *testing.B) {
 			}
 			n++
 		}
+		return n
 	}
-	if n != totalResults {
-		b.Fatal(n)
+
+	const (
+		few  = 1e6
+		many = 10e6
+	)
+
+	cases := []struct {
+		name    string
+		results int32
+		loop    func([]int32) int32
+	}{
+		{
+			name:    "few chan",
+			results: few,
+			loop:    loopCh,
+		},
+		{
+			name:    "few func",
+			results: few,
+			loop:    loopF,
+		},
+		{
+			name:    "many chan",
+			results: many,
+			loop:    loopCh,
+		},
+		{
+			name:    "many func",
+			results: many,
+			loop:    loopF,
+		},
+	}
+
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			results := benchmarkResults(int32(tc.results))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				n := tc.loop(results)
+				if n != tc.results {
+					b.Fatalf("Got %d results, wanted %d", n, tc.results)
+				}
+			}
+		})
 	}
 }
