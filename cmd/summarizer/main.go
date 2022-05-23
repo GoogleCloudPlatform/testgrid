@@ -71,7 +71,6 @@ func gatherOptions() options {
 	flag.Var(&o.dashboards, "dashboard", "Only update named dashboards if set (repeateable)")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
-	flag.StringVar(&o.gridPathPrefix, "grid-path", "grid", "Deprecated, stop using")
 	flag.StringVar(&o.summaryPathPrefix, "summary-path", "summary", "Write summaries under this GCS path.")
 	flag.StringVar(&o.pubsub, "pubsub", "", "listen for test group updates at project/subscription")
 	flag.StringVar(&o.tabPathPrefix, "tab-path", "tabs", "Read from tab state instead of test group")
@@ -84,7 +83,7 @@ func gatherOptions() options {
 	return o
 }
 
-func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridPrefix, tabPrefix, credPath string) (summarizer.Fixer, error) {
+func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, tabPrefix, credPath string) (summarizer.Fixer, error) {
 	if projectSub == "" {
 		return nil, nil
 	}
@@ -98,7 +97,7 @@ func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, gridP
 		logrus.WithError(err).Fatal("Failed to create pubsub client")
 	}
 	client := pubsub.NewClient(pubsubClient)
-	return summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, gridPrefix, tabPrefix)
+	return summarizer.FixGCS(client, logrus.StandardLogger(), projID, subID, configPath, tabPrefix)
 }
 
 func main() {
@@ -132,7 +131,7 @@ func main() {
 
 	client := gcs.NewClient(storageClient)
 	metrics := summarizer.CreateMetrics(prometheus.NewFactory())
-	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.gridPathPrefix, opt.tabPathPrefix, opt.creds)
+	fixer, err := gcsFixer(ctx, opt.pubsub, opt.config, opt.tabPathPrefix, opt.creds)
 	if err != nil {
 		logrus.WithError(err).WithField("subscription", opt.pubsub).Fatal("Failed to configure pubsub")
 	}
