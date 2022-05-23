@@ -35,15 +35,11 @@ import (
 // FixGCS listens for GCS changes to test groups and schedules another update of its dashboards ~immediately.
 //
 // Returns when the context is canceled or a processing error occurs.
-func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID string, configPath gcs.Path, gridPathPrefix, tabPathPrefix string) (Fixer, error) {
-	if tabPathPrefix != "" {
-		gridPathPrefix = tabPathPrefix
+func FixGCS(client pubsub.Subscriber, log logrus.FieldLogger, projID, subID string, configPath gcs.Path, tabPathPrefix string) (Fixer, error) {
+	if !strings.HasSuffix(tabPathPrefix, "/") && tabPathPrefix != "" {
+		tabPathPrefix += "/"
 	}
-
-	if !strings.HasSuffix(gridPathPrefix, "/") && gridPathPrefix != "" {
-		gridPathPrefix += "/"
-	}
-	gridPath, err := configPath.ResolveReference(&url.URL{Path: gridPathPrefix})
+	gridPath, err := configPath.ResolveReference(&url.URL{Path: tabPathPrefix})
 	if err != nil {
 		return nil, err
 	}
