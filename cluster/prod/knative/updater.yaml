@@ -32,6 +32,7 @@ spec:
         - --persist-queue=gs://knative-own-testgrid/queue/updater.json
         - --pooled
         - --reprocess-on-change
+        - --skip-gc
         - --subscribe=knative-prow=knative-tests/testgrid
         - --wait=1h
 ---
