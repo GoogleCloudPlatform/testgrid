@@ -413,7 +413,9 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			defer wg.Done()
 			for tg := range channel {
 				updateTestGroup(tg)
-				runtime.GC()
+				if !SkipGC {
+					runtime.GC()
+				}
 			}
 		}()
 	}
@@ -421,6 +423,8 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	log.Info("Starting to process test groups...")
 	return q.Send(ctx, channel, freq)
 }
+
+var SkipGC bool
 
 // TestGroupPath returns the path to a test_group proto given this proto
 func TestGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) {
