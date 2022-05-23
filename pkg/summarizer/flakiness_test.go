@@ -17,7 +17,6 @@ limitations under the License.
 package summarizer
 
 import (
-	"context"
 	"testing"
 
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -635,7 +634,7 @@ func TestFailingColumns(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := failingColumns(context.Background(), tc.numColumns, tc.rows)
+			actual := failingColumns(tc.numColumns, tc.rows)
 			if diff := cmp.Diff(tc.expected, actual); diff != "" {
 				t.Errorf("failingColumns(ctx, %v %v) gave unexpected diff (-want +got): %s", tc.numColumns, tc.rows, diff)
 			}

@@ -1154,13 +1154,16 @@ func constructGridFromGroupConfig(log logrus.FieldLogger, group *configpb.TestGr
 }
 
 func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*statepb.Row) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	filled := make([]*statepb.Row, 0, len(rows))
 	var dropped int
 	for _, r := range grid.Rows {
 		var found bool
-		for res := range result.Iter(ctx, r.Results) {
+		f := result.Iter(r.Results)
+		for {
+			res, more := f()
+			if !more {
+				break
+			}
 			if res == statuspb.TestStatus_NO_RESULT {
 				continue
 			}
@@ -1338,13 +1341,11 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	if failuresToOpen == 0 {
 		return nil
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var concurrentFailures int
 	var totalFailures int32
 	var passes int
 	var compressedIdx int
-	ch := result.Iter(ctx, row.Results)
+	f := result.Iter(row.Results)
 	var firstFail *statepb.Column
 	var latestFail *statepb.Column
 	var latestPass *statepb.Column
@@ -1354,7 +1355,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	// or else failuresToOpen (alert).
 	for _, col := range cols {
 		// TODO(fejta): ignore old running
-		rawRes := <-ch
+		rawRes, _ := f()
 		res := result.Coalesce(rawRes, result.IgnoreRunning)
 		if res == statuspb.TestStatus_NO_RESULT {
 			if rawRes == statuspb.TestStatus_RUNNING {

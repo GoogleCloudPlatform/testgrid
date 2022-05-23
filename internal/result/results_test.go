@@ -19,6 +19,7 @@ package result
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"testing"
 
@@ -230,19 +231,6 @@ func TestIter(t *testing.T) {
 				statuspb.TestStatus_FLAKY,
 			},
 		},
-		{
-			name: "honor cancelled context",
-			ctx: func() context.Context {
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel()
-				return ctx
-			}(),
-			results: []int32{
-				stoi(statuspb.TestStatus_FAIL), 1,
-				stoi(statuspb.TestStatus_PASS), 2,
-				stoi(statuspb.TestStatus_FLAKY), 3,
-			},
-		},
 	}
 
 	for _, tc := range cases {
@@ -251,12 +239,75 @@ func TestIter(t *testing.T) {
 				tc.ctx = context.Background()
 			}
 			var actual []statuspb.TestStatus
-			for item := range Iter(tc.ctx, tc.results) {
+			f := Iter(tc.results)
+			for {
+				item, more := f()
+				if !more {
+					break
+				}
 				actual = append(actual, item)
 			}
 			if !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("Iter(%v) got %v, want %v", tc.results, actual, tc.expected)
 			}
 		})
+	}
+}
+
+const totalResults = 10e6
+
+func benchmarkResults() []int32 {
+	rand.Seed(42)
+	var remain int32 = totalResults
+
+	var statuses []int32
+	for num := range statuspb.TestStatus_name {
+		statuses = append(statuses, num)
+	}
+	var results []int32
+	n := int32(len(statuses))
+	for remain > 0 {
+		result := rand.Int31() % n
+		count := rand.Int31() % 100
+		if count > remain {
+			count = remain
+		}
+		results = append(results, result, count)
+		remain -= count
+	}
+	return results
+}
+
+func BenchmarkIterSlow(b *testing.B) {
+	results := benchmarkResults()
+	ch := iterSlow(context.Background(), results)
+	b.ResetTimer()
+	var n int
+	for i := 0; i < b.N; i++ {
+		for range ch {
+			n++
+		}
+	}
+	if n != totalResults {
+		b.Fatal(n)
+	}
+}
+
+func BenchmarkIterFast(b *testing.B) {
+	results := benchmarkResults()
+	f := iterFast(results)
+	b.ResetTimer()
+	var n int
+	for i := 0; i < b.N; i++ {
+		for {
+			_, more := f()
+			if !more {
+				break
+			}
+			n++
+		}
+	}
+	if n != totalResults {
+		b.Fatal(n)
 	}
 }

@@ -91,8 +91,7 @@ func Coalesce(result statuspb.TestStatus, ignoreRunning bool) statuspb.TestStatu
 	return statuspb.TestStatus_UNKNOWN
 }
 
-// Iter returns a channel that outputs the result for each column, decoding the run-length-encoding.
-func Iter(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
+func iterSlow(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
 	out := make(chan statuspb.TestStatus)
 	go func() {
 		defer close(out)
@@ -122,11 +121,39 @@ func Iter(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
 	return out
 }
 
+// Iter returns a function that returns the result for each column, decoding the run-length-encoding.
+func Iter(results []int32) ResultIter {
+	return iterFast(results)
+}
+
+func iterFast(results []int32) ResultIter {
+	var i int
+	n := len(results)
+	var more int32
+	var status statuspb.TestStatus
+	return func() (statuspb.TestStatus, bool) {
+		for {
+			if more > 0 {
+				more--
+				return status, true
+			}
+			if i+1 >= n {
+				return statuspb.TestStatus_NO_RESULT, false
+			}
+			status = statuspb.TestStatus(results[i])
+			more = results[i+1]
+			i += 2
+		}
+	}
+}
+
+type ResultIter func() (result statuspb.TestStatus, more bool)
+
 // Map returns a per-column result output channel for each row.
-func Map(ctx context.Context, rows []*statepb.Row) map[string]<-chan statuspb.TestStatus {
-	iters := map[string]<-chan statuspb.TestStatus{}
+func Map(rows []*statepb.Row) map[string]ResultIter {
+	iters := map[string]ResultIter{}
 	for _, r := range rows {
-		iters[r.Name] = Iter(ctx, r.Results)
+		iters[r.Name] = Iter(r.Results)
 	}
 	return iters
 }
