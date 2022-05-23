@@ -122,11 +122,11 @@ func iterSlow(ctx context.Context, results []int32) <-chan statuspb.TestStatus {
 }
 
 // Iter returns a function that returns the result for each column, decoding the run-length-encoding.
-func Iter(results []int32) ResultIter {
+func Iter(results []int32) IterFunc {
 	return iterFast(results)
 }
 
-func iterFast(results []int32) ResultIter {
+func iterFast(results []int32) IterFunc {
 	var i int
 	n := len(results)
 	var more int32
@@ -147,11 +147,14 @@ func iterFast(results []int32) ResultIter {
 	}
 }
 
-type ResultIter func() (result statuspb.TestStatus, more bool)
+// IterFunc returns a result for each column (and then !ok).
+//
+// This decodes the run-length-encoding for a row's results.
+type IterFunc func() (result statuspb.TestStatus, ok bool)
 
 // Map returns a per-column result output channel for each row.
-func Map(rows []*statepb.Row) map[string]ResultIter {
-	iters := map[string]ResultIter{}
+func Map(rows []*statepb.Row) map[string]IterFunc {
+	iters := map[string]IterFunc{}
 	for _, r := range rows {
 		iters[r.Name] = Iter(r.Results)
 	}

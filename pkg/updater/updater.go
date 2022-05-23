@@ -424,6 +424,8 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	return q.Send(ctx, channel, freq)
 }
 
+// SkipGC will cause the updater to skip calling runtime.GC(), which it
+// normally does after every test group update.
 var SkipGC bool
 
 // TestGroupPath returns the path to a test_group proto given this proto
