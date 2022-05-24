@@ -17,14 +17,11 @@ limitations under the License.
 package tabulator
 
 import (
-	"bytes"
-	"compress/zlib"
 	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -870,97 +867,64 @@ func Test_CreateTabState(t *testing.T) {
 		},
 	})
 
-	tabConfig := configpb.DashboardTab{
-		Name: "no filters",
-	}
-
 	testcases := []struct {
-		name          string
-		existingState fake.Object
-		confirm       bool
-		expectError   bool
-		expectUpload  bool
+		name         string
+		state        *statepb.Grid
+		confirm      bool
+		expectError  bool
+		expectUpload bool
 	}{
 		{
 			name:        "Fails if data is missing",
 			expectError: true,
 		},
 		{
-			name: "Does not write without confirm",
-			existingState: func() fake.Object {
-				return fake.Object{
-					Data: string(compress(gridBuf(&exampleGrid))),
-				}
-			}(),
+			name:        "Does not write without confirm",
+			state:       &exampleGrid,
 			confirm:     false,
 			expectError: false,
 		},
 		{
-			name: "Fails with uncompressed grid",
-			existingState: func() fake.Object {
-				return fake.Object{
-					Data: string(gridBuf(&exampleGrid)),
-				}
-			}(),
-			expectError: true,
-		},
-		{
-			name: "Writes data when upload is expected",
-			existingState: func() fake.Object {
-				return fake.Object{
-					Data: string(compress(gridBuf(&exampleGrid))),
-				}
-			}(),
+			name:         "Writes data when upload is expected",
+			state:        &exampleGrid,
 			confirm:      true,
 			expectUpload: true,
 		},
 	}
 
-	fromPath := newPathOrDie("gs://example/from")
-	toPath := newPathOrDie("gs://example/to")
+	expectedPath := newPathOrDie("gs://example/prefix/dashboard/tab")
+	configPath := newPathOrDie("gs://example/config")
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			client := fake.UploadClient{
-				Client: fake.Client{
-					Opener: fake.Opener{
-						*fromPath: tc.existingState,
-					},
-				},
 				Uploader: fake.Uploader{},
 			}
 
-			err := createTabState(ctx, logrus.New(), client, &tabConfig, &configpb.TestGroup{}, *fromPath, *toPath, tc.confirm, true, true, true)
+			task := writeTask{
+				dashboard: &configpb.Dashboard{
+					Name: "dashboard",
+				},
+				tab: &configpb.DashboardTab{
+					Name: "tab",
+				},
+				group: &configpb.TestGroup{
+					Name: "testgroup",
+				},
+				data: tc.state,
+			}
+
+			err := createTabState(ctx, logrus.New(), client, task, *configPath, "prefix", tc.confirm, true, true, true)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}
-			res, ok := client.Uploader[*toPath]
+			res, ok := client.Uploader[*expectedPath]
 			uploaded := ok && (len(res.Buf) != 0)
 			if uploaded != tc.expectUpload {
 				t.Errorf("Wrong upload: want %t, got %v", tc.expectUpload, ok)
 			}
 		})
 	}
-}
-
-func gridBuf(grid *statepb.Grid) []byte {
-	buf, err := proto.Marshal(grid)
-	if err != nil {
-		panic(err)
-	}
-	return buf
-}
-
-func compress(buf []byte) []byte {
-	var zbuf bytes.Buffer
-	zw := zlib.NewWriter(&zbuf)
-	if _, err := zw.Write(buf); err != nil {
-		panic(err)
-	}
-	if err := zw.Close(); err != nil {
-		panic(err)
-	}
-	return zbuf.Bytes()
 }
