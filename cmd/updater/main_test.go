@@ -115,17 +115,15 @@ func TestGatherFlagOptions(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ceil := runtime.NumCPU()
-			if ceil > 4 {
-				ceil = 4
-			}
+			cores := runtime.NumCPU()
 			expected := options{
 				buildTimeout:      3 * time.Minute,
-				buildConcurrency:  ceil,
-				groupConcurrency:  runtime.NumCPU(),
+				buildConcurrency:  cores * 4,
+				groupConcurrency:  cores,
 				groupTimeout:      10 * time.Minute,
 				gridPrefix:        "grid",
 				reprocessOnChange: true,
+				pooled:            true,
 			}
 			if tc.expected != nil {
 				tc.expected(&expected)

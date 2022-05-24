@@ -71,10 +71,7 @@ func (o *options) validate() error {
 		o.groupConcurrency = runtime.NumCPU()
 	}
 	if o.buildConcurrency == 0 {
-		o.buildConcurrency = runtime.NumCPU()
-		if o.buildConcurrency > 4 {
-			o.buildConcurrency = 4
-		}
+		o.buildConcurrency = o.groupConcurrency * 4
 	}
 
 	return subscribeGCS(o.subscriptions.Strings()...)
@@ -116,7 +113,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
 
-	fs.BoolVar(&o.pooled, "pooled", false, "Use a pool to fetch builds if set")
+	fs.BoolVar(&o.pooled, "pooled", true, "Use a pool to fetch builds if set")
 
 	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
@@ -171,15 +168,13 @@ func main() {
 	log.Info("Configured concurrency")
 
 	var poolCtx context.Context
-	var concurrency = opt.buildConcurrency
 	if opt.pooled {
 		poolCtx = ctx
-		concurrency = opt.groupConcurrency // TODO(fejta): * opt.buildConcurrency
 		log.Info("Reading builds concurrently from a pool")
 	} else {
 		log.Info("Reading builds serially from each group")
 	}
-	groupUpdater := updater.GCS(poolCtx, client, opt.groupTimeout, opt.buildTimeout, concurrency, opt.confirm, updater.SortStarted, opt.reprocessOnChange)
+	groupUpdater := updater.GCS(poolCtx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, opt.reprocessOnChange)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
