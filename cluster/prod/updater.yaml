@@ -35,8 +35,8 @@ spec:
         - name: metrics
           containerPort: 2112
         args:
-        - --build-concurrency=5
-        - --build-timeout=2m
+        - --build-concurrency=10
+        - --build-timeout=5m
         - --config=gs://k8s-testgrid/config
         - --confirm
         - --group-concurrency=10
