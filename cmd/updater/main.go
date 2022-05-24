@@ -119,7 +119,7 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
 
-	fs.BoolVar(&updater.SkipGC, "skip-gc", false, "Do not force the GC to run after each group update when set")
+	fs.BoolVar(&updater.SkipGC, "skip-gc", true, "Do not force the GC to run after each group update when set")
 
 	fs.Parse(args)
 	return o
