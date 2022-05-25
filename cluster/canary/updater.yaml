@@ -43,9 +43,7 @@ spec:
         - --group-timeout=20m
         - --json-logs
         - --persist-queue=gs://k8s-testgrid-canary/queue/updater.json
-        - --pooled
         - --reprocess-on-change
-        - --skip-gc
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid-canary
         - --subscribe=oss-prow=k8s-testgrid/testgrid-canary
         - --subscribe=istio-prow=k8s-testgrid/testgrid-canary
