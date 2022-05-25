@@ -93,11 +93,12 @@ type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gc
 func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool, reprocessGroups ...string) GroupUpdater {
 	reprocessable := stringset.New(reprocessGroups...)
 	var readResult *resultReader
-	if poolCtx != nil {
-		readResult = resultReaderPool(poolCtx, logrus.WithField("pool", "readResult"), concurrency)
-	} else {
-		readResult = basicResultReader()
+	if poolCtx == nil {
+		// TODO(fejta): remove check soon
+		panic("Context must be non-nil")
 	}
+	readResult = resultReaderPool(poolCtx, logrus.WithField("pool", "readResult"), concurrency)
+
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
 		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
 			log.Debug("Skipping non-kubernetes client group")

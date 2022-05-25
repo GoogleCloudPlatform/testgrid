@@ -59,15 +59,23 @@ type fakeOpener = fake.Opener
 func TestGCS(t *testing.T) {
 	cases := []struct {
 		name  string
+		ctx   context.Context
 		group *configpb.TestGroup
 		fail  bool
 	}{
 		{
+			name:  "contextless",
+			group: &configpb.TestGroup{},
+			fail:  true,
+		},
+		{
 			name:  "basic",
+			ctx:   context.Background(),
 			group: &configpb.TestGroup{},
 		},
 		{
 			name: "kubernetes", // should fail
+			ctx:  context.Background(),
 			group: &configpb.TestGroup{
 				UseKubernetesClient: true,
 			},
@@ -82,7 +90,6 @@ func TestGCS(t *testing.T) {
 			// either because the context is canceled or things like client are unset)
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			updater := GCS(nil, nil, 0, 0, 0, false, SortStarted, false)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tc.fail {
@@ -90,6 +97,7 @@ func TestGCS(t *testing.T) {
 					}
 				}
 			}()
+			updater := GCS(tc.ctx, nil, 0, 0, 0, false, SortStarted, false)
 			_, err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
 			switch {
 			case err != nil:
@@ -417,7 +425,9 @@ func TestUpdate(t *testing.T) {
 			}
 
 			if tc.groupUpdater == nil {
-				tc.groupUpdater = GCS(nil, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted, false)
+				poolCtx, poolCancel := context.WithCancel(context.Background())
+				defer poolCancel()
+				tc.groupUpdater = GCS(poolCtx, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted, false)
 			}
 			err := Update(
 				ctx,

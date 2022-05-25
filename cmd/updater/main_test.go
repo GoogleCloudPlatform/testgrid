@@ -123,7 +123,6 @@ func TestGatherFlagOptions(t *testing.T) {
 				groupTimeout:      10 * time.Minute,
 				gridPrefix:        "grid",
 				reprocessOnChange: true,
-				pooled:            true,
 			}
 			if tc.expected != nil {
 				tc.expected(&expected)
