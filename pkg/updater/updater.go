@@ -295,6 +295,9 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				delay = 0
 				log = log.WithField("sleep", -delay)
 			}
+			if max := freq * 2; max > 0 && delay > max {
+				delay = max
+			}
 			log = log.WithField("delay", delay.Round(time.Second))
 			mets.delay(delay)
 			select {
