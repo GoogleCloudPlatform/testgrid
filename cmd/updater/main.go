@@ -38,20 +38,19 @@ import (
 
 // options configures the updater
 type options struct {
-	config            gcs.Path // gs://path/to/config/proto
-	persistQueue      gcs.Path
-	creds             string
-	confirm           bool
-	groups            util.Strings
-	groupConcurrency  int
-	buildConcurrency  int
-	wait              time.Duration
-	groupTimeout      time.Duration
-	buildTimeout      time.Duration
-	gridPrefix        string
-	subscriptions     util.Strings
-	reprocessOnChange bool
-	reprocessList     util.Strings
+	config           gcs.Path // gs://path/to/config/proto
+	persistQueue     gcs.Path
+	creds            string
+	confirm          bool
+	groups           util.Strings
+	groupConcurrency int
+	buildConcurrency int
+	wait             time.Duration
+	groupTimeout     time.Duration
+	buildTimeout     time.Duration
+	gridPrefix       string
+	subscriptions    util.Strings
+	reprocessList    util.Strings
 
 	debug    bool
 	trace    bool
@@ -105,7 +104,6 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.IntVar(&o.buildConcurrency, "build-concurrency", 0, "Manually define the number of builds to concurrently read if non-zero")
 	fs.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
 	fs.Var(&o.subscriptions, "subscribe", "gcs-prefix=project-id/sub-id (repeatable)")
-	fs.BoolVar(&o.reprocessOnChange, "reprocess-on-change", true, "Replace last week of results when config changes when set")
 	fs.Var(&o.reprocessList, "reprocess-group-on-change", "Limit reprocessing to specific groups if set (repeatable)")
 
 	fs.DurationVar(&o.groupTimeout, "group-timeout", 10*time.Minute, "Maximum time to wait for each group to update")
@@ -165,7 +163,8 @@ func main() {
 	})
 	log.Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, opt.reprocessOnChange)
+	const reprocessOnChange = true
+	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, reprocessOnChange)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
