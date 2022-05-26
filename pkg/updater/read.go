@@ -137,20 +137,6 @@ func resultReaderPool(poolCtx context.Context, log *logrus.Entry, concurrency in
 	}
 }
 
-func basicResultReader() *resultReader {
-
-	var lock sync.RWMutex
-	readResult := func(ctx context.Context, client gcs.Downloader, build gcs.Build, stop time.Time) func() (*gcsResult, error) {
-		return func() (*gcsResult, error) {
-			return readResult(ctx, client, build, stop)
-		}
-	}
-	return &resultReader{
-		lock: lock.RLocker(),
-		read: readResult,
-	}
-}
-
 type resultReader struct {
 	lock sync.Locker
 	read func(context.Context, gcs.Downloader, gcs.Build, time.Time) func() (*gcsResult, error)
