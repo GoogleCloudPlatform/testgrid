@@ -52,7 +52,6 @@ type options struct {
 	subscriptions     util.Strings
 	reprocessOnChange bool
 	reprocessList     util.Strings
-	pooled            bool
 
 	debug    bool
 	trace    bool
@@ -113,12 +112,11 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
 
-	fs.BoolVar(&o.pooled, "pooled", true, "Use a pool to fetch builds if set")
-
 	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
 
+	// TODO(fejta): remove once true everywhere
 	fs.BoolVar(&updater.SkipGC, "skip-gc", true, "Do not force the GC to run after each group update when set")
 
 	fs.Parse(args)
@@ -167,14 +165,7 @@ func main() {
 	})
 	log.Info("Configured concurrency")
 
-	var poolCtx context.Context
-	if opt.pooled {
-		poolCtx = ctx
-		log.Info("Reading builds concurrently from a pool")
-	} else {
-		log.Info("Reading builds serially from each group")
-	}
-	groupUpdater := updater.GCS(poolCtx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, opt.reprocessOnChange)
+	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, opt.reprocessOnChange)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
