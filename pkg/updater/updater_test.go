@@ -2318,12 +2318,10 @@ func TestInflateDropAppend(t *testing.T) {
 
 			}
 
-			var readResult *resultReader
 			if tc.concurrency == 0 {
-				readResult = basicResultReader()
-			} else {
-				readResult = resultReaderPool(ctx, logrus.WithField("name", tc.name), tc.concurrency)
+				tc.concurrency = 1
 			}
+			readResult := resultReaderPool(ctx, logrus.WithField("name", tc.name), tc.concurrency)
 			if tc.groupTimeout == nil {
 				tc.groupTimeout = &defaultTimeout
 			}
