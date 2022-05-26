@@ -333,7 +333,11 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			case <-ctx.Done():
 				fixCancel()
 				return
-			case cfg := <-newConfig:
+			case cfg, ok := <-newConfig:
+				if !ok {
+					fixCancel()
+					return
+				}
 				log.Info("Updating config")
 				groups, err = testGroups(cfg, groupNames...)
 				if err != nil {
