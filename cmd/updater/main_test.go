@@ -117,12 +117,11 @@ func TestGatherFlagOptions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cores := runtime.NumCPU()
 			expected := options{
-				buildTimeout:      3 * time.Minute,
-				buildConcurrency:  cores * 4,
-				groupConcurrency:  cores,
-				groupTimeout:      10 * time.Minute,
-				gridPrefix:        "grid",
-				reprocessOnChange: true,
+				buildTimeout:     3 * time.Minute,
+				buildConcurrency: cores * 4,
+				groupConcurrency: cores,
+				groupTimeout:     10 * time.Minute,
+				gridPrefix:       "grid",
 			}
 			if tc.expected != nil {
 				tc.expected(&expected)
