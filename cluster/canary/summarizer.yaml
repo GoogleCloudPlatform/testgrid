@@ -34,7 +34,7 @@ spec:
       serviceAccountName: summarizer
       containers:
       - name: summarizer
-        image: gcr.io/k8s-testgrid/summarizer:v20220524-v0.0.139-14-g50fcfda6
+        image: gcr.io/k8s-testgrid/summarizer:v20220526-v0.0.140-14-g2122c455
         ports:
         - name: metrics
           containerPort: 2112
