@@ -22,14 +22,14 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
-
-	"github.com/golang/protobuf/proto"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 const componentName = "config-merger"
@@ -132,7 +132,7 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, mets *Metrics, list
 		source := source
 		go func() {
 			defer wg.Done()
-			cfg, err := config.ReadGCS(ctx, client, *source.Path)
+			cfg, _, err := config.ReadGCS(ctx, client, *source.Path)
 			if err != nil {
 				// Log each fatal error, but it's okay to return any fatal error
 				logrus.WithError(err).WithFields(logrus.Fields{

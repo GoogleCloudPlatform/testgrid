@@ -62,7 +62,7 @@ func (s *Server) getConfig(ctx context.Context, scope string) (*configpb.Configu
 		return nil, errors.New("Scope not specified")
 	}
 
-	cfg, err := config.ReadGCS(ctx, s.Client, *configPath)
+	cfg, _, err := config.ReadGCS(ctx, s.Client, *configPath)
 	if err != nil {
 		// Only log an error if we set and use a default scope, but can't access it.
 		// Otherwise, invalid requests will write useless logs.
