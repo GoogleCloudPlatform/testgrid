@@ -97,7 +97,7 @@ func TestGCS(t *testing.T) {
 					}
 				}
 			}()
-			updater := GCS(tc.ctx, nil, 0, 0, 0, false, SortStarted, false)
+			updater := GCS(tc.ctx, nil, 0, 0, 0, false, SortStarted)
 			_, err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
 			switch {
 			case err != nil:
@@ -427,7 +427,7 @@ func TestUpdate(t *testing.T) {
 			if tc.groupUpdater == nil {
 				poolCtx, poolCancel := context.WithCancel(context.Background())
 				defer poolCancel()
-				tc.groupUpdater = GCS(poolCtx, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted, false)
+				tc.groupUpdater = GCS(poolCtx, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, SortStarted)
 			}
 			err := Update(
 				ctx,
@@ -1107,22 +1107,21 @@ func TestInflateDropAppend(t *testing.T) {
 		}
 	}
 	cases := []struct {
-		name              string
-		ctx               context.Context
-		builds            []fakeBuild
-		group             *configpb.TestGroup
-		concurrency       int
-		skipWrite         bool
-		colReader         func(builds []fakeBuild) ColumnReader
-		colSorter         ColumnSorter
-		reprocess         time.Duration
-		reprocessOnChange bool
-		groupTimeout      *time.Duration
-		buildTimeout      *time.Duration
-		current           *fake.Object
-		byteCeiling       int
-		expected          *fakeUpload
-		err               bool
+		name         string
+		ctx          context.Context
+		builds       []fakeBuild
+		group        *configpb.TestGroup
+		concurrency  int
+		skipWrite    bool
+		colReader    func(builds []fakeBuild) ColumnReader
+		colSorter    ColumnSorter
+		reprocess    time.Duration
+		groupTimeout *time.Duration
+		buildTimeout *time.Duration
+		current      *fake.Object
+		byteCeiling  int
+		expected     *fakeUpload
+		err          bool
 	}{
 		{
 			name: "basically works",
@@ -1857,8 +1856,7 @@ func TestInflateDropAppend(t *testing.T) {
 				},
 				DaysOfResults: 30,
 			},
-			reprocess:         10 * time.Second,
-			reprocessOnChange: true,
+			reprocess: 10 * time.Second,
 			builds: []fakeBuild{
 				{
 					id:      "current",
@@ -2369,7 +2367,6 @@ func TestInflateDropAppend(t *testing.T) {
 				colReader,
 				tc.colSorter,
 				tc.reprocess,
-				tc.reprocessOnChange,
 			)
 			switch {
 			case err != nil:

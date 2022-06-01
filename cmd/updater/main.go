@@ -114,9 +114,6 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
 
-	// TODO(fejta): remove once true everywhere
-	fs.BoolVar(&updater.SkipGC, "skip-gc", true, "Do not force the GC to run after each group update when set")
-
 	fs.Parse(args)
 	return o
 }
@@ -163,8 +160,7 @@ func main() {
 	})
 	log.Info("Configured concurrency")
 
-	const reprocessOnChange = true
-	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted, reprocessOnChange)
+	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
