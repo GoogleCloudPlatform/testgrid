@@ -25,14 +25,12 @@ import (
 	"math/rand"
 	"net/url"
 	"path"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
 
-	"bitbucket.org/creachadair/stringset"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
@@ -90,8 +88,7 @@ func (mets *Metrics) start() *metrics.CycleReporter {
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter, reprocessOnChange bool, reprocessGroups ...string) GroupUpdater {
-	reprocessable := stringset.New(reprocessGroups...)
+func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
 	var readResult *resultReader
 	if poolCtx == nil {
 		// TODO(fejta): remove check soon
@@ -108,8 +105,7 @@ func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeo
 		defer cancel()
 		gcsColReader := gcsColumnReader(colClient, buildTimeout, readResult)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
-		canReprocess := reprocessOnChange && (reprocessable.Len() == 0 || reprocessable.Contains(tg.Name))
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess, canReprocess)
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess)
 	}
 }
 
@@ -421,9 +417,6 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			defer wg.Done()
 			for tg := range channel {
 				updateTestGroup(tg)
-				if !SkipGC {
-					runtime.GC()
-				}
 			}
 		}()
 	}
@@ -431,10 +424,6 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	log.Info("Starting to process test groups...")
 	return q.Send(ctx, channel, freq)
 }
-
-// SkipGC will cause the updater to skip calling runtime.GC(), which it
-// normally does after every test group update.
-var SkipGC bool
 
 // TestGroupPath returns the path to a test_group proto given this proto
 func TestGroupPath(g gcs.Path, gridPrefix, groupName string) (*gcs.Path, error) {
@@ -572,7 +561,7 @@ var (
 )
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration, reprocessOnChange bool) (bool, error) {
+func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
 	log := alog.(logrus.Ext1FieldLogger) // Add trace method
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -623,14 +612,10 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 			return false, fmt.Errorf("inflate: %w", err)
 		}
 		var floor time.Time
-		if reprocessOnChange {
-			when := time.Now().Add(-7 * 24 * time.Hour)
-			if col := reprocessColumn(log, old, tg, when); col != nil {
-				cols = append(cols, *col)
-				floor = when
-			}
-		} else {
-			floor = time.Now().Add(-72 * time.Hour)
+		when := time.Now().Add(-7 * 24 * time.Hour)
+		if col := reprocessColumn(log, old, tg, when); col != nil {
+			cols = append(cols, *col)
+			floor = when
 		}
 		SortStarted(tg, cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols, floor)
