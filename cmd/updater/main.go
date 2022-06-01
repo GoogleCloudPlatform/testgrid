@@ -114,6 +114,9 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
 
+	// TODO(chases2): remove once true everywhere
+	fs.BoolVar(&updater.ShrinkInline, "shrink-inline", false, "Truncate data inline when the size limit is reached")
+
 	fs.Parse(args)
 	return o
 }
