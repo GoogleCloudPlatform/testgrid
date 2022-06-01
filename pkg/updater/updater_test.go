@@ -3089,6 +3089,279 @@ func TestShrinkGrid(t *testing.T) {
 	}
 }
 
+func Test_ShrinkGridInline(t *testing.T) {
+	cases := []struct {
+		name    string
+		ctx     context.Context
+		tg      *configpb.TestGroup
+		cols    []InflatedColumn
+		issues  map[string][]string
+		ceiling int
+
+		want func(*configpb.TestGroup, []InflatedColumn, map[string][]string) *statepb.Grid
+		err  bool
+	}{
+		{
+			name: "basically works",
+			tg:   &configpb.TestGroup{},
+			want: func(*configpb.TestGroup, []InflatedColumn, map[string][]string) *statepb.Grid {
+				return &statepb.Grid{}
+			},
+		},
+		{
+			name: "unchanged",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+						"two": {
+							Result: statuspb.TestStatus_PASS,
+							Icon:   "S",
+						},
+					},
+				},
+			},
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				return constructGridFromGroupConfig(logrus.New(), tg, cols, issues)
+			},
+		},
+		{
+			name: "truncate column data",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 1000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three-name",
+						Build: "three-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			ceiling: 200,
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				expect := []InflatedColumn{
+					{
+						Column: &statepb.Column{
+							Name:  "hi",
+							Build: "there",
+						},
+						Cells: map[string]Cell{
+							"cell": {
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							},
+						},
+					},
+				}
+				logger := logrus.New()
+				grid := constructGridFromGroupConfig(logger, tg, cols, issues)
+				buf, _ := gcs.MarshalGrid(grid)
+				orig := len(buf)
+
+				truncateLastColumn(expect, orig, 200, "byte")
+
+				return constructGridFromGroupConfig(logger, tg, expect, issues)
+			},
+		},
+		{
+			name: "cancelled context",
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				ctx.Err()
+				return ctx
+			}(),
+			tg: &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 1000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three-name",
+						Build: "three-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			ceiling: 100,
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				logger := logrus.New()
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
+			},
+		},
+		{
+			name: "no ceiling",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two-name",
+						Build: "two-build",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 1000; i++ {
+							cells[fmt.Sprintf("cell-%d", i)] = Cell{
+								Result:  statuspb.TestStatus_FAIL,
+								Message: "yo",
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three-name",
+						Build: "three-build",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				logger := logrus.New()
+				return constructGridFromGroupConfig(logger, tg, cols, issues)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.ctx == nil {
+				tc.ctx = context.Background()
+			}
+			var want *statepb.Grid
+			if tc.want != nil {
+				want = tc.want(tc.tg, tc.cols, tc.issues)
+			}
+			got, buf, err := shrinkGridInline(tc.ctx, logrus.WithField("name", tc.name), tc.tg, tc.cols, tc.issues, tc.ceiling)
+			switch {
+			case err != nil:
+				if !tc.err {
+					t.Errorf("unexpected error: %v", err)
+				}
+			case tc.err:
+				t.Errorf("failed to get an error, got %v", got)
+			default:
+				if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("unexpected grid diff (-want +got):\n%s", diff)
+					return
+				}
+				wantBuf, err := gcs.MarshalGrid(want)
+				if err != nil {
+					t.Fatalf("Failed to marshal grid: %v", err)
+				}
+				if diff := cmp.Diff(wantBuf, buf); diff != "" {
+					t.Errorf("unexpected buf diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestOverrideBuild(t *testing.T) {
 	cases := []struct {
 		name string
@@ -5669,6 +5942,94 @@ func TestHotlistIDs(t *testing.T) {
 			got := hotlistIDs(col)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("hotlistIDs(%v) differed (-want, +got): %s", col, diff)
+			}
+		})
+	}
+}
+
+func TestTruncateLastColumn(t *testing.T) {
+	cases := []struct {
+		name   string
+		grid   []InflatedColumn
+		expect []InflatedColumn
+	}{
+		{
+			name:   "empty grid",
+			grid:   []InflatedColumn{},
+			expect: []inflatedColumn{},
+		},
+		{
+			name:   "nil grid",
+			grid:   nil,
+			expect: nil,
+		},
+		{
+			name: "grid",
+			grid: []InflatedColumn{
+				{
+					Cells: map[string]Cell{
+						"row_1": {
+							ID:     "row_1",
+							Result: statuspb.TestStatus_PASS,
+						},
+						"row_2": {
+							ID:     "row_2",
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+				{
+					Cells: map[string]Cell{
+						"row_1": {
+							ID:     "row_1",
+							Result: statuspb.TestStatus_PASS,
+						},
+						"row_2": {
+							ID:     "row_2",
+							Result: statuspb.TestStatus_PASS,
+						},
+					},
+				},
+			},
+			expect: []InflatedColumn{
+				{
+					Cells: map[string]Cell{
+						"row_1": {
+							ID:     "row_1",
+							Result: statuspb.TestStatus_PASS,
+						},
+						"row_2": {
+							ID:     "row_2",
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+				{
+					Cells: map[string]Cell{
+						"row_1": {
+							ID:      "row_1",
+							Result:  statuspb.TestStatus_UNKNOWN,
+							Message: "100 candy grid exceeds maximum size of 10 candys",
+						},
+						"row_2": {
+							ID:      "row_2",
+							Result:  statuspb.TestStatus_UNKNOWN,
+							Message: "100 candy grid exceeds maximum size of 10 candys",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.grid
+			truncateLastColumn(actual, 100, 10, "candy")
+
+			if diff := cmp.Diff(actual, tc.expect); diff != "" {
+				t.Error("mismatch (+got, -want)")
+				t.Log(diff)
 			}
 		})
 	}
