@@ -80,7 +80,7 @@ func gatherOptions() options {
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.Var(&o.groups, "group", "Only update named test group if set (repeateable)")
-	flag.BoolVar(&o.dropEmptyCols, "filter-columns", false, "Drops empty columns after filtering") // TODO(chases2): Enable, then remove flag
+	flag.BoolVar(&o.dropEmptyCols, "filter-columns", true, "Drops empty columns after filtering") // TODO(chases2): Remove flag
 	flag.BoolVar(&o.useTabAlertSettings, "tab-alerts", false, "Use newer tab settings while caculating alerts")
 	flag.BoolVar(&o.calculateStats, "column-stats", false, "Calculates stats for broken columns")
 
