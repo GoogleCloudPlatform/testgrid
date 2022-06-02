@@ -285,7 +285,18 @@ func Test_Tabulate(t *testing.T) {
 		{
 			name:     "empty grid is tolerated",
 			grid:     &statepb.Grid{},
+			dashCfg:  &configpb.DashboardTab{},
+			groupCfg: &configpb.TestGroup{},
 			expected: &statepb.Grid{},
+		},
+		{
+			name:     "nil grid is not tolerated",
+			dashCfg:  &configpb.DashboardTab{},
+			groupCfg: &configpb.TestGroup{},
+		},
+		{
+			name: "nil config is not tolerated",
+			grid: &statepb.Grid{},
 		},
 		{
 			name: "basic grid",
@@ -307,6 +318,7 @@ func Test_Tabulate(t *testing.T) {
 			dashCfg: &configpb.DashboardTab{
 				Name: "tab",
 			},
+			groupCfg: &configpb.TestGroup{},
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Name: "okay"},
@@ -347,6 +359,7 @@ func Test_Tabulate(t *testing.T) {
 				Name:        "tab",
 				BaseOptions: "exclude-filter-by-regex=bad",
 			},
+			groupCfg: &configpb.TestGroup{},
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Name: "okay"},
@@ -386,6 +399,7 @@ func Test_Tabulate(t *testing.T) {
 				Name:        "tab",
 				BaseOptions: "exclude-filter-by-regex=bad",
 			},
+			groupCfg: &configpb.TestGroup{},
 			dropCols: false,
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
@@ -427,6 +441,7 @@ func Test_Tabulate(t *testing.T) {
 				Name:        "tab",
 				BaseOptions: "exclude-filter-by-regex=bad",
 			},
+			groupCfg: &configpb.TestGroup{},
 			dropCols: true,
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
@@ -461,6 +476,7 @@ func Test_Tabulate(t *testing.T) {
 			dashCfg: &configpb.DashboardTab{
 				Name: "tab",
 			},
+			groupCfg: &configpb.TestGroup{},
 			dropCols: false,
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
@@ -505,6 +521,7 @@ func Test_Tabulate(t *testing.T) {
 						"flaky":  {Result: tspb.TestStatus_BUILD_PASSED},
 					},
 				}),
+			dashCfg: &configpb.DashboardTab{},
 			groupCfg: &configpb.TestGroup{
 				Name:                    "group",
 				NumFailuresToAlert:      1,
@@ -574,6 +591,7 @@ func Test_Tabulate(t *testing.T) {
 					NumPassesToDisableAlert: 1,
 				},
 			},
+			groupCfg:    &configpb.TestGroup{},
 			dropCols:    true,
 			useTabAlert: true,
 			expected: &statepb.Grid{
@@ -639,6 +657,7 @@ func Test_Tabulate(t *testing.T) {
 				},
 				BrokenColumnThreshold: 0.5,
 			},
+			groupCfg:       &configpb.TestGroup{},
 			dropCols:       true,
 			useTabAlert:    true,
 			calculateStats: true,
@@ -709,6 +728,7 @@ func Test_Tabulate(t *testing.T) {
 					NumPassesToDisableAlert: 1,
 				},
 			},
+			groupCfg:       &configpb.TestGroup{},
 			dropCols:       true,
 			useTabAlert:    true,
 			calculateStats: true,
@@ -752,6 +772,7 @@ func Test_Tabulate(t *testing.T) {
 					NumPassesToDisableAlert: 1,
 				},
 			},
+			groupCfg:       &configpb.TestGroup{},
 			dropCols:       false,
 			useTabAlert:    true,
 			calculateStats: true,
@@ -793,6 +814,7 @@ func Test_Tabulate(t *testing.T) {
 				},
 				BrokenColumnThreshold: 0.5,
 			},
+			groupCfg:       &configpb.TestGroup{},
 			dropCols:       true,
 			useTabAlert:    true,
 			calculateStats: false,
@@ -826,17 +848,18 @@ func Test_Tabulate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			if tc.groupCfg == nil {
-				tc.groupCfg = &configpb.TestGroup{}
-			}
-			if tc.dashCfg == nil {
-				tc.dashCfg = &configpb.DashboardTab{}
+			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, tc.groupCfg, tc.dropCols, tc.calculateStats, tc.useTabAlert)
+			if tc.expected == nil {
+				if err == nil {
+					t.Error("Expected an error, but got none")
+				}
+				return
 			}
 
-			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, tc.groupCfg, tc.dropCols, tc.calculateStats, tc.useTabAlert)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
+
 			diff := cmp.Diff(actual, tc.expected, protocmp.Transform(),
 				protocmp.IgnoreFields(&statepb.Row{}, "cell_ids", "icons", "messages", "user_property", "properties"), // mostly empty
 				protocmp.IgnoreFields(&statepb.AlertInfo{}, "fail_time"),                                              // import not needed to determine if alert was set
