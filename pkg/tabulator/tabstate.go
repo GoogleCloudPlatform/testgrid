@@ -72,7 +72,7 @@ func mapTasks(cfg *snapshot.Config) map[string][]writeTask {
 			groupToTabs[g] = append(groupToTabs[g], writeTask{
 				dashboard: dashboard,
 				tab:       tab,
-				group:     cfg.Groups[dashboard.Name],
+				group:     cfg.Groups[g],
 			})
 		}
 	}
@@ -341,7 +341,10 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 	if grid == nil {
 		return nil, errors.New("no grid")
 	}
-	filterRows, err := filterGrid(tabCfg.GetBaseOptions(), grid.GetRows())
+	if tabCfg == nil || groupCfg == nil {
+		return nil, errors.New("no config")
+	}
+	filterRows, err := filterGrid(tabCfg.BaseOptions, grid.Rows)
 	if err != nil {
 		return nil, fmt.Errorf("filterGrid: %w", err)
 	}
@@ -356,18 +359,18 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 
 		inflatedGrid = dropEmptyColumns(inflatedGrid)
 
-		usesK8sClient := groupCfg.GetUseKubernetesClient() || (groupCfg.GetResultSource().GetGcsConfig() != nil)
+		usesK8sClient := groupCfg.UseKubernetesClient || (groupCfg.GetResultSource().GetGcsConfig() != nil)
 		var brokenThreshold float32
 		if calculateStats {
-			brokenThreshold = tabCfg.GetBrokenColumnThreshold()
+			brokenThreshold = tabCfg.BrokenColumnThreshold
 		}
 		var alert, unalert int
 		if useTabAlertSettings {
 			alert = int(tabCfg.GetAlertOptions().GetNumFailuresToAlert())
 			unalert = int(tabCfg.GetAlertOptions().GetNumPassesToDisableAlert())
 		} else {
-			alert = int(groupCfg.GetNumFailuresToAlert())
-			unalert = int(groupCfg.GetNumPassesToDisableAlert())
+			alert = int(groupCfg.NumFailuresToAlert)
+			unalert = int(groupCfg.NumPassesToDisableAlert)
 		}
 		grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
 	}
