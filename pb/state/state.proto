@@ -1,9 +1,5 @@
 // Backing state for a test results table of a TestGrid dashboard tab.
-// TestState() is updated and stored by test-focused update_server.py.
-// Stored in GCS as "<test group name>".
-
-// NOTE: Do NOT update this until you have updated the internal state.proto!
-
+// Grid is the top-level message; updated and stored by the updater and tabulator.
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
@@ -112,7 +108,7 @@ message TestMetadata {
   reserved 6;
 }
 
-// TestGrid columns (also known as TestCycle).
+// TestGrid column headers. Does not contain the individual cells.
 message Column {
   // Unique instance of the job, typically BUILD_NUMBER from prow or a guid
   string build = 1;
@@ -123,6 +119,7 @@ message Column {
   string name = 2;
 
   // Milliseconds since start of epoch (python time.time() * 1000)
+  // TODO(#683): Use a timestamp, not this double
   double started = 3;
 
   // Additional custom headers like commit, image used, etc.
@@ -153,7 +150,7 @@ message Stats {
   bool broken = 5;
 }
 
-// TestGrid rows (also known as TestRow)
+// TestGrid rows
 message Row {
   // Display name, which might process id to append/filter info.
   string name = 1;
