@@ -32,7 +32,7 @@ spec:
         args:
         - --config=gs://knative-own-testgrid/config
         - --confirm
-        - --filter-columns=false # TODO(#1001) Return to true when compatible with alerting
+        - --filter-columns
         - --json-logs
         - --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
         - --pubsub=knative-tests/test-group-updates

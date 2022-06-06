@@ -33,7 +33,7 @@ spec:
         - --column-stats
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --filter-columns=false # TODO(#1001) Return to true when compatible with alerting\
+        - --filter-columns
         - --json-logs
         - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
         - --pubsub=k8s-testgrid/test-group-updates
