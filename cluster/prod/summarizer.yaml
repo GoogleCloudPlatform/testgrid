@@ -41,6 +41,7 @@ spec:
         - --json-logs
         - --persist-queue=gs://k8s-testgrid/queue/summarizer-tabs.json
         - --pubsub=k8s-testgrid/tab-updates
+        - --skip-base-options-filter
         - --wait=5m
         resources:
           requests:
