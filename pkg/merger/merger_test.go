@@ -24,14 +24,14 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-
-	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
 )
 
 func newPathOrDie(s string) *gcs.Path {
@@ -407,6 +407,71 @@ func Test_MergeAndUpdate(t *testing.T) {
 			}
 		})
 	}
+}
+func Test_RecordLastModified(t *testing.T) {
+	cases := []struct {
+		name          string
+		attrs         *storage.ReaderObjectAttrs
+		mets          *Metrics
+		source        string
+		expectAtLeast int64
+	}{
+		{
+			name:   "nil attrs; succeeds",
+			attrs:  nil,
+			mets:   &Metrics{},
+			source: "fake-source",
+		},
+		{
+			name:   "nil mets; succeeds",
+			attrs:  &storage.ReaderObjectAttrs{},
+			mets:   nil,
+			source: "fake-source",
+		},
+		{
+			name:   "nil; succeeds",
+			attrs:  nil,
+			mets:   nil,
+			source: "",
+		}, {
+			name: "non-nil mets and attrs; succeeds",
+			attrs: &storage.ReaderObjectAttrs{
+				LastModified: time.Now().Add(-5 * time.Second),
+			},
+			mets:          &Metrics{},
+			source:        "",
+			expectAtLeast: 5,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.attrs == nil || tc.mets == nil {
+				recordLastModified(tc.attrs, tc.mets, tc.source)
+			} else {
+				var fakeMetric fakeInt64
+				tc.mets.LastModified = &fakeMetric
+				recordLastModified(tc.attrs, tc.mets, tc.source)
+				if fakeMetric.last < tc.expectAtLeast {
+					t.Errorf("want at least %d, got %d", tc.expectAtLeast, fakeMetric.last)
+				}
+			}
+		})
+	}
+}
+
+type fakeInt64 struct {
+	set  bool
+	last int64
+}
+
+func (f *fakeInt64) Name() string {
+	return "fakeInt64"
+}
+
+func (f *fakeInt64) Set(n int64, _ ...string) {
+	f.last = n
+	f.set = true
 }
 
 type fakeMergeClient struct {
