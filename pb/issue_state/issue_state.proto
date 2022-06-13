@@ -1,6 +1,7 @@
 // Backing state for issues associated with a TestGrid test group.
 
 syntax = "proto3";
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/issue_state";
 
 message TargetAndMethods {
   string target_name = 1;
@@ -9,19 +10,20 @@ message TargetAndMethods {
 
 message IssueInfo {
   string issue_id = 1;
-  string title = 2;  // Issue title or description.
+  string title = 2;    // Issue title or description.
   bool is_autobug = 3; // True if auto-created by TestGrid for a failing test.
-  bool is_flakiness_bug = 8; // True if auto-created by TestGrid for a flaky test.
-  double last_modified = 4; // In seconds since epoch.
-  repeated string row_ids = 5;  // Associated row IDs (mentioned in the issue).
+  bool is_flakiness_bug =
+      8; // True if auto-created by TestGrid for a flaky test.
+  double last_modified = 4;    // In seconds since epoch.
+  repeated string row_ids = 5; // Associated row IDs (mentioned in the issue).
 
-  // Run IDs used to associate this issue with a particular target (in case of repeats, or across
-  // runs on different dashboards).
+  // Run IDs used to associate this issue with a particular target (in case of
+  // repeats, or across runs on different dashboards).
   repeated string run_ids = 6;
 
   // Targets + methods associated with this issue.
-  // Only set if test group's `link_bugs_by_test_methods` is True, else all targets + methods will
-  // be linked to this issue.
+  // Only set if test group's `link_bugs_by_test_methods` is True, else all
+  // targets + methods will be linked to this issue.
   repeated TargetAndMethods targets_and_methods = 7;
 }
 

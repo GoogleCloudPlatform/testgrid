@@ -1,4 +1,5 @@
 syntax = "proto3";
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/updater";
 
 import "pb/config/config.proto";
 import "pb/summary/summary.proto";

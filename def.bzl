@@ -21,7 +21,7 @@ load("@io_bazel_rules_docker//go:image.bzl", _go_image = "go_image")
 def go_image(
         name,  # use "image"
         base = None,
-        stamp = True,  # stamp by default, but allow overrides
+        stamp = "@io_bazel_rules_docker//stamp:always",  # stamp by default, but allow overrides
         app_name = "app",
         **kwargs):
     _go_image(

@@ -8,6 +8,7 @@ py_test(
         "coalesce_test.py",
     ],
     python_version = "PY3",
+    srcs_version = "PY3",
 )
 
 py_test(
@@ -15,6 +16,7 @@ py_test(
     srcs = ["verify_boilerplate.py"],
     data = ["//:all-srcs"],
     python_version = "PY3",
+    srcs_version = "PY3",
     tags = ["lint"],
 )
 

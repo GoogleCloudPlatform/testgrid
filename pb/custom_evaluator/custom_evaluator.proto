@@ -1,13 +1,12 @@
 syntax = "proto3";
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator";
 
 import "pb/test_status/test_status.proto";
 
 // A configuration sub-object used to do custom evaluation of test results.
 
 // A collection of Rule objects. Used to define many rules.
-message RuleSet {
-  repeated Rule rules = 1;
-}
+message RuleSet { repeated Rule rules = 1; }
 
 // A single rule that describes how to evaluate a test_cases_pb2.TestResult
 message Rule {
@@ -27,7 +26,8 @@ message TestResultComparison {
 
   oneof test_result_info {
     // The name of the property to evaluate.
-    // Properties are usually strings, so a string comparison is assumed and required.
+    // Properties are usually strings, so a string comparison is assumed and
+    // required.
     string property_key = 2;
 
     // This will find the scalar field with the given name within the TestResult

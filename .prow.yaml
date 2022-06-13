@@ -5,7 +5,7 @@ presubmits:
   spec:
     serviceAccountName: presubmits
     containers:
-    - image: gcr.io/k8s-testimages/launcher.gcr.io/google/bazel:v20210806-38e1be0-testgrid
+    - image: gcr.io/k8s-testgrid/gcloud-bazel:v20220613-v0.6-58-ge5a50c7
       command:
       - bazel
       args:

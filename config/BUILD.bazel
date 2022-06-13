@@ -65,3 +65,15 @@ go_test(
         "@org_golang_google_protobuf//testing/protocmp:go_default_library",
     ],
 )
+
+# for repo-infra hack
+platform(
+    name = "platform",
+    constraint_values = [
+        "@bazel_tools//platforms:linux",
+        "@bazel_tools//platforms:x86_64",
+        "@bazel_tools//tools/cpp:clang",
+    ],
+    parents = ["@local_config_platform//:host"],
+    visibility = ["//visibility:public"],
+)
