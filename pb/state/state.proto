@@ -1,17 +1,17 @@
 // Backing state for a test results table of a TestGrid dashboard tab.
-// Grid is the top-level message; updated and stored by the updater and tabulator.
+// Grid is the top-level message; updated and stored by the updater and
+// tabulator.
 syntax = "proto3";
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/state";
 
 import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 
-message Property {
-  map<string, string> property = 1;
-}
+message Property { map<string, string> property = 1; }
 
 // A metric and its values for each test cycle.
 message Metric {
-  string name = 1;  // Name of metric, such as duration
+  string name = 1; // Name of metric, such as duration
   // Sparse encoding of values. Indices is a list of pairs of <index, count>
   // that details columns with metric values. So given:
   //   Indices: [0, 2, 6, 4]
@@ -19,8 +19,8 @@ message Metric {
   // Decoded 12-value equivalent is:
   // [0.1, 0.2, nil, nil, nil, nil, 6.1, 6.2, 6.3, 6.4, nil, nil, ...]
   repeated int32 indices =
-      2;  // n=index of first value, n+1=count of filled values
-  repeated double values = 3;  // only present for columns with a metric value
+      2; // n=index of first value, n+1=count of filled values
+  repeated double values = 3; // only present for columns with a metric value
 }
 
 message UpdatePhaseData {
@@ -146,7 +146,8 @@ message Stats {
   int32 total_count = 3;
   // True if this column has any in-progress runs.
   bool pending = 4;
-  // True if a broken threshold is defined, and this column's fail/total ratio exceeds it.
+  // True if a broken threshold is defined, and this column's fail/total ratio
+  // exceeds it.
   bool broken = 5;
 }
 
@@ -180,7 +181,7 @@ message Row {
   // metric info (which may be omitted).
   repeated string metric = 7;
 
-  repeated Metric metrics = 8;  // Numerical performance/timing data, etc.
+  repeated Metric metrics = 8; // Numerical performance/timing data, etc.
 
   // Short string to place inside the cell (F for fail, etc)
   // Present for any column with a non-empty status (not NO_RESULT).

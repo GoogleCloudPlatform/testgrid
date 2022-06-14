@@ -1,23 +1,26 @@
 syntax = "proto3";
 
 package testgrid.api.v1;
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/api/v1";
 
 import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 import "pb/state/state.proto";
 
-service TestGridData{
+service TestGridData {
   // GET /dashboards
   // Lists dashboard names
   rpc ListDashboard(ListDashboardRequest) returns (ListDashboardResponse) {}
 
   // GET /dashboard-groups
   // Lists the dashboard group names
-  rpc ListDashboardGroup(ListDashboardGroupRequest) returns (ListDashboardGroupResponse) {}
+  rpc ListDashboardGroup(ListDashboardGroupRequest)
+      returns (ListDashboardGroupResponse) {}
 
   // GET /dashboards/{dashboard}/tabs
   // Lists the dashboard tab names
-  rpc ListDashboardTabs(ListDashboardTabsRequest) returns (ListDashboardTabsResponse) {}
+  rpc ListDashboardTabs(ListDashboardTabsRequest)
+      returns (ListDashboardTabsResponse) {}
 
   // GET /dashboards/{dashboard}
   // Returns a Dashboard config's metadata
@@ -26,11 +29,13 @@ service TestGridData{
 
   // GET /dashboard-groups/{dashboard-group}
   // Lists the dashboard names in that group
-  rpc GetDashboardGroup(GetDashboardGroupRequest) returns (GetDashboardGroupResponse) {}
+  rpc GetDashboardGroup(GetDashboardGroupRequest)
+      returns (GetDashboardGroupResponse) {}
 
   // GET /dashboards/{dashboard}/tabs/{tab}
   // Returns a tab’s configuration, as stored
-  // rpc GetDashboardTab(GetDashboardTabRequest) returns (GetDashboardTabResponse) {}
+  // rpc GetDashboardTab(GetDashboardTabRequest) returns
+  // (GetDashboardTabResponse) {}
 
   // GET /summary/{dashboard}
   // GET /dashboards/{dashboard}/summary
@@ -46,30 +51,20 @@ service TestGridData{
   rpc ListRows(ListRowsRequest) returns (ListRowsResponse) {}
 }
 
-message ListDashboardRequest {
-  string scope = 1;
-}
+message ListDashboardRequest { string scope = 1; }
 
-message ListDashboardResponse {
-  repeated Resource dashboards = 1;
-}
+message ListDashboardResponse { repeated Resource dashboards = 1; }
 
-message ListDashboardGroupRequest {
-  string scope = 1;
-}
+message ListDashboardGroupRequest { string scope = 1; }
 
-message ListDashboardGroupResponse {
-  repeated Resource dashboard_groups = 1;
-}
+message ListDashboardGroupResponse { repeated Resource dashboard_groups = 1; }
 
 message ListDashboardTabsRequest {
   string scope = 1;
   string dashboard = 2;
 }
 
-message ListDashboardTabsResponse {
-  repeated Resource dashboard_tabs = 1;
-}
+message ListDashboardTabsResponse { repeated Resource dashboard_tabs = 1; }
 
 message GetDashboardRequest {
   string scope = 1;
@@ -98,9 +93,7 @@ message GetDashboardGroupRequest {
   string dashboard_group = 2;
 }
 
-message GetDashboardGroupResponse {
-  repeated Resource dashboards = 1;
-}
+message GetDashboardGroupResponse { repeated Resource dashboards = 1; }
 
 message ListHeadersRequest {
   string scope = 1;
@@ -170,4 +163,3 @@ message Resource {
   string name = 1;
   string link = 2;
 }
-

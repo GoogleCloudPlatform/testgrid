@@ -2,6 +2,7 @@
 // Stored in GCS as "dashboard-<normalized dashboard name>".
 
 syntax = "proto3";
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/summary";
 
 import "google/protobuf/timestamp.proto";
 
@@ -59,18 +60,20 @@ message FailingTestSummary {
   // A list of IDs for issue hotlists related to this failure.
   repeated string hotlist_ids = 16;
 
-  // Dynamic email list, route email alerts to these instead of the configured defaults.
+  // Dynamic email list, route email alerts to these instead of the configured
+  // defaults.
   repeated string email_addresses = 18;
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.
 // Next ID: 12
 message TestInfo {
-  // The display name of the test, typically what is shown for each row in TestGrid
+  // The display name of the test, typically what is shown for each row in
+  // TestGrid
   string display_name = 1;
 
-  // The total number of test runs not including runs failed due to infrastructure
-  // failures.
+  // The total number of test runs not including runs failed due to
+  // infrastructure failures.
   int32 total_non_infra_runs = 2;
 
   // The number of passed test runs not including runs failed due to
@@ -97,7 +100,7 @@ message TestInfo {
   // The flakiness of the test from previous intervals
   repeated float previous_flakiness = 10;
 
-  enum Trend{
+  enum Trend {
     UNKNOWN = 0;
     NO_CHANGE = 1;
     UP = 2;

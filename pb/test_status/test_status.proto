@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/test_status";
+
 enum TestStatus {
   // Proto versions of test_status.py's GathererStatus
   // Note that: NO_RESULT is used to signal that there should be no change.
