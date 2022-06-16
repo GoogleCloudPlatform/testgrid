@@ -25,7 +25,7 @@ spec:
       serviceAccountName: tabulator
       containers:
       - name: tabulator
-        image: gcr.io/k8s-testgrid/tabulator:v20220614-v0.0.142-16-g0e7351ef
+        image: gcr.io/k8s-testgrid/tabulator:v20220615-v0.0.142-24-g9e7d1262
         ports:
         - name: metrics
           containerPort: 2112
