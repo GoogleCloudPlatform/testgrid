@@ -87,7 +87,7 @@ type Fixer func(context.Context, *config.TestGroupQueue) error
 //
 // Copies the grid into the tab state, removing unneeded data.
 // Observes each test group in allowedGroups, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, readConcurrency, writeConcurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, dropEmptyCols, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, readConcurrency, writeConcurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -266,7 +266,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 				finish := mets.UpdateState.Start()
 				log = log.WithField("dashboard", task.dashboard.Name).WithField("tab", task.tab.Name)
-				err := createTabState(writeCtx, log, client, task, configPath, tabsPathPrefix, confirm, dropEmptyCols, calculateStats, useTabAlertSettings)
+				err := createTabState(writeCtx, log, client, task, configPath, tabsPathPrefix, confirm, calculateStats, useTabAlertSettings)
 				cancel()
 				if err != nil {
 					finish.Fail()
@@ -287,7 +287,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 }
 
 // createTabState creates the tab state from the group state
-func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, task writeTask, configPath gcs.Path, tabsPathPrefix string, confirm, dropEmptyCols, calculateStats, useTabAlerts bool) error {
+func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, task writeTask, configPath gcs.Path, tabsPathPrefix string, confirm, calculateStats, useTabAlerts bool) error {
 	location, err := TabStatePath(configPath, tabsPathPrefix, task.dashboard.Name, task.tab.Name)
 	if err != nil {
 		return fmt.Errorf("can't make dashtab path %s/%s: %w", task.dashboard.Name, task.tab.Name, err)
@@ -297,7 +297,7 @@ func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		"to": location.String(),
 	}).Info("Calculating state")
 
-	grid, err := tabulate(ctx, log, task.data, task.tab, task.group, dropEmptyCols, calculateStats, useTabAlerts)
+	grid, err := tabulate(ctx, log, task.data, task.tab, task.group, calculateStats, useTabAlerts)
 	if err != nil {
 		return fmt.Errorf("tabulate: %w", err)
 	}
@@ -337,7 +337,7 @@ func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string)
 }
 
 // tabulate cuts the passed-in grid down to only the part that needs to be displayed by the UI.
-func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, dropEmptyCols, calculateStats, useTabAlertSettings bool) (*statepb.Grid, error) {
+func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, calculateStats, useTabAlertSettings bool) (*statepb.Grid, error) {
 	if grid == nil {
 		return nil, errors.New("no grid")
 	}
@@ -350,30 +350,28 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 	}
 	grid.Rows = filterRows
 
-	if dropEmptyCols {
-		// TODO(chases2): Instead of inflate/drop/rewrite, move to inflate/drop/append
-		inflatedGrid, issues, err := updater.InflateGrid(ctx, grid, time.Time{}, time.Now())
-		if err != nil {
-			return nil, fmt.Errorf("inflateGrid: %w", err)
-		}
-
-		inflatedGrid = dropEmptyColumns(inflatedGrid)
-
-		usesK8sClient := groupCfg.UseKubernetesClient || (groupCfg.GetResultSource().GetGcsConfig() != nil)
-		var brokenThreshold float32
-		if calculateStats {
-			brokenThreshold = tabCfg.BrokenColumnThreshold
-		}
-		var alert, unalert int
-		if useTabAlertSettings {
-			alert = int(tabCfg.GetAlertOptions().GetNumFailuresToAlert())
-			unalert = int(tabCfg.GetAlertOptions().GetNumPassesToDisableAlert())
-		} else {
-			alert = int(groupCfg.NumFailuresToAlert)
-			unalert = int(groupCfg.NumPassesToDisableAlert)
-		}
-		grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
+	// TODO(chases2): Instead of inflate/drop/rewrite, move to inflate/drop/append
+	inflatedGrid, issues, err := updater.InflateGrid(ctx, grid, time.Time{}, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("inflateGrid: %w", err)
 	}
+
+	inflatedGrid = dropEmptyColumns(inflatedGrid)
+
+	usesK8sClient := groupCfg.UseKubernetesClient || (groupCfg.GetResultSource().GetGcsConfig() != nil)
+	var brokenThreshold float32
+	if calculateStats {
+		brokenThreshold = tabCfg.BrokenColumnThreshold
+	}
+	var alert, unalert int
+	if useTabAlertSettings {
+		alert = int(tabCfg.GetAlertOptions().GetNumFailuresToAlert())
+		unalert = int(tabCfg.GetAlertOptions().GetNumPassesToDisableAlert())
+	} else {
+		alert = int(groupCfg.NumFailuresToAlert)
+		unalert = int(groupCfg.NumPassesToDisableAlert)
+	}
+	grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
 	return grid, nil
 }
 
