@@ -21,7 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -85,15 +87,17 @@ func ParseAndCheck(data []byte) (list MergeList, err error) {
 
 // Metrics holds metrics relevant to the config merger.
 type Metrics struct {
-	Update metrics.Cyclic
-	Fields metrics.Int64
+	Update       metrics.Cyclic
+	Fields       metrics.Int64
+	LastModified metrics.Int64
 }
 
 // CreateMetrics creates metrics for the Config Merger
 func CreateMetrics(factory metrics.Factory) *Metrics {
 	return &Metrics{
-		Update: factory.NewCyclic(componentName),
-		Fields: factory.NewInt64("config_fields", "Config field usage by name", "component", "field"),
+		Update:       factory.NewCyclic(componentName),
+		Fields:       factory.NewInt64("config_fields", "Config field usage by name", "component", "field"),
+		LastModified: factory.NewInt64("last_modified", "Seconds since shard last modified ", "shard"),
 	}
 }
 
@@ -132,7 +136,8 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, mets *Metrics, list
 		source := source
 		go func() {
 			defer wg.Done()
-			cfg, _, err := config.ReadGCS(ctx, client, *source.Path)
+			cfg, attrs, err := config.ReadGCS(ctx, client, *source.Path)
+			recordLastModified(attrs, mets, source.Name)
 			if err != nil {
 				// Log each fatal error, but it's okay to return any fatal error
 				logrus.WithError(err).WithFields(logrus.Fields{
@@ -205,4 +210,18 @@ func MergeAndUpdate(ctx context.Context, client mergeClient, mets *Metrics, list
 
 	finish.Success()
 	return result, nil
+}
+
+func recordLastModified(attrs *storage.ReaderObjectAttrs, mets *Metrics, source string) {
+	if attrs != nil {
+		lastModified := attrs.LastModified
+		diff := time.Since(lastModified)
+		if mets != nil {
+			mets.LastModified.Set(int64(diff.Seconds()), source)
+		}
+		logrus.WithFields(logrus.Fields{
+			"diff":  diff,
+			"shard": source,
+		}).Info("Time since last updated.")
+	}
 }
