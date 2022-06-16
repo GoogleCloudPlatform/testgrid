@@ -277,7 +277,6 @@ func Test_Tabulate(t *testing.T) {
 		grid           *statepb.Grid
 		dashCfg        *configpb.DashboardTab
 		groupCfg       *configpb.TestGroup
-		dropCols       bool
 		calculateStats bool
 		useTabAlert    bool
 		expected       *statepb.Grid
@@ -375,7 +374,7 @@ func Test_Tabulate(t *testing.T) {
 			},
 		},
 		{
-			name: "Filters out regex tabs, but does not yet drop columns",
+			name: "Filters out regex tabs, and drops empty columns",
 			grid: buildGrid(t,
 				updater.InflatedColumn{
 					Column: &statepb.Column{Name: "okay"},
@@ -400,49 +399,6 @@ func Test_Tabulate(t *testing.T) {
 				BaseOptions: "exclude-filter-by-regex=bad",
 			},
 			groupCfg: &configpb.TestGroup{},
-			dropCols: false,
-			expected: &statepb.Grid{
-				Columns: []*statepb.Column{
-					{Name: "okay"},
-					{Name: "weird"},
-					{Name: "still-ok"},
-				},
-				Rows: []*statepb.Row{
-					{
-						Name:    "first",
-						Id:      "first",
-						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1, int32(tspb.TestStatus_NO_RESULT), 1, int32(tspb.TestStatus_BUILD_PASSED), 1},
-					},
-				},
-			},
-		},
-		{
-			name: "Filters out regex tabs, dropping empty columns when asked",
-			grid: buildGrid(t,
-				updater.InflatedColumn{
-					Column: &statepb.Column{Name: "okay"},
-					Cells: map[string]updater.Cell{
-						"first": {Result: tspb.TestStatus_BUILD_PASSED},
-					},
-				},
-				updater.InflatedColumn{
-					Column: &statepb.Column{Name: "weird"},
-					Cells: map[string]updater.Cell{
-						"bad": {Result: tspb.TestStatus_BUILD_PASSED},
-					},
-				},
-				updater.InflatedColumn{
-					Column: &statepb.Column{Name: "still-ok"},
-					Cells: map[string]updater.Cell{
-						"first": {Result: tspb.TestStatus_BUILD_PASSED},
-					},
-				}),
-			dashCfg: &configpb.DashboardTab{
-				Name:        "tab",
-				BaseOptions: "exclude-filter-by-regex=bad",
-			},
-			groupCfg: &configpb.TestGroup{},
-			dropCols: true,
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
 					{Name: "okay"},
@@ -458,44 +414,7 @@ func Test_Tabulate(t *testing.T) {
 			},
 		},
 		{
-			name: "copies alerts while not dropping empty columns",
-			grid: func() *statepb.Grid {
-				var g statepb.Grid
-				r := map[string]*statepb.Row{}
-				updater.AppendColumn(&g, r, updater.InflatedColumn{
-					Column: &statepb.Column{Name: "result"},
-					Cells: map[string]updater.Cell{
-						"bad": {Result: tspb.TestStatus_BUILD_FAIL},
-					},
-				})
-				g.Rows[0].AlertInfo = &statepb.AlertInfo{
-					FailCount: 999,
-				}
-				return &g
-			}(),
-			dashCfg: &configpb.DashboardTab{
-				Name: "tab",
-			},
-			groupCfg: &configpb.TestGroup{},
-			dropCols: false,
-			expected: &statepb.Grid{
-				Columns: []*statepb.Column{
-					{Name: "result"},
-				},
-				Rows: []*statepb.Row{
-					{
-						Name:    "bad",
-						Id:      "bad",
-						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 1},
-						AlertInfo: &statepb.AlertInfo{
-							FailCount: 999,
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "calculate alerts after dropping empty columns, using test group",
+			name: "calculate alerts using test group",
 			grid: buildGrid(t,
 				updater.InflatedColumn{
 					Column: &statepb.Column{Name: "final"},
@@ -527,7 +446,6 @@ func Test_Tabulate(t *testing.T) {
 				NumFailuresToAlert:      1,
 				NumPassesToDisableAlert: 1,
 			},
-			dropCols:    true,
 			useTabAlert: false,
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
@@ -558,7 +476,7 @@ func Test_Tabulate(t *testing.T) {
 			},
 		},
 		{
-			name: "calculate alerts after dropping empty columns, using tab state",
+			name: "calculate alerts using tab state",
 			grid: buildGrid(t,
 				updater.InflatedColumn{
 					Column: &statepb.Column{Name: "final"},
@@ -592,7 +510,6 @@ func Test_Tabulate(t *testing.T) {
 				},
 			},
 			groupCfg:    &configpb.TestGroup{},
-			dropCols:    true,
 			useTabAlert: true,
 			expected: &statepb.Grid{
 				Columns: []*statepb.Column{
@@ -658,7 +575,6 @@ func Test_Tabulate(t *testing.T) {
 				BrokenColumnThreshold: 0.5,
 			},
 			groupCfg:       &configpb.TestGroup{},
-			dropCols:       true,
 			useTabAlert:    true,
 			calculateStats: true,
 			expected: &statepb.Grid{
@@ -729,7 +645,6 @@ func Test_Tabulate(t *testing.T) {
 				},
 			},
 			groupCfg:       &configpb.TestGroup{},
-			dropCols:       true,
 			useTabAlert:    true,
 			calculateStats: true,
 			expected: &statepb.Grid{
@@ -756,47 +671,6 @@ func Test_Tabulate(t *testing.T) {
 			},
 		},
 		{
-			name: "calculate stats, drop columns false",
-			grid: buildGrid(t,
-				updater.InflatedColumn{
-					Column: &statepb.Column{Name: "initial"},
-					Cells: map[string]updater.Cell{
-						"okay":   {Result: tspb.TestStatus_BUILD_PASSED},
-						"broken": {Result: tspb.TestStatus_BUILD_FAIL},
-					},
-				}),
-			dashCfg: &configpb.DashboardTab{
-				Name: "tab",
-				AlertOptions: &configpb.DashboardTabAlertOptions{
-					NumFailuresToAlert:      1,
-					NumPassesToDisableAlert: 1,
-				},
-			},
-			groupCfg:       &configpb.TestGroup{},
-			dropCols:       false,
-			useTabAlert:    true,
-			calculateStats: true,
-			expected: &statepb.Grid{
-				Columns: []*statepb.Column{
-					{
-						Name: "initial",
-					},
-				},
-				Rows: []*statepb.Row{
-					{
-						Name:    "okay",
-						Id:      "okay",
-						Results: []int32{int32(tspb.TestStatus_BUILD_PASSED), 1},
-					},
-					{
-						Name:    "broken",
-						Id:      "broken",
-						Results: []int32{int32(tspb.TestStatus_BUILD_FAIL), 1},
-					},
-				},
-			},
-		},
-		{
 			name: "calculate stats, calculate stats false",
 			grid: buildGrid(t,
 				updater.InflatedColumn{
@@ -815,7 +689,6 @@ func Test_Tabulate(t *testing.T) {
 				BrokenColumnThreshold: 0.5,
 			},
 			groupCfg:       &configpb.TestGroup{},
-			dropCols:       true,
 			useTabAlert:    true,
 			calculateStats: false,
 			expected: &statepb.Grid{
@@ -848,7 +721,7 @@ func Test_Tabulate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, tc.groupCfg, tc.dropCols, tc.calculateStats, tc.useTabAlert)
+			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, tc.groupCfg, tc.calculateStats, tc.useTabAlert)
 			if tc.expected == nil {
 				if err == nil {
 					t.Error("Expected an error, but got none")
@@ -939,7 +812,7 @@ func Test_CreateTabState(t *testing.T) {
 				data: tc.state,
 			}
 
-			err := createTabState(ctx, logrus.New(), client, task, *configPath, "prefix", tc.confirm, true, true, true)
+			err := createTabState(ctx, logrus.New(), client, task, *configPath, "prefix", tc.confirm, true, true)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}

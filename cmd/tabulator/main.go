@@ -40,7 +40,6 @@ type options struct {
 	persistQueue        gcs.Path
 	creds               string
 	confirm             bool
-	dropEmptyCols       bool
 	useTabAlertSettings bool
 	calculateStats      bool
 	groups              util.Strings
@@ -80,7 +79,6 @@ func gatherOptions() options {
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.Var(&o.groups, "group", "Only update named test group if set (repeateable)")
-	flag.BoolVar(&o.dropEmptyCols, "filter-columns", true, "Drops empty columns after filtering") // TODO(chases2): Remove flag
 	flag.BoolVar(&o.useTabAlertSettings, "tab-alerts", false, "Use newer tab settings while caculating alerts")
 	flag.BoolVar(&o.calculateStats, "column-stats", false, "Calculates stats for broken columns")
 
@@ -155,7 +153,7 @@ func main() {
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.readConcurrency, opt.writeConcurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.groups.Strings(), opt.confirm, opt.dropEmptyCols, opt.calculateStats, opt.useTabAlertSettings, opt.wait, fixers...); err != nil {
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.readConcurrency, opt.writeConcurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.groups.Strings(), opt.confirm, opt.calculateStats, opt.useTabAlertSettings, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
 }
