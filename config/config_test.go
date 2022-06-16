@@ -770,6 +770,98 @@ func TestValidateTestGroup(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "basic test metadata options",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestMetadataOptions: []*configpb.TestMetadataOptions{
+					{
+						BugComponent:  1234,
+						TestNameRegex: ".*stuff",
+					},
+				},
+			},
+		},
+		{
+			name: "test metadata options zero component allowed",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestMetadataOptions: []*configpb.TestMetadataOptions{
+					{
+						BugComponent:  0,
+						TestNameRegex: ".*stuff",
+					},
+				},
+			},
+		},
+		{
+			name: "test metadata options negative component allowed",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestMetadataOptions: []*configpb.TestMetadataOptions{
+					{
+						BugComponent:  -1,
+						TestNameRegex: ".*stuff",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid empty test metadata options",
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestMetadataOptions: []*configpb.TestMetadataOptions{
+					{
+						BugComponent: 1234,
+					},
+				},
+			},
+		},
+		{
+			name: "invalid test name regex",
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestMetadataOptions: []*configpb.TestMetadataOptions{
+					{
+						BugComponent:  1234,
+						TestNameRegex: "?bad",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid message regex",
+			testGroup: &configpb.TestGroup{
+				Name:             "bad",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				TestMetadataOptions: []*configpb.TestMetadataOptions{
+					{
+						BugComponent: 1234,
+						MessageRegex: "?bad",
+					},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -286,9 +286,6 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	// Test metadata options should be reasonable, valid values.
 	metadataOpts := tg.GetTestMetadataOptions()
 	for _, opt := range metadataOpts {
-		if opt.GetBugComponent() <= 0 {
-			mErr = multierror.Append(mErr, errors.New("bug_component is required"))
-		}
 		if opt.GetMessageRegex() == "" && opt.GetTestNameRegex() == "" {
 			mErr = multierror.Append(mErr, errors.New("at least one of message_regex or test_name_regex must be specified"))
 		}
