@@ -33,7 +33,6 @@ spec:
         - --column-stats
         - --config=gs://knative-own-testgrid/config
         - --confirm
-        - --filter-columns
         - --json-logs
         - --persist-queue=gs://knative-own-testgrid/queue/tabulator.json
         - --pubsub=knative-tests/test-group-updates
