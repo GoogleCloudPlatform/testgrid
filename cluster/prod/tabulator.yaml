@@ -33,7 +33,6 @@ spec:
         - --column-stats
         - --config=gs://k8s-testgrid/config
         - --confirm
-        - --filter-columns
         - --json-logs
         - --persist-queue=gs://k8s-testgrid/queue/tabulator.json
         - --pubsub=k8s-testgrid/test-group-updates
