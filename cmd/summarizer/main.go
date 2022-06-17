@@ -69,7 +69,7 @@ func gatherOptions() options {
 	flag.Var(&o.persistQueue, "persist-queue", "Load previous queue state from gs://path/to/queue-state.json and regularly save to it thereafter")
 	flag.StringVar(&o.creds, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
-	flag.BoolVar(&o.skipFilter, "skip-base-options-filter", false, "Skip filtering grid by the tab's base options (if filtered upstream; ie. in Tabulator)")
+	flag.BoolVar(&o.skipFilter, "skip-base-options-filter", true, "Skip filtering grid by the tab's base options (if filtered upstream; ie. in Tabulator)")
 	flag.Var(&o.dashboards, "dashboard", "Only update named dashboards if set (repeateable)")
 	flag.IntVar(&o.concurrency, "concurrency", 0, "Manually define the number of dashboards to concurrently update if non-zero")
 	flag.DurationVar(&o.wait, "wait", 0, "Ensure at least this much time has passed since the last loop (exit if zero).")
