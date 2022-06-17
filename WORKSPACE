@@ -38,13 +38,11 @@ http_archive(
     urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.24.0/rules_docker-v0.24.0.tar.gz"],
 )
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-
-git_repository(
+http_archive(
     name = "io_bazel_rules_k8s",
-    commit = "d63175c26408c06c47aea3063384fbaf1f720145",  # branch = "master"
-    remote = "https://github.com/bazelbuild/rules_k8s.git",
-    shallow_since = "1655156597 -0700",
+    sha256 = "ce5b9bc0926681e2e7f2147b49096f143e6cbc783e71bc1d4f36ca76b00e6f4a",
+    strip_prefix = "rules_k8s-0.7",
+    urls = ["https://github.com/bazelbuild/rules_k8s/archive/refs/tags/v0.7.tar.gz"],
 )
 
 http_archive(
