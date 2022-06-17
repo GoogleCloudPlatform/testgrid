@@ -32,7 +32,6 @@ spec:
         - --json-logs
         - --persist-queue=gs://knative-own-testgrid/queue/summarizer-tabs.json
         - --pubsub=knative-tests/tab-updates
-        - --skip-base-options-filter
         - --wait=5m
 ---
 apiVersion: v1
