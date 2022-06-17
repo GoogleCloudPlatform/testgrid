@@ -25,7 +25,7 @@ spec:
       serviceAccountName: config-merger
       containers:
       - name: config-merger
-        image: gcr.io/k8s-testgrid/config_merger:v20220616-v0.0.142-34-g7089a30e
+        image: gcr.io/k8s-testgrid/config_merger:v20220617-v0.0.142-42-g7392b451
         ports:
         - name: metrics
           containerPort: 2112
