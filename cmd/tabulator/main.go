@@ -80,7 +80,7 @@ func gatherOptions() options {
 	flag.BoolVar(&o.confirm, "confirm", false, "Upload data if set")
 	flag.Var(&o.groups, "group", "Only update named test group if set (repeateable)")
 	flag.BoolVar(&o.useTabAlertSettings, "tab-alerts", false, "Use newer tab settings while caculating alerts")
-	flag.BoolVar(&o.calculateStats, "column-stats", false, "Calculates stats for broken columns")
+	flag.BoolVar(&o.calculateStats, "column-stats", true, "Calculates stats for broken columns")
 
 	flag.IntVar(&o.readConcurrency, "read-concurrency", 0, "Manually define the number of groups to read and hold in memory at once if non-zero")
 	flag.IntVar(&o.writeConcurrency, "concurrency", 0, "Manually define the number of tabs to concurrently update if non-zero")
