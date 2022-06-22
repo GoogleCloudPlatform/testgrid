@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"reflect"
 	"sort"
 	"testing"
@@ -296,7 +295,7 @@ func TestUpdateDashboard(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5, false)
+		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5)
 		t.Run(tc.name, func(t *testing.T) {
 			finder := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 				name := tab.TestGroupName
@@ -334,7 +333,7 @@ func TestUpdateDashboard(t *testing.T) {
 					},
 				}
 			}
-			updateDashboard(context.Background(), client, tc.dash, &actual, finder, tabUpdater, false)
+			updateDashboard(context.Background(), client, tc.dash, &actual, finder, tabUpdater)
 			if diff := cmp.Diff(tc.expected, &actual, protocmp.Transform()); diff != "" {
 				t.Errorf("updateDashboard() got unexpected diff (-want +got):\n%s", diff)
 			}
@@ -532,7 +531,7 @@ func TestUpdateTab(t *testing.T) {
 				}
 				return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(tc.grid)))), tc.mod, tc.gen, nil
 			}
-			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader, false)
+			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader)
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -772,121 +771,34 @@ func TestFirstFilled(t *testing.T) {
 	}
 }
 
-func TestFilterGrid(t *testing.T) {
+func TestFilterMethods(t *testing.T) {
 	cases := []struct {
-		name           string
-		baseOptions    string
-		rows           []*statepb.Row
-		recent         int
-		expected       []*statepb.Row
-		useRegexFilter bool
-		err            bool
+		name     string
+		rows     []*statepb.Row
+		recent   int
+		expected []*statepb.Row
+		err      bool
 	}{
 		{
+			name: "tolerates nil inputs",
+		},
+		{
 			name: "basically works",
-		},
-		{
-			name:           "bad options returns error if needed",
-			useRegexFilter: true,
-			baseOptions:    "%z",
-			err:            true,
-		},
-		{
-			name:           "everything works",
-			useRegexFilter: true,
-			baseOptions: url.Values{
-				includeFilter: []string{"foo"},
-				excludeFilter: []string{"bar"},
-			}.Encode(),
 			rows: []*statepb.Row{
 				{
-					Name:    "include-food",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-				{
-					Name:    "exclude-included-bart",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-				{
-					Name: "ignore-included-stale",
-					Results: []int32{
-						int32(statuspb.TestStatus_NO_RESULT), 5,
-						int32(statuspb.TestStatus_PASS_WITH_SKIPS), 10,
-					},
-				},
-			},
-			recent: 5,
-			expected: []*statepb.Row{
-				{
-					Name:    "include-food",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-			},
-		},
-		{
-			name:           "must match all includes",
-			useRegexFilter: true,
-			baseOptions: url.Values{
-				includeFilter: []string{"foo", "spam"},
-			}.Encode(),
-			rows: []*statepb.Row{
-				{
-					Name: "spam-is-food",
-				},
-				{
-					Name: "spam-musubi",
-				},
-				{
-					Name: "unagi-food",
-				},
-				{
-					Name: "email-spam-is-not-food",
+					Name: "okay",
+					Id:   "cool",
 				},
 			},
 			expected: []*statepb.Row{
 				{
-					Name: "spam-is-food",
-				},
-				{
-					Name: "email-spam-is-not-food",
+					Name: "okay",
+					Id:   "cool",
 				},
 			},
 		},
 		{
-			name:           "exclude any exclusions",
-			useRegexFilter: true,
-			baseOptions: url.Values{
-				excludeFilter: []string{"not", "nope"},
-			}.Encode(),
-			rows: []*statepb.Row{
-				{
-					Name: "yes please",
-				},
-				{
-					Name: "leslie knope",
-				},
-				{
-					Name: "not eating",
-				},
-				{
-					Name: "fluffy waffles",
-				},
-			},
-			expected: []*statepb.Row{
-				{
-					Name: "yes please",
-				},
-				{
-					Name: "fluffy waffles",
-				},
-			},
-		},
-		{
-			name:           "exclude all test methods with regex filter",
-			useRegexFilter: true,
-			baseOptions: url.Values{
-				includeFilter: []string{"test"},
-			}.Encode(),
+			name: "exclude all test methods",
 			rows: []*statepb.Row{
 				{
 					Name: "test-1",
@@ -917,152 +829,6 @@ func TestFilterGrid(t *testing.T) {
 				{
 					Name: "test-2",
 					Id:   "test-2",
-				},
-			},
-		},
-		{
-			name:           "bad inclusion regexp errors",
-			useRegexFilter: true,
-			baseOptions: url.Values{
-				includeFilter: []string{"this.("},
-			}.Encode(),
-			err: true,
-		},
-		{
-			name:           "bad exclude regexp errors",
-			useRegexFilter: true,
-			baseOptions: url.Values{
-				excludeFilter: []string{"this.("},
-			}.Encode(),
-			err: true,
-		},
-		{
-			name:           "bad options tolerated if not needed",
-			useRegexFilter: false,
-			baseOptions:    "%z",
-			rows: []*statepb.Row{
-				{
-					Name: "okay",
-					Id:   "cool",
-				},
-			},
-			expected: []*statepb.Row{
-				{
-					Name: "okay",
-					Id:   "cool",
-				},
-			},
-		},
-		{
-			name:           "ignores base options regex when not specified",
-			useRegexFilter: false,
-			baseOptions: url.Values{
-				includeFilter: []string{"foo"},
-				excludeFilter: []string{"bar"},
-			}.Encode(),
-			rows: []*statepb.Row{
-				{
-					Name:    "include-food",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-				{
-					Name:    "exclude-included-bart",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-				{
-					Name: "ignore-included-stale",
-					Results: []int32{
-						int32(statuspb.TestStatus_NO_RESULT), 5,
-						int32(statuspb.TestStatus_PASS_WITH_SKIPS), 10,
-					},
-				},
-			},
-			recent: 5,
-			expected: []*statepb.Row{
-				{
-					Name:    "include-food",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-				{
-					Name:    "exclude-included-bart",
-					Results: []int32{int32(statuspb.TestStatus_PASS), 10},
-				},
-			},
-		},
-		{
-			name:           "exclude all test methods without regex filter",
-			useRegexFilter: false,
-			baseOptions: url.Values{
-				includeFilter: []string{"test"},
-			}.Encode(),
-			rows: []*statepb.Row{
-				{
-					Name: "test-1",
-					Id:   "test-1",
-				},
-				{
-					Name: "method-1",
-					Id:   "test-1@TESTGRID@method-1",
-				},
-				{
-					Name: "method-2",
-					Id:   "test-1@TESTGRID@method-2",
-				},
-				{
-					Name: "test-2",
-					Id:   "test-2",
-				},
-				{
-					Name: "test-2@TESTGRID@method-1",
-					Id:   "method-1",
-				},
-			},
-			expected: []*statepb.Row{
-				{
-					Name: "test-1",
-					Id:   "test-1",
-				},
-				{
-					Name: "test-2",
-					Id:   "test-2",
-				},
-			},
-		},
-		{
-			name:           "bad inclusion tolerated if not needed",
-			useRegexFilter: false,
-			baseOptions: url.Values{
-				includeFilter: []string{"this.("},
-			}.Encode(),
-			rows: []*statepb.Row{
-				{
-					Name: "okay",
-					Id:   "cool",
-				},
-			},
-			expected: []*statepb.Row{
-				{
-					Name: "okay",
-					Id:   "cool",
-				},
-			},
-		},
-		{
-			name:           "bad exclude tolerated if not needed",
-			useRegexFilter: false,
-			baseOptions: url.Values{
-				excludeFilter: []string{"this.("},
-			}.Encode(),
-			rows: []*statepb.Row{
-				{
-					Name: "okay",
-					Id:   "cool",
-				},
-			},
-			expected: []*statepb.Row{
-				{
-					Name: "okay",
-					Id:   "cool",
 				},
 			},
 		},
@@ -1080,18 +846,11 @@ func TestFilterGrid(t *testing.T) {
 					r.Results = []int32{int32(statuspb.TestStatus_PASS), 100}
 				}
 			}
-			actual, err := filterGrid(tc.baseOptions, tc.rows, tc.recent, tc.useRegexFilter)
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Error("failed to return an error")
-			case !reflect.DeepEqual(actual, tc.expected):
+			actual := filterMethods(tc.rows)
+
+			if !reflect.DeepEqual(actual, tc.expected) {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
-
 		})
 	}
 }
@@ -1180,116 +939,6 @@ func TestRecentRows(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestIncludeRows(t *testing.T) {
-	cases := []struct {
-		name     string
-		names    []string
-		include  string
-		expected []string
-		err      bool
-	}{
-		{
-			name: "basically works",
-		},
-		{
-			name:    "bad regex errors",
-			include: "^[a-z",
-			err:     true,
-		},
-		{
-			name:    "return nothing rows when nothing matches",
-			names:   []string{"hello", "world"},
-			include: "dog",
-		},
-		{
-			name:     "include only matching rows",
-			include:  "fun",
-			names:    []string{"apply", "function", "to", "funny", "bone"},
-			expected: []string{"function", "funny"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var rows []*statepb.Row
-			for _, n := range tc.names {
-				rows = append(rows, &statepb.Row{Name: n})
-			}
-			actualRows, err := includeRows(rows, tc.include)
-			var actual []string
-			for _, r := range actualRows {
-				actual = append(actual, r.Name)
-			}
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Error("failed to return expected error")
-			case !reflect.DeepEqual(actual, tc.expected):
-				t.Errorf("actual %s != expected %s", actual, tc.expected)
-			}
-		})
-	}
-}
-
-func TestExcludeRows(t *testing.T) {
-	cases := []struct {
-		name     string
-		names    []string
-		exclude  string
-		expected []string
-		err      bool
-	}{
-		{
-			name: "basically works",
-		},
-		{
-			name:    "bad regex errors",
-			exclude: "^[a-z",
-			err:     true,
-		},
-		{
-			name:     "return all rows when nothing matches",
-			names:    []string{"hello", "world"},
-			exclude:  "dog",
-			expected: []string{"hello", "world"},
-		},
-		{
-			name:     "drop matching rows",
-			exclude:  "fun",
-			names:    []string{"apply", "function", "to", "funny", "bone"},
-			expected: []string{"apply", "to", "bone"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var rows []*statepb.Row
-			for _, n := range tc.names {
-				rows = append(rows, &statepb.Row{Name: n})
-			}
-			actualRows, err := excludeRows(rows, tc.exclude)
-			var actual []string
-			for _, r := range actualRows {
-				actual = append(actual, r.Name)
-			}
-			switch {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Error("failed to return expected error")
-			case !reflect.DeepEqual(actual, tc.expected):
-				t.Errorf("actual %s != expected %s", actual, tc.expected)
-			}
-		})
-	}
-
 }
 
 func TestLatestRun(t *testing.T) {

@@ -89,7 +89,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm, useRegexFilter bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -249,7 +249,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return groupPath, group, reader, nil
 	}
 
-	tabUpdater := tabUpdatePool(ctx, log, concurrency, useRegexFilter)
+	tabUpdater := tabUpdatePool(ctx, log, concurrency)
 
 	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
@@ -273,7 +273,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		}
 
 		// TODO(fejta): refactor to note whether there is more work
-		more := updateDashboard(ctx, client, dash, sum, findGroup, tabUpdater, useRegexFilter)
+		more := updateDashboard(ctx, client, dash, sum, findGroup, tabUpdater)
 
 		var healthyTests int
 		var failures int
@@ -445,7 +445,7 @@ func tabStatus(dashName, tabName, msg string) *summarypb.DashboardTabSummary {
 // Errors summarizing tabs are displayed on the summary for the dashboard.
 //
 // Returns true when there is more work to to.
-func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder, tabUpdater *tabUpdater, filter bool) bool {
+func updateDashboard(ctx context.Context, client gcs.Stater, dash *configpb.Dashboard, sum *summarypb.DashboardSummary, findGroup groupFinder, tabUpdater *tabUpdater) bool {
 	log := logrus.WithField("dashboard", dash.Name)
 
 	var graceCtx context.Context
@@ -599,7 +599,7 @@ type tabUpdater struct {
 	update func(context.Context, *configpb.DashboardTab, *configpb.TestGroup, gridReader) func() (*summarypb.DashboardTabSummary, error)
 }
 
-func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int, useRegexFilter bool) *tabUpdater {
+func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int) *tabUpdater {
 	type request struct {
 		ctx   context.Context
 		tab   *configpb.DashboardTab
@@ -621,7 +621,7 @@ func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int, 
 		go func() {
 			defer wg.Done()
 			for req := range ch {
-				req.sum, req.err = updateTab(req.ctx, req.tab, req.group, req.read, useRegexFilter)
+				req.sum, req.err = updateTab(req.ctx, req.tab, req.group, req.read)
 				req.wg.Done()
 			}
 		}()
@@ -668,7 +668,7 @@ func staleHours(tab *configpb.DashboardTab) time.Duration {
 }
 
 // updateTab reads the latest grid state for the tab and summarizes it.
-func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.TestGroup, groupReader gridReader, useRegexFilter bool) (*summarypb.DashboardTabSummary, error) {
+func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.TestGroup, groupReader gridReader) (*summarypb.DashboardTabSummary, error) {
 	groupName := tab.TestGroupName
 	grid, mod, _, err := readGrid(ctx, groupReader) // TODO(fejta): track gen
 	if err != nil {
@@ -686,10 +686,9 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 	}
 
 	recent := recentColumns(tab, group)
-	grid.Rows, err = filterGrid(tab.GetBaseOptions(), grid.Rows, recent, useRegexFilter)
-	if err != nil {
-		return nil, fmt.Errorf("filter: %v", err)
-	}
+	grid.Rows = recentRows(grid.Rows, recent)
+
+	grid.Rows = filterMethods(grid.Rows)
 
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab))
@@ -748,43 +747,6 @@ func firstFilled(values ...int32) int {
 	return 0
 }
 
-const (
-	// TODO(chases2): deprecate and remove (migrated to tabulator)
-	includeFilter = "include-filter-by-regex"
-	excludeFilter = "exclude-filter-by-regex"
-)
-
-// filterGrid truncates the grid to rows with recent results and, optionally, matching an allow/exclude regex.
-func filterGrid(baseOptions string, rows []*statepb.Row, recent int, useRegexFilter bool) ([]*statepb.Row, error) {
-
-	rows = recentRows(rows, recent)
-
-	rows = filterMethods(rows)
-
-	if !useRegexFilter {
-		return rows, nil
-	}
-
-	vals, err := url.ParseQuery(baseOptions)
-	if err != nil {
-		return nil, fmt.Errorf("parse %q: %v", baseOptions, err)
-	}
-
-	for _, include := range vals[includeFilter] {
-		if rows, err = includeRows(rows, include); err != nil {
-			return nil, fmt.Errorf("bad %s=%s: %v", includeFilter, include, err)
-		}
-	}
-
-	for _, exclude := range vals[excludeFilter] {
-		if rows, err = excludeRows(rows, exclude); err != nil {
-			return nil, fmt.Errorf("bad %s=%s: %v", excludeFilter, exclude, err)
-		}
-	}
-
-	return rows, nil
-}
-
 // recentRows returns the subset of rows with at least one recent result
 func recentRows(in []*statepb.Row, recent int) []*statepb.Row {
 	var rows []*statepb.Row
@@ -810,38 +772,6 @@ func filterMethods(rows []*statepb.Row) []*statepb.Row {
 		filtered = append(filtered, r)
 	}
 	return filtered
-}
-
-// includeRows returns the subset of rows that match the regex
-func includeRows(in []*statepb.Row, include string) ([]*statepb.Row, error) {
-	re, err := regexp.Compile(include)
-	if err != nil {
-		return nil, err
-	}
-	var rows []*statepb.Row
-	for _, r := range in {
-		if !re.MatchString(r.Name) {
-			continue
-		}
-		rows = append(rows, r)
-	}
-	return rows, nil
-}
-
-// excludeRows returns the subset of rows that do not match the regex
-func excludeRows(in []*statepb.Row, exclude string) ([]*statepb.Row, error) {
-	re, err := regexp.Compile(exclude)
-	if err != nil {
-		return nil, err
-	}
-	var rows []*statepb.Row
-	for _, r := range in {
-		if re.MatchString(r.Name) {
-			continue
-		}
-		rows = append(rows, r)
-	}
-	return rows, nil
 }
 
 // latestRun returns the Time (and seconds-since-epoch) of the most recent run.
