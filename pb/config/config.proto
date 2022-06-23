@@ -186,7 +186,7 @@ message TestGroup {
   // This is displayed on any dashboard tab backed by this test group.
   repeated Notification notifications = 27;
 
-  reserved 28; // Unused externally (column_sort_by)
+  reserved 28; // Deprecated Field (column_sort_by)
 
   enum PrimaryGrouping {
     PRIMARY_GROUPING_NONE = 0;

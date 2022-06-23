@@ -88,7 +88,7 @@ func (mets *Metrics) start() *metrics.CycleReporter {
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, sortCols ColumnSorter) GroupUpdater {
+func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool) GroupUpdater {
 	var readResult *resultReader
 	if poolCtx == nil {
 		// TODO(fejta): remove check soon
@@ -105,7 +105,7 @@ func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeo
 		defer cancel()
 		gcsColReader := gcsColumnReader(colClient, buildTimeout, readResult)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
-		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, sortCols, reprocess)
+		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, reprocess)
 	}
 }
 
@@ -545,9 +545,6 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 //     and reading a second column.
 type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time, receivers chan<- InflatedColumn) error
 
-// A ColumnSorter sort InflatedColumns as desired.
-type ColumnSorter func(*configpb.TestGroup, []InflatedColumn)
-
 // SortStarted sorts InflatedColumns by column start time.
 func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 	sort.SliceStable(cols, func(i, j int) bool {
@@ -561,7 +558,7 @@ var (
 )
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, sortCols ColumnSorter, reprocess time.Duration) (bool, error) {
+func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, reprocess time.Duration) (bool, error) {
 	log := alog.(logrus.Ext1FieldLogger) // Add trace method
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -699,7 +696,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		cols = groupColumns(tg, cols)
 	}
 
-	sortCols(tg, cols)
+	SortStarted(tg, cols)
 
 	if truncateGrid(cols, cellCeiling) {
 		cols = groupColumns(tg, cols)
