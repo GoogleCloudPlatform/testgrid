@@ -163,7 +163,7 @@ func main() {
 	})
 	log.Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, updater.SortStarted)
+	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
