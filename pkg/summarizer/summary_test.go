@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -848,7 +847,7 @@ func TestFilterMethods(t *testing.T) {
 			}
 			actual := filterMethods(tc.rows)
 
-			if !reflect.DeepEqual(actual, tc.expected) {
+			if !cmp.Equal(actual, tc.expected, protocmp.Transform()) {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})
@@ -934,7 +933,7 @@ func TestRecentRows(t *testing.T) {
 			for _, r := range actualRows {
 				actual = append(actual, r.Name)
 			}
-			if !reflect.DeepEqual(actual, tc.expected) {
+			if !cmp.Equal(actual, tc.expected, protocmp.Transform()) {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})
@@ -2363,7 +2362,7 @@ func TestResultIter(t *testing.T) {
 				idx++
 				actual = append(actual, val)
 			}
-			if !reflect.DeepEqual(actual, tc.expected) {
+			if !cmp.Equal(actual, tc.expected, protocmp.Transform()) {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})
