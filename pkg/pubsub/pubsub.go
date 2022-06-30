@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -120,15 +119,6 @@ func (ra realAcker) Nack(m *pubsub.Message) {
 func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send Sender, receivers chan<- *Notification, result acker) error {
 	return send(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		bucket, obj := msg.Attributes[keyBucket], msg.Attributes[keyObject]
-		if strings.Contains(obj, "#") {
-			log.WithFields(logrus.Fields{
-				"bucket": bucket,
-				"object": obj,
-				"id":     msg.ID,
-			}).Info("Ignoring poorly named object")
-			result.Ack(msg)
-			return
-		}
 		path, err := gcs.NewPath("gs://" + bucket + "/" + obj)
 		if err != nil {
 			log.WithError(err).WithFields(logrus.Fields{
@@ -136,7 +126,7 @@ func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send Sender, r
 				"object": obj,
 				"id":     msg.ID,
 			}).Error("Failed to parse path")
-			result.Nack(msg)
+			result.Ack(msg)
 			return
 		}
 		when, err := time.Parse(time.RFC3339, msg.Attributes[keyTime])
