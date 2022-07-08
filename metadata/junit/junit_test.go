@@ -190,13 +190,13 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name: "parse testsuite correctly",
-			buf:  []byte(`<testsuite><testcase name="hi"/></testsuite>`),
+			buf:  []byte(`<testsuite><testcase name="hi" timestamp="2006-01-02T15:04:05"/></testsuite>`),
 			expected: &Suites{
 				Suites: []Suite{
 					{
 						XMLName: xml.Name{Local: "testsuite"},
 						Results: []Result{
-							{Name: "hi"},
+							{Name: "hi", TimeStamp:"2006-01-02T15:04:05",},
 						},
 					},
 				},

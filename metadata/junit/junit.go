@@ -98,6 +98,7 @@ type Properties struct {
 type Result struct {
 	Name       string      `xml:"name,attr"`
 	Time       float64     `xml:"time,attr"`
+	TimeStamp  string      `xml:"timestamp,attr"`
 	ClassName  string      `xml:"classname,attr"`
 	Output     *string     `xml:"system-out,omitempty"`
 	Error      *string     `xml:"system-err,omitempty"`
