@@ -277,7 +277,7 @@ func ListBuilds(parent context.Context, lister Lister, gcsPath Path, after *Path
 }
 
 // junit_CONTEXT_TIMESTAMP_THREAD.xml
-var re = regexp.MustCompile(`.+/junit((_[^_]+)?(_\d+-\d+)?(_\d+)?|.+)?\.xml$`)
+var re = regexp.MustCompile(`.+/(?:junit((_[^_]+)?(_\d+-\d+)?(_\d+)?|.+)?\.xml|test.xml)$`)
 
 // dropPrefix removes the _ in _CONTEXT to help keep the regexp simple
 func dropPrefix(name string) string {
