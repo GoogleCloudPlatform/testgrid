@@ -674,6 +674,10 @@ func TestParseSuitesMeta(t *testing.T) {
 			input:   "./junit.e2e_suite.3.xml",
 			context: ".e2e_suite.3",
 		},
+		{
+			name:  "bazel format",
+			input: "./test.xml",
+		},
 	}
 
 	for _, tc := range cases {
