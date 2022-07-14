@@ -557,7 +557,6 @@ func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
 
 var (
 	byteCeiling int = 2e6 // 2mb, var so testing can change
-	cellCeiling int = 1e6 // 1mb, var so testing can change
 )
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
@@ -701,21 +700,14 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 
 	sortCols(tg, cols)
 
-	if truncateGrid(cols, cellCeiling) {
+	if truncateGrid(cols, byteCeiling) {
 		cols = groupColumns(tg, cols)
 	}
 	var grid *statepb.Grid
 	var buf []byte
-	if ShrinkInline {
-		grid, buf, err = shrinkGridInline(shrinkGrace, log, tg, cols, issues, byteCeiling)
-		if err != nil {
-			return false, fmt.Errorf("shrink grid inline: %v", err)
-		}
-	} else {
-		grid, buf, err = shrinkGrid(shrinkGrace, log, tg, cols, issues, byteCeiling)
-		if err != nil {
-			return false, fmt.Errorf("shrink grid: %v", err)
-		}
+	grid, buf, err = shrinkGridInline(shrinkGrace, log, tg, cols, issues, byteCeiling)
+	if err != nil {
+		return false, fmt.Errorf("shrink grid inline: %v", err)
 	}
 	grid.Config = tg
 
@@ -739,8 +731,11 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	return unreadColumns, nil
 }
 
+// Cuts grid down to 'cellCeiling' or fewer cells
+
+// Used as a cheap way to truncate before the finer-tuned shrinkGridInline
+// Assumes each cell contains at least 1 byte
 func truncateGrid(cols []InflatedColumn, cellCeiling int) bool {
-	// Assume each cell consumes at least 1 byte
 	var cells int
 	var max int
 	var dropped int
@@ -781,113 +776,6 @@ func reprocessColumn(log logrus.FieldLogger, old *statepb.Grid, currentCfg *conf
 			},
 		},
 	}
-}
-
-// ShrinkInline will cause the updater to notify that it had to shrink data using a cell at the end of existing rows, not a new row.
-var ShrinkInline = false
-
-// TODO(chases2): replace with inline; this shrinking is complex
-func shrinkGrid(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
-	// Hopefully the grid is small enough...
-	grid := constructGridFromGroupConfig(log, tg, cols, issues)
-	buf, err := gcs.MarshalGrid(grid)
-	if err != nil {
-		return nil, nil, fmt.Errorf("marshal grid: %w", err)
-	}
-	orig := len(buf)
-	if byteCeiling == 0 || orig < byteCeiling {
-		return grid, buf, nil
-	}
-
-	// Nope, let's drop old row data...
-	byteCeiling /= 2
-
-	log = log.WithField("originally", orig)
-	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
-		select {
-		case <-ctx.Done():
-			log.WithField("finally", orig).Info("Timeout shrinking row data")
-			return grid, buf, nil
-		default:
-		}
-
-		log.WithField("currently", orig).Debug("Shrinking row data")
-
-		// drop perf data
-		var changed bool
-		for j := i; j < len(cols); j++ {
-			nc := len(cols[j].Cells)
-			if nc < 2 {
-				continue
-			}
-			changed = changed || stripCells(cols[j].Cells, orig, byteCeiling)
-		}
-
-		if changed {
-			grid = constructGridFromGroupConfig(log, tg, cols, issues)
-			buf, err = gcs.MarshalGrid(grid)
-			if err != nil {
-				return nil, nil, fmt.Errorf("marshal grid: %w", err)
-			}
-
-			cur := len(buf)
-			if cur < byteCeiling {
-				return grid, buf, nil
-			}
-		}
-
-		// truncate cells
-		for j := i; j < len(cols); j++ {
-			nc := len(cols[j].Cells) - 1 // ignore injected stripCells row
-			if nc < 2 {
-				continue
-			}
-			cols[j].Cells = truncatedCells(orig, byteCeiling, nc, "byte")
-		}
-		grid = constructGridFromGroupConfig(log, tg, cols, issues)
-		buf, err = gcs.MarshalGrid(grid)
-		if err != nil {
-			return nil, nil, fmt.Errorf("marshal grid: %w", err)
-		}
-
-		orig = len(buf)
-		if orig < byteCeiling {
-			return grid, buf, nil
-		}
-	}
-
-	// Not enough, let's try merging columns
-	for i := len(cols) / 2; i >= 0; i = i/2 - 1 {
-		select {
-		case <-ctx.Done():
-			log.WithField("finally", orig).Info("Timeout shrinking column data")
-			return grid, buf, nil
-		default:
-		}
-
-		log.WithField("bytes", orig).Info("Shrinking column data")
-
-		// Nope, let's drop old row data...
-
-		for j := i; j < len(cols); j++ {
-			cols[j].Column.Name = ""
-			cols[j].Column.Build = ""
-		}
-		cols = groupColumns(tg, cols)
-
-		// Hopefully it is the right size...
-		grid = constructGridFromGroupConfig(log, tg, cols, issues)
-		buf, err = gcs.MarshalGrid(grid)
-		if err != nil {
-			return nil, nil, fmt.Errorf("marshal grid: %w", err)
-		}
-
-		orig := len(buf)
-		if orig < byteCeiling {
-			return grid, buf, nil
-		}
-	}
-	return grid, buf, err
 }
 
 func shrinkGridInline(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string, byteCeiling int) (*statepb.Grid, []byte, error) {
@@ -937,43 +825,8 @@ func shrinkGridInline(ctx context.Context, log logrus.FieldLogger, tg *configpb.
 	return grid, buf, err
 }
 
+// Legacy row name to report data truncation
 const truncatedRow = "Truncated"
-
-func removeProperties(cell *Cell) {
-	cell.Properties = nil
-}
-
-// TODO(chases2): delete with shrinkGrid
-func stripCells(cells map[string]Cell, orig, max int) bool {
-	var changed bool
-	for name, cell := range cells {
-		var changedCell bool
-		if len(cell.Metrics) > 0 {
-			cell.Metrics = nil
-			changedCell = true
-		}
-		if len(cell.Properties) > 0 {
-			removeProperties(&cell)
-			changedCell = true
-		}
-		if len(cell.Message) > 0 {
-			cell.Message = ""
-			changedCell = true
-		}
-		if changedCell {
-			changed = true
-			cells[name] = cell
-		}
-	}
-	if changed {
-		cells[truncatedRow] = Cell{
-			Result:  statuspb.TestStatus_UNKNOWN,
-			ID:      truncatedRow,
-			Message: fmt.Sprintf("%d byte grid exceeds maximum size of %d bytes, removed messages, metrics and properties", orig, max),
-		}
-	}
-	return changed
-}
 
 func truncateLastColumn(grid []InflatedColumn, orig, max int, entity string) {
 	if len(grid) == 0 {
@@ -987,12 +840,12 @@ func truncateLastColumn(grid []InflatedColumn, orig, max int, entity string) {
 		}
 		cell.Result = statuspb.TestStatus_UNKNOWN
 		cell.Message = fmt.Sprintf("%d %s grid exceeds maximum size of %d %ss", orig, entity, max, entity)
-		// cell.Icon = "..." // Is simply overwritten by the UI
+		cell.Icon = "..." // Overwritten by the UI
 		grid[last].Cells[name] = cell
 	}
 }
 
-// TODO(chases2): delete with shrinkGrid
+// TODO(chases2): deprecate this method of reporting a resource overrun; use truncateLastColumn instead
 func truncatedCells(orig, max, dropped int, entity string) map[string]Cell {
 	return map[string]Cell{
 		truncatedRow: {
