@@ -89,7 +89,7 @@ func TestCyclic(t *testing.T) {
 				cycleSeconds: &cycleDuration,
 			}
 
-			fudge := 100 * time.Millisecond
+			fudge := 200 * time.Millisecond
 
 			test.method(cyclic)
 
