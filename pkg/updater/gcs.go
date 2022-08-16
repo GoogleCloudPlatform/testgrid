@@ -277,7 +277,8 @@ func convertResult(log logrus.FieldLogger, nameCfg nameConfig, id string, header
 	// Append each result into the column
 	for _, suite := range result.suites {
 		for _, r := range flattenResults(suite.Suites.Suites...) {
-			if r.Skipped != nil && r.Skipped.Value == "" {
+			// "skipped" is the string that is always appended when the test is skipped without any reason in Ginkgo V2, e.g., "focus" is specified, and the test is skipped.
+			if r.Skipped != nil && r.Skipped.Value == "" && (r.Skipped.Message == "skipped" || r.Skipped.Message == "") {
 				continue
 			}
 			c := Cell{CellID: cellID}

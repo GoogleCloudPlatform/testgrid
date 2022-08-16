@@ -1828,8 +1828,67 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Ginkgo V2 skipped with message",
+			nameCfg: nameConfig{
+				format: "%s",
+				parts:  []string{testsName},
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: &junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name:    "visible skip non-default msg",
+											Skipped: &junit.Skipped{Message: *pstr("non-default message")},
+										},
+										{
+											Name:    "invisible skip default msg",
+											Skipped: &junit.Skipped{Message: *pstr("skipped")},
+										},
+										{
+											Name:    "invisible skip msg empty",
+											Skipped: &junit.Skipped{Message: *pstr("")},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				Cells: map[string]Cell{
+					"." + overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+					"visible skip non-default msg": {
+						Result:  statuspb.TestStatus_PASS_WITH_SKIPS,
+						Message: "non-default message",
+						Icon:    "S",
+					},
+				},
+			},
+		},
 	}
-
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.WithField("test name", tc.name)
