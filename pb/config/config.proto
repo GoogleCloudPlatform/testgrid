@@ -496,6 +496,9 @@ message Dashboard {
   // Controls whether to apply special highlighting to result header columns for
   // the current day.
   bool highlight_today = 7;
+
+  // A description paragraph to be displayed.
+  string description = 9;
 }
 
 message LinkTemplate {
@@ -678,6 +681,9 @@ message DashboardGroup {
   // A list of names specifying dashboards to show links to in a separate tabbed
   // bar at the top of the page for each of the given dashboards.
   repeated string dashboard_names = 2;
+
+  // A description paragraph to be displayed.
+  string description = 3;
 }
 
 // A service configuration consisting of multiple test groups and dashboards.
