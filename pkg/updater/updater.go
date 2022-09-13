@@ -1029,12 +1029,12 @@ func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[str
 
 	for name, row := range rows {
 		row.Issues = append(row.Issues, issues[name]...)
-		issues := make(map[string]bool, len(row.Issues))
+		issueSet := make(map[string]bool, len(row.Issues))
 		for _, i := range row.Issues {
-			issues[i] = true
+			issueSet[i] = true
 		}
-		row.Issues = make([]string, 0, len(issues))
-		for i := range issues {
+		row.Issues = make([]string, 0, len(issueSet))
+		for i := range issueSet {
 			row.Issues = append(row.Issues, i)
 		}
 		sort.SliceStable(row.Issues, func(i, j int) bool {
