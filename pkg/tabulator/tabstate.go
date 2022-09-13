@@ -60,7 +60,7 @@ type writeTask struct {
 	dashboard *configpb.Dashboard
 	tab       *configpb.DashboardTab
 	group     *configpb.TestGroup
-	data      *statepb.Grid //TODO(chases2): change to inflatedColumns (and additional data) once "filter-columns" is used everywhere
+	data      *statepb.Grid //TODO(chases2): change to inflatedColumns (and additional data) now that "filter-columns" is used everywhere
 }
 
 func mapTasks(cfg *snapshot.Config) map[string][]writeTask {
@@ -87,7 +87,7 @@ type Fixer func(context.Context, *config.TestGroupQueue) error
 //
 // Copies the grid into the tab state, removing unneeded data.
 // Observes each test group in allowedGroups, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, readConcurrency, writeConcurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, calculateStats, useTabAlertSettings bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, readConcurrency, writeConcurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, calculateStats, useTabAlertSettings, extendState bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -266,7 +266,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 				finish := mets.UpdateState.Start()
 				log = log.WithField("dashboard", task.dashboard.Name).WithField("tab", task.tab.Name)
-				err := createTabState(writeCtx, log, client, task, configPath, tabsPathPrefix, confirm, calculateStats, useTabAlertSettings)
+				err := createTabState(writeCtx, log, client, task, configPath, tabsPathPrefix, confirm, calculateStats, useTabAlertSettings, extendState)
 				cancel()
 				if err != nil {
 					finish.Fail()
@@ -287,7 +287,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 }
 
 // createTabState creates the tab state from the group state
-func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, task writeTask, configPath gcs.Path, tabsPathPrefix string, confirm, calculateStats, useTabAlerts bool) error {
+func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Client, task writeTask, configPath gcs.Path, tabsPathPrefix string, confirm, calculateStats, useTabAlerts, extendState bool) error {
 	location, err := TabStatePath(configPath, tabsPathPrefix, task.dashboard.Name, task.tab.Name)
 	if err != nil {
 		return fmt.Errorf("can't make dashtab path %s/%s: %w", task.dashboard.Name, task.tab.Name, err)
@@ -297,7 +297,15 @@ func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 		"to": location.String(),
 	}).Info("Calculating state")
 
-	grid, err := tabulate(ctx, log, task.data, task.tab, task.group, calculateStats, useTabAlerts)
+	var existingGrid *statepb.Grid
+	if extendState {
+		existingGrid, _, err = gcs.DownloadGrid(ctx, client, *location)
+		if err != nil {
+			return fmt.Errorf("downloadGrid: %w", err)
+		}
+	}
+
+	grid, err := tabulate(ctx, log, task.data, task.tab, task.group, calculateStats, useTabAlerts, existingGrid)
 	if err != nil {
 		return fmt.Errorf("tabulate: %w", err)
 	}
@@ -336,8 +344,9 @@ func TabStatePath(configPath gcs.Path, tabPrefix, dashboardName, tabName string)
 	return np, nil
 }
 
-// tabulate cuts the passed-in grid down to only the part that needs to be displayed by the UI.
-func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, calculateStats, useTabAlertSettings bool) (*statepb.Grid, error) {
+// tabulate transforms "grid" to only the part that needs to be displayed by the UI.
+// If an existingGrid is passed in, new results from "grid" will be grafted onto it.
+func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, tabCfg *configpb.DashboardTab, groupCfg *configpb.TestGroup, calculateStats, useTabAlertSettings bool, existingGrid *statepb.Grid) (*statepb.Grid, error) {
 	if grid == nil {
 		return nil, errors.New("no grid")
 	}
@@ -350,7 +359,6 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 	}
 	grid.Rows = filterRows
 
-	// TODO(chases2): Instead of inflate/drop/rewrite, move to inflate/drop/append
 	inflatedGrid, issues, err := updater.InflateGrid(ctx, grid, time.Time{}, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("inflateGrid: %w", err)
@@ -371,8 +379,58 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 		alert = int(groupCfg.NumFailuresToAlert)
 		unalert = int(groupCfg.NumPassesToDisableAlert)
 	}
+	if existingGrid != nil {
+		existingInflatedGrid, _, err := updater.InflateGrid(ctx, existingGrid, time.Time{}, time.Now())
+		if err != nil {
+			return nil, fmt.Errorf("inflate existing grid: %w", err)
+		}
+		inflatedGrid = mergeGrids(existingInflatedGrid, inflatedGrid)
+	}
 	grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
 	return grid, nil
+}
+
+// mergeGrids merges two sorted, inflated grids together.
+// assumes that all grids are sorted by column start time.
+func mergeGrids(existing, addition []updater.InflatedColumn) []updater.InflatedColumn {
+	result := make([]updater.InflatedColumn, 0, len(existing))
+	var oldI, newI int
+	for {
+		if oldI == len(existing) {
+			return append(result, addition[newI:]...)
+		}
+		if newI == len(addition) {
+			return append(result, existing[oldI:]...)
+
+		}
+		old := existing[oldI]
+		new := addition[newI]
+		if old.Column.Started > new.Column.Started {
+			result = append(result, old)
+			oldI++
+			continue
+		}
+		if new.Column.Started > old.Column.Started {
+			result = append(result, new)
+			newI++
+			continue
+		}
+		if new.Column.Build == old.Column.Build && new.Column.Name == old.Column.Name {
+			// At this point, assume the columns refer to the same test at different points in time.
+			// If the new results are "unknown", keep the old results. Otherwise, new results are newer and therefore more correct.
+			for name, result := range new.Cells {
+				if result.Result == tspb.TestStatus_UNKNOWN {
+					new.Cells[name] = old.Cells[name]
+				}
+			}
+			result = append(result, new)
+			oldI++
+			newI++
+			continue
+		}
+		result = append(result, old)
+		oldI++
+	}
 }
 
 // dropEmptyColumns drops every column in-place that has no results

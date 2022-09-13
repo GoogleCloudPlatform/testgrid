@@ -53,7 +53,7 @@ func BenchmarkTabulator(b *testing.B) {
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory()) // TODO(chases2): replace with logging metrics factory or teach tabulator to tolerate missing metrics
 
-	if err = tabulator.Update(ctx, client, mets, *cfgPath, 2*runtime.NumCPU(), 4*runtime.NumCPU(), "grid", "tabs", nil, true, true, true, time.Duration(0)); err != nil {
+	if err = tabulator.Update(ctx, client, mets, *cfgPath, 2*runtime.NumCPU(), 4*runtime.NumCPU(), "grid", "tabs", nil, true, true, true, false, time.Duration(0)); err != nil {
 		b.Fatalf("update error: %v", err)
 	}
 }

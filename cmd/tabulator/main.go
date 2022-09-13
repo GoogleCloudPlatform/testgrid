@@ -42,6 +42,7 @@ type options struct {
 	confirm             bool
 	useTabAlertSettings bool
 	calculateStats      bool
+	extendState         bool
 	groups              util.Strings
 	readConcurrency     int
 	writeConcurrency    int
@@ -81,6 +82,7 @@ func gatherOptions() options {
 	flag.Var(&o.groups, "group", "Only update named test group if set (repeateable)")
 	flag.BoolVar(&o.useTabAlertSettings, "tab-alerts", false, "Use newer tab settings while caculating alerts")
 	flag.BoolVar(&o.calculateStats, "column-stats", true, "Calculates stats for broken columns")
+	flag.BoolVar(&o.extendState, "extend", false, "Extend tab state instead of replacing it")
 
 	flag.IntVar(&o.readConcurrency, "read-concurrency", 0, "Manually define the number of groups to read and hold in memory at once if non-zero")
 	flag.IntVar(&o.writeConcurrency, "concurrency", 0, "Manually define the number of tabs to concurrently update if non-zero")
@@ -153,7 +155,7 @@ func main() {
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.readConcurrency, opt.writeConcurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.groups.Strings(), opt.confirm, opt.calculateStats, opt.useTabAlertSettings, opt.wait, fixers...); err != nil {
+	if err := tabulator.Update(ctx, client, mets, opt.config, opt.readConcurrency, opt.writeConcurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.groups.Strings(), opt.confirm, opt.calculateStats, opt.useTabAlertSettings, opt.extendState, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
 }
