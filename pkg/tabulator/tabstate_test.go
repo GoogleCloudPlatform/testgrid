@@ -721,7 +721,7 @@ func Test_Tabulate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, tc.groupCfg, tc.calculateStats, tc.useTabAlert)
+			actual, err := tabulate(ctx, logrus.New(), tc.grid, tc.dashCfg, tc.groupCfg, tc.calculateStats, tc.useTabAlert, nil) // TODO(slchase): add tests for not nil
 			if tc.expected == nil {
 				if err == nil {
 					t.Error("Expected an error, but got none")
@@ -812,7 +812,7 @@ func Test_CreateTabState(t *testing.T) {
 				data: tc.state,
 			}
 
-			err := createTabState(ctx, logrus.New(), client, task, *configPath, "prefix", tc.confirm, true, true)
+			err := createTabState(ctx, logrus.New(), client, task, *configPath, "prefix", tc.confirm, true, true, false)
 			if tc.expectError == (err == nil) {
 				t.Errorf("Wrong error: want %t, got %v", tc.expectError, err)
 			}
@@ -823,4 +823,417 @@ func Test_CreateTabState(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_MergeGrids(t *testing.T) {
+	testcases := []struct {
+		name    string
+		current []updater.InflatedColumn
+		add     []updater.InflatedColumn
+		expect  []updater.InflatedColumn
+	}{
+		{
+			name:   "Empty grids",
+			expect: []updater.InflatedColumn{},
+		},
+		{
+			name:    "Creating a grid",
+			current: []updater.InflatedColumn{},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "cool results",
+						Started: 12345678,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "cool results",
+						Started: 12345678,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+		},
+		{
+			name: "Merge two results where existing is first",
+			current: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "old results",
+						Started: 1,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "cool results",
+						Started: 12345678,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_FAIL},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "cool results",
+						Started: 12345678,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_FAIL},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "old results",
+						Started: 1,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+		},
+		{
+			name: "Merge two results where new is first",
+			current: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "old results",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "finished results",
+						Started: 1,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_FAIL},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "old results",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "finished results",
+						Started: 1,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_FAIL},
+					},
+				},
+			},
+		},
+		{
+			name: "two identical results: merged with new result",
+			current: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "result",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_RUNNING},
+					},
+				},
+			},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "result",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "result",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+		},
+		{
+			name: "two similar results (diff build): not merged",
+			current: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "test",
+						Build:   "building",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "test",
+						Build:   "scaffold",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "test",
+						Build:   "building",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "test",
+						Build:   "scaffold",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+		},
+		{
+			name: "two similar results (diff name): not merged",
+			current: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "current",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "add",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "current",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "add",
+						Build:   "build",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+			},
+		},
+		{
+			name: "adds new info: keeps historical data",
+			current: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "fourth",
+						Started: 1234,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "third",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "second",
+						Started: 12,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "first",
+						Started: 1,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {
+							Result: tspb.TestStatus_UNKNOWN,
+							Icon:   "...",
+						},
+					},
+				},
+			},
+			add: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "sixth",
+						Started: 123456,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "fifth",
+						Started: 12345,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "fourth",
+						Started: 1234,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {
+							Result: tspb.TestStatus_UNKNOWN,
+							Icon:   "...",
+						},
+					},
+				},
+			},
+			expect: []updater.InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:    "sixth",
+						Started: 123456,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "fifth",
+						Started: 12345,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "fourth",
+						Started: 1234,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "third",
+						Started: 123,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "second",
+						Started: 12,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "first",
+						Started: 1,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {
+							Result: tspb.TestStatus_UNKNOWN,
+							Icon:   "...",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			actual := mergeGrids(test.current, test.add)
+			if diff := cmp.Diff(actual, test.expect, protocmp.Transform()); diff != "" {
+				t.Errorf("Unexpected (-got, +want): %s", diff)
+				t.Logf("Got %#v", actual)
+			}
+		})
+	}
+
 }
