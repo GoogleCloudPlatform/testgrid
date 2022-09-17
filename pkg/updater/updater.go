@@ -546,7 +546,7 @@ func listBuilds(ctx context.Context, client gcs.Lister, since string, paths ...g
 type ColumnReader func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time, receivers chan<- InflatedColumn) error
 
 // SortStarted sorts InflatedColumns by column start time.
-func SortStarted(_ *configpb.TestGroup, cols []InflatedColumn) {
+func SortStarted(cols []InflatedColumn) {
 	sort.SliceStable(cols, func(i, j int) bool {
 		return cols[i].Column.Started > cols[j].Column.Started
 	})
@@ -613,7 +613,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 			cols = append(cols, *col)
 			floor = when
 		}
-		SortStarted(tg, cols) // Our processing requires descending start time.
+		SortStarted(cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols, floor)
 	}
 	var cols []InflatedColumn
@@ -695,7 +695,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		cols = groupColumns(tg, cols)
 	}
 
-	SortStarted(tg, cols)
+	SortStarted(cols)
 
 	if truncateGrid(cols, byteCeiling) {
 		cols = groupColumns(tg, cols)
@@ -1029,12 +1029,12 @@ func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[str
 
 	for name, row := range rows {
 		row.Issues = append(row.Issues, issues[name]...)
-		issues := make(map[string]bool, len(row.Issues))
+		issueSet := make(map[string]bool, len(row.Issues))
 		for _, i := range row.Issues {
-			issues[i] = true
+			issueSet[i] = true
 		}
-		row.Issues = make([]string, 0, len(issues))
-		for i := range issues {
+		row.Issues = make([]string, 0, len(issueSet))
+		for i := range issueSet {
 			row.Issues = append(row.Issues, i)
 		}
 		sort.SliceStable(row.Issues, func(i, j int) bool {
