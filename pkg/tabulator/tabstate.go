@@ -299,6 +299,7 @@ func createTabState(ctx context.Context, log logrus.FieldLogger, client gcs.Clie
 
 	var existingGrid *statepb.Grid
 	if extendState {
+		// TODO(chases2): Download grid only if task.Data was truncated (last column is UNKNOWN)
 		existingGrid, _, err = gcs.DownloadGrid(ctx, client, *location)
 		if err != nil {
 			return fmt.Errorf("downloadGrid: %w", err)
@@ -391,46 +392,27 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 }
 
 // mergeGrids merges two sorted, inflated grids together.
-// assumes that all grids are sorted by column start time.
+// Precondition: "addition" is an output of an Updater with an "unknown" column last.
+//    This final column will be dropped and replaced with existing results.
 func mergeGrids(existing, addition []updater.InflatedColumn) []updater.InflatedColumn {
-	result := make([]updater.InflatedColumn, 0, len(existing))
-	var oldI, newI int
-	for {
-		if oldI == len(existing) {
-			return append(result, addition[newI:]...)
-		}
-		if newI == len(addition) {
-			return append(result, existing[oldI:]...)
-
-		}
-		old := existing[oldI]
-		new := addition[newI]
-		if old.Column.Started > new.Column.Started {
-			result = append(result, old)
-			oldI++
-			continue
-		}
-		if new.Column.Started > old.Column.Started {
-			result = append(result, new)
-			newI++
-			continue
-		}
-		if new.Column.Build == old.Column.Build && new.Column.Name == old.Column.Name {
-			// At this point, assume the columns refer to the same test at different points in time.
-			// If the new results are "unknown", keep the old results. Otherwise, new results are newer and therefore more correct.
-			for name, result := range new.Cells {
-				if result.Result == tspb.TestStatus_UNKNOWN {
-					new.Cells[name] = old.Cells[name]
-				}
-			}
-			result = append(result, new)
-			oldI++
-			newI++
-			continue
-		}
-		result = append(result, old)
-		oldI++
+	if len(addition) == 0 {
+		return existing
 	}
+	seam := addition[len(addition)-1].Column.Started
+	min := 0
+	max := len(existing)
+	for min != max {
+		check := (min + max) / 2
+		if existing[check].Column.Started <= seam {
+			max = check
+		} else {
+			min = check + 1
+		}
+	}
+	if max == len(existing) {
+		return addition
+	}
+	return append(addition[:len(addition)-1], existing[max:]...)
 }
 
 // dropEmptyColumns drops every column in-place that has no results

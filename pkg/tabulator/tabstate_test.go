@@ -833,10 +833,6 @@ func Test_MergeGrids(t *testing.T) {
 		expect  []updater.InflatedColumn
 	}{
 		{
-			name:   "Empty grids",
-			expect: []updater.InflatedColumn{},
-		},
-		{
 			name:    "Creating a grid",
 			current: []updater.InflatedColumn{},
 			add: []updater.InflatedColumn{
@@ -849,40 +845,13 @@ func Test_MergeGrids(t *testing.T) {
 						"cell": {Result: tspb.TestStatus_PASS},
 					},
 				},
-			},
-			expect: []updater.InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Name:    "cool results",
-						Started: 12345678,
+						Name:    "result too big :(",
+						Started: 123456,
 					},
 					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-		},
-		{
-			name: "Merge two results where existing is first",
-			current: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "old results",
-						Started: 1,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-			add: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "cool results",
-						Started: 12345678,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_FAIL},
+						"cell": {Result: tspb.TestStatus_RUNNING},
 					},
 				},
 			},
@@ -893,71 +862,36 @@ func Test_MergeGrids(t *testing.T) {
 						Started: 12345678,
 					},
 					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_FAIL},
+						"cell": {Result: tspb.TestStatus_PASS},
 					},
 				},
 				{
 					Column: &statepb.Column{
-						Name:    "old results",
-						Started: 1,
+						Name:    "result too big :(",
+						Started: 123456,
 					},
 					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
+						"cell": {Result: tspb.TestStatus_RUNNING},
 					},
 				},
 			},
 		},
 		{
-			name: "Merge two results where new is first",
+			name: "two identical results: displays new result",
 			current: []updater.InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Name:    "old results",
-						Started: 123,
+						Name:    "result 2",
+						Build:   "build",
+						Started: 1234,
 					},
 					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-			add: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "finished results",
-						Started: 1,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_FAIL},
-					},
-				},
-			},
-			expect: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "old results",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
+						"cell": {Result: tspb.TestStatus_RUNNING},
 					},
 				},
 				{
 					Column: &statepb.Column{
-						Name:    "finished results",
-						Started: 1,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_FAIL},
-					},
-				},
-			},
-		},
-		{
-			name: "two identical results: merged with new result",
-			current: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "result",
+						Name:    "result 1",
 						Build:   "build",
 						Started: 123,
 					},
@@ -969,60 +903,41 @@ func Test_MergeGrids(t *testing.T) {
 			add: []updater.InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Name:    "result",
+						Name:    "result 2",
+						Build:   "build",
+						Started: 1234,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "result 1",
 						Build:   "build",
 						Started: 123,
 					},
 					Cells: map[string]updater.Cell{
 						"cell": {Result: tspb.TestStatus_PASS},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:    "too big",
+						Build:   "build",
+						Started: 12,
+					},
+					Cells: map[string]updater.Cell{
+						"cell": {Result: tspb.TestStatus_UNKNOWN},
 					},
 				},
 			},
 			expect: []updater.InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Name:    "result",
+						Name:    "result 2",
 						Build:   "build",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-		},
-		{
-			name: "two similar results (diff build): not merged",
-			current: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "test",
-						Build:   "building",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-			add: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "test",
-						Build:   "scaffold",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-			expect: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "test",
-						Build:   "building",
-						Started: 123,
+						Started: 1234,
 					},
 					Cells: map[string]updater.Cell{
 						"cell": {Result: tspb.TestStatus_PASS},
@@ -1030,46 +945,7 @@ func Test_MergeGrids(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Name:    "test",
-						Build:   "scaffold",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-		},
-		{
-			name: "two similar results (diff name): not merged",
-			current: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "current",
-						Build:   "build",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-			add: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "add",
-						Build:   "build",
-						Started: 123,
-					},
-					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
-					},
-				},
-			},
-			expect: []updater.InflatedColumn{
-				{
-					Column: &statepb.Column{
-						Name:    "current",
+						Name:    "result 1",
 						Build:   "build",
 						Started: 123,
 					},
@@ -1079,12 +955,12 @@ func Test_MergeGrids(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Name:    "add",
+						Name:    "too big",
 						Build:   "build",
-						Started: 123,
+						Started: 12,
 					},
 					Cells: map[string]updater.Cell{
-						"cell": {Result: tspb.TestStatus_PASS},
+						"cell": {Result: tspb.TestStatus_UNKNOWN},
 					},
 				},
 			},
@@ -1235,5 +1111,4 @@ func Test_MergeGrids(t *testing.T) {
 			}
 		})
 	}
-
 }
