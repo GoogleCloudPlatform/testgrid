@@ -199,6 +199,24 @@ message DashboardTabSummary {
   // Metrics about alerts sent with respect to this summary
   // Maintained by alerter; does not need to be populated by summarizer
   AlertingData alerting_data = 14;
+
+  // Flag indicating if the tab's flakiness level is within acceptable percentage
+  // Will only be applied to FLAKY tabs
+  // Configured via DashboardTab > DashboardTabStatusCustomizationOptions > max_acceptable_flakiness
+  bool acceptably_flaky = 15;
+
+  // Additional metrics provided by the summarizer
+  // e.g. total columns analyzed, # of passing columns
+  DashboardTabSummaryMetrics summary_metrics = 16;
+}
+
+// Most recent summary metrics for the tab calculated over columns (not individual tests)
+message DashboardTabSummaryMetrics {
+  // Number of total columns analyzed by summarizer
+  int32 completed_columns = 1;
+
+  // Number of columns with all tests passing
+  int32 passing_columns = 2;
 }
 
 // Summary state of a dashboard.

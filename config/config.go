@@ -398,7 +398,7 @@ func validateDashboardTab(dt *configpb.DashboardTab) error {
 				}
 			}
 			if regex.NumSubexp() != len(names) {
-				mErr = multierror.Append(mErr, fmt.Errorf("all tabular_name_regex capture groups must be named"))
+				mErr = multierror.Append(mErr, errors.New("all tabular_name_regex capture groups must be named"))
 			}
 			if len(names) < 1 {
 				mErr = multierror.Append(mErr, errors.New("tabular_name_regex requires at least one capture group"))
@@ -411,6 +411,11 @@ func validateDashboardTab(dt *configpb.DashboardTab) error {
 		if err := validateEmails(dt.GetAlertOptions().GetAlertMailToAddresses()); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
+	}
+
+	// Max acceptable flakiness parameter should be valid.
+	if max_acceptable_flakiness := dt.GetStatusCustomizationOptions().GetMaxAcceptableFlakiness(); max_acceptable_flakiness < 0 || max_acceptable_flakiness > 100 {
+		mErr = multierror.Append(mErr, errors.New("invalid value provided for max_acceptable_flakiness"))
 	}
 
 	return mErr

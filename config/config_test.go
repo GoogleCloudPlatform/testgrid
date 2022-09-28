@@ -990,6 +990,27 @@ func TestValidateDashboardTab(t *testing.T) {
 			},
 			err: true,
 		},
+		{
+			name: "invalid max acceptable flakiness parameter",
+			tab: &configpb.DashboardTab{
+				Name:          "pug",
+				TestGroupName: "test_group_2",
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 101.5,
+				},
+			},
+			err: true,
+		},
+		{
+			name: "tab, has testgroup, valid max acceptable flakiness parameter",
+			tab: &configpb.DashboardTab{
+				Name:          "pug",
+				TestGroupName: "test_group_2",
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 25.0,
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

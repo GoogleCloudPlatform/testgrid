@@ -694,18 +694,23 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
 	passingCols, completedCols, passingCells, filledCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold)
+	metrics := tabMetrics(passingCols, completedCols)
+	tabStatus := overallStatus(grid, recent, alert, brokenState, failures)
+	acceptablyFlaky := acceptableFlakiness(passingCols, completedCols, tabStatus, tab.GetStatusCustomizationOptions())
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
 		LastRunTimestamp:     float64(latestSeconds),
 		Alert:                alert,
 		FailingTestSummaries: failures,
-		OverallStatus:        overallStatus(grid, recent, alert, brokenState, failures),
-		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
+		OverallStatus:        tabStatus,
+		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells, acceptablyFlaky, tab.GetStatusCustomizationOptions()),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		BugUrl:               tab.GetOpenBugTemplate().GetUrl(),
 		Healthiness:          healthiness,
 		LinkedIssues:         allLinkedIssues(grid.Rows),
+		AcceptablyFlaky:      acceptablyFlaky,
+		SummaryMetrics:       metrics,
 	}, nil
 }
 
@@ -988,18 +993,50 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 	return passingCols, completedCols, passingCells, filledCells, brokenState
 }
 
-func fmtStatus(passCols, cols, passCells, cells int) string {
-	colCent := 100 * float64(passCols) / float64(cols)
-	cellCent := 100 * float64(passCells) / float64(cells)
-	return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
+func tabMetrics(passingCols, completedCols int) *summarypb.DashboardTabSummaryMetrics {
+	return &summarypb.DashboardTabSummaryMetrics{
+		PassingColumns:   int32(passingCols),
+		CompletedColumns: int32(completedCols),
+	}
 }
 
-//  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
-func statusMessage(passingCols, completedCols, passingCells, filledCells int) string {
+func acceptableFlakiness(passingCols, completedCols int, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) bool {
+
+	// not configured to show acceptable flakiness
+	if opts.GetMaxAcceptableFlakiness() <= 0 {
+		return false
+	}
+
+	// only FLAKY can be acceptable
+	if tabStatus != summarypb.DashboardTabSummary_FLAKY {
+		return false
+	}
+
+	// flakiness above threshold
+	if 100*float64(passingCols)/float64(completedCols) < float64(100-opts.GetMaxAcceptableFlakiness()) {
+		return false
+	}
+
+	return true
+}
+
+func fmtStatus(passCols, cols, passCells, cells int, acceptablyFlaky bool, opts *configpb.DashboardTabStatusCustomizationOptions) string {
+	colCent := 100 * float64(passCols) / float64(cols)
+	cellCent := 100 * float64(passCells) / float64(cells)
+	statusMsg := fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
+	if acceptablyFlaky {
+		statusMsg += fmt.Sprintf(". Recent flakiness (%.1f%%) is within configured acceptable level of %.1f%%.", 100-colCent, opts.GetMaxAcceptableFlakiness())
+	}
+	return statusMsg
+}
+
+// 3 out of 5 (60.0%) recent columns passed (35 of 50 or 70.0% cells)
+// (OPTIONAL) Recent flakiness (40.0%) flakiness is wtihin configured acceptable level of X
+func statusMessage(passingCols, completedCols, passingCells, filledCells int, acceptablyFlaky bool, opts *configpb.DashboardTabStatusCustomizationOptions) string {
 	if filledCells == 0 {
 		return noRuns
 	}
-	return fmtStatus(passingCols, completedCols, passingCells, filledCells)
+	return fmtStatus(passingCols, completedCols, passingCells, filledCells, acceptablyFlaky, opts)
 }
 
 const noGreens = "no recent greens"
