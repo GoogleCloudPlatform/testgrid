@@ -302,7 +302,7 @@ func TestUpdateDashboard(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5)
+		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5, false)
 		t.Run(tc.name, func(t *testing.T) {
 			finder := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 				name := tab.TestGroupName
@@ -473,15 +473,16 @@ func compress(buf []byte) []byte {
 func TestUpdateTab(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
-		name      string
-		tab       *configpb.DashboardTab
-		group     *configpb.TestGroup
-		grid      *statepb.Grid
-		mod       time.Time
-		gen       int64
-		gridError error
-		expected  *summarypb.DashboardTabSummary
-		err       bool
+		name                string
+		tab                 *configpb.DashboardTab
+		group               *configpb.TestGroup
+		grid                *statepb.Grid
+		mod                 time.Time
+		gen                 int64
+		gridError           error
+		allowFuzzyFlakiness bool
+		expected            *summarypb.DashboardTabSummary
+		err                 bool
 	}{
 		{
 			name: "read grid error returns error",
@@ -518,6 +519,103 @@ func TestUpdateTab(t *testing.T) {
 			},
 		},
 		{
+			name: "fuzzy flakiness allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 50.0,
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name:    "test-1",
+						Results: []int32{int32(statuspb.TestStatus_PASS), 3, int32(statuspb.TestStatus_FAIL), 1},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Four",
+						Build: "4",
+					},
+				},
+			},
+			mod:                 now,
+			gen:                 43,
+			allowFuzzyFlakiness: true,
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "1",
+				Status:              "3 of 4 (75.0%) recent columns passed (3 of 4 or 75.0% cells). Recent flakiness (25.0%) is within configured acceptable level of 50.0%.",
+				AcceptablyFlaky:     true,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   3,
+				},
+			},
+		},
+		{
+			name: "fuzzy flakiness not allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 2,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 50.0,
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name:    "test-1",
+						Results: []int32{int32(statuspb.TestStatus_PASS), 1, int32(statuspb.TestStatus_FAIL), 1},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+				},
+			},
+			mod: now,
+			gen: 43,
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "1",
+				Status:              "1 of 2 (50.0%) recent columns passed (1 of 2 or 50.0% cells)",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 2,
+					PassingColumns:   1,
+				},
+			},
+		},
+		{
 			name: "missing grid returns a blank summary",
 			tab: &configpb.DashboardTab{
 				Name: "you know",
@@ -539,7 +637,7 @@ func TestUpdateTab(t *testing.T) {
 				}
 				return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(tc.grid)))), tc.mod, tc.gen, nil
 			}
-			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader)
+			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader, tc.allowFuzzyFlakiness)
 			switch {
 			case err != nil:
 				if !tc.err {
