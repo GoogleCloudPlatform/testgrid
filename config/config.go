@@ -415,7 +415,7 @@ func validateDashboardTab(dt *configpb.DashboardTab) error {
 
 	// Max acceptable flakiness parameter should be valid (between 0.0 and 100.0 - both inclusive).
 	if max_acceptable_flakiness := dt.GetStatusCustomizationOptions().GetMaxAcceptableFlakiness(); max_acceptable_flakiness < 0 || max_acceptable_flakiness > 100 {
-		mErr = multierror.Append(mErr, errors.New("invalid value provided for max_acceptable_flakiness"))
+		mErr = multierror.Append(mErr, errors.New("invalid value provided for max_acceptable_flakiness (should be between 0.0 and 100.0)"))
 	}
 
 	return mErr
