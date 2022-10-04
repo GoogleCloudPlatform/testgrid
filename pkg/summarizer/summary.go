@@ -89,7 +89,7 @@ type Fixer func(context.Context, *config.DashboardQueue) error
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm, allowFuzzyFlakiness bool, freq time.Duration, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if concurrency < 1 {
@@ -249,7 +249,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return groupPath, group, reader, nil
 	}
 
-	tabUpdater := tabUpdatePool(ctx, log, concurrency)
+	tabUpdater := tabUpdatePool(ctx, log, concurrency, allowFuzzyFlakiness)
 
 	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
@@ -599,7 +599,7 @@ type tabUpdater struct {
 	update func(context.Context, *configpb.DashboardTab, *configpb.TestGroup, gridReader) func() (*summarypb.DashboardTabSummary, error)
 }
 
-func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int) *tabUpdater {
+func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int, allowFuzzyFlakiness bool) *tabUpdater {
 	type request struct {
 		ctx   context.Context
 		tab   *configpb.DashboardTab
@@ -621,7 +621,7 @@ func tabUpdatePool(poolCtx context.Context, log *logrus.Entry, concurrency int) 
 		go func() {
 			defer wg.Done()
 			for req := range ch {
-				req.sum, req.err = updateTab(req.ctx, req.tab, req.group, req.read)
+				req.sum, req.err = updateTab(req.ctx, req.tab, req.group, req.read, allowFuzzyFlakiness)
 				req.wg.Done()
 			}
 		}()
@@ -668,7 +668,7 @@ func staleHours(tab *configpb.DashboardTab) time.Duration {
 }
 
 // updateTab reads the latest grid state for the tab and summarizes it.
-func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.TestGroup, groupReader gridReader) (*summarypb.DashboardTabSummary, error) {
+func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.TestGroup, groupReader gridReader, allowFuzzyFlakiness bool) (*summarypb.DashboardTabSummary, error) {
 	groupName := tab.TestGroupName
 	grid, mod, _, err := readGrid(ctx, groupReader) // TODO(fejta): track gen
 	if err != nil {
@@ -694,18 +694,24 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 	alert := staleAlert(mod, latest, staleHours(tab))
 	failures := failingTestSummaries(grid.Rows)
 	passingCols, completedCols, passingCells, filledCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold)
+	metrics := tabMetrics(passingCols, completedCols)
+	tabStatus := overallStatus(grid, recent, alert, brokenState, failures)
+	// tab can be acceptably flaky only if the summarizer has "allow-fuzzy-flakiness" flag on
+	acceptablyFlaky := allowFuzzyFlakiness && acceptableFlakiness(passingCols, completedCols, tabStatus, tab.GetStatusCustomizationOptions())
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
 		LastRunTimestamp:     float64(latestSeconds),
 		Alert:                alert,
 		FailingTestSummaries: failures,
-		OverallStatus:        overallStatus(grid, recent, alert, brokenState, failures),
-		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells),
+		OverallStatus:        tabStatus,
+		Status:               statusMessage(passingCols, completedCols, passingCells, filledCells, acceptablyFlaky, tab.GetStatusCustomizationOptions()),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		BugUrl:               tab.GetOpenBugTemplate().GetUrl(),
 		Healthiness:          healthiness,
 		LinkedIssues:         allLinkedIssues(grid.Rows),
+		AcceptablyFlaky:      acceptablyFlaky,
+		SummaryMetrics:       metrics,
 	}, nil
 }
 
@@ -988,18 +994,50 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 	return passingCols, completedCols, passingCells, filledCells, brokenState
 }
 
-func fmtStatus(passCols, cols, passCells, cells int) string {
-	colCent := 100 * float64(passCols) / float64(cols)
-	cellCent := 100 * float64(passCells) / float64(cells)
-	return fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
+func tabMetrics(passingCols, completedCols int) *summarypb.DashboardTabSummaryMetrics {
+	return &summarypb.DashboardTabSummaryMetrics{
+		PassingColumns:   int32(passingCols),
+		CompletedColumns: int32(completedCols),
+	}
 }
 
-//  2483 of 115784 tests (2.1%) and 163 of 164 runs (99.4%) failed in the past 7 days
-func statusMessage(passingCols, completedCols, passingCells, filledCells int) string {
+func acceptableFlakiness(passingCols, completedCols int, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) bool {
+
+	// not configured to show acceptable flakiness
+	if opts.GetMaxAcceptableFlakiness() <= 0 {
+		return false
+	}
+
+	// only FLAKY can be acceptable
+	if tabStatus != summarypb.DashboardTabSummary_FLAKY {
+		return false
+	}
+
+	// flakiness above threshold
+	if 100*float64(passingCols)/float64(completedCols) < float64(100-opts.GetMaxAcceptableFlakiness()) {
+		return false
+	}
+
+	return true
+}
+
+func fmtStatus(passCols, cols, passCells, cells int, acceptablyFlaky bool, opts *configpb.DashboardTabStatusCustomizationOptions) string {
+	colCent := 100 * float64(passCols) / float64(cols)
+	cellCent := 100 * float64(passCells) / float64(cells)
+	statusMsg := fmt.Sprintf("%d of %d (%.1f%%) recent columns passed (%d of %d or %.1f%% cells)", passCols, cols, colCent, passCells, cells, cellCent)
+	if acceptablyFlaky {
+		statusMsg += fmt.Sprintf(". Recent flakiness (%.1f%%) is within configured acceptable level of %.1f%%.", 100-colCent, opts.GetMaxAcceptableFlakiness())
+	}
+	return statusMsg
+}
+
+// 3 out of 5 (60.0%) recent columns passed (35 of 50 or 70.0% cells)
+// (OPTIONAL) Recent flakiness (40.0%) flakiness is wtihin configured acceptable level of X
+func statusMessage(passingCols, completedCols, passingCells, filledCells int, acceptablyFlaky bool, opts *configpb.DashboardTabStatusCustomizationOptions) string {
 	if filledCells == 0 {
 		return noRuns
 	}
-	return fmtStatus(passingCols, completedCols, passingCells, filledCells)
+	return fmtStatus(passingCols, completedCols, passingCells, filledCells, acceptablyFlaky, opts)
 }
 
 const noGreens = "no recent greens"

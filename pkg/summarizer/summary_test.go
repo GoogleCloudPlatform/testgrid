@@ -109,6 +109,7 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						Status:              noRuns,
 						LatestGreen:         noGreens,
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 				},
 			},
@@ -170,6 +171,7 @@ func TestUpdateDashboard(t *testing.T) {
 						Status:              noRuns,
 						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 					tabStatus("a-dashboard", "missing-tab", `Test group does not exist: "group-not-present"`),
 					tabStatus("a-dashboard", "error-tab", fmt.Sprintf("Error attempting to summarize tab: load has-errors: open: tragedy")),
@@ -181,6 +183,7 @@ func TestUpdateDashboard(t *testing.T) {
 						Status:              noRuns,
 						OverallStatus:       summarypb.DashboardTabSummary_STALE,
 						LatestGreen:         noGreens,
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 				},
 			},
@@ -251,6 +254,7 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
 						LatestGreen:         noGreens,
 						BugUrl:              "",
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 					{
 						DashboardName:       "a-dashboard",
@@ -260,6 +264,7 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
 						LatestGreen:         noGreens,
 						BugUrl:              "",
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 					{
 						DashboardName:       "a-dashboard",
@@ -269,6 +274,7 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
 						LatestGreen:         noGreens,
 						BugUrl:              "http://some-bugs/",
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 					{
 						DashboardName:       "a-dashboard",
@@ -278,6 +284,7 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
 						LatestGreen:         noGreens,
 						BugUrl:              "http://more-bugs/",
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 					{
 						DashboardName:       "a-dashboard",
@@ -287,6 +294,7 @@ func TestUpdateDashboard(t *testing.T) {
 						OverallStatus:       summarypb.DashboardTabSummary_UNKNOWN,
 						LatestGreen:         noGreens,
 						BugUrl:              "http://ooh-bugs/",
+						SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
 					},
 				},
 			},
@@ -294,7 +302,7 @@ func TestUpdateDashboard(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5)
+		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5, false)
 		t.Run(tc.name, func(t *testing.T) {
 			finder := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 				name := tab.TestGroupName
@@ -465,15 +473,16 @@ func compress(buf []byte) []byte {
 func TestUpdateTab(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
-		name      string
-		tab       *configpb.DashboardTab
-		group     *configpb.TestGroup
-		grid      *statepb.Grid
-		mod       time.Time
-		gen       int64
-		gridError error
-		expected  *summarypb.DashboardTabSummary
-		err       bool
+		name                string
+		tab                 *configpb.DashboardTab
+		group               *configpb.TestGroup
+		grid                *statepb.Grid
+		mod                 time.Time
+		gen                 int64
+		gridError           error
+		allowFuzzyFlakiness bool
+		expected            *summarypb.DashboardTabSummary
+		err                 bool
 	}{
 		{
 			name: "read grid error returns error",
@@ -506,6 +515,104 @@ func TestUpdateTab(t *testing.T) {
 				LatestGreen:         noGreens,
 				OverallStatus:       summarypb.DashboardTabSummary_STALE,
 				Status:              noRuns,
+				SummaryMetrics:      &summarypb.DashboardTabSummaryMetrics{},
+			},
+		},
+		{
+			name: "fuzzy flakiness allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 50.0,
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name:    "test-1",
+						Results: []int32{int32(statuspb.TestStatus_PASS), 3, int32(statuspb.TestStatus_FAIL), 1},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Four",
+						Build: "4",
+					},
+				},
+			},
+			mod:                 now,
+			gen:                 43,
+			allowFuzzyFlakiness: true,
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "1",
+				Status:              "3 of 4 (75.0%) recent columns passed (3 of 4 or 75.0% cells). Recent flakiness (25.0%) is within configured acceptable level of 50.0%.",
+				AcceptablyFlaky:     true,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   3,
+				},
+			},
+		},
+		{
+			name: "fuzzy flakiness not allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 2,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 50.0,
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name:    "test-1",
+						Results: []int32{int32(statuspb.TestStatus_PASS), 1, int32(statuspb.TestStatus_FAIL), 1},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+				},
+			},
+			mod: now,
+			gen: 43,
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "1",
+				Status:              "1 of 2 (50.0%) recent columns passed (1 of 2 or 50.0% cells)",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 2,
+					PassingColumns:   1,
+				},
 			},
 		},
 		{
@@ -530,7 +637,7 @@ func TestUpdateTab(t *testing.T) {
 				}
 				return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(tc.grid)))), tc.mod, tc.gen, nil
 			}
-			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader)
+			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader, tc.allowFuzzyFlakiness)
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -1278,26 +1385,6 @@ func TestOverallStatus(t *testing.T) {
 			expected: summarypb.DashboardTabSummary_PASS,
 		},
 		{
-			name:   "dropped columns", // should not impact status
-			recent: 1,
-			rows: []*statepb.Row{
-				{
-					Name: "current",
-					Results: []int32{
-						int32(statuspb.TestStatus_PASS), 2,
-					},
-				},
-				{
-					Name: "ignore dropped",
-					Results: []int32{
-						int32(statuspb.TestStatus_NO_RESULT), 1,
-						int32(statuspb.TestStatus_FAIL), 1,
-					},
-				},
-			},
-			expected: summarypb.DashboardTabSummary_PASS,
-		},
-		{
 			name:   "running", // do not count as recent
 			recent: 1,
 			rows: []*statepb.Row{
@@ -1838,16 +1925,18 @@ func TestGridMetrics(t *testing.T) {
 
 func TestStatusMessage(t *testing.T) {
 	cases := []struct {
-		name             string
-		passingCols      int
-		completedCols    int
-		passingCells     int
-		filledCells      int
-		expectedOverride string
+		name            string
+		passingCols     int
+		completedCols   int
+		passingCells    int
+		filledCells     int
+		acceptablyFlaky bool
+		opts            *configpb.DashboardTabStatusCustomizationOptions
+		want            string
 	}{
 		{
-			name:             "no filledCells",
-			expectedOverride: noRuns,
+			name: "no filledCells",
+			want: noRuns,
 		},
 		{
 			name:          "green path",
@@ -1855,6 +1944,7 @@ func TestStatusMessage(t *testing.T) {
 			completedCols: 2,
 			passingCells:  4,
 			filledCells:   4,
+			want:          "2 of 2 (100.0%) recent columns passed (4 of 4 or 100.0% cells)",
 		},
 		{
 			name:          "all red path",
@@ -1862,6 +1952,7 @@ func TestStatusMessage(t *testing.T) {
 			completedCols: 2,
 			passingCells:  0,
 			filledCells:   4,
+			want:          "0 of 2 (0.0%) recent columns passed (0 of 4 or 0.0% cells)",
 		},
 		{
 			name:          "all values the same",
@@ -1869,17 +1960,26 @@ func TestStatusMessage(t *testing.T) {
 			completedCols: 2,
 			passingCells:  2,
 			filledCells:   2,
+			want:          "2 of 2 (100.0%) recent columns passed (2 of 2 or 100.0% cells)",
+		},
+		{
+			name:            "acceptably flaky",
+			passingCols:     3,
+			completedCols:   4,
+			passingCells:    6,
+			filledCells:     8,
+			acceptablyFlaky: true,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 50,
+			},
+			want: "3 of 4 (75.0%) recent columns passed (6 of 8 or 75.0% cells). Recent flakiness (25.0%) is within configured acceptable level of 50.0%.",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			expected := tc.expectedOverride
-			if expected == "" {
-				expected = fmtStatus(tc.passingCols, tc.completedCols, tc.passingCells, tc.filledCells)
-			}
-			if actual := statusMessage(tc.passingCols, tc.completedCols, tc.passingCells, tc.filledCells); actual != expected {
-				t.Errorf("%s != expected %s", actual, expected)
+			if actual := statusMessage(tc.passingCols, tc.completedCols, tc.passingCells, tc.filledCells, tc.acceptablyFlaky, tc.opts); actual != tc.want {
+				t.Errorf("%v: statusMessage() = %q, want %q", tc.name, actual, tc.want)
 			}
 		})
 	}
@@ -2424,4 +2524,68 @@ func TestSummaryPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAcceptableFlakiness(t *testing.T) {
+	cases := []struct {
+		name          string
+		passingCols   int
+		completedCols int
+		tabStatus     summarypb.DashboardTabSummary_TabStatus
+		opts          *configpb.DashboardTabStatusCustomizationOptions
+		want          bool
+	}{
+		{
+			name:          "customization options not provided",
+			passingCols:   4,
+			completedCols: 5,
+			tabStatus:     summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:          "disabled max acceptable flakiness",
+			passingCols:   3,
+			completedCols: 15,
+			tabStatus:     summarypb.DashboardTabSummary_FLAKY,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 0.0,
+			},
+		},
+		{
+			name:          "flakiness above threshold",
+			passingCols:   5,
+			completedCols: 10,
+			tabStatus:     summarypb.DashboardTabSummary_FLAKY,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 40.0,
+			},
+		},
+		{
+			name:          "non-flaky tab status",
+			passingCols:   7,
+			completedCols: 10,
+			tabStatus:     summarypb.DashboardTabSummary_BROKEN,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 40.0,
+			},
+		},
+		{
+			name:          "acceptably flaky",
+			passingCols:   7,
+			completedCols: 10,
+			tabStatus:     summarypb.DashboardTabSummary_FLAKY,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 35.0,
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := acceptableFlakiness(tc.passingCols, tc.completedCols, tc.tabStatus, tc.opts); got != tc.want {
+				t.Errorf("%v: acceptableFlakiness(%v, %v, %v, %v) = %v, want %v", tc.name, tc.passingCols, tc.completedCols, tc.tabStatus, tc.opts, got, tc.want)
+			}
+		})
+	}
+
 }
