@@ -19,12 +19,16 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"cloud.google.com/go/storage"
+	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	v1pb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	v1 "github.com/GoogleCloudPlatform/testgrid/pkg/api/v1"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
@@ -41,33 +45,48 @@ type RouterOptions struct {
 
 const v1InfixRef = "/api/v1"
 
-// GetRouter returns an http router that serves TestGrid's API
+// GetRouters returns an http router and gRPC server that both serve TestGrid's API
 // It also instantiates necessary caching and i/o objects
-func GetRouter(options RouterOptions, storageClient *storage.Client) (*mux.Router, error) {
-	r := mux.NewRouter()
+func GetRouters(options RouterOptions, storageClient *storage.Client) (*mux.Router, *grpc.Server, error) {
+	server, err := GetServer(options, storageClient)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	router := mux.NewRouter()
+	sub1 := router.PathPrefix(v1InfixRef).Subrouter()
+	v1.Route(sub1, *server)
+
+	grpcOptions := []grpc.ServerOption{}
+	grpcServer := grpc.NewServer(grpcOptions...)
+	v1pb.RegisterTestGridDataServer(grpcServer, server)
+	reflection.Register(grpcServer)
+
+	return sub1, grpcServer, nil
+}
+
+// GetServer returns a server that serves TestGrid's API
+// It also instantiates necessary caching and i/o objects
+func GetServer(options RouterOptions, storageClient *storage.Client) (*v1.Server, error) {
 	if storageClient == nil {
 		sc, err := gcs.ClientWithCreds(context.Background(), options.GcsCredentials)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("clientWithCreds(): %w", err)
 		}
 		storageClient = sc
 	}
 
 	v1InfixURL, err := url.Parse(v1InfixRef)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("url.Parse(): %w", err)
 	}
 
-	sub1 := r.PathPrefix(v1InfixRef).Subrouter()
-	s := v1.Server{
+	return &v1.Server{
 		Client:         gcs.NewClient(storageClient),
 		Host:           options.Hostname.ResolveReference(v1InfixURL),
 		DefaultBucket:  options.HomeBucket,
 		GridPathPrefix: options.GridPathPrefix,
 		TabPathPrefix:  options.TabPathPrefix,
 		Timeout:        options.Timeout,
-	}
-	v1.Route(sub1, s)
-
-	return sub1, nil
+	}, nil
 }
