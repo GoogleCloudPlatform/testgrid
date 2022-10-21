@@ -20,16 +20,19 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/GoogleCloudPlatform/testgrid/pkg/api"
 	"github.com/sirupsen/logrus"
+
+	"github.com/GoogleCloudPlatform/testgrid/pkg/api"
 )
 
 type options struct {
-	port       string
+	httpPort   string
+	grpcPort   string
 	router     api.RouterOptions
 	hostString string
 }
@@ -38,15 +41,17 @@ func gatherOptions() (options, error) {
 	var o options
 	flag.StringVar(&o.router.HomeBucket, "scope", "", "Local or cloud TestGrid context to read from")
 	flag.StringVar(&o.router.GcsCredentials, "gcp-service-account", "", "/path/to/gcp/creds (use local creds if empty)")
-	flag.StringVar(&o.port, "port", "8080", "Port to deploy to")
-	flag.StringVar(&o.hostString, "host", "", "Friendly hostname used to serve links")
+	flag.StringVar(&o.httpPort, "port", "8080", "Alias for http-port")
+	flag.StringVar(&o.httpPort, "http-port", "8080", "Port to deploy REST server to")
+	flag.StringVar(&o.grpcPort, "grpc-port", "50051", "Port to deploy gRPC server to")
+	flag.StringVar(&o.hostString, "host", "", "Friendly hostname used to serve HATEOAS links")
 	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.router.TabPathPrefix, "tab", "tabs", "Read tab path states under this path")
-	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to merge everything in one loop")
+	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to complete one request")
 	flag.Parse()
 
 	if o.hostString == "" {
-		o.hostString = fmt.Sprintf("localhost:%s", o.port)
+		o.hostString = fmt.Sprintf("localhost:%s", o.httpPort)
 	}
 	var err error
 	o.router.Hostname, err = url.Parse(o.hostString)
@@ -60,15 +65,32 @@ func main() {
 		log.WithError(err).Fatal("Can't parse options")
 	}
 
-	log.WithField("port", opt.port).Info("Listening...")
-	router, err := api.GetRouter(opt.router, nil)
+	httpMux, grpcMux, err := api.GetRouters(opt.router, nil)
 	if err != nil {
 		log.WithError(err).WithField("router-options", opt.router).Fatal("Can't create router")
 	}
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", opt.port), router); err != nil {
-		log.WithError(err).Fatal("HTTP Server Error")
+	terminate := make(chan interface{})
+	go func() {
+		lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%s", opt.grpcPort))
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+
+		log.WithField("port", opt.grpcPort).Info("Listening via gRPC...")
+		if err := grpcMux.Serve(lis); err != nil {
+			log.WithError(err).Error("gRPC Server Error")
+		} else {
+			log.Info("gRPC listener stopped listening (with no error)")
+		}
+		terminate <- 0
+	}()
+
+	log.WithField("port", opt.httpPort).Info("Listening via http...")
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", opt.httpPort), httpMux); err != nil {
+		log.WithError(err).Error("HTTP Server Error")
 	} else {
 		log.Info("HTTP listener stopped listening (with no error)")
 	}
+	<-terminate
 }
