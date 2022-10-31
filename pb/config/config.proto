@@ -579,7 +579,10 @@ message DashboardTab {
   DashboardTabFlakinessAlertOptions flakiness_alert_options = 24;
 
   // Configuration options for customizing dashboard tab status calculation.
-  // Used to define acceptable flakiness
+  // Options here define:
+  // - which test statuses will be ignored
+  // - minimum acceptable flakiness
+  // - minimum runs required
   DashboardTabStatusCustomizationOptions status_customization_options = 26;
 
   // A URL for the "About this Dashboard" menu option
@@ -682,9 +685,24 @@ message DashboardTabStatusCustomizationOptions {
   // Maximum amount of flakiness tolerated to categorize tab as acceptable.
   // Will supplement dashboard tab status message, and mark the tab as ACCEPTABLE in the dashboard group view.
   // 0 = Disable this option
-  // This is configured as a percentage of num_cols_recent; expected values go
+  // This is configured as a percentage of valid (non-ignored) columns; expected values go
   // from 0.0 to 100.0 (100% = no passing columns is acceptable)
   float max_acceptable_flakiness = 1;
+
+  // Columns which contain cells with any status configure below will be ignored.
+  // Ignored columns affect the computation of flakiness and non-ignored number of runs.
+  enum IgnoredTestStatus{
+    CATEGORIZED_ABORT = 0;
+    UNKNOWN = 1;
+    CANCEL = 2;
+    BLOCKED = 3;
+  }
+
+  repeated IgnoredTestStatus ignored_test_statuses = 2;
+
+  // Minimum number of runs required excluding ignored ones.
+  // If the non-ignored columns is less than this, tab status will be PENDING.
+  int32 min_acceptable_runs = 3;
 }
 
 // Specifies a dashboard group.

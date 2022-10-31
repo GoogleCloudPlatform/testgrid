@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"testing"
 
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
@@ -128,6 +129,109 @@ func TestFailing(t *testing.T) {
 		t.Run(tc.status.String(), func(t *testing.T) {
 			if actual := Failing(tc.status); actual != tc.expected {
 				t.Errorf("Failing(%v) got %t, want %t", tc.status, actual, tc.expected)
+			}
+		})
+	}
+}
+
+func TestIgnored(t *testing.T) {
+	cases := []struct {
+		name     string
+		status   statuspb.TestStatus
+		opts     *configpb.DashboardTabStatusCustomizationOptions
+		expected bool
+	}{
+		{
+			name:   "categorized abort ignored",
+			status: statuspb.TestStatus_CATEGORIZED_ABORT,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:   "categorized abort not ignored",
+			status: statuspb.TestStatus_CATEGORIZED_ABORT,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_UNKNOWN,
+					configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+				},
+			},
+		},
+		{
+			name:   "unknown ignored",
+			status: statuspb.TestStatus_UNKNOWN,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_UNKNOWN,
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:   "unknown not ignored",
+			status: statuspb.TestStatus_UNKNOWN,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+				},
+			},
+		},
+		{
+			name:   "cancel ignored",
+			status: statuspb.TestStatus_CANCEL,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+					configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:   "cancel not ignored",
+			status: statuspb.TestStatus_CANCEL,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+				},
+			},
+		},
+		{
+			name:   "blocked ignored",
+			status: statuspb.TestStatus_BLOCKED,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+					configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:   "blocked not ignored",
+			status: statuspb.TestStatus_BLOCKED,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+				},
+			},
+		},
+		{
+			name:   "ignored statuses not set",
+			status: statuspb.TestStatus_BLOCKED,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if actual := Ignored(tc.status, tc.opts); actual != tc.expected {
+				t.Errorf("Ignored(%v) got %t, want %t", tc.status, actual, tc.expected)
 			}
 		})
 	}
