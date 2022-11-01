@@ -160,7 +160,7 @@ func (s Server) ListHeadersHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, &resp)
+	s.writeJSON(w, &resp)
 }
 
 // ListRows returns dashboard tab rows
@@ -225,5 +225,5 @@ func (s Server) ListRowsHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, &resp)
+	s.writeJSON(w, &resp)
 }

@@ -107,7 +107,7 @@ func (s Server) ListDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, &groups)
+	s.writeJSON(w, &groups)
 }
 
 // GetDashboardGroup returns a given dashboard group
@@ -147,7 +147,7 @@ func (s Server) GetDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	writeJSON(w, resp)
+	s.writeJSON(w, resp)
 }
 
 // ListDashboard returns every dashboard in TestGrid
@@ -182,7 +182,7 @@ func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, &dashboards)
+	s.writeJSON(w, &dashboards)
 }
 
 // GetDashboard returns a given dashboard
@@ -220,7 +220,7 @@ func (s Server) GetDashboardHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	writeJSON(w, resp)
+	s.writeJSON(w, resp)
 }
 
 // ListDashboardTabs returns a given dashboard tabs
@@ -260,5 +260,5 @@ func (s Server) ListDashboardTabsHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	writeJSON(w, resp)
+	s.writeJSON(w, resp)
 }

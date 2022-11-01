@@ -45,6 +45,7 @@ func gatherOptions() (options, error) {
 	flag.StringVar(&o.httpPort, "http-port", "8080", "Port to deploy REST server to")
 	flag.StringVar(&o.grpcPort, "grpc-port", "50051", "Port to deploy gRPC server to")
 	flag.StringVar(&o.hostString, "host", "", "Friendly hostname used to serve HATEOAS links")
+	flag.StringVar(&o.router.AccessControlAllowOrigin, "allowed-origin", "", "Allowed 'Access-Control-Allow-Origin' for HTTP calls, if any")
 	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.router.TabPathPrefix, "tab", "tabs", "Read tab path states under this path")
 	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to complete one request")

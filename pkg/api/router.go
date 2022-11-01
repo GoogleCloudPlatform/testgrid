@@ -35,12 +35,13 @@ import (
 
 // RouterOptions are the options needed to GetRouter
 type RouterOptions struct {
-	GcsCredentials string
-	Hostname       *url.URL
-	HomeBucket     string
-	GridPathPrefix string
-	TabPathPrefix  string
-	Timeout        time.Duration
+	GcsCredentials           string
+	Hostname                 *url.URL
+	HomeBucket               string
+	GridPathPrefix           string
+	TabPathPrefix            string
+	AccessControlAllowOrigin string
+	Timeout                  time.Duration
 }
 
 const v1InfixRef = "/api/v1"
@@ -82,11 +83,12 @@ func GetServer(options RouterOptions, storageClient *storage.Client) (*v1.Server
 	}
 
 	return &v1.Server{
-		Client:         gcs.NewClient(storageClient),
-		Host:           options.Hostname.ResolveReference(v1InfixURL),
-		DefaultBucket:  options.HomeBucket,
-		GridPathPrefix: options.GridPathPrefix,
-		TabPathPrefix:  options.TabPathPrefix,
-		Timeout:        options.Timeout,
+		Client:                   gcs.NewClient(storageClient),
+		Host:                     options.Hostname.ResolveReference(v1InfixURL),
+		DefaultBucket:            options.HomeBucket,
+		GridPathPrefix:           options.GridPathPrefix,
+		TabPathPrefix:            options.TabPathPrefix,
+		AccessControlAllowOrigin: options.AccessControlAllowOrigin,
+		Timeout:                  options.Timeout,
 	}, nil
 }

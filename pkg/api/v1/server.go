@@ -27,12 +27,13 @@ import (
 
 // Server contains the necessary settings and i/o objects needed to serve this api
 type Server struct {
-	Client         gcs.Client
-	Host           *url.URL
-	DefaultBucket  string
-	GridPathPrefix string
-	TabPathPrefix  string
-	Timeout        time.Duration
+	Client                   gcs.Client
+	Host                     *url.URL
+	DefaultBucket            string
+	GridPathPrefix           string
+	TabPathPrefix            string
+	AccessControlAllowOrigin string
+	Timeout                  time.Duration
 }
 
 // Ensure the server implementation conforms to the API
