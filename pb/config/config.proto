@@ -579,10 +579,6 @@ message DashboardTab {
   DashboardTabFlakinessAlertOptions flakiness_alert_options = 24;
 
   // Configuration options for customizing dashboard tab status calculation.
-  // Options here define:
-  // - which test statuses will be ignored
-  // - minimum acceptable flakiness
-  // - minimum runs required
   DashboardTabStatusCustomizationOptions status_customization_options = 26;
 
   // A URL for the "About this Dashboard" menu option

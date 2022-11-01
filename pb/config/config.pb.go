@@ -1739,10 +1739,6 @@ type DashboardTab struct {
 	// Configuration options for dashboard tab flakiness alerts.
 	FlakinessAlertOptions *DashboardTabFlakinessAlertOptions `protobuf:"bytes,24,opt,name=flakiness_alert_options,json=flakinessAlertOptions,proto3" json:"flakiness_alert_options,omitempty"`
 	// Configuration options for customizing dashboard tab status calculation.
-	// Options here define:
-	// - which test statuses will be ignored
-	// - minimum acceptable flakiness
-	// - minimum runs required
 	StatusCustomizationOptions *DashboardTabStatusCustomizationOptions `protobuf:"bytes,26,opt,name=status_customization_options,json=statusCustomizationOptions,proto3" json:"status_customization_options,omitempty"`
 	// A URL for the "About this Dashboard" menu option
 	AboutDashboardUrl string `protobuf:"bytes,16,opt,name=about_dashboard_url,json=aboutDashboardUrl,proto3" json:"about_dashboard_url,omitempty"`
