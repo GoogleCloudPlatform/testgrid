@@ -19,6 +19,7 @@ package result
 import (
 	"context"
 
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
@@ -71,6 +72,20 @@ func Passing(rowResult statuspb.TestStatus) bool {
 // including CATEGORIZED_FAILURE, BUILD_FAIL, and more.
 func Failing(rowResult statuspb.TestStatus) bool {
 	return GTE(rowResult, statuspb.TestStatus_TOOL_FAIL) && LTE(rowResult, statuspb.TestStatus_FAIL)
+}
+
+// Ignored returns true if the test status is any ignored status,
+// configured via Config > DashboardTab > DashboardTabStatusCustomizationOptions > IgnoredTestStatuses
+func Ignored(rowResult statuspb.TestStatus, opts *configpb.DashboardTabStatusCustomizationOptions) bool {
+	for _, ignoredStatus := range opts.GetIgnoredTestStatuses() {
+		if (ignoredStatus == configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT && rowResult == statuspb.TestStatus_CATEGORIZED_ABORT) ||
+			(ignoredStatus == configpb.DashboardTabStatusCustomizationOptions_UNKNOWN && rowResult == statuspb.TestStatus_UNKNOWN) ||
+			(ignoredStatus == configpb.DashboardTabStatusCustomizationOptions_CANCEL && rowResult == statuspb.TestStatus_CANCEL) ||
+			(ignoredStatus == configpb.DashboardTabStatusCustomizationOptions_BLOCKED && rowResult == statuspb.TestStatus_BLOCKED) {
+			return true
+		}
+	}
+	return false
 }
 
 // Coalesce reduces the result to PASS, NO_RESULT, FAIL, FLAKY or UNKNOWN.

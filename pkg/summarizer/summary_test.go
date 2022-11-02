@@ -35,7 +35,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/GoogleCloudPlatform/testgrid/internal/result"
@@ -302,7 +301,7 @@ func TestUpdateDashboard(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5, false)
+		tabUpdater := tabUpdatePool(context.Background(), logrus.WithField("name", "pool"), 5, FeatureFlags{false, false, false})
 		t.Run(tc.name, func(t *testing.T) {
 			finder := func(dash string, tab *configpb.DashboardTab) (*gcs.Path, *configpb.TestGroup, gridReader, error) {
 				name := tab.TestGroupName
@@ -473,16 +472,16 @@ func compress(buf []byte) []byte {
 func TestUpdateTab(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
-		name                string
-		tab                 *configpb.DashboardTab
-		group               *configpb.TestGroup
-		grid                *statepb.Grid
-		mod                 time.Time
-		gen                 int64
-		gridError           error
-		allowFuzzyFlakiness bool
-		expected            *summarypb.DashboardTabSummary
-		err                 bool
+		name      string
+		tab       *configpb.DashboardTab
+		group     *configpb.TestGroup
+		grid      *statepb.Grid
+		mod       time.Time
+		gen       int64
+		gridError error
+		features  FeatureFlags
+		expected  *summarypb.DashboardTabSummary
+		err       bool
 	}{
 		{
 			name: "read grid error returns error",
@@ -519,7 +518,7 @@ func TestUpdateTab(t *testing.T) {
 			},
 		},
 		{
-			name: "fuzzy flakiness allowed",
+			name: "fuzzy flakiness configured and allowed",
 			tab: &configpb.DashboardTab{
 				Name:             "foo-tab",
 				TestGroupName:    "foo-group",
@@ -555,15 +554,17 @@ func TestUpdateTab(t *testing.T) {
 					},
 				},
 			},
-			mod:                 now,
-			gen:                 43,
-			allowFuzzyFlakiness: true,
+			mod: now,
+			gen: 43,
+			features: FeatureFlags{
+				AllowFuzzyFlakiness: true,
+			},
 			expected: &summarypb.DashboardTabSummary{
 				DashboardTabName:    "foo-tab",
 				LastUpdateTimestamp: float64(now.Unix()),
 				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
 				LatestGreen:         "1",
-				Status:              "3 of 4 (75.0%) recent columns passed (3 of 4 or 75.0% cells). Recent flakiness (25.0%) is within configured acceptable level of 50.0%.",
+				Status:              "Tab stats: 3 of 4 (75.0%) recent columns passed (3 of 4 or 75.0% cells)\nStatus info: Recent flakiness (25.0%) over valid columns is within configured acceptable level of 50.0%.",
 				AcceptablyFlaky:     true,
 				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
 					CompletedColumns: 4,
@@ -572,11 +573,11 @@ func TestUpdateTab(t *testing.T) {
 			},
 		},
 		{
-			name: "fuzzy flakiness not allowed",
+			name: "fuzzy flakiness configured but not allowed",
 			tab: &configpb.DashboardTab{
 				Name:             "foo-tab",
 				TestGroupName:    "foo-group",
-				NumColumnsRecent: 2,
+				NumColumnsRecent: 4,
 				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
 					MaxAcceptableFlakiness: 50.0,
 				},
@@ -586,7 +587,7 @@ func TestUpdateTab(t *testing.T) {
 				Rows: []*statepb.Row{
 					{
 						Name:    "test-1",
-						Results: []int32{int32(statuspb.TestStatus_PASS), 1, int32(statuspb.TestStatus_FAIL), 1},
+						Results: []int32{int32(statuspb.TestStatus_PASS), 3, int32(statuspb.TestStatus_FAIL), 1},
 					},
 				},
 				Columns: []*statepb.Column{
@@ -598,20 +599,451 @@ func TestUpdateTab(t *testing.T) {
 						Name:  "Dos",
 						Build: "2",
 					},
+					{
+						Name:  "Three",
+						Build: "3",
+					},
+					{
+						Name:  "Quattro",
+						Build: "4",
+					},
 				},
 			},
 			mod: now,
 			gen: 43,
+			features: FeatureFlags{
+				AllowFuzzyFlakiness: false,
+			},
 			expected: &summarypb.DashboardTabSummary{
 				DashboardTabName:    "foo-tab",
 				LastUpdateTimestamp: float64(now.Unix()),
 				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
 				LatestGreen:         "1",
-				Status:              "1 of 2 (50.0%) recent columns passed (1 of 2 or 50.0% cells)",
+				Status:              "Tab stats: 3 of 4 (75.0%) recent columns passed (3 of 4 or 75.0% cells)",
 				AcceptablyFlaky:     false,
 				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
-					CompletedColumns: 2,
-					PassingColumns:   1,
+					CompletedColumns: 4,
+					PassingColumns:   3,
+				},
+			},
+		},
+		{
+			name: "ignored columns configured and allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+						configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+						configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+					},
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name: "test-1",
+						Results: []int32{
+							int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+							int32(statuspb.TestStatus_PASS), 3,
+						},
+					},
+					{
+						Name: "test-2",
+						Results: []int32{
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_CANCEL), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+						},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Chetyre",
+						Build: "4",
+					},
+				},
+			},
+			mod: now,
+			gen: 44,
+			features: FeatureFlags{
+				AllowIgnoredColumns: true,
+			},
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_PASS,
+				LatestGreen:         "3",
+				Status:              "Tab stats: 2 of 4 (50.0%) recent columns passed (5 of 8 or 62.5% cells). 2 columns ignored",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   2,
+					IgnoredColumns:   2,
+				},
+			},
+		},
+		{
+			name: "ignored columns configured but not allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+						configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+						configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+					},
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name: "test-1",
+						Results: []int32{
+							int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+							int32(statuspb.TestStatus_PASS), 3,
+						},
+					},
+					{
+						Name: "test-2",
+						Results: []int32{
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_CANCEL), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+						},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Chetyre",
+						Build: "4",
+					},
+				},
+			},
+			mod: now,
+			gen: 44,
+			features: FeatureFlags{
+				AllowIgnoredColumns: false,
+			},
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "3",
+				Status:              "Tab stats: 3 of 4 (75.0%) recent columns passed (5 of 8 or 62.5% cells)",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   3,
+					IgnoredColumns:   0,
+				},
+			},
+		},
+		{
+			name: "min required runs configured and allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MinAcceptableRuns: 5,
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name: "test-1",
+						Results: []int32{
+							int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+							int32(statuspb.TestStatus_PASS), 3,
+						},
+					},
+					{
+						Name: "test-2",
+						Results: []int32{
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_CANCEL), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+						},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Chetyre",
+						Build: "4",
+					},
+				},
+			},
+			mod: now,
+			gen: 45,
+			features: FeatureFlags{
+				AllowMinNumberOfRuns: true,
+			},
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_PENDING,
+				LatestGreen:         "3",
+				Status:              "Tab stats: 3 of 4 (75.0%) recent columns passed (5 of 8 or 62.5% cells)\nStatus info: Not enough runs",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   3,
+					IgnoredColumns:   0,
+				},
+			},
+		},
+		{
+			name: "min required runs configured but not allowed",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MinAcceptableRuns: 5,
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name: "test-1",
+						Results: []int32{
+							int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+							int32(statuspb.TestStatus_PASS), 3,
+						},
+					},
+					{
+						Name: "test-2",
+						Results: []int32{
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_CANCEL), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+						},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Chetyre",
+						Build: "4",
+					},
+				},
+			},
+			mod: now,
+			gen: 45,
+			features: FeatureFlags{
+				AllowMinNumberOfRuns: false,
+			},
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "3",
+				Status:              "Tab stats: 3 of 4 (75.0%) recent columns passed (5 of 8 or 62.5% cells)",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   3,
+					IgnoredColumns:   0,
+				},
+			},
+		},
+		{
+			name: "not enough runs after ignoring",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MinAcceptableRuns:      3,
+					MaxAcceptableFlakiness: 50.0,
+					IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+						configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+						configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+					},
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name: "test-1",
+						Results: []int32{
+							int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+							int32(statuspb.TestStatus_PASS), 3,
+						},
+					},
+					{
+						Name: "test-2",
+						Results: []int32{
+							int32(statuspb.TestStatus_FAIL), 1,
+							int32(statuspb.TestStatus_BLOCKED), 1,
+							int32(statuspb.TestStatus_PASS), 2,
+						},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Chetyre",
+						Build: "4",
+					},
+				},
+			},
+			mod: now,
+			gen: 45,
+			features: FeatureFlags{
+				AllowMinNumberOfRuns: true,
+				AllowFuzzyFlakiness:  true,
+				AllowIgnoredColumns:  true,
+			},
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_PENDING,
+				LatestGreen:         "3",
+				Status:              "Tab stats: 2 of 4 (50.0%) recent columns passed (5 of 8 or 62.5% cells). 2 columns ignored\nStatus info: Not enough runs",
+				AcceptablyFlaky:     false,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   2,
+					IgnoredColumns:   2,
+				},
+			},
+		},
+		{
+			name: "acceptably flaky after ignoring",
+			tab: &configpb.DashboardTab{
+				Name:             "foo-tab",
+				TestGroupName:    "foo-group",
+				NumColumnsRecent: 4,
+				StatusCustomizationOptions: &configpb.DashboardTabStatusCustomizationOptions{
+					MaxAcceptableFlakiness: 35.0,
+					IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+						configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+						configpb.DashboardTabStatusCustomizationOptions_BLOCKED,
+					},
+				},
+			},
+			group: &configpb.TestGroup{},
+			grid: &statepb.Grid{
+				Rows: []*statepb.Row{
+					{
+						Name: "test-1",
+						Results: []int32{
+							int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+							int32(statuspb.TestStatus_PASS), 3,
+						},
+					},
+					{
+						Name: "test-2",
+						Results: []int32{
+							int32(statuspb.TestStatus_FAIL), 2,
+							int32(statuspb.TestStatus_PASS), 2,
+						},
+					},
+				},
+				Columns: []*statepb.Column{
+					{
+						Name:  "Uno",
+						Build: "1",
+					},
+					{
+						Name:  "Dos",
+						Build: "2",
+					},
+					{
+						Name:  "San",
+						Build: "3",
+					},
+					{
+						Name:  "Chetyre",
+						Build: "4",
+					},
+				},
+			},
+			mod: now,
+			gen: 45,
+			features: FeatureFlags{
+				AllowMinNumberOfRuns: true,
+				AllowFuzzyFlakiness:  true,
+				AllowIgnoredColumns:  true,
+			},
+			expected: &summarypb.DashboardTabSummary{
+				DashboardTabName:    "foo-tab",
+				LastUpdateTimestamp: float64(now.Unix()),
+				OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+				LatestGreen:         "3",
+				Status:              "Tab stats: 2 of 4 (50.0%) recent columns passed (5 of 8 or 62.5% cells). 1 columns ignored\nStatus info: Recent flakiness (33.3%) over valid columns is within configured acceptable level of 35.0%.",
+				AcceptablyFlaky:     true,
+				SummaryMetrics: &summarypb.DashboardTabSummaryMetrics{
+					CompletedColumns: 4,
+					PassingColumns:   2,
+					IgnoredColumns:   1,
 				},
 			},
 		},
@@ -637,7 +1069,7 @@ func TestUpdateTab(t *testing.T) {
 				}
 				return ioutil.NopCloser(bytes.NewBuffer(compress(gridBuf(tc.grid)))), tc.mod, tc.gen, nil
 			}
-			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader, tc.allowFuzzyFlakiness)
+			actual, err := updateTab(context.Background(), tc.tab, tc.group, reader, tc.features)
 			switch {
 			case err != nil:
 				if !tc.err {
@@ -1271,6 +1703,9 @@ func TestOverallStatus(t *testing.T) {
 		stale    string
 		broken   bool
 		alerts   bool
+		features FeatureFlags
+		colCells gridStats
+		opts     *configpb.DashboardTabStatusCustomizationOptions
 		expected summarypb.DashboardTabSummary_TabStatus
 	}{
 		{
@@ -1442,6 +1877,133 @@ func TestOverallStatus(t *testing.T) {
 			broken:   true,
 			expected: summarypb.DashboardTabSummary_BROKEN,
 		},
+		{
+			name:   "more runs required but flag not enabled",
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS_WITH_SKIPS), 2,
+						int32(statuspb.TestStatus_FAIL), 2,
+					},
+				},
+			},
+			features: FeatureFlags{
+				AllowMinNumberOfRuns: false,
+			},
+			colCells: gridStats{
+				ignoredCols:   2,
+				completedCols: 4,
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MinAcceptableRuns: 3,
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
+		},
+		{
+			name:   "more runs required with flag enabled",
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS_WITH_SKIPS), 2,
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 2,
+					},
+				},
+			},
+			features: FeatureFlags{
+				AllowMinNumberOfRuns: true,
+			},
+			colCells: gridStats{
+				ignoredCols:   2,
+				completedCols: 4,
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MinAcceptableRuns: 3,
+			},
+			expected: summarypb.DashboardTabSummary_PENDING,
+		},
+		{
+			name:   "neutral statuses ignored but flag not enabled",
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 2,
+					},
+				},
+			},
+			features: FeatureFlags{
+				AllowIgnoredColumns: false,
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+				},
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
+		},
+		{
+			name:   "neutral statuses ignored with flag enabled (passes ignored)",
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "passes and aborts",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 2,
+					},
+				},
+				{
+					Name: "passes only",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 4,
+					},
+				},
+			},
+			features: FeatureFlags{
+				AllowIgnoredColumns: true,
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+				},
+			},
+			expected: summarypb.DashboardTabSummary_PASS,
+		},
+		{
+			name:   "neutral statuses ignored with flag enabled (fails detected before ignores)",
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "passes and aborts",
+					Results: []int32{
+						int32(statuspb.TestStatus_PASS), 2,
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 2,
+					},
+				},
+				{
+					Name: "passes and fails",
+					Results: []int32{
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_PASS), 3,
+					},
+				},
+			},
+			features: FeatureFlags{
+				AllowIgnoredColumns: true,
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+					configpb.DashboardTabStatusCustomizationOptions_CANCEL,
+				},
+			},
+			expected: summarypb.DashboardTabSummary_FLAKY,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1451,7 +2013,7 @@ func TestOverallStatus(t *testing.T) {
 				alerts = append(alerts, &summarypb.FailingTestSummary{})
 			}
 
-			if actual := overallStatus(&statepb.Grid{Rows: tc.rows}, tc.recent, tc.stale, tc.broken, alerts); actual != tc.expected {
+			if actual := overallStatus(&statepb.Grid{Rows: tc.rows}, tc.recent, tc.stale, tc.broken, alerts, tc.features, tc.colCells, tc.opts); actual != tc.expected {
 				t.Errorf("%s != expected %s", actual, tc.expected)
 			}
 		})
@@ -1468,11 +2030,10 @@ func TestGridMetrics(t *testing.T) {
 		cols            int
 		rows            []*statepb.Row
 		recent          int
-		passingCols     int
-		filledCols      int
-		passingCells    int
-		filledCells     int
+		features        FeatureFlags
+		opts            *configpb.DashboardTabStatusCustomizationOptions
 		brokenThreshold float32
+		expectedMetrics gridStats
 		expectedBroken  bool
 	}{
 		{
@@ -1491,11 +2052,13 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
-			recent:       2,
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 4,
-			filledCells:  4,
+			recent: 2,
+			expectedMetrics: gridStats{
+				passingCols:   2,
+				completedCols: 2,
+				passingCells:  4,
+				filledCells:   4,
+			},
 		},
 		{
 			name: "red: i do not like them sam I am",
@@ -1510,11 +2073,13 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_FLAKY), 2},
 				},
 			},
-			recent:       2,
-			passingCols:  0,
-			filledCols:   2,
-			passingCells: 0,
-			filledCells:  4,
+			recent: 2,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 2,
+				passingCells:  0,
+				filledCells:   4,
+			},
 		},
 		{
 			name: "passing cells but no green columns",
@@ -1535,11 +2100,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			recent:       2,
-			passingCols:  0,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  4,
+			recent: 2,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 2,
+				passingCells:  2,
+				filledCells:   4},
 		},
 		{
 			name:   "ignore overflow of claimed columns",
@@ -1555,10 +2121,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
-			passingCols:  3,
-			filledCols:   3,
-			passingCells: 6,
-			filledCells:  6,
+			expectedMetrics: gridStats{
+				passingCols:   3,
+				completedCols: 3,
+				passingCells:  6,
+				filledCells:   6,
+			},
 		},
 		{
 			name:   "ignore bad row data",
@@ -1573,10 +2141,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  2,
+			expectedMetrics: gridStats{
+				passingCols:   2,
+				completedCols: 2,
+				passingCells:  2,
+				filledCells:   2,
+			},
 		},
 		{
 			name:   "ignore non recent data",
@@ -1588,10 +2158,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 100},
 				},
 			},
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  2,
+			expectedMetrics: gridStats{
+				passingCols:   2,
+				completedCols: 2,
+				passingCells:  2,
+				filledCells:   2,
+			},
 		},
 		{
 			name:   "no result cells do not alter column",
@@ -1624,10 +2196,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:  2, // pass, fail, pass
-			filledCols:   3,
-			passingCells: 6,
-			filledCells:  7,
+			expectedMetrics: gridStats{
+				passingCols:   2, // pass, fail, pass
+				completedCols: 3,
+				passingCells:  6,
+				filledCells:   7,
+			},
 		},
 		{
 			name:   "not enough columns yet works just fine",
@@ -1641,10 +2215,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:  4,
-			filledCols:   4,
-			passingCells: 4,
-			filledCells:  4,
+			expectedMetrics: gridStats{
+				passingCols:   4,
+				completedCols: 4,
+				passingCells:  4,
+				filledCells:   4,
+			},
 		},
 		{
 			name:   "half passes and half fails",
@@ -1664,10 +2240,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:  0,
-			filledCols:   4,
-			passingCells: 4,
-			filledCells:  8,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  4,
+				filledCells:   8,
+			},
 		},
 		{
 			name:   "no result in every column",
@@ -1690,10 +2268,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 			},
-			passingCols:  2,
-			filledCols:   2,
-			passingCells: 2,
-			filledCells:  2,
+			expectedMetrics: gridStats{
+				passingCols:   2,
+				completedCols: 2,
+				passingCells:  2,
+				filledCells:   2,
+			},
 		},
 		{
 			name:   "only no result",
@@ -1705,10 +2285,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 			},
-			passingCols:  0,
-			filledCols:   0,
-			passingCells: 0,
-			filledCells:  0,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 0,
+				passingCells:  0,
+				filledCells:   0,
+			},
 		},
 		{
 			name:   "Pass with skips",
@@ -1724,10 +2306,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
-			passingCols:  3,
-			filledCols:   3,
-			passingCells: 6,
-			filledCells:  6,
+			expectedMetrics: gridStats{
+				passingCols:   3,
+				completedCols: 3,
+				passingCells:  6,
+				filledCells:   6,
+			},
 		},
 		{
 			name:   "Pass with errors",
@@ -1743,10 +2327,12 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
-			passingCols:  3,
-			filledCols:   3,
-			passingCells: 6,
-			filledCells:  6,
+			expectedMetrics: gridStats{
+				passingCols:   3,
+				completedCols: 3,
+				passingCells:  6,
+				filledCells:   6,
+			},
 		},
 		{
 			name:   "All columns past threshold",
@@ -1766,10 +2352,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     0,
-			filledCols:      4,
-			passingCells:    4,
-			filledCells:     8,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  4,
+				filledCells:   8,
+			},
 			brokenThreshold: .4,
 			expectedBroken:  true,
 		},
@@ -1790,11 +2378,12 @@ func TestGridMetrics(t *testing.T) {
 						int32(statuspb.TestStatus_FAIL), 4,
 					},
 				},
+			}, expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  4,
+				filledCells:   8,
 			},
-			passingCols:     0,
-			filledCols:      4,
-			passingCells:    4,
-			filledCells:     8,
 			brokenThreshold: .6,
 			expectedBroken:  false,
 		},
@@ -1817,10 +2406,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     3,
-			filledCols:      4,
-			passingCells:    7,
-			filledCells:     8,
+			expectedMetrics: gridStats{
+				passingCols:   3,
+				completedCols: 4,
+				passingCells:  7,
+				filledCells:   8,
+			},
 			brokenThreshold: .4,
 			expectedBroken:  true,
 		},
@@ -1843,10 +2434,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     3,
-			filledCols:      4,
-			passingCells:    7,
-			filledCells:     8,
+			expectedMetrics: gridStats{
+				passingCols:   3,
+				completedCols: 4,
+				passingCells:  7,
+				filledCells:   8,
+			},
 			brokenThreshold: .6,
 			expectedBroken:  false,
 		},
@@ -1874,10 +2467,12 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     0,
-			filledCols:      4,
-			passingCells:    0,
-			filledCells:     12,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  0,
+				filledCells:   12,
+			},
 			brokenThreshold: .6,
 			expectedBroken:  false,
 		},
@@ -1905,20 +2500,127 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			passingCols:     0,
-			filledCols:      4,
-			passingCells:    0,
-			filledCells:     12,
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  0,
+				filledCells:   12,
+			},
 			brokenThreshold: .6,
 			expectedBroken:  false,
+		},
+		{
+			name:   "allow ignored but no ignored test statuses",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "four aborts (foo)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+				{
+					Name: "four aborts (bar)",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 4,
+					},
+				},
+			},
+			features: FeatureFlags{
+				AllowIgnoredColumns: true,
+			},
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  0,
+				filledCells:   8,
+				ignoredCols:   0,
+			},
+		},
+		{
+			name:   "allow ignored with ignored test statuses",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "abort with passes",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+						int32(statuspb.TestStatus_PASS), 3,
+					},
+				},
+				{
+					Name: "unknown with fails",
+					Results: []int32{
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_UNKNOWN), 1,
+						int32(statuspb.TestStatus_FAIL), 2,
+					},
+				},
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+					configpb.DashboardTabStatusCustomizationOptions_UNKNOWN,
+				},
+			},
+			features: FeatureFlags{
+				AllowIgnoredColumns: true,
+			},
+			expectedMetrics: gridStats{
+				passingCols:   0,
+				completedCols: 4,
+				passingCells:  3,
+				filledCells:   8,
+				ignoredCols:   2,
+			},
+		},
+		{
+			name:   "do not allow ignored with ignored test statuses",
+			cols:   4,
+			recent: 4,
+			rows: []*statepb.Row{
+				{
+					Name: "abort with passes",
+					Results: []int32{
+						int32(statuspb.TestStatus_CATEGORIZED_ABORT), 1,
+						int32(statuspb.TestStatus_PASS), 3,
+					},
+				},
+				{
+					Name: "unknown with fails",
+					Results: []int32{
+						int32(statuspb.TestStatus_FAIL), 1,
+						int32(statuspb.TestStatus_UNKNOWN), 1,
+						int32(statuspb.TestStatus_PASS), 2,
+					},
+				},
+			},
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				IgnoredTestStatuses: []configpb.DashboardTabStatusCustomizationOptions_IgnoredTestStatus{
+					configpb.DashboardTabStatusCustomizationOptions_CATEGORIZED_ABORT,
+					configpb.DashboardTabStatusCustomizationOptions_UNKNOWN,
+				},
+			},
+			features: FeatureFlags{
+				AllowIgnoredColumns: false,
+			},
+			expectedMetrics: gridStats{
+				passingCols:   3,
+				completedCols: 4,
+				passingCells:  5,
+				filledCells:   8,
+				ignoredCols:   0,
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			expected := makeShim(tc.passingCols, tc.filledCols, tc.passingCells, tc.filledCells, tc.expectedBroken)
-			actual := makeShim(gridMetrics(tc.cols, tc.rows, tc.recent, tc.brokenThreshold))
-			assert.Equal(t, expected, actual, fmt.Sprintf("%s != expected %s", actual, expected))
+			if actualMetrics, actualBroken := gridMetrics(tc.cols, tc.rows, tc.recent, tc.brokenThreshold, tc.features, tc.opts); actualMetrics != tc.expectedMetrics || actualBroken != tc.expectedBroken {
+				t.Errorf("%v: gridMetrics() = %v, %v, want %v, %v", tc.name, actualMetrics, actualBroken, tc.expectedMetrics, tc.expectedBroken)
+			}
 		})
 	}
 }
@@ -1926,11 +2628,9 @@ func TestGridMetrics(t *testing.T) {
 func TestStatusMessage(t *testing.T) {
 	cases := []struct {
 		name            string
-		passingCols     int
-		completedCols   int
-		passingCells    int
-		filledCells     int
+		colCells        gridStats
 		acceptablyFlaky bool
+		status          summarypb.DashboardTabSummary_TabStatus
 		opts            *configpb.DashboardTabStatusCustomizationOptions
 		want            string
 	}{
@@ -1939,46 +2639,98 @@ func TestStatusMessage(t *testing.T) {
 			want: noRuns,
 		},
 		{
-			name:          "green path",
-			passingCols:   2,
-			completedCols: 2,
-			passingCells:  4,
-			filledCells:   4,
-			want:          "2 of 2 (100.0%) recent columns passed (4 of 4 or 100.0% cells)",
+			name: "green path",
+			colCells: gridStats{
+				passingCols:   2,
+				completedCols: 2,
+				passingCells:  4,
+				filledCells:   4,
+			},
+			want: "Tab stats: 2 of 2 (100.0%) recent columns passed (4 of 4 or 100.0% cells)",
 		},
 		{
-			name:          "all red path",
-			passingCols:   0,
-			completedCols: 2,
-			passingCells:  0,
-			filledCells:   4,
-			want:          "0 of 2 (0.0%) recent columns passed (0 of 4 or 0.0% cells)",
+			name: "all red path",
+			colCells: gridStats{
+				passingCols:   0,
+				completedCols: 2,
+				passingCells:  0,
+				filledCells:   4,
+			},
+			want: "Tab stats: 0 of 2 (0.0%) recent columns passed (0 of 4 or 0.0% cells)",
 		},
 		{
-			name:          "all values the same",
-			passingCols:   2,
-			completedCols: 2,
-			passingCells:  2,
-			filledCells:   2,
-			want:          "2 of 2 (100.0%) recent columns passed (2 of 2 or 100.0% cells)",
+			name: "all values the same",
+			colCells: gridStats{
+				passingCols:   2,
+				completedCols: 2,
+				passingCells:  2,
+				filledCells:   2,
+			},
+			want: "Tab stats: 2 of 2 (100.0%) recent columns passed (2 of 2 or 100.0% cells)",
 		},
 		{
-			name:            "acceptably flaky",
-			passingCols:     3,
-			completedCols:   4,
-			passingCells:    6,
-			filledCells:     8,
+			name: "acceptably flaky without ignored columns",
+			colCells: gridStats{
+				passingCols:   3,
+				completedCols: 4,
+				passingCells:  6,
+				filledCells:   8,
+			},
 			acceptablyFlaky: true,
 			opts: &configpb.DashboardTabStatusCustomizationOptions{
 				MaxAcceptableFlakiness: 50,
 			},
-			want: "3 of 4 (75.0%) recent columns passed (6 of 8 or 75.0% cells). Recent flakiness (25.0%) is within configured acceptable level of 50.0%.",
+			want: "Tab stats: 3 of 4 (75.0%) recent columns passed (6 of 8 or 75.0% cells)\nStatus info: Recent flakiness (25.0%) over valid columns is within configured acceptable level of 50.0%.",
+		},
+		{
+			name: "acceptably flaky with ignored columns",
+			colCells: gridStats{
+				passingCols:   2,
+				completedCols: 4,
+				ignoredCols:   1,
+				passingCells:  4,
+				filledCells:   8,
+			},
+			acceptablyFlaky: true,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 50,
+			},
+			want: "Tab stats: 2 of 4 (50.0%) recent columns passed (4 of 8 or 50.0% cells). 1 columns ignored\nStatus info: Recent flakiness (33.3%) over valid columns is within configured acceptable level of 50.0%.",
+		},
+		{
+			name: "pending tab status without ignored columns",
+			colCells: gridStats{
+				passingCols:   2,
+				completedCols: 3,
+				passingCells:  4,
+				filledCells:   6,
+			},
+			status: summarypb.DashboardTabSummary_PENDING,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MinAcceptableRuns: 4,
+			},
+			want: "Tab stats: 2 of 3 (66.7%) recent columns passed (4 of 6 or 66.7% cells)\nStatus info: Not enough runs",
+		},
+		{
+			name: "pending tab status with ignored columns",
+			colCells: gridStats{
+				passingCols:   2,
+				completedCols: 3,
+				ignoredCols:   1,
+				passingCells:  4,
+				filledCells:   6,
+			},
+			status: summarypb.DashboardTabSummary_PENDING,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MinAcceptableRuns: 4,
+			},
+			want: "Tab stats: 2 of 3 (66.7%) recent columns passed (4 of 6 or 66.7% cells). 1 columns ignored\nStatus info: Not enough runs",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if actual := statusMessage(tc.passingCols, tc.completedCols, tc.passingCells, tc.filledCells, tc.acceptablyFlaky, tc.opts); actual != tc.want {
+			if actual := statusMessage(tc.colCells, tc.acceptablyFlaky, tc.status, tc.opts); actual != tc.want {
 				t.Errorf("%v: statusMessage() = %q, want %q", tc.name, actual, tc.want)
 			}
 		})
@@ -2528,51 +3280,73 @@ func TestSummaryPath(t *testing.T) {
 
 func TestAcceptableFlakiness(t *testing.T) {
 	cases := []struct {
-		name          string
-		passingCols   int
-		completedCols int
-		tabStatus     summarypb.DashboardTabSummary_TabStatus
-		opts          *configpb.DashboardTabStatusCustomizationOptions
-		want          bool
+		name      string
+		colCells  gridStats
+		tabStatus summarypb.DashboardTabSummary_TabStatus
+		opts      *configpb.DashboardTabStatusCustomizationOptions
+		want      bool
 	}{
 		{
-			name:          "customization options not provided",
-			passingCols:   4,
-			completedCols: 5,
-			tabStatus:     summarypb.DashboardTabSummary_PASS,
+			name: "customization options not provided",
+			colCells: gridStats{
+				passingCols:   4,
+				completedCols: 5,
+			},
+			tabStatus: summarypb.DashboardTabSummary_PASS,
 		},
 		{
-			name:          "disabled max acceptable flakiness",
-			passingCols:   3,
-			completedCols: 15,
-			tabStatus:     summarypb.DashboardTabSummary_FLAKY,
+			name: "disabled max acceptable flakiness",
+			colCells: gridStats{
+				passingCols:   3,
+				completedCols: 15,
+			},
+			tabStatus: summarypb.DashboardTabSummary_FLAKY,
 			opts: &configpb.DashboardTabStatusCustomizationOptions{
 				MaxAcceptableFlakiness: 0.0,
 			},
 		},
 		{
-			name:          "flakiness above threshold",
-			passingCols:   5,
-			completedCols: 10,
-			tabStatus:     summarypb.DashboardTabSummary_FLAKY,
+			name: "flakiness above threshold",
+			colCells: gridStats{
+				passingCols:   5,
+				completedCols: 10,
+			},
+			tabStatus: summarypb.DashboardTabSummary_FLAKY,
 			opts: &configpb.DashboardTabStatusCustomizationOptions{
 				MaxAcceptableFlakiness: 40.0,
 			},
 		},
 		{
-			name:          "non-flaky tab status",
-			passingCols:   7,
-			completedCols: 10,
-			tabStatus:     summarypb.DashboardTabSummary_BROKEN,
+			name: "non-flaky tab status",
+			colCells: gridStats{
+				passingCols:   7,
+				completedCols: 10,
+			},
+			tabStatus: summarypb.DashboardTabSummary_BROKEN,
 			opts: &configpb.DashboardTabStatusCustomizationOptions{
 				MaxAcceptableFlakiness: 40.0,
 			},
 		},
 		{
-			name:          "acceptably flaky",
-			passingCols:   7,
-			completedCols: 10,
-			tabStatus:     summarypb.DashboardTabSummary_FLAKY,
+			name: "acceptably flaky with no ignored cols",
+			colCells: gridStats{
+				passingCols:   7,
+				completedCols: 10,
+			},
+			tabStatus: summarypb.DashboardTabSummary_FLAKY,
+			opts: &configpb.DashboardTabStatusCustomizationOptions{
+				MaxAcceptableFlakiness: 35.0,
+			},
+			want: true,
+		},
+		{
+			name: "acceptably flaky with ignored cols",
+			colCells: gridStats{
+				passingCols:   6,
+				completedCols: 10,
+				ignoredCols:   1,
+			},
+			tabStatus: summarypb.DashboardTabSummary_FLAKY,
 			opts: &configpb.DashboardTabStatusCustomizationOptions{
 				MaxAcceptableFlakiness: 35.0,
 			},
@@ -2582,8 +3356,8 @@ func TestAcceptableFlakiness(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := acceptableFlakiness(tc.passingCols, tc.completedCols, tc.tabStatus, tc.opts); got != tc.want {
-				t.Errorf("%v: acceptableFlakiness(%v, %v, %v, %v) = %v, want %v", tc.name, tc.passingCols, tc.completedCols, tc.tabStatus, tc.opts, got, tc.want)
+			if got := acceptableFlakiness(tc.colCells, tc.tabStatus, tc.opts); got != tc.want {
+				t.Errorf("%v: acceptableFlakiness(%v, %v, %v) = %v, want %v", tc.name, tc.colCells, tc.tabStatus, tc.opts, got, tc.want)
 			}
 		})
 	}

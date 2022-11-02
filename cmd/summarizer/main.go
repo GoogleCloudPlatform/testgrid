@@ -47,8 +47,7 @@ type options struct {
 	pubsub            string
 	tabPathPrefix     string
 
-	// controls the acceptable flakiness calculation logic
-	allowFuzzyFlakiness bool
+	features summarizer.FeatureFlags
 
 	debug    bool
 	trace    bool
@@ -77,7 +76,9 @@ func gatherOptions() options {
 	flag.StringVar(&o.summaryPathPrefix, "summary-path", "summary", "Write summaries under this GCS path.")
 	flag.StringVar(&o.pubsub, "pubsub", "", "listen for test group updates at project/subscription")
 	flag.StringVar(&o.tabPathPrefix, "tab-path", "tabs", "Read from tab state instead of test group")
-	flag.BoolVar(&o.allowFuzzyFlakiness, "allow-fuzzy-flakiness", true, "Enable the functionality of further classifying flaky tabs (acceptable or not).")
+	flag.BoolVar(&o.features.AllowFuzzyFlakiness, "allow-fuzzy-flakiness", false, "Enable the functionality of further classifying flaky tabs (acceptable or not).")
+	flag.BoolVar(&o.features.AllowIgnoredColumns, "allow-ignored-columns", false, "Enable the functionality to ignore columns with specific test statuses during summarization.")
+	flag.BoolVar(&o.features.AllowMinNumberOfRuns, "allow-min-num-runs", false, "Enable the functionality to enforce a min limit to test runs.")
 
 	flag.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	flag.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
@@ -151,7 +152,7 @@ func main() {
 		fixers = append(fixers, summarizer.FixPersistent(log, client, path, ticker.C))
 	}
 
-	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.tabPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.allowFuzzyFlakiness, opt.wait, fixers...); err != nil {
+	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.tabPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.features, opt.wait, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not summarize")
 	}
 }
