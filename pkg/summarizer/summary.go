@@ -881,7 +881,7 @@ func buildFailLink(testID, target string) string {
 // FLAKY - at least one recent column has failing cells
 // PENDING - number of valid columns is less than minimum # of runs required
 // PASS - all recent columns are entirely green
-func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState bool, alerts []*summarypb.FailingTestSummary, features FeatureFlags, colCells columnCellMetrics, opts *configpb.DashboardTabStatusCustomizationOptions) summarypb.DashboardTabSummary_TabStatus {
+func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState bool, alerts []*summarypb.FailingTestSummary, features FeatureFlags, colCells gridStats, opts *configpb.DashboardTabStatusCustomizationOptions) summarypb.DashboardTabSummary_TabStatus {
 	if brokenState {
 		return summarypb.DashboardTabSummary_BROKEN
 	}
@@ -980,8 +980,8 @@ func allLinkedIssues(rows []*statepb.Row) []string {
 	return linkedIssues
 }
 
-// columnCellMetrics aggregates columnar and cellular metrics as a struct
-type columnCellMetrics struct {
+// gridStats aggregates columnar and cellular metrics as a struct
+type gridStats struct {
 	passingCols   int
 	completedCols int
 	ignoredCols   int
@@ -990,7 +990,7 @@ type columnCellMetrics struct {
 }
 
 // Culminate set of metrics related to a section of the Grid
-func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold float32, features FeatureFlags, opts *configpb.DashboardTabStatusCustomizationOptions) (columnCellMetrics, bool) {
+func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold float32, features FeatureFlags, opts *configpb.DashboardTabStatusCustomizationOptions) (gridStats, bool) {
 	results := result.Map(rows)
 	var passingCells int
 	var filledCells int
@@ -1046,7 +1046,7 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 		}
 	}
 
-	metrics := columnCellMetrics{
+	metrics := gridStats{
 		passingCols:   passingCols,
 		completedCols: completedCols,
 		ignoredCols:   ignoredCols,
@@ -1058,7 +1058,7 @@ func gridMetrics(cols int, rows []*statepb.Row, recent int, brokenThreshold floa
 }
 
 // Add a subset of colCellMetrics to summary proto
-func tabMetrics(colCells columnCellMetrics) *summarypb.DashboardTabSummaryMetrics {
+func tabMetrics(colCells gridStats) *summarypb.DashboardTabSummaryMetrics {
 	return &summarypb.DashboardTabSummaryMetrics{
 		PassingColumns:   int32(colCells.passingCols),
 		CompletedColumns: int32(colCells.completedCols),
@@ -1066,7 +1066,7 @@ func tabMetrics(colCells columnCellMetrics) *summarypb.DashboardTabSummaryMetric
 	}
 }
 
-func acceptableFlakiness(colCells columnCellMetrics, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) bool {
+func acceptableFlakiness(colCells gridStats, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) bool {
 
 	// not configured to show acceptable flakiness
 	if opts.GetMaxAcceptableFlakiness() <= 0 {
@@ -1086,7 +1086,7 @@ func acceptableFlakiness(colCells columnCellMetrics, tabStatus summarypb.Dashboa
 	return true
 }
 
-func fmtStatus(colCells columnCellMetrics, acceptablyFlaky bool, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
+func fmtStatus(colCells gridStats, acceptablyFlaky bool, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
 	colCent := 100 * float64(colCells.passingCols) / float64(colCells.completedCols)
 	cellCent := 100 * float64(colCells.passingCells) / float64(colCells.filledCells)
 	flakyCent := 100 * float64(colCells.completedCols-colCells.ignoredCols-colCells.passingCols) / float64(colCells.completedCols-colCells.ignoredCols)
@@ -1107,7 +1107,7 @@ func fmtStatus(colCells columnCellMetrics, acceptablyFlaky bool, tabStatus summa
 // Tab stats: 3 out of 5 (60.0%) recent columns passed (35 of 50 or 70.0% cells). 1 columns ignored.
 // (OPTIONAL) Status info: Recent flakiness (40.0%) flakiness is within configured acceptable level of X
 // OR Status info: Not enough runs
-func statusMessage(colCells columnCellMetrics, acceptablyFlaky bool, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
+func statusMessage(colCells gridStats, acceptablyFlaky bool, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
 	if colCells.filledCells == 0 {
 		return noRuns
 	}

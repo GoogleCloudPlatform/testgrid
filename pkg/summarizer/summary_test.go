@@ -1704,7 +1704,7 @@ func TestOverallStatus(t *testing.T) {
 		broken   bool
 		alerts   bool
 		features FeatureFlags
-		colCells columnCellMetrics
+		colCells gridStats
 		opts     *configpb.DashboardTabStatusCustomizationOptions
 		expected summarypb.DashboardTabSummary_TabStatus
 	}{
@@ -1891,7 +1891,7 @@ func TestOverallStatus(t *testing.T) {
 			features: FeatureFlags{
 				AllowMinNumberOfRuns: false,
 			},
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				ignoredCols:   2,
 				completedCols: 4,
 			},
@@ -1914,7 +1914,7 @@ func TestOverallStatus(t *testing.T) {
 			features: FeatureFlags{
 				AllowMinNumberOfRuns: true,
 			},
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				ignoredCols:   2,
 				completedCols: 4,
 			},
@@ -2033,7 +2033,7 @@ func TestGridMetrics(t *testing.T) {
 		features        FeatureFlags
 		opts            *configpb.DashboardTabStatusCustomizationOptions
 		brokenThreshold float32
-		expectedMetrics columnCellMetrics
+		expectedMetrics gridStats
 		expectedBroken  bool
 	}{
 		{
@@ -2053,7 +2053,7 @@ func TestGridMetrics(t *testing.T) {
 				},
 			},
 			recent: 2,
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   2,
 				completedCols: 2,
 				passingCells:  4,
@@ -2074,7 +2074,7 @@ func TestGridMetrics(t *testing.T) {
 				},
 			},
 			recent: 2,
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 2,
 				passingCells:  0,
@@ -2101,7 +2101,7 @@ func TestGridMetrics(t *testing.T) {
 				},
 			},
 			recent: 2,
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 2,
 				passingCells:  2,
@@ -2121,7 +2121,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   3,
 				completedCols: 3,
 				passingCells:  6,
@@ -2141,7 +2141,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 2},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   2,
 				completedCols: 2,
 				passingCells:  2,
@@ -2158,7 +2158,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 100},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   2,
 				completedCols: 2,
 				passingCells:  2,
@@ -2196,7 +2196,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   2, // pass, fail, pass
 				completedCols: 3,
 				passingCells:  6,
@@ -2215,7 +2215,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   4,
 				completedCols: 4,
 				passingCells:  4,
@@ -2240,7 +2240,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  4,
@@ -2268,7 +2268,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   2,
 				completedCols: 2,
 				passingCells:  2,
@@ -2285,7 +2285,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_NO_RESULT), 3},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 0,
 				passingCells:  0,
@@ -2306,7 +2306,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   3,
 				completedCols: 3,
 				passingCells:  6,
@@ -2327,7 +2327,7 @@ func TestGridMetrics(t *testing.T) {
 					Results: []int32{int32(statuspb.TestStatus_PASS), 3},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   3,
 				completedCols: 3,
 				passingCells:  6,
@@ -2352,7 +2352,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  4,
@@ -2378,7 +2378,7 @@ func TestGridMetrics(t *testing.T) {
 						int32(statuspb.TestStatus_FAIL), 4,
 					},
 				},
-			}, expectedMetrics: columnCellMetrics{
+			}, expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  4,
@@ -2406,7 +2406,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   3,
 				completedCols: 4,
 				passingCells:  7,
@@ -2434,7 +2434,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   3,
 				completedCols: 4,
 				passingCells:  7,
@@ -2467,7 +2467,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  0,
@@ -2500,7 +2500,7 @@ func TestGridMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  0,
@@ -2530,7 +2530,7 @@ func TestGridMetrics(t *testing.T) {
 			features: FeatureFlags{
 				AllowIgnoredColumns: true,
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  0,
@@ -2568,7 +2568,7 @@ func TestGridMetrics(t *testing.T) {
 			features: FeatureFlags{
 				AllowIgnoredColumns: true,
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   0,
 				completedCols: 4,
 				passingCells:  3,
@@ -2606,7 +2606,7 @@ func TestGridMetrics(t *testing.T) {
 			features: FeatureFlags{
 				AllowIgnoredColumns: false,
 			},
-			expectedMetrics: columnCellMetrics{
+			expectedMetrics: gridStats{
 				passingCols:   3,
 				completedCols: 4,
 				passingCells:  5,
@@ -2628,7 +2628,7 @@ func TestGridMetrics(t *testing.T) {
 func TestStatusMessage(t *testing.T) {
 	cases := []struct {
 		name            string
-		colCells        columnCellMetrics
+		colCells        gridStats
 		acceptablyFlaky bool
 		status          summarypb.DashboardTabSummary_TabStatus
 		opts            *configpb.DashboardTabStatusCustomizationOptions
@@ -2640,7 +2640,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "green path",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   2,
 				completedCols: 2,
 				passingCells:  4,
@@ -2650,7 +2650,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "all red path",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   0,
 				completedCols: 2,
 				passingCells:  0,
@@ -2660,7 +2660,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "all values the same",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   2,
 				completedCols: 2,
 				passingCells:  2,
@@ -2670,7 +2670,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "acceptably flaky without ignored columns",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   3,
 				completedCols: 4,
 				passingCells:  6,
@@ -2684,7 +2684,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "acceptably flaky with ignored columns",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   2,
 				completedCols: 4,
 				ignoredCols:   1,
@@ -2699,7 +2699,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "pending tab status without ignored columns",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   2,
 				completedCols: 3,
 				passingCells:  4,
@@ -2713,7 +2713,7 @@ func TestStatusMessage(t *testing.T) {
 		},
 		{
 			name: "pending tab status with ignored columns",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   2,
 				completedCols: 3,
 				ignoredCols:   1,
@@ -3281,14 +3281,14 @@ func TestSummaryPath(t *testing.T) {
 func TestAcceptableFlakiness(t *testing.T) {
 	cases := []struct {
 		name      string
-		colCells  columnCellMetrics
+		colCells  gridStats
 		tabStatus summarypb.DashboardTabSummary_TabStatus
 		opts      *configpb.DashboardTabStatusCustomizationOptions
 		want      bool
 	}{
 		{
 			name: "customization options not provided",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   4,
 				completedCols: 5,
 			},
@@ -3296,7 +3296,7 @@ func TestAcceptableFlakiness(t *testing.T) {
 		},
 		{
 			name: "disabled max acceptable flakiness",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   3,
 				completedCols: 15,
 			},
@@ -3307,7 +3307,7 @@ func TestAcceptableFlakiness(t *testing.T) {
 		},
 		{
 			name: "flakiness above threshold",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   5,
 				completedCols: 10,
 			},
@@ -3318,7 +3318,7 @@ func TestAcceptableFlakiness(t *testing.T) {
 		},
 		{
 			name: "non-flaky tab status",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   7,
 				completedCols: 10,
 			},
@@ -3329,7 +3329,7 @@ func TestAcceptableFlakiness(t *testing.T) {
 		},
 		{
 			name: "acceptably flaky with no ignored cols",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   7,
 				completedCols: 10,
 			},
@@ -3341,7 +3341,7 @@ func TestAcceptableFlakiness(t *testing.T) {
 		},
 		{
 			name: "acceptably flaky with ignored cols",
-			colCells: columnCellMetrics{
+			colCells: gridStats{
 				passingCols:   6,
 				completedCols: 10,
 				ignoredCols:   1,
