@@ -36,7 +36,7 @@ import (
 // RouterOptions are the options needed to GetRouter
 type RouterOptions struct {
 	GcsCredentials           string
-	Hostname                 *url.URL
+	Hostname                 *url.URL // Has no effect. TODO: decommission
 	HomeBucket               string
 	GridPathPrefix           string
 	TabPathPrefix            string
@@ -77,14 +77,8 @@ func GetServer(options RouterOptions, storageClient *storage.Client) (*v1.Server
 		storageClient = sc
 	}
 
-	v1InfixURL, err := url.Parse(v1InfixRef)
-	if err != nil {
-		return nil, fmt.Errorf("url.Parse(): %w", err)
-	}
-
 	return &v1.Server{
 		Client:                   gcs.NewClient(storageClient),
-		Host:                     options.Hostname.ResolveReference(v1InfixURL),
 		DefaultBucket:            options.HomeBucket,
 		GridPathPrefix:           options.GridPathPrefix,
 		TabPathPrefix:            options.TabPathPrefix,

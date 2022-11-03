@@ -86,7 +86,7 @@ func (s *Server) ListDashboardGroup(ctx context.Context, req *apipb.ListDashboar
 	for _, group := range cfg.DashboardGroups {
 		rsc := apipb.Resource{
 			Name: group.Name,
-			Link: fmt.Sprintf("%s/dashboard-groups/%s%s", s.Host.String(), config.Normalize(group.Name), queryParams(req.GetScope())),
+			Link: fmt.Sprintf("/dashboard-groups/%s%s", config.Normalize(group.Name), queryParams(req.GetScope())),
 		}
 		resp.DashboardGroups = append(resp.DashboardGroups, &rsc)
 	}
@@ -123,7 +123,7 @@ func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardG
 			for _, dash := range group.DashboardNames {
 				rsc := apipb.Resource{
 					Name: dash,
-					Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dash), queryParams(req.GetScope())),
+					Link: fmt.Sprintf("/dashboards/%s%s", config.Normalize(dash), queryParams(req.GetScope())),
 				}
 				result.Dashboards = append(result.Dashboards, &rsc)
 			}
@@ -161,7 +161,7 @@ func (s *Server) ListDashboard(ctx context.Context, req *apipb.ListDashboardRequ
 	for _, dashboard := range cfg.Dashboards {
 		rsc := apipb.Resource{
 			Name: dashboard.Name,
-			Link: fmt.Sprintf("%s/dashboards/%s%s", s.Host.String(), config.Normalize(dashboard.Name), queryParams(req.GetScope())),
+			Link: fmt.Sprintf("/dashboards/%s%s", config.Normalize(dashboard.Name), queryParams(req.GetScope())),
 		}
 		resp.Dashboards = append(resp.Dashboards, &rsc)
 	}
@@ -236,7 +236,7 @@ func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboard
 			for _, tab := range dashboard.DashboardTab {
 				rsc := apipb.Resource{
 					Name: tab.Name,
-					Link: fmt.Sprintf("%s/dashboards/%s/tabs/%s%s", s.Host.String(), config.Normalize(dashboard.Name), config.Normalize(tab.Name), queryParams(req.GetScope())),
+					Link: fmt.Sprintf("/dashboards/%s/tabs/%s%s", config.Normalize(dashboard.Name), config.Normalize(tab.Name), queryParams(req.GetScope())),
 				}
 				dashboardTabsResponse.DashboardTabs = append(dashboardTabsResponse.DashboardTabs, &rsc)
 			}

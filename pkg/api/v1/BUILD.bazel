@@ -40,8 +40,8 @@ filegroup(
 go_test(
     name = "go_default_test",
     srcs = [
-        "config_test.go",
-        "state_test.go",
+        "config_http_test.go",
+        "state_http_test.go",
     ],
     embed = [":go_default_library"],
     deps = [

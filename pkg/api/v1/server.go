@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"net/url"
 	"time"
 
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
@@ -28,7 +27,6 @@ import (
 // Server contains the necessary settings and i/o objects needed to serve this api
 type Server struct {
 	Client                   gcs.Client
-	Host                     *url.URL
 	DefaultBucket            string
 	GridPathPrefix           string
 	TabPathPrefix            string
