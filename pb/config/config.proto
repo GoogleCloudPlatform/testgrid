@@ -688,10 +688,11 @@ message DashboardTabStatusCustomizationOptions {
   // Columns which contain cells with any status configure below will be ignored.
   // Ignored columns affect the computation of flakiness and non-ignored number of runs.
   enum IgnoredTestStatus{
-    CATEGORIZED_ABORT = 0;
-    UNKNOWN = 1;
-    CANCEL = 2;
-    BLOCKED = 3;
+    TEST_STATUS_UNSPECIFIED = 0;
+    CATEGORIZED_ABORT = 1;
+    UNKNOWN = 2;
+    CANCEL = 3;
+    BLOCKED = 4;
   }
 
   repeated IgnoredTestStatus ignored_test_statuses = 2;
