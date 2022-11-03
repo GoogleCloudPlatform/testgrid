@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -34,7 +33,7 @@ type options struct {
 	httpPort   string
 	grpcPort   string
 	router     api.RouterOptions
-	hostString string
+	hostString string // TODO: Decommission
 }
 
 func gatherOptions() (options, error) {
@@ -44,18 +43,14 @@ func gatherOptions() (options, error) {
 	flag.StringVar(&o.httpPort, "port", "8080", "Alias for http-port")
 	flag.StringVar(&o.httpPort, "http-port", "8080", "Port to deploy REST server to")
 	flag.StringVar(&o.grpcPort, "grpc-port", "50051", "Port to deploy gRPC server to")
-	flag.StringVar(&o.hostString, "host", "", "Friendly hostname used to serve HATEOAS links")
+	flag.StringVar(&o.hostString, "host", "", "Deprecated; no effect")
+	flag.StringVar(&o.router.AccessControlAllowOrigin, "allowed-origin", "", "Allowed 'Access-Control-Allow-Origin' for HTTP calls, if any")
 	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.router.TabPathPrefix, "tab", "tabs", "Read tab path states under this path")
 	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to complete one request")
 	flag.Parse()
 
-	if o.hostString == "" {
-		o.hostString = fmt.Sprintf("localhost:%s", o.httpPort)
-	}
-	var err error
-	o.router.Hostname, err = url.Parse(o.hostString)
-	return o, err
+	return o, nil
 }
 
 func main() {

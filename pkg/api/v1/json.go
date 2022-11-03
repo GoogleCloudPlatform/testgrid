@@ -22,7 +22,8 @@ import (
 )
 
 // writeJSON will write obj to w as JSON, or will write the JSON marshalling error
-func writeJSON(w http.ResponseWriter, obj interface{}) {
+// Includes headers that are universal to all API responses
+func (s Server) writeJSON(w http.ResponseWriter, obj interface{}) {
 	resp, err := json.Marshal(obj)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -30,5 +31,11 @@ func writeJSON(w http.ResponseWriter, obj interface{}) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	if s.AccessControlAllowOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", s.AccessControlAllowOrigin)
+		if s.AccessControlAllowOrigin != "*" {
+			w.Header().Set("Vary", "Origin")
+		}
+	}
 	w.Write(resp)
 }

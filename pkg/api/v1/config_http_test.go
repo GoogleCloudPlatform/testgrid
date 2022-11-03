@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -98,12 +97,12 @@ func TestQueryParams(t *testing.T) {
 		},
 		{
 			name:     "Passes scope parameter only",
-			url:      "host/foo?scope=gs://example/bucket&bucket=fake&format=json",
+			url:      "/foo?scope=gs://example/bucket&bucket=fake&format=json",
 			expected: "?scope=gs://example/bucket",
 		},
 		{
 			name:     "Use only the first scope parameter",
-			url:      "host/foo?scope=gs://example/bucket&scope=gs://fake/bucket",
+			url:      "/foo?scope=gs://example/bucket&scope=gs://fake/bucket",
 			expected: "?scope=gs://example/bucket",
 		},
 	}
@@ -152,7 +151,7 @@ func TestListDashboardGroups(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"/dashboard-groups/group1"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -169,7 +168,7 @@ func TestListDashboardGroups(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1"},{"name":"Second Group","link":"host/dashboard-groups/secondgroup"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"/dashboard-groups/group1"},{"name":"Second Group","link":"/dashboard-groups/secondgroup"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -184,7 +183,7 @@ func TestListDashboardGroups(t *testing.T) {
 				},
 			},
 			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"host/dashboard-groups/group1?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"/dashboard-groups/group1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -237,7 +236,7 @@ func TestGetDashboardGroup(t *testing.T) {
 				},
 			},
 			endpoint:         "stooges",
-			expectedResponse: `{"dashboards":[{"name":"larry","link":"host/dashboards/larry"},{"name":"curly","link":"host/dashboards/curly"},{"name":"moe","link":"host/dashboards/moe"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"larry","link":"/dashboards/larry"},{"name":"curly","link":"/dashboards/curly"},{"name":"moe","link":"/dashboards/moe"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -261,7 +260,7 @@ func TestGetDashboardGroup(t *testing.T) {
 				},
 			},
 			endpoint:         "rightgroup?scope=gs://example",
-			expectedResponse: `{"dashboards":[{"name":"yes","link":"host/dashboards/yes?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"yes","link":"/dashboards/yes?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -319,7 +318,7 @@ func TestListDashboards(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"host/dashboards/dashboard1"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"/dashboards/dashboard1"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -336,7 +335,7 @@ func TestListDashboards(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"host/dashboards/dashboard1"},{"name":"Dashboard2","link":"host/dashboards/dashboard2"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"/dashboards/dashboard1"},{"name":"Dashboard2","link":"/dashboards/dashboard2"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -351,7 +350,7 @@ func TestListDashboards(t *testing.T) {
 				},
 			},
 			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"host/dashboards/dashboard1?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"/dashboards/dashboard1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -545,7 +544,7 @@ func TestGetDashboardTabs(t *testing.T) {
 				},
 			},
 			endpoint:         "dashboard1/tabs",
-			expectedResponse: `{"dashboard_tabs":[{"name":"tab 1","link":"host/dashboards/dashboard1/tabs/tab1"},{"name":"tab 2","link":"host/dashboards/dashboard1/tabs/tab2"}]}`,
+			expectedResponse: `{"dashboard_tabs":[{"name":"tab 1","link":"/dashboards/dashboard1/tabs/tab1"},{"name":"tab 2","link":"/dashboards/dashboard1/tabs/tab2"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -578,7 +577,7 @@ func TestGetDashboardTabs(t *testing.T) {
 			},
 			endpoint:         "correctdashboard/tabs",
 			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboard_tabs":[{"name":"correct-dashboard tab 1","link":"host/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboard_tabs":[{"name":"correct-dashboard tab 1","link":"/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -687,14 +686,8 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, 
 		}
 	}
 
-	host, err := url.Parse("host")
-	if err != nil {
-		t.Fatalf("Could not form host: %v", err)
-	}
-
 	return Server{
 		Client:         fc,
-		Host:           host,                 // Needs test coverage
 		DefaultBucket:  serverDefaultBucket,  // Needs test coverage
 		GridPathPrefix: serverGridPathPrefix, // Needs test coverage
 		TabPathPrefix:  serverTabPathPrefix,
