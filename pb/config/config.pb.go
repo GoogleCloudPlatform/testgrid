@@ -1207,8 +1207,7 @@ type AutoBugOptions struct {
 	// for each set of targets failing at the same run.
 	FileIndividual bool `protobuf:"varint,5,opt,name=file_individual,json=fileIndividual,proto3" json:"file_individual,omitempty"`
 	// If True; keep only one automantic bug per target, regardless of the number
-	// of separate failures a target gets. This also requires `auto_close` and
-	// `file_individual` to be True.
+	// of separate failures a target gets. Requires `file_individual` to be True.
 	// Consider setting `num_passes_to_disable_alert` instead if you're tracking
 	// flaky tests.
 	SingletonAutobug bool `protobuf:"varint,6,opt,name=singleton_autobug,json=singletonAutobug,proto3" json:"singleton_autobug,omitempty"`
