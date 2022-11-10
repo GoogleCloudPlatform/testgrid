@@ -26,11 +26,6 @@ p=$(find . -not '(' -path './node_modules/*' -o -path './web/node_modules/*' -pr
 
 echo "FOUND: ${p}"
 
-npx protoc --ts_out "${PWD}/web/src" --proto_path "." ${p}
-
-# yarn run grpc_tools_node_protoc \
-#     "--plugin=protoc-gen-ts=./web/node_modules/.bin/protoc-gen-ts" \
-#     "--ts_out=grpc:${PWD}/web/src" \
-#     ${p} \
-#     google/protobuf/timestamp.proto
+# See https://github.com/timostamm/protobuf-ts/blob/master/MANUAL.md
+npx protoc --ts_out "${PWD}/web/src" --proto_path "." --ts_opt long_type_string ${p}
 
