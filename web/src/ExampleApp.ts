@@ -16,10 +16,10 @@ export class ExampleApp extends LitElement {
       <ol>
         ${map(this.dashboards, dash => html`<li>${dash}</li>`)}
       </ol>
+      <button @click="${this.getDashboards}">Call API</button>
     `;
   }
 
-  // TODO(slchase) add a button to call or something
   getDashboards() {
     const result: Array<string> = [];
     for (let i = 0; i < 100; i += 1) {
@@ -27,7 +27,7 @@ export class ExampleApp extends LitElement {
     }
     this.dashboards = result;
 
-    fetch('localhost:8080/api/v1/dashboards').then(async response => {
+    fetch('http://localhost:8080/api/v1/dashboards').then(async response => {
       const json = await response.json();
       console.log(json);
       const resp = ListDashboardResponse.fromJson(json);
