@@ -1,0 +1,5 @@
+# TypeScript -> JavaScript Build Artifacts
+storybook-static/
+dist/
+node_modules/
+out-tsc/

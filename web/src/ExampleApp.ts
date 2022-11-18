@@ -9,9 +9,16 @@ import '@material/mwc-list';
 @customElement('example-app')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class ExampleApp extends LitElement {
-  @property({ type: String }) title = 'My app';
+  @property({ type: String }) title: string = 'My app';
 
   @property({ type: Array<string> }) dashboards: Array<string> = [];
+
+  // TODO(chases2): inject an APIClient object so we can figure out how to inject it into tests later
+
+  connectedCallback() {
+    super.connectedCallback();
+    // add other things here
+  }
 
   render() {
     return html`

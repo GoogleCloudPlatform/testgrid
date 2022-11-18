@@ -1,5 +1,5 @@
 import { html, TemplateResult } from 'lit';
-import '../src/example-app.js';
+import '../src/ExampleApp.js';
 
 export default {
   title: 'ExampleApp',
@@ -20,8 +20,14 @@ interface ArgTypes {
   backgroundColor?: string;
 }
 
-const Template: Story<ArgTypes> = ({ title, backgroundColor = 'white' }: ArgTypes) => html`
-  <example-app style="--example-app-background-color: ${backgroundColor}" .title=${title}></example-app>
+const Template: Story<ArgTypes> = ({
+  title,
+  backgroundColor = 'white',
+}: ArgTypes) => html`
+  <example-app
+    style="--example-app-background-color: ${backgroundColor}"
+    .title=${title || ''}
+  ></example-app>
 `;
 
 export const App = Template.bind({});
