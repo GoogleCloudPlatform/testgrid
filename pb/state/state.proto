@@ -215,7 +215,7 @@ message Grid {
   reserved 3;
 
   // The latest configuration used to generate this test group.
-  TestGroup config = 4;
+  testgrid.config.TestGroup config = 4;
 
   reserved 5;
 
