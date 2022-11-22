@@ -1,19 +1,26 @@
-import { html } from 'lit';
-import { fixture, expect } from '@open-wc/testing';
+import {
+  html,
+  fixture,
+  defineCE,
+  unsafeStatic,
+  expect,
+} from '@open-wc/testing';
 
 import { ExampleApp } from '../src/ExampleApp.js';
-import '../src/example-app.js';
 
 describe('ExampleApp', () => {
   let element: ExampleApp;
   beforeEach(async () => {
-    element = await fixture(html`<example-app></example-app>`);
+    // Need to wrap an element to apply its properties (ex. @customElement)
+    // See https://open-wc.org/docs/testing/helpers/#test-a-custom-class-with-properties
+    const tagName = defineCE(class extends ExampleApp {});
+    const tag = unsafeStatic(tagName);
+    element = await fixture(html`<${tag}></${tag}>`);
   });
 
-  it('renders a h1', () => {
-    const h1 = element.shadowRoot!.querySelector('h1')!;
+  it('renders a button', async () => {
+    const h1 = element.shadowRoot!.querySelector('mwc-button')!;
     expect(h1).to.exist;
-    expect(h1.textContent).to.equal('My app');
   });
 
   it('passes the a11y audit', async () => {

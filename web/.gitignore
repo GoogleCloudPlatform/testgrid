@@ -1,5 +1,6 @@
-# TypeScript -> JavaScript Build Artifacts
+# TypeScript -> JavaScript Build or Test Artifacts
 storybook-static/
 dist/
 node_modules/
 out-tsc/
+coverage/
