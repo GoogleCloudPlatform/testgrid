@@ -1,4 +1,5 @@
 syntax = "proto3";
+package testgrid.config;
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/config";
 
 // Protocol buffer for configuring testgrid.k8s.io

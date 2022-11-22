@@ -11,13 +11,13 @@ message DashboardTabIdentifier {
   string dashboard_name = 1;
 
   // The dashboard tab to update.
-  DashboardTab dashboard_tab = 2;
+  testgrid.config.DashboardTab dashboard_tab = 2;
 }
 
 // An updater request to update a test group.
 message UpdateRequest {
   // The test group configuration to update.
-  TestGroup test_group = 1;
+  testgrid.config.TestGroup test_group = 1;
 
   // A list of dashboards tabs backed by the group being updated.
   repeated DashboardTabIdentifier dashboard_tab_identifiers = 2;

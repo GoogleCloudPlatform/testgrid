@@ -74,7 +74,7 @@ message GetDashboardRequest {
 message GetDashboardResponse {
   // A list of notifications attached to this dashboard.
   // This is displayed on any dashboard tab in this dashboard.
-  repeated Notification notifications = 1;
+  repeated testgrid.config.Notification notifications = 1;
 
   // Control which tab is displayed when first opening a dashboard.
   // Defaults to Summary
