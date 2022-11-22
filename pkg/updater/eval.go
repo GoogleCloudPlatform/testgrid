@@ -26,8 +26,6 @@ import (
 	tspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 )
 
-func strEQ(a, b string) bool { return a == b }
-
 var (
 	res     = map[string]*regexp.Regexp{} // cache regexps for more speed
 	resLock sync.RWMutex
@@ -51,6 +49,9 @@ func strReg(val, expr string) bool {
 	}
 	return r.MatchString(val)
 }
+
+func strEQ(a, b string) bool { return a == b }
+func strNE(a, b string) bool { return a != b }
 
 func strStartsWith(a, b string) bool {
 	return strings.HasPrefix(b, a)
@@ -158,6 +159,7 @@ func evalProperties(rule *evalpb.Rule, testResult TestResult) *tspb.TestStatus {
 			scmp = strEQ
 			fcmp = numEQ
 		case evalpb.Comparison_OP_NE:
+			scmp = strNE
 			fcmp = numNE
 		}
 
