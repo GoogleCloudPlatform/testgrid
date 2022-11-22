@@ -1,6 +1,9 @@
 // Backing state for issues associated with a TestGrid test group.
 
 syntax = "proto3";
+
+package testgrid.issue_state;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/issue_state";
 
 message TargetAndMethods {

@@ -1,5 +1,7 @@
 syntax = "proto3";
+
 package testgrid.config;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/config";
 
 // Protocol buffer for configuring testgrid.k8s.io
@@ -86,7 +88,7 @@ message TestGroup {
   // ignored, then the name of the tests will be the build target.
   TestsName tests_name_policy = 6;
 
-  reserved 7; // Unused gather_test_properties
+  reserved 7;  // Unused gather_test_properties
 
   // Tests with names that include these substrings will be removed from the
   // table.
@@ -121,14 +123,14 @@ message TestGroup {
   FallbackGrouping fallback_grouping = 10;
 
   // DEPRECATED: use DashboardTabAlertOptions > alert_stale_result_hours
-  int32 alert_stale_results_hours = 11 [ deprecated = true ];
+  int32 alert_stale_results_hours = 11 [deprecated = true];
 
   // DEPRECATED: use DashboardTabAlertOptions > num_failures_to_alert
   int32 num_failures_to_alert = 12 [ deprecated = true ];
 
   // DEPRECATED: use dashboard_tab.beta_autobug_options.beta_autobug_component
   // instead.
-  int32 bug_component = 13 [ deprecated = true ];
+  int32 bug_component = 13 [deprecated = true];
 
   // Default code search path for searching regressions. Overridden by
   // code_search_path in DashboardTab.
@@ -143,21 +145,21 @@ message TestGroup {
   bool use_test_metadata = 16;
 
   // DEPRECATED: use DashboardTabAlertOptions > alert_mail_to_address instead
-  string alert_mail_to_addresses = 17 [ deprecated = true ];
+  string alert_mail_to_addresses = 17 [deprecated = true];
 
   // DEPRECATED: use DashboardTabAlertOptions > subject
-  string alert_mail_subject = 18 [ deprecated = true ];
+  string alert_mail_subject = 18 [deprecated = true];
 
   // DEPRECATED: use DashboardTabAlertOptions > alert_mail_failure_message
-  string alert_mail_failure_message = 19 [ deprecated = true ];
+  string alert_mail_failure_message = 19 [deprecated = true];
 
   // DEPRECATED: use DashboardTabAlertOptions > debug_url
-  string alert_mail_debug_url = 20 [ deprecated = true ];
+  string alert_mail_debug_url = 20 [deprecated = true];
 
   // DEPRECATED: use DashboardTabAlertOptions > wait_minutes_between_emails
-  int32 min_elapsed_minutes_between_mails = 21 [ deprecated = true ];
+  int32 min_elapsed_minutes_between_mails = 21 [deprecated = true];
 
-  reserved 22; // No longer used
+  reserved 22;  // No longer used
 
   // Whether to treat a combination of passes and failures within one test as a
   // flaky status.
@@ -169,7 +171,7 @@ message TestGroup {
   bool disable_merged_status = 60;
 
   // deprecated - always set to true
-  bool use_kubernetes_client = 24 [ deprecated = true ];
+  bool use_kubernetes_client = 24 [deprecated = true];
 
   // When use_kubernetes_client is on testgrid expects these results
   // to come from prow, which should include a prowjob.json and podinfo.json
@@ -206,7 +208,9 @@ message TestGroup {
   // displayed over the results. Short text must be <=5 characters long.
   message TestAnnotation {
     string short_text = 1;
-    oneof short_text_message_source { string property_name = 2; }
+    oneof short_text_message_source {
+      string property_name = 2;
+    }
   }
 
   // Test annotations to look for. Adds custom icon to results.
@@ -232,7 +236,7 @@ message TestGroup {
   string test_tag_pattern = 35;
 
   // DEPRECATED: use dashboard_tab.beta_autobug_options instead.
-  AutoBugOptions auto_bug_options = 36 [ deprecated = true ];
+  AutoBugOptions auto_bug_options = 36 [deprecated = true];
 
   // Max number of days any single test can take.
   int32 max_test_runtime_hours = 37;
@@ -298,8 +302,6 @@ message TestGroup {
       // GCS buckets holding junit and json results, typically created by prow.
       GCSConfig gcs_config = 2;
     }
-
-    reserved 4; // Private source
   }
 
   // Configuration type of the result source.
@@ -308,7 +310,7 @@ message TestGroup {
   // Set of rules that are evaluated with each test result. If an evaluation is
   // successful, the status of that test result will be whatever is specified
   // for a given rule. For more information, look at RuleSet documention
-  RuleSet custom_evaluator_rule_set = 51;
+  testgrid.custom_evaluator.RuleSet custom_evaluator_rule_set = 51;
 
   // If true, instead of updating the group, read the state proto from storage
   // and update summary, alerts, etc. from that state.
@@ -383,6 +385,7 @@ message AutoBugOptions {
   int32 beta_autobug_component = 10;
 
   // Whether to auto-close auto-filed bugs.
+  // Alias for "passing_behavior = CLOSE_ON_PASSING";
   bool auto_close = 1;
 
   // A list of hotlist ids attached to auto-filed bugs.
@@ -406,15 +409,15 @@ message AutoBugOptions {
 
   // A list of hotlist id sources
   // Corresponds with the list hotlist_ids (#2)
-  repeated HotlistIdFromSource hotlist_ids_from_source = 4
-      [ deprecated = true ];
+  repeated HotlistIdFromSource hotlist_ids_from_source = 4 [deprecated = true];
 
   // If True, files separate bugs for each failing target, instead of one bug
   // for each set of targets failing at the same run.
   bool file_individual = 5;
 
   // If True; keep only one automantic bug per target, regardless of the number
-  // of separate failures a target gets. Requires `file_individual` to be True.
+  // of separate failures a target gets. This also requires `auto_close` and
+  // `file_individual` to be True.
   // Consider setting `num_passes_to_disable_alert` instead if you're tracking
   // flaky tests.
   bool singleton_autobug = 6;
@@ -481,7 +484,7 @@ message Dashboard {
   // This is displayed on any dashboard tab in this dashboard.
   repeated Notification notifications = 3;
 
-  reserved 4; // Deprecated show_summary_first bool, unused
+  reserved 4;  // Deprecated show_summary_first bool, unused
 
   // Control which tab is displayed when first opening a dashboard.
   // Defaults to Summary
@@ -491,7 +494,7 @@ message Dashboard {
   bool downplay_failing_tabs = 8;
 
   // Deprecated: Invert of 'downplay_failing_tabs'
-  bool highlight_failing_tabs = 6 [ deprecated = true ];
+  bool highlight_failing_tabs = 6 [deprecated = true];
 
   // Controls whether to apply special highlighting to result header columns for
   // the current day.
@@ -613,7 +616,8 @@ message DashboardTab {
   // and will opt you into the beta AutoBug.
   AutoBugOptions beta_autobug_options = 22;
 
-  // Options for the configuration of the flakiness analysis tool, per-tab.
+  // Options for the configuration of the flakiness analysis tool, on a per tab
+  // basis
   HealthAnalysisOptions health_analysis_options = 23;
 
   // A set of optional Link Templates when search for diffs between columns.
@@ -678,16 +682,17 @@ message DashboardTabFlakinessAlertOptions {
 
 // Configuration options for customizing the tab status calculation.
 message DashboardTabStatusCustomizationOptions {
-  // Maximum amount of flakiness tolerated to categorize tab as acceptable.
-  // Will supplement dashboard tab status message, and mark the tab as ACCEPTABLE in the dashboard group view.
-  // 0 = Disable this option
-  // This is configured as a percentage of valid (non-ignored) columns; expected values go
-  // from 0.0 to 100.0 (100% = no passing columns is acceptable)
+  // Maximum amount of flakiness tolerated to categorize tab as acceptable. Will
+  // supplement dashboard tab status message, and mark the tab as ACCEPTABLE in
+  // the dashboard group view. Set to "0" to disable. This is configured as a
+  // percentage of valid (non-ignored) columns; expected values go from 0.0 to
+  // 100.0 (100% = no passing columns is acceptable)
   float max_acceptable_flakiness = 1;
 
-  // Columns which contain cells with any status configure below will be ignored.
-  // Ignored columns affect the computation of flakiness and non-ignored number of runs.
-  enum IgnoredTestStatus{
+  // Columns which contain cells with any status configure below will be
+  // ignored. Ignored columns affect the computation of flakiness and
+  // non-ignored number of runs.
+  enum IgnoredTestStatus {
     TEST_STATUS_UNSPECIFIED = 0;
     CATEGORIZED_ABORT = 1;
     UNKNOWN = 2;
@@ -762,8 +767,8 @@ message HealthAnalysisOptions {
 // 1, 2019. For defaulting behavior, use the yamlcfg library instead.
 message DefaultConfiguration {
   // A default testgroup with default initialization data
-  TestGroup default_test_group = 1 [ deprecated = true ];
+  TestGroup default_test_group = 1 [deprecated = true];
 
   // A default dashboard tab with default initialization data
-  DashboardTab default_dashboard_tab = 2 [ deprecated = true ];
+  DashboardTab default_dashboard_tab = 2 [deprecated = true];
 }
