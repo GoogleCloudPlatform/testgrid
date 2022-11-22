@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package testgrid.api.v1;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/api/v1";
 
 import "google/protobuf/timestamp.proto";
@@ -144,7 +145,7 @@ message ListRowsResponse {
     repeated string issues = 3;
 
     // Alert associated with the test case
-    AlertInfo alert = 4;
+    testgrid.state.AlertInfo alert = 4;
 
     // TODO(chases2): Add metrics to these resources
   }

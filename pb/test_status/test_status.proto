@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package testgrid.test_status;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/test_status";
 
 enum TestStatus {

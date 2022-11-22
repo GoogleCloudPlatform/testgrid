@@ -1,4 +1,7 @@
 syntax = "proto3";
+
+package testgrid.custom_evaluator;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator";
 
 import "pb/test_status/test_status.proto";
@@ -15,7 +18,7 @@ message Rule {
   repeated TestResultComparison test_result_comparisons = 1;
 
   // Required: The TestStatus to return if the comparison succeeds.
-  TestStatus computed_status = 3;
+  testgrid.test_status.TestStatus computed_status = 3;
 }
 
 // Describes how to get information the TestResult proto and how to compare the

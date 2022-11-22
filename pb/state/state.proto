@@ -2,6 +2,9 @@
 // Grid is the top-level message; updated and stored by the updater and
 // tabulator.
 syntax = "proto3";
+
+package testgrid.state;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/state";
 
 import "google/protobuf/timestamp.proto";

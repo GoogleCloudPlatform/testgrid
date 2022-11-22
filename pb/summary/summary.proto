@@ -2,6 +2,9 @@
 // Stored in GCS as "dashboard-<normalized dashboard name>".
 
 syntax = "proto3";
+
+package testgrid.summary;
+
 option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/summary";
 
 import "google/protobuf/timestamp.proto";
