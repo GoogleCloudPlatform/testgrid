@@ -139,6 +139,31 @@ func TestCustomStatus(t *testing.T) {
 			want: &timedOut,
 		},
 		{
+			name: "not equal, string",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_TIMED_OUT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_PropertyKey{
+								PropertyKey: "foo",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_NE,
+								ComparisonValue: &evalpb.Comparison_StringValue{
+									StringValue: "goal",
+								},
+							},
+						},
+					},
+				},
+			},
+			tr: makeResult(map[string][]string{
+				"foo": {"no"},
+			}),
+			want: &timedOut,
+		},
+		{
 			name: "wrong string value",
 			rules: []*evalpb.Rule{
 				{
