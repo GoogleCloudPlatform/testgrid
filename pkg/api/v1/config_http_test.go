@@ -28,11 +28,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/golang/protobuf/proto"
 )
 
 func TestConfigPath(t *testing.T) {
@@ -236,7 +237,7 @@ func TestGetDashboardGroup(t *testing.T) {
 				},
 			},
 			endpoint:         "stooges",
-			expectedResponse: `{"dashboards":[{"name":"larry","link":"/dashboards/larry"},{"name":"curly","link":"/dashboards/curly"},{"name":"moe","link":"/dashboards/moe"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"curly","link":"/dashboards/curly"},{"name":"larry","link":"/dashboards/larry"},{"name":"moe","link":"/dashboards/moe"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -730,4 +731,8 @@ func (f fakeClient) Stat(ctx context.Context, prefix gcs.Path) (*storage.ObjectA
 
 func (f fakeClient) Copy(ctx context.Context, from, to gcs.Path) (*storage.ObjectAttrs, error) {
 	panic("fakeClient Copy not implemented")
+}
+
+func (f fakeClient) If(read, write *storage.Conditions) gcs.ConditionalClient {
+	return f
 }

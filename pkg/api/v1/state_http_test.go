@@ -29,91 +29,6 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestFindDashboardTab(t *testing.T) {
-	tests := []struct {
-		name         string
-		config       *pb.Configuration
-		dashboardKey string
-		tabKey       string
-		wantDash     string
-		wantTab      *pb.DashboardTab
-	}{
-		{
-			name: "returns nil if no dashboards exists",
-			config: &pb.Configuration{
-				Dashboards: []*pb.Dashboard{},
-			},
-			dashboardKey: "dashboard1",
-			tabKey:       "tab1",
-		},
-		{
-			name: "return nil if no dashboards match",
-			config: &pb.Configuration{
-				Dashboards: []*pb.Dashboard{
-					{
-						Name: "Dashboard-2",
-					},
-				},
-			},
-			dashboardKey: "dashboard1",
-			tabKey:       "tab1",
-		},
-		{
-			name: "return nil if no tab match",
-			config: &pb.Configuration{
-				Dashboards: []*pb.Dashboard{
-					{
-						Name: "dashboard1",
-						DashboardTab: []*pb.DashboardTab{
-							{
-								Name: "tab-2",
-							},
-						},
-					},
-				},
-			},
-			dashboardKey: "dashboard1",
-			tabKey:       "tab1",
-		},
-		{
-			name: "return correct tab if match found",
-			config: &pb.Configuration{
-				Dashboards: []*pb.Dashboard{
-					{
-						Name: "dashboard1",
-						DashboardTab: []*pb.DashboardTab{
-							{
-								Name: "tab-1",
-							},
-						},
-					},
-				},
-			},
-			dashboardKey: "dashboard1",
-			tabKey:       "tab1",
-			wantDash:     "dashboard1",
-			wantTab: &pb.DashboardTab{
-				Name: "tab-1",
-			},
-		},
-		{
-			name: "Return error if config is null",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			dash, result, _ := findDashboardTab(tc.config, tc.dashboardKey, tc.tabKey)
-			if dash != tc.wantDash {
-				t.Errorf("findDashboardTab() got dashboard %q, wanted %q", dash, tc.wantDash)
-			}
-			if diff := cmp.Diff(tc.wantTab, result, protocmp.Transform()); diff != "" {
-				t.Errorf("findDashboardTab() got unexpected diff (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestDecodeRLE(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -159,7 +74,7 @@ func TestRoute(t *testing.T) {
 				"gs://default/config": {},
 			},
 			endpoint:         "missingdashboard/tabs/tabname/headers",
-			expectedResponse: "Dashboard {\"missingdashboard\"} or tab {\"tabname\"} not found\n",
+			expectedResponse: "Dashboard {\"missingdashboard\"} not found\n",
 			expectedCode:     http.StatusNotFound,
 		},
 		{
@@ -192,7 +107,7 @@ func TestRoute(t *testing.T) {
 				"gs://default/config": {},
 			},
 			endpoint:         "missingdashboard/tabs/tabname/rows",
-			expectedResponse: "Dashboard {\"missingdashboard\"} or tab {\"tabname\"} not found\n",
+			expectedResponse: "Dashboard {\"missingdashboard\"} not found\n",
 			expectedCode:     http.StatusNotFound,
 		},
 		{
@@ -232,7 +147,7 @@ func TestListHeaders(t *testing.T) {
 				"gs://default/config": {},
 			},
 			endpoint:         "missingdashboard/tabs/tabname/headers",
-			expectedResponse: "Dashboard {\"missingdashboard\"} or tab {\"tabname\"} not found\n",
+			expectedResponse: "Dashboard {\"missingdashboard\"} not found\n",
 			expectedCode:     http.StatusNotFound,
 		},
 		{
@@ -248,7 +163,7 @@ func TestListHeaders(t *testing.T) {
 				},
 			},
 			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: "Dashboard {\"dashboard1\"} or tab {\"tab1\"} not found\n",
+			expectedResponse: "Tab {\"tab1\"} not found\n",
 			expectedCode:     http.StatusNotFound,
 		},
 		{
@@ -359,7 +274,7 @@ func TestListHeaders(t *testing.T) {
 				"gs://default/config": {},
 			},
 			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: "Dashboard {\"dashboard1\"} or tab {\"tab1\"} not found\n",
+			expectedResponse: "Dashboard {\"dashboard1\"} not found\n",
 			expectedCode:     http.StatusNotFound,
 		},
 	}

@@ -235,8 +235,9 @@ func TestObserve_Data(t *testing.T) {
 		{
 			name: "Empty config",
 			expected: &Config{
-				Dashboards: map[string]*configpb.Dashboard{},
-				Groups:     map[string]*configpb.TestGroup{},
+				DashboardGroups: map[string]*configpb.DashboardGroup{},
+				Dashboards:      map[string]*configpb.Dashboard{},
+				Groups:          map[string]*configpb.TestGroup{},
 				Attrs: storage.ReaderObjectAttrs{
 					Generation: 1,
 				},
@@ -267,6 +268,7 @@ func TestObserve_Data(t *testing.T) {
 				},
 			},
 			expected: &Config{
+				DashboardGroups: map[string]*configpb.DashboardGroup{},
 				Dashboards: map[string]*configpb.Dashboard{
 					"chess": {
 						Name:       "chess",
@@ -287,6 +289,49 @@ func TestObserve_Data(t *testing.T) {
 						DaysOfResults: 1,
 					},
 				},
+				Attrs: storage.ReaderObjectAttrs{
+					Generation: 1,
+				},
+			},
+		},
+		{
+			name: "Dashboards and DashboardGroups",
+			config: &configpb.Configuration{
+				DashboardGroups: []*configpb.DashboardGroup{
+					{
+						Name:           "games",
+						DashboardNames: []string{"chess", "checkers"},
+					},
+				},
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name:       "chess",
+						DefaultTab: "Ke5",
+					},
+					{
+						Name:       "checkers",
+						DefaultTab: "10-15",
+					},
+				},
+			},
+			expected: &Config{
+				DashboardGroups: map[string]*configpb.DashboardGroup{
+					"games": {
+						Name:           "games",
+						DashboardNames: []string{"chess", "checkers"},
+					},
+				},
+				Dashboards: map[string]*configpb.Dashboard{
+					"chess": {
+						Name:       "chess",
+						DefaultTab: "Ke5",
+					},
+					"checkers": {
+						Name:       "checkers",
+						DefaultTab: "10-15",
+					},
+				},
+				Groups: map[string]*configpb.TestGroup{},
 				Attrs: storage.ReaderObjectAttrs{
 					Generation: 1,
 				},
