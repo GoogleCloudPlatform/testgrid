@@ -337,7 +337,8 @@ message TestGroup {
 
   reserved 57 to 59;
 
-  // disable_prowjob_analysis 62
+  // Where to gather linked issues from. (Currently a no-op).
+  IssueGatherOptions issue_gather_options = 63;
 }
 
 // GCSConfig specifies results stored in GCS, typically created by prow.
@@ -355,6 +356,11 @@ message GCSConfig {
   string pubsub_project = 2;
   // The pubsub subscription ID in the above topic
   string pubsub_subscription = 3;
+}
+
+// Options for where to gather linked issues from.
+message IssueGatherOptions {
+  reserved 1, 2;
 }
 
 // Default metadata to apply when opening bugs.
