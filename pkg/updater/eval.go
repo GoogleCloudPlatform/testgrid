@@ -58,7 +58,7 @@ func strStartsWith(a, b string) bool {
 }
 
 func strContains(a, b string) bool {
-	return strings.Contains(b, a)
+	return strings.Contains(a, b)
 }
 
 func numEQ(a, b float64) bool {

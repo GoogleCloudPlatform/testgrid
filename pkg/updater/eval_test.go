@@ -139,6 +139,30 @@ func TestCustomStatus(t *testing.T) {
 			want: &timedOut,
 		},
 		{
+			name: "wrong string value",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_TIMED_OUT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_PropertyKey{
+								PropertyKey: "foo",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_EQ,
+								ComparisonValue: &evalpb.Comparison_StringValue{
+									StringValue: "goal",
+								},
+							},
+						},
+					},
+				},
+			},
+			tr: makeResult(map[string][]string{
+				"foo": {"wrong-value"},
+			}),
+		},
+		{
 			name: "not equal, string",
 			rules: []*evalpb.Rule{
 				{
@@ -164,7 +188,7 @@ func TestCustomStatus(t *testing.T) {
 			want: &timedOut,
 		},
 		{
-			name: "wrong string value",
+			name: "not equal, string, is equal",
 			rules: []*evalpb.Rule{
 				{
 					ComputedStatus: tspb.TestStatus_TIMED_OUT,
@@ -174,7 +198,7 @@ func TestCustomStatus(t *testing.T) {
 								PropertyKey: "foo",
 							},
 							Comparison: &evalpb.Comparison{
-								Op: evalpb.Comparison_OP_EQ,
+								Op: evalpb.Comparison_OP_NE,
 								ComparisonValue: &evalpb.Comparison_StringValue{
 									StringValue: "goal",
 								},
@@ -184,7 +208,56 @@ func TestCustomStatus(t *testing.T) {
 				},
 			},
 			tr: makeResult(map[string][]string{
-				"foo": {"wrong-value"},
+				"foo": {"goal"},
+			}),
+		},
+		{
+			name: "string contains",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_TIMED_OUT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_PropertyKey{
+								PropertyKey: "foo",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_CONTAINS,
+								ComparisonValue: &evalpb.Comparison_StringValue{
+									StringValue: "goal",
+								},
+							},
+						},
+					},
+				},
+			},
+			tr: makeResult(map[string][]string{
+				"foo": {"this is the goal"},
+			}),
+			want: &timedOut,
+		},
+		{
+			name: "string does not contains",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_TIMED_OUT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_PropertyKey{
+								PropertyKey: "foo",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_CONTAINS,
+								ComparisonValue: &evalpb.Comparison_StringValue{
+									StringValue: "goal",
+								},
+							},
+						},
+					},
+				},
+			},
+			tr: makeResult(map[string][]string{
+				"foo": {"i am not a matching message"},
 			}),
 		},
 		{
