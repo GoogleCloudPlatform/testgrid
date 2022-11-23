@@ -22,13 +22,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
-	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
@@ -54,42 +55,47 @@ func queryParams(scope string) string {
 	return ""
 }
 
-// getConfig will return a config file or will return an error.
+// getConfig will return a config or an error.
 // Does not expose wrapped errors to the user, instead logging them to the console.
-func (s *Server) getConfig(ctx context.Context, scope string) (*configpb.Configuration, error) {
+func (s *Server) getConfig(ctx context.Context, log *logrus.Entry, scope string) (*snapshot.Config, error) {
 	configPath, isDefault, err := s.configPath(scope)
 	if err != nil || configPath == nil {
 		return nil, errors.New("Scope not specified")
 	}
 
-	cfg, _, err := config.ReadGCS(ctx, s.Client, *configPath)
+	// TODO(chases2): If is default, keep a cached snapshot that we are regularly observing.
+	// In addition, keep a map of normalized inputs -> real name to santize user input
+	cfgChan, err := snapshot.Observe(ctx, log, s.Client, *configPath, nil)
 	if err != nil {
 		// Only log an error if we set and use a default scope, but can't access it.
 		// Otherwise, invalid requests will write useless logs.
 		if isDefault {
-			// TODO(chases2): Pass a logrus logger through the server object
-			logrus.WithError(err).Errorf("Can't read default config at %q; check permissions", configPath.String())
+			log.WithError(err).Errorf("Can't read default config at %q; check permissions", configPath.String())
 		}
 		return nil, fmt.Errorf("Could not read config at %q", configPath.String())
 	}
-	return cfg, nil
+	return <-cfgChan, nil
 }
 
 // ListDashboardGroup returns every dashboard group in TestGrid
 func (s *Server) ListDashboardGroup(ctx context.Context, req *apipb.ListDashboardGroupRequest) (*apipb.ListDashboardGroupResponse, error) {
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
 	var resp apipb.ListDashboardGroupResponse
-	for _, group := range cfg.DashboardGroups {
+	for name := range cfg.DashboardGroups {
 		rsc := apipb.Resource{
-			Name: group.Name,
-			Link: fmt.Sprintf("/dashboard-groups/%s%s", config.Normalize(group.Name), queryParams(req.GetScope())),
+			Name: name,
+			Link: fmt.Sprintf("/dashboard-groups/%s%s", config.Normalize(name), queryParams(req.GetScope())),
 		}
 		resp.DashboardGroups = append(resp.DashboardGroups, &rsc)
 	}
+
+	sort.SliceStable(resp.DashboardGroups, func(i, j int) bool {
+		return resp.DashboardGroups[i].Name < resp.DashboardGroups[j].Name
+	})
 
 	return &resp, nil
 }
@@ -112,11 +118,12 @@ func (s Server) ListDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 
 // GetDashboardGroup returns a given dashboard group
 func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardGroupRequest) (*apipb.GetDashboardGroupResponse, error) {
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO(#1075): Normalize req.GetDashboardGroup()
 	for _, group := range cfg.DashboardGroups {
 		if config.Normalize(group.Name) == req.GetDashboardGroup() {
 			result := apipb.GetDashboardGroupResponse{}
@@ -127,6 +134,9 @@ func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardG
 				}
 				result.Dashboards = append(result.Dashboards, &rsc)
 			}
+			sort.SliceStable(result.Dashboards, func(i, j int) bool {
+				return result.Dashboards[i].Name < result.Dashboards[j].Name
+			})
 			return &result, nil
 		}
 	}
@@ -152,19 +162,22 @@ func (s Server) GetDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ListDashboard returns every dashboard in TestGrid
 func (s *Server) ListDashboard(ctx context.Context, req *apipb.ListDashboardRequest) (*apipb.ListDashboardResponse, error) {
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
 	var resp apipb.ListDashboardResponse
-	for _, dashboard := range cfg.Dashboards {
+	for name := range cfg.Dashboards {
 		rsc := apipb.Resource{
-			Name: dashboard.Name,
-			Link: fmt.Sprintf("/dashboards/%s%s", config.Normalize(dashboard.Name), queryParams(req.GetScope())),
+			Name: name,
+			Link: fmt.Sprintf("/dashboards/%s%s", config.Normalize(name), queryParams(req.GetScope())),
 		}
 		resp.Dashboards = append(resp.Dashboards, &rsc)
 	}
+	sort.SliceStable(resp.Dashboards, func(i, j int) bool {
+		return resp.Dashboards[i].Name < resp.Dashboards[j].Name
+	})
 
 	return &resp, nil
 }
@@ -187,11 +200,12 @@ func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
 
 // GetDashboard returns a given dashboard
 func (s *Server) GetDashboard(ctx context.Context, req *apipb.GetDashboardRequest) (*apipb.GetDashboardResponse, error) {
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO(#1075): Normalize req.GetDashboard
 	for _, dashboard := range cfg.Dashboards {
 		if config.Normalize(dashboard.Name) == req.GetDashboard() {
 			result := apipb.GetDashboardResponse{
@@ -225,11 +239,12 @@ func (s Server) GetDashboardHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ListDashboardTabs returns a given dashboard tabs
 func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboardTabsRequest) (*apipb.ListDashboardTabsResponse, error) {
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO(#1075): Normalize req.GetDashboard()
 	var dashboardTabsResponse apipb.ListDashboardTabsResponse
 	for _, dashboard := range cfg.Dashboards {
 		if config.Normalize(dashboard.Name) == req.GetDashboard() {
@@ -240,6 +255,9 @@ func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboard
 				}
 				dashboardTabsResponse.DashboardTabs = append(dashboardTabsResponse.DashboardTabs, &rsc)
 			}
+			sort.SliceStable(dashboardTabsResponse.DashboardTabs, func(i, j int) bool {
+				return dashboardTabsResponse.DashboardTabs[i].Name < dashboardTabsResponse.DashboardTabs[j].Name
+			})
 			return &dashboardTabsResponse, nil
 		}
 	}

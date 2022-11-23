@@ -26,34 +26,36 @@ import (
 	"net/url"
 	"path"
 
+	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
+
 	"github.com/GoogleCloudPlatform/testgrid/config"
+	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
-	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/gorilla/mux"
 )
 
-// findDashboardTab locates dashboard tab in config
-// TODO(fejta): use the raw dashboard and tab name, not its config.Normalize() equivalent.
-func findDashboardTab(cfg *configpb.Configuration, dashboardKey string, tabKey string) (string, *configpb.DashboardTab, error) {
+// findDashboardTab locates dashboard tab in config, given a dashboard and tab name.
+func findDashboardTab(cfg *snapshot.Config, dashboardKey string, tabKey string) (dashboardName, tabName, testGroupName string, err error) {
+	// TODO(#1075): Normalize the incoming dashboard/tab keys
 	if cfg == nil {
-		return "", nil, errors.New("empty config")
+		return "", "", "", errors.New("empty config")
 	}
 	// TODO(fejta): switch to map lookup
 	for _, dashboard := range cfg.Dashboards {
 		if config.Normalize(dashboard.Name) == dashboardKey {
 			for _, tab := range dashboard.DashboardTab {
 				if config.Normalize(tab.Name) == tabKey {
-					return dashboard.Name, tab, nil
+					return dashboard.Name, tab.Name, tab.TestGroupName, nil
 				}
 			}
-			return "", nil, fmt.Errorf("Dashboard {%q} not found", dashboardKey)
+			return "", "", "", fmt.Errorf("Tab {%q} not found", tabKey)
 		}
 	}
-	return "", nil, fmt.Errorf("Tab {%q} not found", tabKey)
+	return "", "", "", fmt.Errorf("Dashboard {%q} not found", dashboardKey)
 }
 
 // GroupGrid fetch tab group name grid info (columns, rows, ..etc)
@@ -70,19 +72,15 @@ func (s Server) GroupGrid(ctx context.Context, configPath *gcs.Path, groupName s
 }
 
 // Grid fetch tab and grid info (columns, rows, ..etc)
-func (s Server) Grid(ctx context.Context, scope string, cfg *configpb.Configuration, dashboardKey string, tabKey string) (*statepb.Grid, error) {
-	dash, tab, err := findDashboardTab(cfg, dashboardKey, tabKey)
-	if err != nil {
-		return nil, err
-	}
+func (s Server) Grid(ctx context.Context, scope string, dashboardName, tabName, testGroupNanme string) (*statepb.Grid, error) {
 	configPath, _, err := s.configPath(scope)
 	if err != nil {
 		return nil, err
 	}
-	if s.TabPathPrefix == "" {
-		return s.GroupGrid(ctx, configPath, tab.TestGroupName)
+	if s.TabPathPrefix == "" { // TODO(chases2): Delete; all APIs should be configured to use Tabulator now
+		return s.GroupGrid(ctx, configPath, testGroupNanme)
 	}
-	path, err := tabulator.TabStatePath(*configPath, s.TabPathPrefix, dash, tab.Name)
+	path, err := tabulator.TabStatePath(*configPath, s.TabPathPrefix, dashboardName, tabName)
 	if err != nil {
 		return nil, fmt.Errorf("tab state path: %v", err)
 	}
@@ -110,15 +108,19 @@ func (s *Server) ListHeaders(ctx context.Context, req *apipb.ListHeadersRequest)
 	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
 	defer cancel()
 
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
-	dashboardKey, tabKey := req.GetDashboard(), req.GetTab()
-	grid, err := s.Grid(ctx, req.GetScope(), cfg, dashboardKey, tabKey)
+	dashboardName, tabName, testGroupName, err := findDashboardTab(cfg, req.GetDashboard(), req.GetTab())
 	if err != nil {
-		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
+		return nil, err
+	}
+
+	grid, err := s.Grid(ctx, req.GetScope(), dashboardName, tabName, testGroupName)
+	if err != nil {
+		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", req.GetDashboard(), req.GetTab())
 	}
 	if grid == nil {
 		return nil, errors.New("grid not found")
@@ -169,15 +171,19 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 	defer cancel()
 
 	// this should be factored out of this function
-	cfg, err := s.getConfig(ctx, req.GetScope())
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
 	}
 
-	dashboardKey, tabKey := req.GetDashboard(), req.GetTab()
-	grid, err := s.Grid(ctx, req.GetScope(), cfg, dashboardKey, tabKey)
+	dashboardName, tabName, testGroupName, err := findDashboardTab(cfg, req.GetDashboard(), req.GetTab())
 	if err != nil {
-		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", dashboardKey, tabKey)
+		return nil, err
+	}
+
+	grid, err := s.Grid(ctx, req.GetScope(), dashboardName, tabName, testGroupName)
+	if err != nil {
+		return nil, fmt.Errorf("Dashboard {%q} or tab {%q} not found", req.GetDashboard(), req.GetTab())
 	}
 	if grid == nil {
 		return nil, errors.New("grid not found")

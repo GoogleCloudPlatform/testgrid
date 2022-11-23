@@ -26,7 +26,7 @@ import (
 
 // Server contains the necessary settings and i/o objects needed to serve this api
 type Server struct {
-	Client                   gcs.Client
+	Client                   gcs.ConditionalClient
 	DefaultBucket            string
 	GridPathPrefix           string
 	TabPathPrefix            string

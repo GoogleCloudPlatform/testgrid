@@ -31,9 +31,10 @@ import (
 // Config is a mapped representation of the config at a particular point in time.
 // Not concurrency-safe; meant for reading only
 type Config struct {
-	Dashboards map[string]*configpb.Dashboard
-	Groups     map[string]*configpb.TestGroup
-	Attrs      storage.ReaderObjectAttrs
+	DashboardGroups map[string]*configpb.DashboardGroup
+	Dashboards      map[string]*configpb.Dashboard
+	Groups          map[string]*configpb.TestGroup
+	Attrs           storage.ReaderObjectAttrs
 }
 
 // Observe reads the config at configPath and return a ConfigSnapshot initially and, if a ticker is supplied, when the config changes
@@ -95,6 +96,10 @@ func updateHash(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*C
 		return nil, err
 	}
 
+	namedDashboardGroups := make(map[string]*configpb.DashboardGroup, len(cfg.DashboardGroups))
+	for _, dg := range cfg.DashboardGroups {
+		namedDashboardGroups[dg.Name] = dg
+	}
 	namedDashboards := make(map[string]*configpb.Dashboard, len(cfg.Dashboards))
 	for _, d := range cfg.Dashboards {
 		namedDashboards[d.Name] = d
@@ -104,6 +109,7 @@ func updateHash(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*C
 		namedGroups[tg.Name] = tg
 	}
 
+	cs.DashboardGroups = namedDashboardGroups
 	cs.Dashboards = namedDashboards
 	cs.Groups = namedGroups
 	if attrs != nil {
