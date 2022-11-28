@@ -48,9 +48,6 @@ spec:
         - --subscribe=istio-prow=k8s-testgrid/testgrid
         - --wait=2h
         resources:
-          requests:
-            cpu: "30"
-            memory: "75G"
           limits:
             cpu: "40"
             memory: "150G"
