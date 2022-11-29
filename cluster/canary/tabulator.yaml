@@ -36,7 +36,9 @@ spec:
         - --json-logs
         - --persist-queue=gs://k8s-testgrid-canary/queue/tabulator.json
         - --pubsub=k8s-testgrid/canary-test-group-updates
+        - --read-concurrency=10
         - --wait=15m
+        - --write-concurrency=10
         resources:
           requests:
             cpu: "30"
