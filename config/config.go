@@ -73,6 +73,7 @@ func (e ValidationError) Error() string {
 }
 
 // Normalize lowercases, and removes all non-alphanumeric characters from a string.
+// WARNING: Unless you are validating config or sanitizing API input, avoid using normalization. Bare names are acceptable keys.
 func Normalize(s string) string {
 	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
 	s = regex.ReplaceAllString(s, "")

@@ -32,6 +32,7 @@ type Server struct {
 	TabPathPrefix            string
 	AccessControlAllowOrigin string
 	Timeout                  time.Duration
+	defaultCache             *cachedConfig
 }
 
 // Ensure the server implementation conforms to the API

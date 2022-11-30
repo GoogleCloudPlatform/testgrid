@@ -28,57 +28,6 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestConfigPath(t *testing.T) {
-	tests := []struct {
-		name          string
-		defaultBucket string
-		scopeParam    string
-		expected      *gcs.Path
-		expectDefault bool
-	}{
-		{
-			name:          "Defaults to default",
-			defaultBucket: "gs://example",
-			expected:      getPathOrDie(t, "gs://example/config"),
-			expectDefault: true,
-		},
-		{
-			name:          "Use config if specified",
-			defaultBucket: "gs://wrong",
-			scopeParam:    "gs://example/path",
-			expected:      getPathOrDie(t, "gs://example/path/config"),
-		},
-		{
-			name:       "Do not require a default",
-			scopeParam: "gs://example/path",
-			expected:   getPathOrDie(t, "gs://example/path/config"),
-		},
-		{
-			name: "Return error if no way to find config",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			s := Server{
-				DefaultBucket: test.defaultBucket,
-			}
-
-			result, isDefault, err := s.configPath(test.scopeParam)
-			if test.expected == nil && err == nil {
-				t.Fatalf("Expected an error, but got none")
-			}
-
-			if test.expectDefault != isDefault {
-				t.Errorf("Default Flag: Want %t, got %t", test.expectDefault, isDefault)
-			}
-
-			if test.expected != nil && result.String() != test.expected.String() {
-				t.Errorf("Want %s, but got %s", test.expected.String(), result.String())
-			}
-		})
-	}
-}
-
 func getPathOrDie(t *testing.T, s string) *gcs.Path {
 	t.Helper()
 	path, err := gcs.NewPath(s)
