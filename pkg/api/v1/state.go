@@ -39,8 +39,9 @@ import (
 )
 
 // findDashboardTab locates dashboard tab in config, given a dashboard and tab name.
-func findDashboardTab(cfg *snapshot.Config, dashboardKey string, tabKey string) (dashboardName, tabName, testGroupName string, err error) {
-	// TODO(#1075): Normalize the incoming dashboard/tab keys
+func findDashboardTab(cfg *snapshot.Config, dashboardInput string, tabInput string) (dashboardName, tabName, testGroupName string, err error) {
+	dashboardKey := config.Normalize(dashboardInput)
+	tabKey := config.Normalize(tabInput)
 	if cfg == nil {
 		return "", "", "", errors.New("empty config")
 	}

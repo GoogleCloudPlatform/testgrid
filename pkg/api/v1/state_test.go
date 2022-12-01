@@ -18,15 +18,17 @@ package v1
 
 import (
 	"context"
-	"net/http"
 	"reflect"
 	"testing"
 
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
+
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDecodeRLE(t *testing.T) {
@@ -66,89 +68,25 @@ func TestDecodeRLE(t *testing.T) {
 	}
 }
 
-func TestRoute(t *testing.T) {
-	tests := []TestSpec{
-		{
-			name: "Returns an error when there's no dashboard resource",
-			config: map[string]*pb.Configuration{
-				"gs://default/config": {},
-			},
-			endpoint:         "missingdashboard/tabs/tabname/headers",
-			expectedResponse: "Dashboard {\"missingdashboard\"} not found\n",
-			expectedCode:     http.StatusNotFound,
-		},
-		{
-			name: "Returns empty headers list from a tab",
-			config: map[string]*pb.Configuration{
-				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
-						{
-							Name: "Dashboard1",
-							DashboardTab: []*pb.DashboardTab{
-								{
-									Name:          "tab 1",
-									TestGroupName: "testgroupname",
-								},
-							},
-						},
-					},
-				},
-			},
-			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {},
-			},
-			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: `{}`,
-			expectedCode:     http.StatusOK,
-		},
-		{
-			name: "Returns an error when there's no dashboard resource",
-			config: map[string]*pb.Configuration{
-				"gs://default/config": {},
-			},
-			endpoint:         "missingdashboard/tabs/tabname/rows",
-			expectedResponse: "Dashboard {\"missingdashboard\"} not found\n",
-			expectedCode:     http.StatusNotFound,
-		},
-		{
-			name: "Returns empty rows list from a tab",
-			config: map[string]*pb.Configuration{
-				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
-						{
-							Name: "Dashboard1",
-							DashboardTab: []*pb.DashboardTab{
-								{
-									Name:          "tab 1",
-									TestGroupName: "testgroupname",
-								},
-							},
-						},
-					},
-				},
-			},
-			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {},
-			},
-			endpoint:         "dashboard1/tabs/tab1/rows",
-			expectedResponse: `{}`,
-			expectedCode:     http.StatusOK,
-		},
-	}
-	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
-}
-
-// TODO(fejta): test request/response
 func TestListHeaders(t *testing.T) {
-	tests := []TestSpec{
+	tests := []struct {
+		name        string
+		config      map[string]*pb.Configuration
+		grid        map[string]*statepb.Grid
+		req         *apipb.ListHeadersRequest
+		want        *apipb.ListHeadersResponse
+		expectError bool
+	}{
 		{
 			name: "Returns an error when there's no dashboard resource",
 			config: map[string]*pb.Configuration{
 				"gs://default/config": {},
 			},
-			endpoint:         "missingdashboard/tabs/tabname/headers",
-			expectedResponse: "Dashboard {\"missingdashboard\"} not found\n",
-			expectedCode:     http.StatusNotFound,
+			req: &apipb.ListHeadersRequest{
+				Dashboard: "missing",
+				Tab:       "some tab",
+			},
+			expectError: true,
 		},
 		{
 			name: "Returns an error when there's no tab resource",
@@ -162,9 +100,11 @@ func TestListHeaders(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: "Tab {\"tab1\"} not found\n",
-			expectedCode:     http.StatusNotFound,
+			req: &apipb.ListHeadersRequest{
+				Dashboard: "dashboard1",
+				Tab:       "missing",
+			},
+			expectError: true,
 		},
 		{
 			name: "Returns empty headers list from a tab",
@@ -186,9 +126,11 @@ func TestListHeaders(t *testing.T) {
 			grid: map[string]*statepb.Grid{
 				"gs://default/grid/testgroupname": {},
 			},
-			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: `{}`,
-			expectedCode:     http.StatusOK,
+			req: &apipb.ListHeadersRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "tab 1",
+			},
+			want: &apipb.ListHeadersResponse{},
 		},
 		{
 			name: "Returns correct headers from a tab",
@@ -225,9 +167,24 @@ func TestListHeaders(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: `{"headers":[{"build":"99","started":{"seconds":1635693255},"extra":[""]},{"build":"80","started":{"seconds":1635779655},"extra":["build80"]}]}`,
-			expectedCode:     http.StatusOK,
+			req: &apipb.ListHeadersRequest{
+				Dashboard: "dashboard1",
+				Tab:       "tab1",
+			},
+			want: &apipb.ListHeadersResponse{
+				Headers: []*apipb.ListHeadersResponse_Header{
+					{
+						Build:   "99",
+						Started: &timestamppb.Timestamp{Seconds: 1635693255},
+						Extra:   []string{""},
+					},
+					{
+						Build:   "80",
+						Started: &timestamppb.Timestamp{Seconds: 1635779655},
+						Extra:   []string{"build80"},
+					},
+				},
+			},
 		},
 		{
 			name: "Returns correct timestamps from a tab",
@@ -253,32 +210,65 @@ func TestListHeaders(t *testing.T) {
 							Build:   "99",
 							Hint:    "99",
 							Started: 1, // Milliseconds
-							Extra:   []string{""},
 						},
 						{
 							Build:   "80",
 							Hint:    "80",
 							Started: 1635779655123, // Milliseconds
-							Extra:   []string{"build80"},
 						},
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: `{"headers":[{"build":"99","started":{"nanos":1000000},"extra":[""]},{"build":"80","started":{"seconds":1635779655,"nanos":123000000},"extra":["build80"]}]}`,
-			expectedCode:     http.StatusOK,
+			req: &apipb.ListHeadersRequest{
+				Dashboard: "dashboard 1",
+				Tab:       "tab 1",
+			},
+			want: &apipb.ListHeadersResponse{
+				Headers: []*apipb.ListHeadersResponse_Header{
+					{
+						Build:   "99",
+						Started: &timestamppb.Timestamp{Nanos: 1000000},
+					},
+					{
+						Build:   "80",
+						Started: &timestamppb.Timestamp{Seconds: 1635779655, Nanos: 123000000},
+					},
+				},
+			},
 		},
 		{
 			name: "Server error with unreadable config",
 			config: map[string]*pb.Configuration{
 				"gs://default/config": {},
 			},
-			endpoint:         "dashboard1/tabs/tab1/headers",
-			expectedResponse: "Dashboard {\"dashboard1\"} not found\n",
-			expectedCode:     http.StatusNotFound,
+			req: &apipb.ListHeadersRequest{
+				Dashboard: "dashboard 1",
+				Tab:       "tab 1",
+			},
+			expectError: true,
 		},
 	}
-	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, tc.grid)
+			got, err := server.ListHeaders(context.Background(), tc.req)
+			switch {
+			case err != nil:
+				if !tc.expectError {
+					t.Errorf("got unexpected error: %v", err)
+				}
+			case tc.expectError:
+				t.Error("failed to receive an error")
+			default:
+				if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("got unexpected diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+
+	}
+
 }
 
 func TestListRows(t *testing.T) {

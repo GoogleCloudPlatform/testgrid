@@ -123,9 +123,9 @@ func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardG
 		return nil, err
 	}
 
-	// TODO(#1075): Normalize req.GetDashboardGroup()
+	dashboardGroupKey := config.Normalize(req.GetDashboardGroup())
 	for _, group := range cfg.DashboardGroups {
-		if config.Normalize(group.Name) == req.GetDashboardGroup() {
+		if config.Normalize(group.Name) == dashboardGroupKey {
 			result := apipb.GetDashboardGroupResponse{}
 			for _, dash := range group.DashboardNames {
 				rsc := apipb.Resource{
@@ -205,9 +205,9 @@ func (s *Server) GetDashboard(ctx context.Context, req *apipb.GetDashboardReques
 		return nil, err
 	}
 
-	// TODO(#1075): Normalize req.GetDashboard
+	dashboardKey := config.Normalize(req.GetDashboard())
 	for _, dashboard := range cfg.Dashboards {
-		if config.Normalize(dashboard.Name) == req.GetDashboard() {
+		if config.Normalize(dashboard.Name) == dashboardKey {
 			result := apipb.GetDashboardResponse{
 				DefaultTab:          dashboard.DefaultTab,
 				HighlightToday:      dashboard.HighlightToday,
@@ -244,10 +244,10 @@ func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboard
 		return nil, err
 	}
 
-	// TODO(#1075): Normalize req.GetDashboard()
+	dashboardKey := config.Normalize((req.GetDashboard()))
 	var dashboardTabsResponse apipb.ListDashboardTabsResponse
 	for _, dashboard := range cfg.Dashboards {
-		if config.Normalize(dashboard.Name) == req.GetDashboard() {
+		if config.Normalize(dashboard.Name) == dashboardKey {
 			for _, tab := range dashboard.DashboardTab {
 				rsc := apipb.Resource{
 					Name: tab.Name,
