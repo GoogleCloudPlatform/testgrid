@@ -30,6 +30,8 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
+// TODO(slchase): remove
+// This "eventual consistency" isn't as useful for the utilities that are using Read() or ReadGCS(). Complex cases are handled by the snapshot library.
 var (
 	cache     map[string]Config
 	cacheLock sync.RWMutex

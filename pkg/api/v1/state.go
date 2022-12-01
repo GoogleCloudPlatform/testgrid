@@ -31,7 +31,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
-	"github.com/GoogleCloudPlatform/testgrid/config/snapshot"
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
@@ -39,24 +38,30 @@ import (
 )
 
 // findDashboardTab locates dashboard tab in config, given a dashboard and tab name.
-func findDashboardTab(cfg *snapshot.Config, dashboardInput string, tabInput string) (dashboardName, tabName, testGroupName string, err error) {
-	dashboardKey := config.Normalize(dashboardInput)
-	tabKey := config.Normalize(tabInput)
-	if cfg == nil {
+func findDashboardTab(cfg *cachedConfig, dashboardInput string, tabInput string) (string, string, string, error) {
+	if cfg == nil || cfg.Config == nil {
 		return "", "", "", errors.New("empty config")
 	}
-	// TODO(fejta): switch to map lookup
-	for _, dashboard := range cfg.Dashboards {
-		if config.Normalize(dashboard.Name) == dashboardKey {
-			for _, tab := range dashboard.DashboardTab {
-				if config.Normalize(tab.Name) == tabKey {
-					return dashboard.Name, tab.Name, tab.TestGroupName, nil
-				}
-			}
-			return "", "", "", fmt.Errorf("Tab {%q} not found", tabKey)
+
+	dashboardKey := config.Normalize(dashboardInput)
+	tabKey := config.Normalize(tabInput)
+
+	dashboardName, ok := cfg.NormalDashboard[dashboardKey]
+	if !ok {
+		return "", "", "", fmt.Errorf("Dashboard {%q} not found", dashboardKey)
+	}
+	tabName, ok := cfg.NormalDashboardTab[dashboardKey][tabKey]
+	if !ok {
+		return dashboardName, "", "", fmt.Errorf("Tab {%q} not found", tabKey)
+	}
+
+	for _, tab := range cfg.Config.Dashboards[dashboardName].DashboardTab {
+		if tab.Name == tabName {
+			return dashboardName, tabName, tab.TestGroupName, nil
 		}
 	}
-	return "", "", "", fmt.Errorf("Dashboard {%q} not found", dashboardKey)
+
+	return dashboardName, tabName, "", fmt.Errorf("Test group not found")
 }
 
 // GroupGrid fetch tab group name grid info (columns, rows, ..etc)
@@ -113,6 +118,8 @@ func (s *Server) ListHeaders(ctx context.Context, req *apipb.ListHeadersRequest)
 	if err != nil {
 		return nil, err
 	}
+	cfg.Mutex.RLock()
+	defer cfg.Mutex.RUnlock()
 
 	dashboardName, tabName, testGroupName, err := findDashboardTab(cfg, req.GetDashboard(), req.GetTab())
 	if err != nil {
@@ -176,6 +183,8 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 	if err != nil {
 		return nil, err
 	}
+	cfg.Mutex.RLock()
+	defer cfg.Mutex.RUnlock()
 
 	dashboardName, tabName, testGroupName, err := findDashboardTab(cfg, req.GetDashboard(), req.GetTab())
 	if err != nil {
