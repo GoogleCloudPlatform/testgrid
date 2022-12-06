@@ -178,6 +178,7 @@ message DashboardTabSummary {
     STALE = 5;
     BROKEN = 6;
     PENDING = 7;
+    ACCEPTABLE = 8;
   }
 
   // The overall status for this dashboard tab.

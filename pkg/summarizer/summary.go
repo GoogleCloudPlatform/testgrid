@@ -708,8 +708,6 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 	colsCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold, features, tab.GetStatusCustomizationOptions())
 	metrics := tabMetrics(colsCells)
 	tabStatus := overallStatus(grid, recent, alert, brokenState, failures, features, colsCells, tab.GetStatusCustomizationOptions())
-	// tab can be acceptably flaky only if the summarizer has "allow-fuzzy-flakiness" flag on
-	acceptablyFlaky := features.AllowFuzzyFlakiness && acceptableFlakiness(colsCells, tabStatus, tab.GetStatusCustomizationOptions())
 	return &summarypb.DashboardTabSummary{
 		DashboardTabName:     tab.Name,
 		LastUpdateTimestamp:  float64(mod.Unix()),
@@ -717,12 +715,11 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 		Alert:                alert,
 		FailingTestSummaries: failures,
 		OverallStatus:        tabStatus,
-		Status:               statusMessage(colsCells, acceptablyFlaky, tabStatus, tab.GetStatusCustomizationOptions()),
+		Status:               statusMessage(colsCells, tabStatus, tab.GetStatusCustomizationOptions()),
 		LatestGreen:          latestGreen(grid, group.UseKubernetesClient),
 		BugUrl:               tab.GetOpenBugTemplate().GetUrl(),
 		Healthiness:          healthiness,
 		LinkedIssues:         allLinkedIssues(grid.Rows),
-		AcceptablyFlaky:      acceptablyFlaky,
 		SummaryMetrics:       metrics,
 	}, nil
 }
@@ -878,6 +875,7 @@ func buildFailLink(testID, target string) string {
 // BROKEN - called with brokenState (typically when most rows are red)
 // STALE - called with a stale mstring (typically when most recent column is old)
 // FAIL - there is at least one alert
+// ACCEPTABLE - the ratio of (valid) failing to total columns is less than configured threshold
 // FLAKY - at least one recent column has failing cells
 // PENDING - number of valid columns is less than minimum # of runs required
 // PASS - all recent columns are entirely green
@@ -951,6 +949,9 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 		}
 
 		if flaky {
+			if isAcceptable(colCells, opts, features) {
+				return summarypb.DashboardTabSummary_ACCEPTABLE
+			}
 			return summarypb.DashboardTabSummary_FLAKY
 		}
 
@@ -964,6 +965,17 @@ func overallStatus(grid *statepb.Grid, recent int, stale string, brokenState boo
 		return summarypb.DashboardTabSummary_PASS
 	}
 	return summarypb.DashboardTabSummary_UNKNOWN
+}
+
+// isAcceptable determines if the flakiness is within acceptable range.
+// Return true iff the feature is enabled, `max_acceptable_flakiness` is set and flakiness is < than configured.
+func isAcceptable(colCells gridStats, opts *configpb.DashboardTabStatusCustomizationOptions, features FeatureFlags) bool {
+	if features.AllowFuzzyFlakiness && opts.GetMaxAcceptableFlakiness() > 0 &&
+		100*float64(colCells.passingCols)/float64(colCells.completedCols-colCells.ignoredCols) >= float64(100-opts.GetMaxAcceptableFlakiness()) {
+		return true
+	}
+
+	return false
 }
 
 func allLinkedIssues(rows []*statepb.Row) []string {
@@ -1066,27 +1078,7 @@ func tabMetrics(colCells gridStats) *summarypb.DashboardTabSummaryMetrics {
 	}
 }
 
-func acceptableFlakiness(colCells gridStats, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) bool {
-
-	// not configured to show acceptable flakiness
-	if opts.GetMaxAcceptableFlakiness() <= 0 {
-		return false
-	}
-
-	// only FLAKY can be acceptable
-	if tabStatus != summarypb.DashboardTabSummary_FLAKY {
-		return false
-	}
-
-	// flakiness above threshold
-	if 100*float64(colCells.passingCols)/float64(colCells.completedCols-colCells.ignoredCols) < float64(100-opts.GetMaxAcceptableFlakiness()) {
-		return false
-	}
-
-	return true
-}
-
-func fmtStatus(colCells gridStats, acceptablyFlaky bool, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
+func fmtStatus(colCells gridStats, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
 	colCent := 100 * float64(colCells.passingCols) / float64(colCells.completedCols)
 	cellCent := 100 * float64(colCells.passingCells) / float64(colCells.filledCells)
 	flakyCent := 100 * float64(colCells.completedCols-colCells.ignoredCols-colCells.passingCols) / float64(colCells.completedCols-colCells.ignoredCols)
@@ -1098,7 +1090,7 @@ func fmtStatus(colCells gridStats, acceptablyFlaky bool, tabStatus summarypb.Das
 	// add status info message for certain cases
 	if tabStatus == summarypb.DashboardTabSummary_PENDING {
 		statusMsg += "\nStatus info: Not enough runs"
-	} else if acceptablyFlaky {
+	} else if tabStatus == summarypb.DashboardTabSummary_ACCEPTABLE {
 		statusMsg += fmt.Sprintf("\nStatus info: Recent flakiness (%.1f%%) over valid columns is within configured acceptable level of %.1f%%.", flakyCent, opts.GetMaxAcceptableFlakiness())
 	}
 	return statusMsg
@@ -1107,11 +1099,11 @@ func fmtStatus(colCells gridStats, acceptablyFlaky bool, tabStatus summarypb.Das
 // Tab stats: 3 out of 5 (60.0%) recent columns passed (35 of 50 or 70.0% cells). 1 columns ignored.
 // (OPTIONAL) Status info: Recent flakiness (40.0%) flakiness is within configured acceptable level of X
 // OR Status info: Not enough runs
-func statusMessage(colCells gridStats, acceptablyFlaky bool, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
+func statusMessage(colCells gridStats, tabStatus summarypb.DashboardTabSummary_TabStatus, opts *configpb.DashboardTabStatusCustomizationOptions) string {
 	if colCells.filledCells == 0 {
 		return noRuns
 	}
-	return fmtStatus(colCells, acceptablyFlaky, tabStatus, opts)
+	return fmtStatus(colCells, tabStatus, opts)
 }
 
 const noGreens = "no recent greens"
