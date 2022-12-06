@@ -205,10 +205,8 @@ message DashboardTabSummary {
   // Maintained by alerter; does not need to be populated by summarizer
   AlertingData alerting_data = 14;
 
-  // Flag indicating if the tab's flakiness level is within acceptable percentage
-  // Will only be applied to FLAKY tabs
-  // Configured via DashboardTab > DashboardTabStatusCustomizationOptions > max_acceptable_flakiness
-  bool acceptably_flaky = 15;
+  // DEPRECATED: now part of the TabStatus.
+  bool acceptably_flaky = 15 [deprecated = true];
 
   // Additional metrics provided for the dashboard tab
   DashboardTabSummaryMetrics summary_metrics = 16;
