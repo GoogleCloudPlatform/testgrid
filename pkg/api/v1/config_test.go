@@ -20,9 +20,8 @@ import (
 	"context"
 	"testing"
 
-	v1 "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
+	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -41,8 +40,8 @@ func Test_GetDashboardGroup(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      map[string]*configpb.Configuration
-		req         *v1.GetDashboardGroupRequest
-		expected    *v1.GetDashboardGroupResponse
+		req         *apipb.GetDashboardGroupRequest
+		expected    *apipb.GetDashboardGroupResponse
 		expectError bool
 	}{
 		{
@@ -50,7 +49,7 @@ func Test_GetDashboardGroup(t *testing.T) {
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			req: &v1.GetDashboardGroupRequest{
+			req: &apipb.GetDashboardGroupRequest{
 				DashboardGroup: "",
 			},
 			expectError: true,
@@ -66,10 +65,10 @@ func Test_GetDashboardGroup(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardGroupRequest{
+			req: &apipb.GetDashboardGroupRequest{
 				DashboardGroup: "group1",
 			},
-			expected: &v1.GetDashboardGroupResponse{},
+			expected: &apipb.GetDashboardGroupResponse{},
 		},
 		{
 			name: "Returns dashboards from group",
@@ -83,11 +82,11 @@ func Test_GetDashboardGroup(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardGroupRequest{
+			req: &apipb.GetDashboardGroupRequest{
 				DashboardGroup: "stooges",
 			},
-			expected: &v1.GetDashboardGroupResponse{
-				Dashboards: []*v1.Resource{
+			expected: &apipb.GetDashboardGroupResponse{
+				Dashboards: []*apipb.Resource{
 					{Name: "Curly", Link: "/dashboards/curly"},
 					{Name: "Larry", Link: "/dashboards/larry"},
 					{Name: "Moe", Link: "/dashboards/moe"},
@@ -114,12 +113,12 @@ func Test_GetDashboardGroup(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardGroupRequest{
+			req: &apipb.GetDashboardGroupRequest{
 				DashboardGroup: "right-group",
 				Scope:          "gs://example",
 			},
-			expected: &v1.GetDashboardGroupResponse{
-				Dashboards: []*v1.Resource{
+			expected: &apipb.GetDashboardGroupResponse{
+				Dashboards: []*apipb.Resource{
 					{Name: "yes", Link: "/dashboards/yes?scope=gs://example"},
 				},
 			},
@@ -144,7 +143,7 @@ func Test_GetDashboardGroup(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardGroupRequest{
+			req: &apipb.GetDashboardGroupRequest{
 				DashboardGroup: "wrong-group",
 				Scope:          "gs://example",
 			},
@@ -152,7 +151,7 @@ func Test_GetDashboardGroup(t *testing.T) {
 		},
 		{
 			name: "Server error with unreadable config",
-			req: &v1.GetDashboardGroupRequest{
+			req: &apipb.GetDashboardGroupRequest{
 				DashboardGroup: "group",
 				Scope:          "garbage",
 			},
@@ -180,8 +179,8 @@ func Test_GetDashboard(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      map[string]*configpb.Configuration
-		req         *v1.GetDashboardRequest
-		expected    *v1.GetDashboardResponse
+		req         *apipb.GetDashboardRequest
+		expected    *apipb.GetDashboardResponse
 		expectError bool
 	}{
 		{
@@ -189,7 +188,7 @@ func Test_GetDashboard(t *testing.T) {
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			req: &v1.GetDashboardRequest{
+			req: &apipb.GetDashboardRequest{
 				Dashboard: "",
 			},
 			expectError: true,
@@ -205,10 +204,10 @@ func Test_GetDashboard(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardRequest{
+			req: &apipb.GetDashboardRequest{
 				Dashboard: "Dashboard1",
 			},
-			expected: &v1.GetDashboardResponse{},
+			expected: &apipb.GetDashboardResponse{},
 		},
 		{
 			name: "Returns dashboard info from dashboard",
@@ -230,10 +229,10 @@ func Test_GetDashboard(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardRequest{
+			req: &apipb.GetDashboardRequest{
 				Dashboard: "Dashboard-1",
 			},
-			expected: &v1.GetDashboardResponse{
+			expected: &apipb.GetDashboardResponse{
 				Notifications: []*configpb.Notification{
 					{Summary: "Notification summary", ContextLink: "Notification context link"},
 				},
@@ -244,9 +243,9 @@ func Test_GetDashboard(t *testing.T) {
 		},
 		{
 			name: "Reads specified configs",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:       "wrong-dashboard",
 							DefaultTab: "wrong-dashboard defaultTab",
@@ -254,7 +253,7 @@ func Test_GetDashboard(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:           "correct-dashboard",
 							DefaultTab:     "correct-dashboard defaultTab",
@@ -263,20 +262,20 @@ func Test_GetDashboard(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardRequest{
+			req: &apipb.GetDashboardRequest{
 				Dashboard: "correct-dashboard",
 				Scope:     "gs://example",
 			},
-			expected: &v1.GetDashboardResponse{
+			expected: &apipb.GetDashboardResponse{
 				HighlightToday: true,
 				DefaultTab:     "correct-dashboard defaultTab",
 			},
 		},
 		{
 			name: "Specified configs never reads default config",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:       "wrong-dashboard",
 							DefaultTab: "wrong-dashboard defaultTab",
@@ -284,7 +283,7 @@ func Test_GetDashboard(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:       "correct-dashboard",
 							DefaultTab: "correct-dashboard defaultTab",
@@ -292,7 +291,7 @@ func Test_GetDashboard(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.GetDashboardRequest{
+			req: &apipb.GetDashboardRequest{
 				Dashboard: "wrong-dashboard",
 				Scope:     "gs://example",
 			},
@@ -300,7 +299,7 @@ func Test_GetDashboard(t *testing.T) {
 		},
 		{
 			name: "Server error with unreadable config",
-			req: &v1.GetDashboardRequest{
+			req: &apipb.GetDashboardRequest{
 				Dashboard: "who",
 			},
 			expectError: true,
@@ -328,45 +327,45 @@ func Test_ListDashboardTabs(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      map[string]*configpb.Configuration
-		req         *v1.ListDashboardTabsRequest
-		expected    *v1.ListDashboardTabsResponse
+		req         *apipb.ListDashboardTabsRequest
+		expected    *apipb.ListDashboardTabsResponse
 		expectError bool
 	}{
 		{
 			name: "Returns an error when there's no resource",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			req: &v1.ListDashboardTabsRequest{
+			req: &apipb.ListDashboardTabsRequest{
 				Dashboard: "",
 			},
 			expectError: true,
 		},
 		{
 			name: "Returns empty JSON from an empty Dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:         "Dashboard1",
-							DashboardTab: []*pb.DashboardTab{},
+							DashboardTab: []*configpb.DashboardTab{},
 						},
 					},
 				},
 			},
-			req: &v1.ListDashboardTabsRequest{
+			req: &apipb.ListDashboardTabsRequest{
 				Dashboard: "Dashboard1",
 			},
-			expected: &v1.ListDashboardTabsResponse{},
+			expected: &apipb.ListDashboardTabsResponse{},
 		},
 		{
 			name: "Returns tabs list from a Dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "Dashboard1",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "tab 1",
 								},
@@ -378,11 +377,11 @@ func Test_ListDashboardTabs(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.ListDashboardTabsRequest{
+			req: &apipb.ListDashboardTabsRequest{
 				Dashboard: "Dashboard1",
 			},
-			expected: &v1.ListDashboardTabsResponse{
-				DashboardTabs: []*v1.Resource{
+			expected: &apipb.ListDashboardTabsResponse{
+				DashboardTabs: []*apipb.Resource{
 					{Name: "tab 1", Link: "/dashboards/dashboard1/tabs/tab1"},
 					{Name: "tab 2", Link: "/dashboards/dashboard1/tabs/tab2"},
 				},
@@ -390,12 +389,12 @@ func Test_ListDashboardTabs(t *testing.T) {
 		},
 		{
 			name: "Reads specified configs",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "wrong-dashboard",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "wrong-dashboard tab 1",
 								},
@@ -404,10 +403,10 @@ func Test_ListDashboardTabs(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "correct-dashboard",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "correct-dashboard tab 1",
 								},
@@ -416,24 +415,24 @@ func Test_ListDashboardTabs(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.ListDashboardTabsRequest{
+			req: &apipb.ListDashboardTabsRequest{
 				Dashboard: "correct-dashboard",
 				Scope:     "gs://example",
 			},
-			expected: &v1.ListDashboardTabsResponse{
-				DashboardTabs: []*v1.Resource{
+			expected: &apipb.ListDashboardTabsResponse{
+				DashboardTabs: []*apipb.Resource{
 					{Name: "correct-dashboard tab 1", Link: "/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example"},
 				},
 			},
 		},
 		{
 			name: "Specified configs never reads default config",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "wrong-dashboard",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "wrong-dashboard tab 1",
 								},
@@ -442,10 +441,10 @@ func Test_ListDashboardTabs(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "correct-dashboard",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "correct-dashboard tab 1",
 								},
@@ -454,7 +453,7 @@ func Test_ListDashboardTabs(t *testing.T) {
 					},
 				},
 			},
-			req: &v1.ListDashboardTabsRequest{
+			req: &apipb.ListDashboardTabsRequest{
 				Dashboard: "wrong-dashboard",
 				Scope:     "gs://example",
 			},
@@ -462,7 +461,7 @@ func Test_ListDashboardTabs(t *testing.T) {
 		},
 		{
 			name: "Server error with unreadable config",
-			req: &v1.ListDashboardTabsRequest{
+			req: &apipb.ListDashboardTabsRequest{
 				Dashboard: "dashboard1",
 				Scope:     "gibberish",
 			},

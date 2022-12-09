@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1 (api/v1) is the first versioned implementation of the API
 package v1
 
 import (
