@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package api provides code to host an API displaying TestGrid data
 package api
 
 import (
@@ -40,6 +39,9 @@ func TestHealth(t *testing.T) {
 			expectedCode: http.StatusNotFound,
 		},
 	}
+
+	// Tests are run from the local directory, while the image is built from the repository root
+	healthCheckFile = "README.md"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
