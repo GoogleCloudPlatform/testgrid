@@ -20,6 +20,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -55,6 +56,9 @@ func GetRouters(options RouterOptions, storageClient *storage.Client) (*mux.Rout
 	}
 
 	router := mux.NewRouter()
+	router.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("OK"))
+	})
 	sub1 := router.PathPrefix(v1InfixRef).Subrouter()
 	v1.Route(sub1, *server)
 
@@ -63,7 +67,7 @@ func GetRouters(options RouterOptions, storageClient *storage.Client) (*mux.Rout
 	v1pb.RegisterTestGridDataServer(grpcServer, server)
 	reflection.Register(grpcServer)
 
-	return sub1, grpcServer, nil
+	return router, grpcServer, nil
 }
 
 // GetServer returns a server that serves TestGrid's API
