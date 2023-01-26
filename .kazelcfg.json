@@ -1,4 +1,5 @@
 {
   "GoPrefix": "github.com/GoogleCloudPlatform/testgrid",
-  "AddSourcesRules": true
+  "AddSourcesRules": true,
+  "SkippedPaths": ["node_modules"]
 }
