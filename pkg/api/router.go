@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -37,7 +36,6 @@ import (
 // RouterOptions are the options needed to GetRouter
 type RouterOptions struct {
 	GcsCredentials           string
-	Hostname                 *url.URL // Has no effect. TODO: decommission
 	HomeBucket               string
 	GridPathPrefix           string
 	TabPathPrefix            string

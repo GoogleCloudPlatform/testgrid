@@ -30,10 +30,9 @@ import (
 )
 
 type options struct {
-	httpPort   string
-	grpcPort   string
-	router     api.RouterOptions
-	hostString string // TODO: Decommission
+	httpPort string
+	grpcPort string
+	router   api.RouterOptions
 }
 
 func gatherOptions() (options, error) {
@@ -43,7 +42,6 @@ func gatherOptions() (options, error) {
 	flag.StringVar(&o.httpPort, "port", "8080", "Alias for http-port")
 	flag.StringVar(&o.httpPort, "http-port", "8080", "Port to deploy REST server to")
 	flag.StringVar(&o.grpcPort, "grpc-port", "50051", "Port to deploy gRPC server to")
-	flag.StringVar(&o.hostString, "host", "", "Deprecated; no effect")
 	flag.StringVar(&o.router.AccessControlAllowOrigin, "allowed-origin", "", "Allowed 'Access-Control-Allow-Origin' for HTTP calls, if any")
 	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.router.TabPathPrefix, "tab", "tabs", "Read tab path states under this path")
