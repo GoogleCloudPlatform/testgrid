@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = ["router.go"],
+    data = ["README.md"],
     importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/api",
     visibility = ["//visibility:public"],
     deps = [
@@ -36,5 +37,6 @@ filegroup(
 go_test(
     name = "go_default_test",
     srcs = ["router_http_test.go"],
+    data = ["README.md"],
     embed = [":go_default_library"],
 )

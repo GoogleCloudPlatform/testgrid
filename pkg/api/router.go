@@ -47,6 +47,8 @@ type RouterOptions struct {
 
 const v1InfixRef = "/api/v1"
 
+var healthCheckFile = "pkg/api/README.md" // a relative path
+
 // GetRouters returns an http router and gRPC server that both serve TestGrid's API
 // It also instantiates necessary caching and i/o objects
 func GetRouters(options RouterOptions, storageClient *storage.Client) (*mux.Router, *grpc.Server, error) {
@@ -56,8 +58,8 @@ func GetRouters(options RouterOptions, storageClient *storage.Client) (*mux.Rout
 	}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("OK"))
+	router.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		http.ServeFile(w, req, healthCheckFile)
 	})
 	sub1 := router.PathPrefix(v1InfixRef).Subrouter()
 	v1.Route(sub1, *server)
