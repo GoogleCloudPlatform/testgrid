@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testgrid-api
+  namespace: testgrid
+  labels:
+    app: testgrid
+    channel: stable
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testgrid
+      channel: stable
+      component: api
+  template:
+    metadata:
+      labels:
+        app: testgrid
+        channel: stable
+        component: api
+    spec:
+      serviceAccountName: api
+      containers:
+      - name: api
+        image: gcr.io/k8s-testgrid/api:v20230127-v0.0.154-20-g18ed576e
+        args:
+        - --scope=gs://k8s-testgrid
+        - --port=8080
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: testgrid-api@k8s-testgrid.iam.gserviceaccount.com
+  name: api
+  namespace: testgrid
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: testgrid
+spec:
+  type: NodePort
+  selector:
+    app: testgrid
+    component: api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testgrid-api-ingress
+  namespace: testgrid
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: api
+            port:
+              number: 80

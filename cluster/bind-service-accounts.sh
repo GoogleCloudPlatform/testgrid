@@ -98,6 +98,9 @@ canary=(
 )
 bind-service-accounts testgrid-canary@k8s-testgrid.iam.gserviceaccount.com testgrid-canary "${canary[@]}"
 
+# API has a separate access account from the rest of the backend
+bind-service-accounts testgrid-canary-api@k8s-testgrid.iam.gserviceaccount.com testgrid-canary api
+
 knative=(
   summarizer
   tabulator
@@ -112,3 +115,5 @@ prod=(
   updater
 )
 bind-service-accounts updater@k8s-testgrid.iam.gserviceaccount.com testgrid "${prod[@]}"
+
+bind-service-accounts testgrid-api@k8s-testgrid.iam.gserviceaccount.com testgrid api
