@@ -31,6 +31,7 @@ type Server struct {
 	DefaultBucket            string
 	GridPathPrefix           string
 	TabPathPrefix            string
+	SummaryPathPrefix        string
 	AccessControlAllowOrigin string
 	Timeout                  time.Duration
 	defaultCache             *cachedConfig
@@ -53,5 +54,7 @@ func Route(r *mux.Router, s Server) *mux.Router {
 
 	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/headers", s.ListHeadersHTTP).Methods("GET")
 	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/rows", s.ListRowsHTTP).Methods("GET")
+
+	r.HandleFunc("/dashboards/{dashboard}/tab-summaries", s.ListTabSummariesHTTP).Methods("GET")
 	return r
 }
