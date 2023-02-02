@@ -379,6 +379,7 @@ var (
 	normalizer = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
+// SummaryPath generates a summary GCS path for a given dashboard
 func SummaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	// ''.join(c for c in n.lower() if c is alphanumeric
 	name := "summary-" + normalizer.ReplaceAllString(strings.ToLower(dashboard), "")
@@ -397,6 +398,9 @@ func SummaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	return np, nil
 }
 
+// ReadSummary provides the dashboard summary as defined in summary.proto.
+// IMPORTANT: Returns nil if the object doesn't exist.
+// Returns an error iff wasn't read or serialized properly.
 func ReadSummary(ctx context.Context, client gcs.Client, path gcs.Path) (*summarypb.DashboardSummary, time.Time, int64, error) {
 	r, modified, gen, err := pathReader(ctx, client, path)
 	if errors.Is(err, storage.ErrObjectNotExist) {
