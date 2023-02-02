@@ -191,5 +191,5 @@ message TabSummary {
   google.protobuf.Timestamp last_update_timestamp = 6;
 
   // The ID for the latest passing build.
-  string latest_green = 7;
+  string latest_passing_build = 7;
 }

@@ -32,35 +32,16 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 )
 
-const (
-	// PASSING is "PASSING"
-	PASSING = "PASSING"
-	// FAILING is "FAILING"
-	FAILING = "FAILING"
-	// FLAKY is "FLAKY"
-	FLAKY = "FLAKY"
-	// ACCEPTABLE is "ACCEPTABLE"
-	ACCEPTABLE = "ACCEPTABLE"
-	// STALE is "STALE"
-	STALE = "STALE"
-	// BROKEN is "BROKEN"
-	BROKEN = "BROKEN"
-	// UNKNOWN is "UNKNOWN"
-	UNKNOWN = "UNKNOWN"
-	// PENDING is "PENDING"
-	PENDING = "PENDING"
-)
-
 var (
 	// These should be in line with the TabStatus enum in state.proto.
 	tabStatusStr = map[summarypb.DashboardTabSummary_TabStatus]string{
-		summarypb.DashboardTabSummary_PASS:       PASSING,
-		summarypb.DashboardTabSummary_FAIL:       FAILING,
-		summarypb.DashboardTabSummary_FLAKY:      FLAKY,
-		summarypb.DashboardTabSummary_STALE:      STALE,
-		summarypb.DashboardTabSummary_BROKEN:     BROKEN,
-		summarypb.DashboardTabSummary_PENDING:    PENDING,
-		summarypb.DashboardTabSummary_ACCEPTABLE: ACCEPTABLE,
+		summarypb.DashboardTabSummary_PASS:       "PASSING",
+		summarypb.DashboardTabSummary_FAIL:       "FAILING",
+		summarypb.DashboardTabSummary_FLAKY:      "FLAKY",
+		summarypb.DashboardTabSummary_STALE:      "STALE",
+		summarypb.DashboardTabSummary_BROKEN:     "BROKEN",
+		summarypb.DashboardTabSummary_PENDING:    "PENDING",
+		summarypb.DashboardTabSummary_ACCEPTABLE: "ACCEPTABLE",
 	}
 )
 
@@ -108,7 +89,9 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 		return nil, fmt.Errorf("failed to fetch summary for dashboard {%q}: %v", dashboardKey, err)
 	}
 
-	// TODO(sultan-duisenbay): nil summary?
+	if summary == nil {
+		return nil, fmt.Errorf("summary for dashboard {%q} not found.", dashboardKey)
+	}
 
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
@@ -123,7 +106,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 			LastUpdateTimestamp: &timestamp.Timestamp{
 				Seconds: int64(tabSummary.LastUpdateTimestamp),
 			},
-			LatestGreen: tabSummary.LatestGreen,
+			LatestPassingBuild: tabSummary.LatestGreen,
 		}
 		resp.TabSummaries = append(resp.TabSummaries, ts)
 	}

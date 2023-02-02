@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The TestGrid Authors.
+Copyright 2023 The TestGrid Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ func TestListTabSummaries(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "Returns empty tab summaries list for non-existing summary",
+			name: "Returns an error when there's no summary for dashboard yet",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -65,12 +65,12 @@ func TestListTabSummaries(t *testing.T) {
 				},
 			},
 			summaries: map[string]*summarypb.DashboardSummary{
-				"gs://default/summary/summary-acme": {},
+				"gs://default/summary/summary-testgroup1": {},
 			},
 			req: &apipb.ListTabSummariesRequest{
 				Dashboard: "acme",
 			},
-			want: &apipb.ListTabSummariesResponse{},
+			expectError: true,
 		},
 		{
 			name: "Returns correct tab summaries for a dashboard",
@@ -127,7 +127,7 @@ func TestListTabSummaries(t *testing.T) {
 						TabName:               "polo-1",
 						DetailedStatusMessage: "1/7 tests are passing!",
 						OverallStatus:         "FLAKY",
-						LatestGreen:           "Hulk",
+						LatestPassingBuild:    "Hulk",
 						LastRunTimestamp: &timestamp.Timestamp{
 							Seconds: 915166800,
 						},
@@ -140,7 +140,7 @@ func TestListTabSummaries(t *testing.T) {
 						TabName:               "polo-2",
 						DetailedStatusMessage: "1/7 tests are failing!",
 						OverallStatus:         "ACCEPTABLE",
-						LatestGreen:           "Lantern",
+						LatestPassingBuild:    "Lantern",
 						LastRunTimestamp: &timestamp.Timestamp{
 							Seconds: 916166800,
 						},

@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	ErrScopeNotProvided = errors.New("scope is not provided")
+	errScopeNotProvided = errors.New("scope is not provided")
 )
 
 // Cached contains a config and a mapping of "normalized" names to actual resources.
@@ -90,7 +90,7 @@ func (s *Server) configPath(scope string) (path *gcs.Path, isDefault bool, err e
 		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", s.DefaultBucket, configFileName))
 		return path, true, err
 	}
-	return nil, false, ErrScopeNotProvided
+	return nil, false, errScopeNotProvided
 }
 
 // getConfig will return a config or an error. The config contains a mutex that you should RLock before reading.
@@ -98,7 +98,7 @@ func (s *Server) configPath(scope string) (path *gcs.Path, isDefault bool, err e
 func (s *Server) getConfig(ctx context.Context, log *logrus.Entry, scope string) (*cachedConfig, error) {
 	configPath, isDefault, err := s.configPath(scope)
 	if err != nil || configPath == nil {
-		return nil, err
+		return nil, errScopeNotProvided
 	}
 
 	if isDefault {
