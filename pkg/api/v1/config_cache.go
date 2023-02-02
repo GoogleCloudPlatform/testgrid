@@ -31,7 +31,14 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
-const reobservationTime = 2 * time.Minute
+const (
+	reobservationTime = 2 * time.Minute
+	configFileName    = "config"
+)
+
+var (
+	ErrScopeNotProvided = errors.New("scope is not provided")
+)
 
 // Cached contains a config and a mapping of "normalized" names to actual resources.
 // Avoid using normalized names: normalization is costly and the raw name itself works better as a key.
@@ -76,14 +83,14 @@ func (c *cachedConfig) generateNormalCache() {
 
 func (s *Server) configPath(scope string) (path *gcs.Path, isDefault bool, err error) {
 	if scope != "" {
-		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", scope, "config"))
+		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", scope, configFileName))
 		return path, false, err
 	}
 	if s.DefaultBucket != "" {
-		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", s.DefaultBucket, "config"))
+		path, err = gcs.NewPath(fmt.Sprintf("%s/%s", s.DefaultBucket, configFileName))
 		return path, true, err
 	}
-	return nil, false, errors.New("no testgrid scope")
+	return nil, false, ErrScopeNotProvided
 }
 
 // getConfig will return a config or an error. The config contains a mutex that you should RLock before reading.
@@ -91,7 +98,7 @@ func (s *Server) configPath(scope string) (path *gcs.Path, isDefault bool, err e
 func (s *Server) getConfig(ctx context.Context, log *logrus.Entry, scope string) (*cachedConfig, error) {
 	configPath, isDefault, err := s.configPath(scope)
 	if err != nil || configPath == nil {
-		return nil, errors.New("Scope not specified")
+		return nil, err
 	}
 
 	if isDefault {
