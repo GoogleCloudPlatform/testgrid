@@ -453,7 +453,7 @@ func TestGetDashboardTabs(t *testing.T) {
 func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []TestSpec) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			router := Route(nil, setupTestServer(t, test.config, test.grid))
+			router := Route(nil, setupTestServer(t, test.config, test.grid, nil))
 			request, err := http.NewRequest("GET", baseEndpoint+test.endpoint+test.params, nil)
 			if err != nil {
 				t.Fatalf("Can't form request: %v", err)

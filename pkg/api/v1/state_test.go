@@ -251,7 +251,7 @@ func TestListHeaders(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := setupTestServer(t, tc.config, tc.grid)
+			server := setupTestServer(t, tc.config, tc.grid, nil)
 			got, err := server.ListHeaders(context.Background(), tc.req)
 			switch {
 			case err != nil:
@@ -454,7 +454,7 @@ func TestListRows(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := setupTestServer(t, tc.config, tc.grid)
+			server := setupTestServer(t, tc.config, tc.grid, nil)
 			if tc.patch != nil {
 				tc.patch(&server)
 			}

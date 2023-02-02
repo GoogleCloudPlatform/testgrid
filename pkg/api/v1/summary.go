@@ -18,7 +18,6 @@ package v1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -26,8 +25,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
@@ -65,12 +62,6 @@ var (
 		summarypb.DashboardTabSummary_PENDING:    PENDING,
 		summarypb.DashboardTabSummary_ACCEPTABLE: ACCEPTABLE,
 	}
-
-	rpcToHTTPCodes = map[codes.Code]int{
-		codes.NotFound:        http.StatusNotFound,
-		codes.InvalidArgument: http.StatusBadRequest,
-		codes.Internal:        http.StatusInternalServerError,
-	}
 )
 
 // fetchSummary returns the summary struct as defined in summary.proto.
@@ -101,13 +92,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), scope)
 
 	if err != nil {
-		var sc codes.Code
-		if errors.Is(err, ErrScopeNotProvided) {
-			sc = codes.InvalidArgument
-		} else {
-			sc = codes.Internal
-		}
-		return nil, status.Error(sc, fmt.Sprintf("failed to fetch config from {%q}: %v", scope, err))
+		return nil, fmt.Errorf("failed to fetch config from {%q}: %v", scope, err)
 	}
 
 	cfg.Mutex.RLock()
@@ -115,13 +100,15 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 
 	dashboardKey := config.Normalize(req.GetDashboard())
 	if _, ok := cfg.NormalDashboard[dashboardKey]; !ok {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("Dashboard {%q} not found.", dashboardKey))
+		return nil, fmt.Errorf("dashboard {%q} not found", dashboardKey)
 	}
 
-	summary, err := s.fetchSummary(ctx, scope, req.GetDashboard())
+	summary, err := s.fetchSummary(ctx, scope, dashboardKey)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to fetch summary for dashboard {%q}: %v", dashboardKey, err))
+		return nil, fmt.Errorf("failed to fetch summary for dashboard {%q}: %v", dashboardKey, err)
 	}
+
+	// TODO(sultan-duisenbay): nil summary?
 
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
@@ -153,16 +140,9 @@ func (s Server) ListTabSummariesHTTP(w http.ResponseWriter, r *http.Request) {
 		Dashboard: vars["dashboard"],
 	}
 	resp, err := s.ListTabSummaries(r.Context(), &req)
-
-	// Fetch the errors from RPC call and return a matching HTTP status.
 	if err != nil {
-		rpcStatus, isStatusErr := status.FromError(err)
-		var httpStatus int
-
-		if !isStatus {
-			httpStatus = http.StatusUn
-		}
-		httpStatus := rpcToHTTPCodes[st.Code()]
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
 	}
 
 	s.writeJSON(w, &resp)
