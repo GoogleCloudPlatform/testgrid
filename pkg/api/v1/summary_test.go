@@ -64,9 +64,6 @@ func TestListTabSummaries(t *testing.T) {
 					},
 				},
 			},
-			summaries: map[string]*summarypb.DashboardSummary{
-				"gs://default/summary/summary-testgroup1": {},
-			},
 			req: &apipb.ListTabSummariesRequest{
 				Dashboard: "acme",
 			},

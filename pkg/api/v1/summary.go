@@ -93,6 +93,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 		return nil, fmt.Errorf("summary for dashboard {%q} not found.", dashboardKey)
 	}
 
+	// TODO(sultan-duisenbay): convert the fractional part of timestamp into nanos of timestamppb
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
 		ts := &apipb.TabSummary{

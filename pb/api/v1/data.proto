@@ -172,10 +172,10 @@ message ListTabSummariesResponse {
 }
 
 message TabSummary {
-	// The name of the dashboard this tab belongs to.
-	string dashboard_name = 1;
+  // The name of the dashboard this tab belongs to.
+  string dashboard_name = 1;
 
-	// The name of the tab.
+  // The name of the tab.
   string tab_name = 2;
 
   // Overall status for the dashboard tab (e.g. PASSING, FAILING, etc.)
