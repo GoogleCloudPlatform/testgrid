@@ -167,8 +167,8 @@ message ListTabSummariesRequest {
 }
 
 message ListTabSummariesResponse {
-	// List of tab summaries.
-	repeated TabSummary tab_summaries = 1;
+  // List of tab summaries.
+  repeated TabSummary tab_summaries = 1;
 }
 
 message TabSummary {
