@@ -160,7 +160,7 @@ func Test_GetDashboardGroup(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := setupTestServer(t, tc.config, nil)
+			server := setupTestServer(t, tc.config, nil, nil)
 			actual, err := server.GetDashboardGroup(context.Background(), tc.req)
 			if !tc.expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)
@@ -308,7 +308,7 @@ func Test_GetDashboard(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := setupTestServer(t, tc.config, nil)
+			server := setupTestServer(t, tc.config, nil, nil)
 			actual, err := server.GetDashboard(context.Background(), tc.req)
 			if !tc.expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)
@@ -471,7 +471,7 @@ func Test_ListDashboardTabs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := setupTestServer(t, tc.config, nil)
+			server := setupTestServer(t, tc.config, nil, nil)
 			actual, err := server.ListDashboardTabs(context.Background(), tc.req)
 			if !tc.expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)

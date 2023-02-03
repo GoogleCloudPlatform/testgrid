@@ -33,16 +33,6 @@ service TestGridData {
   rpc GetDashboardGroup(GetDashboardGroupRequest)
       returns (GetDashboardGroupResponse) {}
 
-  // GET /dashboards/{dashboard}/tabs/{tab}
-  // Returns a tab’s configuration, as stored
-  // rpc GetDashboardTab(GetDashboardTabRequest) returns
-  // (GetDashboardTabResponse) {}
-
-  // GET /summary/{dashboard}
-  // GET /dashboards/{dashboard}/summary
-  // Returns a summary of this dashboard, as stored
-  // rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse) {}
-
   // GET /dashboards/{dashboard}/tabs/{tab}/headers
   // Returns the headers for grid results
   rpc ListHeaders(ListHeadersRequest) returns (ListHeadersResponse) {}
@@ -50,6 +40,10 @@ service TestGridData {
   // GET /dashboards/{dashboard}/tabs/{tab}/rows
   // Returns information on grid rows, and data within those rows
   rpc ListRows(ListRowsRequest) returns (ListRowsResponse) {}
+
+  // GET /dashboards/{dashboard}/tab-summaries
+  // Returns the list of tab summaries for dashboard.
+  rpc ListTabSummaries(ListTabSummariesRequest) returns (ListTabSummariesResponse){}
 }
 
 message ListDashboardRequest { string scope = 1; }
@@ -163,4 +157,39 @@ message ListRowsResponse {
 message Resource {
   string name = 1;
   string link = 2;
+}
+
+message ListTabSummariesRequest {
+  // Scope defines the GCS bucket to read the results from.
+  string scope = 1;
+  // Name of the dashboard to fetch tab summaries for.
+  string dashboard = 2;
+}
+
+message ListTabSummariesResponse {
+  // List of tab summaries.
+  repeated TabSummary tab_summaries = 1;
+}
+
+message TabSummary {
+  // The name of the dashboard this tab belongs to.
+  string dashboard_name = 1;
+
+  // The name of the tab.
+  string tab_name = 2;
+
+  // Overall status for the dashboard tab (e.g. PASSING, FAILING, etc.)
+  string overall_status = 3;
+
+  // Summary of the status for this dashboard tab.
+  string detailed_status_message = 4;
+
+  // Timestamp at which tests last ran.
+  google.protobuf.Timestamp last_run_timestamp = 5;
+
+  // Timestamp at which the test group was last updated.
+  google.protobuf.Timestamp last_update_timestamp = 6;
+
+  // The ID for the latest passing build.
+  string latest_passing_build = 7;
 }

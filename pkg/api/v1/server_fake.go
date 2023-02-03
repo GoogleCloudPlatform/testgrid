@@ -31,16 +31,18 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 )
 
 var (
-	serverDefaultBucket  = "gs://default"
-	serverGridPathPrefix = "grid"
-	serverTabPathPrefix  = ""
+	serverDefaultBucket     = "gs://default"
+	serverSummaryPathPrefix = "summary"
+	serverGridPathPrefix    = "grid"
+	serverTabPathPrefix     = ""
 )
 
-func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, grids map[string]*statepb.Grid) Server {
+func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, grids map[string]*statepb.Grid, summaries map[string]*summarypb.DashboardSummary) Server {
 	t.Helper()
 
 	fc := fakeClient{
@@ -72,12 +74,27 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, 
 		}
 	}
 
+	for p, summary := range summaries {
+		path, err := gcs.NewPath(p)
+		if err != nil {
+			t.Fatalf("setupTestServer() can't generate path: %v", err)
+		}
+
+		sb, err := proto.Marshal(summary)
+		if err != nil {
+			t.Fatalf("Could not serialize proto: %v\n\nProto:\n%s", err, summary.String())
+		}
+
+		fc.Datastore[*path] = sb
+	}
+
 	return Server{
-		Client:         fc,
-		DefaultBucket:  serverDefaultBucket,  // Needs test coverage
-		GridPathPrefix: serverGridPathPrefix, // Needs test coverage
-		TabPathPrefix:  serverTabPathPrefix,
-		Timeout:        10 * time.Second, // Needs test coverage
+		Client:            fc,
+		DefaultBucket:     serverDefaultBucket,  // Needs test coverage
+		GridPathPrefix:    serverGridPathPrefix, // Needs test coverage
+		TabPathPrefix:     serverTabPathPrefix,
+		SummaryPathPrefix: serverSummaryPathPrefix,
+		Timeout:           10 * time.Second, // Needs test coverage
 	}
 }
 

@@ -3252,7 +3252,7 @@ func TestSummaryPath(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := summaryPath(tc.path, tc.prefix, tc.dash)
+			got, err := SummaryPath(tc.path, tc.prefix, tc.dash)
 			switch {
 			case err != nil:
 				if !tc.err {

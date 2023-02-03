@@ -123,7 +123,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		paths := make([]gcs.Path, 0, dashCap)
 		dashboards := make([]*configpb.Dashboard, 0, dashCap)
 		for _, d := range cfg.Dashboards {
-			path, err := summaryPath(configPath, summaryPathPrefix, d.Name)
+			path, err := SummaryPath(configPath, summaryPathPrefix, d.Name)
 			if err != nil {
 				log.WithError(err).WithField("dashboard", d.Name).Error("Bad dashboard path")
 			}
@@ -271,11 +271,11 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			return log, false, errors.New("dashboard not found")
 		}
 		log.Debug("Summarizing dashboard")
-		summaryPath, err := summaryPath(configPath, summaryPathPrefix, dashName)
+		summaryPath, err := SummaryPath(configPath, summaryPathPrefix, dashName)
 		if err != nil {
 			return log, false, fmt.Errorf("summary path: %v", err)
 		}
-		sum, _, _, err := readSummary(ctx, client, *summaryPath)
+		sum, _, _, err := ReadSummary(ctx, client, *summaryPath)
 		if err != nil {
 			return log, false, fmt.Errorf("read %q: %v", *summaryPath, err)
 		}
@@ -379,7 +379,8 @@ var (
 	normalizer = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
-func summaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
+// SummaryPath generates a summary GCS path for a given dashboard
+func SummaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	// ''.join(c for c in n.lower() if c is alphanumeric
 	name := "summary-" + normalizer.ReplaceAllString(strings.ToLower(dashboard), "")
 	fullName := path.Join(prefix, name)
@@ -397,7 +398,10 @@ func summaryPath(g gcs.Path, prefix, dashboard string) (*gcs.Path, error) {
 	return np, nil
 }
 
-func readSummary(ctx context.Context, client gcs.Client, path gcs.Path) (*summarypb.DashboardSummary, time.Time, int64, error) {
+// ReadSummary provides the dashboard summary as defined in summary.proto.
+// IMPORTANT: Returns nil if the object doesn't exist.
+// Returns an error iff wasn't read or serialized properly.
+func ReadSummary(ctx context.Context, client gcs.Client, path gcs.Path) (*summarypb.DashboardSummary, time.Time, int64, error) {
 	r, modified, gen, err := pathReader(ctx, client, path)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		return nil, time.Time{}, 0, nil

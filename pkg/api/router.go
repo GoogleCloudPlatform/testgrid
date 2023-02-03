@@ -39,6 +39,7 @@ type RouterOptions struct {
 	HomeBucket               string
 	GridPathPrefix           string
 	TabPathPrefix            string
+	SummaryPathPrefix        string
 	AccessControlAllowOrigin string
 	Timeout                  time.Duration
 }
@@ -86,6 +87,7 @@ func GetServer(options RouterOptions, storageClient *storage.Client) (*v1.Server
 		DefaultBucket:            options.HomeBucket,
 		GridPathPrefix:           options.GridPathPrefix,
 		TabPathPrefix:            options.TabPathPrefix,
+		SummaryPathPrefix:        options.SummaryPathPrefix,
 		AccessControlAllowOrigin: options.AccessControlAllowOrigin,
 		Timeout:                  options.Timeout,
 	}, nil
