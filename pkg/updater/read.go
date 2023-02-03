@@ -48,7 +48,7 @@ func hintStarted(cols []InflatedColumn) string {
 	return hint
 }
 
-func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, readResult *resultReader) ColumnReader {
+func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, readResult *resultReader, enableIgnoreSkip bool) ColumnReader {
 	return func(ctx context.Context, parentLog logrus.FieldLogger, tg *configpb.TestGroup, oldCols []InflatedColumn, stop time.Time, receivers chan<- InflatedColumn) error {
 		tgPaths, err := groupPaths(tg)
 		if err != nil {
@@ -69,7 +69,7 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, readResult *
 		}
 		log.WithField("total", len(builds)).Debug("Listed builds")
 
-		readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers, readResult)
+		readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers, readResult, enableIgnoreSkip)
 		return nil
 	}
 }
@@ -143,7 +143,7 @@ type resultReader struct {
 }
 
 // readColumns will list, download and process builds into inflatedColumns.
-func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn, readResult *resultReader) {
+func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLogger, group *configpb.TestGroup, builds []gcs.Build, stop time.Time, buildTimeout time.Duration, receivers chan<- InflatedColumn, readResult *resultReader, enableIgnoreSkip bool) {
 	if len(builds) == 0 {
 		return
 	}
@@ -192,7 +192,11 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 					col = erroredColumn(id, when, extra, msg)
 				}
 			} else {
-				col = convertResult(log, nameCfg, id, heads, *result, makeOptions(group))
+				opts := makeOptions(group)
+				if !enableIgnoreSkip {
+					opts.ignoreSkip = false
+				}
+				col = convertResult(log, nameCfg, id, heads, *result, opts)
 				log.WithField("rows", len(col.Cells)).Debug("Read result")
 				failures = 0
 				extra = col.Column.Extra
@@ -270,6 +274,7 @@ type groupOptions struct {
 	userKey        string
 	annotations    []*configpb.TestGroup_TestAnnotation
 	rules          []*evalpb.Rule
+	ignoreSkip     bool
 }
 
 func makeOptions(group *configpb.TestGroup) groupOptions {
@@ -282,6 +287,7 @@ func makeOptions(group *configpb.TestGroup) groupOptions {
 		userKey:        group.UserProperty,
 		annotations:    group.TestAnnotations,
 		rules:          group.GetCustomEvaluatorRuleSet().GetRules(),
+		ignoreSkip:     group.GetIgnoreSkip(),
 	}
 }
 
@@ -498,7 +504,7 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build, 
 	return &result, nil
 }
 
-// readSuites asynchrounously lists and downloads junit.xml files
+// readSuites asynchronously lists and downloads junit.xml files
 func readSuites(parent context.Context, client gcs.Downloader, build gcs.Build) ([]gcs.SuitesMeta, error) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()

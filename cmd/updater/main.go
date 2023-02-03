@@ -51,6 +51,7 @@ type options struct {
 	gridPrefix       string
 	subscriptions    util.Strings
 	reprocessList    util.Strings
+	enableIgnoreSkip bool
 
 	debug    bool
 	trace    bool
@@ -110,6 +111,8 @@ func gatherFlagOptions(fs *flag.FlagSet, args ...string) options {
 	fs.DurationVar(&o.buildTimeout, "build-timeout", 3*time.Minute, "Maximum time to wait to read each build")
 	fs.StringVar(&o.gridPrefix, "grid-prefix", "grid", "Join this with the grid name to create the GCS suffix")
 
+	fs.BoolVar(&o.enableIgnoreSkip, "enable-ignore-skip", false, "If true, enable ignore_skip behavior.")
+
 	fs.BoolVar(&o.debug, "debug", false, "Log debug lines if set")
 	fs.BoolVar(&o.trace, "trace", false, "Log trace and debug lines if set")
 	fs.BoolVar(&o.jsonLogs, "json-logs", false, "Uses a json logrus formatter when set")
@@ -160,7 +163,7 @@ func main() {
 	})
 	log.Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm)
+	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, opt.enableIgnoreSkip)
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 

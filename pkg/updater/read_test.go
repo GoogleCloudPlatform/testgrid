@@ -193,6 +193,8 @@ func TestHintStarted(t *testing.T) {
 	}
 }
 
+func pstr(s string) *string { return &s }
+
 func TestReadColumns(t *testing.T) {
 	now := time.Now().Unix()
 	yes := true
@@ -206,6 +208,7 @@ func TestReadColumns(t *testing.T) {
 		dur                time.Duration
 		concurrency        int
 		readResultOverride *resultReader
+		enableIgnoreSkip   bool
 
 		expected []InflatedColumn
 		err      bool
@@ -960,6 +963,116 @@ func TestReadColumns(t *testing.T) {
 				erroredColumn("10-b-err", 0.02, nil, "Failed to download gs://bucket/path/to/build/10-b-err/: started: read: open: fake open 10-b-err"),
 			},
 		},
+		{
+			name: "ignore_skip works when enabled",
+			group: &configpb.TestGroup{
+				IgnoreSkip: true,
+			},
+			enableIgnoreSkip: true,
+			builds: []fakeBuild{
+				{
+					id:      "build-1",
+					podInfo: podInfoSuccess,
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 10),
+							Passed:    &yes,
+						}),
+					},
+					artifacts: map[string]fakeObject{
+						"junit_context-a_33.xml": {
+							Data: xmlData(
+								junit.Suite{
+									Results: []junit.Result{
+										{
+											Name:    "visible skip non-default msg",
+											Skipped: &junit.Skipped{Message: *pstr("non-default message")},
+										},
+									},
+								}),
+						},
+					},
+				},
+			},
+			expected: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "build-1",
+						Started: float64(now * 1000),
+						Hint:    "build-1",
+					},
+					Cells: map[string]Cell{
+						".." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 10 / 60.0,
+							},
+						},
+						".." + podInfoRow: podInfoPassCell,
+					},
+				},
+			},
+		},
+		{
+			name: "ignore_skip ignored when disabled",
+			group: &configpb.TestGroup{
+				IgnoreSkip: true,
+			},
+			builds: []fakeBuild{
+				{
+					id:      "build-1",
+					podInfo: podInfoSuccess,
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 10),
+							Passed:    &yes,
+						}),
+					},
+					artifacts: map[string]fakeObject{
+						"junit_context-a_33.xml": {
+							Data: xmlData(
+								junit.Suite{
+									Results: []junit.Result{
+										{
+											Name:    "visible skip non-default msg",
+											Skipped: &junit.Skipped{Message: *pstr("non-default message")},
+										},
+									},
+								}),
+						},
+					},
+				},
+			},
+			expected: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "build-1",
+						Started: float64(now * 1000),
+						Hint:    "build-1",
+					},
+					Cells: map[string]Cell{
+						".." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 10 / 60.0,
+							},
+						},
+						".." + podInfoRow: podInfoPassCell,
+						"visible skip non-default msg": {
+							Result:  statuspb.TestStatus_PASS_WITH_SKIPS,
+							Icon:    "S",
+							Message: "non-default message",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	poolCtx, poolCancel := context.WithCancel(context.Background())
@@ -1015,7 +1128,7 @@ func TestReadColumns(t *testing.T) {
 				readResult = readResultPool
 			}
 
-			readColumns(ctx, client, logrus.WithField("name", tc.name), tc.group, builds, tc.stop, tc.dur, ch, readResult)
+			readColumns(ctx, client, logrus.WithField("name", tc.name), tc.group, builds, tc.stop, tc.dur, ch, readResult, tc.enableIgnoreSkip)
 			close(ch)
 			wg.Wait()
 
