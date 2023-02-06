@@ -46,6 +46,7 @@ var (
 )
 
 // fetchSummary returns the summary struct as defined in summary.proto.
+// input dashboard doesn't have to be normalized.
 // Returns an error iff the scope refers to non-existent bucket OR server fails to read the summary.
 func (s *Server) fetchSummary(ctx context.Context, scope, dashboard string) (*summarypb.DashboardSummary, error) {
 	configPath, _, err := s.configPath(scope)
@@ -64,7 +65,8 @@ func (s *Server) fetchSummary(ctx context.Context, scope, dashboard string) (*su
 }
 
 // ListTabSummaries returns the list of tab summaries for the particular dashboard.
-// Returns an error iff dashboard does not exist OR the server can't read summaries from GCS bucket.
+// Dashboard name doesn't have to be normalized.
+// Returns an error iff dashboard does not exist OR the server can't read summary from GCS bucket.
 func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummariesRequest) (*apipb.ListTabSummariesResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
 	defer cancel()
@@ -72,6 +74,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 	scope := req.GetScope()
 	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), scope)
 
+	// TODO(sultan-duisenbay): return canonical error codes
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch config from {%q}: %v", scope, err)
 	}
@@ -124,6 +127,86 @@ func (s Server) ListTabSummariesHTTP(w http.ResponseWriter, r *http.Request) {
 		Dashboard: vars["dashboard"],
 	}
 	resp, err := s.ListTabSummaries(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	s.writeJSON(w, &resp)
+}
+
+// GetTabSummary returns the tab summary for the particular dashboard and tab.
+// Dashboard and tab names don't have to be normalized.
+// Returns an error iff
+// - dashboard or tab does not exist
+// - the server can't read summary from GCS bucket
+// - tab summary for particular tab doesn't exist
+func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequest) (*apipb.GetTabSummaryResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
+	defer cancel()
+
+	scope := req.GetScope()
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), scope)
+
+	// TODO(sultan-duisenbay): return canonical error codes
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch config from {%q}: %v", scope, err)
+	}
+
+	cfg.Mutex.RLock()
+	defer cfg.Mutex.RUnlock()
+
+	reqDashboardName, reqTabName := req.GetDashboard(), req.GetTab()
+
+	_, tabName, _, err := findDashboardTab(cfg, reqDashboardName, reqTabName)
+	if err != nil {
+		return nil, fmt.Errorf("invalid request input {%q, %q}: %v", reqDashboardName, reqTabName, err)
+	}
+
+	summary, err := s.fetchSummary(ctx, scope, reqDashboardName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch summary for dashboard {%q}: %v", reqDashboardName, err)
+	}
+
+	if summary == nil {
+		return nil, fmt.Errorf("summary for dashboard {%q} not found.", reqDashboardName)
+	}
+
+	// TODO(sultan-duisenbay): convert fractional part of timestamp to nanos of timestamppb
+	for _, tabSummary := range summary.GetTabSummaries() {
+		if tabSummary.DashboardTabName == tabName {
+			resp := apipb.GetTabSummaryResponse{
+				TabSummary: &apipb.TabSummary{
+					DashboardName:         tabSummary.DashboardName,
+					TabName:               tabSummary.DashboardTabName,
+					OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
+					DetailedStatusMessage: tabSummary.Status,
+					LastRunTimestamp: &timestamp.Timestamp{
+						Seconds: int64(tabSummary.LastRunTimestamp),
+					},
+					LastUpdateTimestamp: &timestamp.Timestamp{
+						Seconds: int64(tabSummary.LastUpdateTimestamp),
+					},
+					LatestPassingBuild: tabSummary.LatestGreen,
+				},
+			}
+			return &resp, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to find summary for tab {%q}.", tabName)
+}
+
+// GetTabSummaryHTTP returns the tab summary as a json.
+// Response json: GetTabSummaryResponse
+func (s Server) GetTabSummaryHTTP(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	req := apipb.GetTabSummaryRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: vars["dashboard"],
+		Tab:       vars["tab"],
+	}
+	resp, err := s.GetTabSummary(r.Context(), &req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return

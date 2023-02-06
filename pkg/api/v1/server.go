@@ -56,5 +56,6 @@ func Route(r *mux.Router, s Server) *mux.Router {
 	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/rows", s.ListRowsHTTP).Methods("GET")
 
 	r.HandleFunc("/dashboards/{dashboard}/tab-summaries", s.ListTabSummariesHTTP).Methods("GET")
+	r.HandleFunc("/dashboards/{dashboard}/tab-summaries/{tab}", s.GetTabSummaryHTTP).Methods("GET")
 	return r
 }
