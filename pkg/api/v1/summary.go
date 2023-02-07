@@ -45,6 +45,23 @@ var (
 	}
 )
 
+// convertSummary converts the tab summary from storage format (summary.proto) to wire format (data.proto)
+func convertSummary(tabSummary *summarypb.DashboardTabSummary) *apipb.TabSummary {
+	return &apipb.TabSummary{
+		DashboardName:         tabSummary.DashboardName,
+		TabName:               tabSummary.DashboardTabName,
+		OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
+		DetailedStatusMessage: tabSummary.Status,
+		LastRunTimestamp: &timestamp.Timestamp{
+			Seconds: int64(tabSummary.LastRunTimestamp),
+		},
+		LastUpdateTimestamp: &timestamp.Timestamp{
+			Seconds: int64(tabSummary.LastUpdateTimestamp),
+		},
+		LatestPassingBuild: tabSummary.LatestGreen,
+	}
+}
+
 // fetchSummary returns the summary struct as defined in summary.proto.
 // input dashboard doesn't have to be normalized.
 // Returns an error iff the scope refers to non-existent bucket OR server fails to read the summary.
@@ -99,19 +116,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 	// TODO(sultan-duisenbay): convert the fractional part of timestamp into nanos of timestamppb
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
-		ts := &apipb.TabSummary{
-			DashboardName:         tabSummary.DashboardName,
-			TabName:               tabSummary.DashboardTabName,
-			OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
-			DetailedStatusMessage: tabSummary.Status,
-			LastRunTimestamp: &timestamp.Timestamp{
-				Seconds: int64(tabSummary.LastRunTimestamp),
-			},
-			LastUpdateTimestamp: &timestamp.Timestamp{
-				Seconds: int64(tabSummary.LastUpdateTimestamp),
-			},
-			LatestPassingBuild: tabSummary.LatestGreen,
-		}
+		ts := convertSummary(tabSummary)
 		resp.TabSummaries = append(resp.TabSummaries, ts)
 	}
 	return &resp, nil
@@ -172,24 +177,11 @@ func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequ
 		return nil, fmt.Errorf("summary for dashboard {%q} not found.", reqDashboardName)
 	}
 
+	var resp apipb.GetTabSummaryResponse
 	// TODO(sultan-duisenbay): convert fractional part of timestamp to nanos of timestamppb
 	for _, tabSummary := range summary.GetTabSummaries() {
 		if tabSummary.DashboardTabName == tabName {
-			resp := apipb.GetTabSummaryResponse{
-				TabSummary: &apipb.TabSummary{
-					DashboardName:         tabSummary.DashboardName,
-					TabName:               tabSummary.DashboardTabName,
-					OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
-					DetailedStatusMessage: tabSummary.Status,
-					LastRunTimestamp: &timestamp.Timestamp{
-						Seconds: int64(tabSummary.LastRunTimestamp),
-					},
-					LastUpdateTimestamp: &timestamp.Timestamp{
-						Seconds: int64(tabSummary.LastUpdateTimestamp),
-					},
-					LatestPassingBuild: tabSummary.LatestGreen,
-				},
-			}
+			resp.TabSummary = convertSummary(tabSummary)
 			return &resp, nil
 		}
 	}
