@@ -69,6 +69,7 @@ func TestListTabSummaries(t *testing.T) {
 			},
 			expectError: true,
 		},
+
 		{
 			name: "Returns correct tab summaries for a dashboard",
 			config: map[string]*configpb.Configuration{
@@ -244,6 +245,48 @@ func GetTabSummary(t *testing.T) {
 			req: &apipb.GetTabSummaryRequest{
 				Dashboard: "acme",
 				Tab:       "me-me",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns an error when there's no summary for a tab",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+								{
+									Name:          "polo-2",
+									TestGroupName: "tiramisu",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800),
+							LastRunTimestamp:    float64(915166800),
+						},
+					},
+				},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "marco",
+				Tab:       "polo-2",
 			},
 			expectError: true,
 		},
