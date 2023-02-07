@@ -1888,6 +1888,52 @@ func TestConvertResult(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ignore_skip works",
+			opt: groupOptions{
+				ignoreSkip: true,
+			},
+			result: gcsResult{
+				started: gcs.Started{
+					Started: metadata.Started{
+						Timestamp: now,
+					},
+				},
+				finished: gcs.Finished{
+					Finished: metadata.Finished{
+						Timestamp: pint(now + 1),
+						Passed:    &yes,
+					},
+				},
+				suites: []gcs.SuitesMeta{
+					{
+						Suites: &junit.Suites{
+							Suites: []junit.Suite{
+								{
+									Results: []junit.Result{
+										{
+											Name:    "visible skip non-default msg",
+											Skipped: &junit.Skipped{Message: *pstr("non-default message")},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: InflatedColumn{
+				Column: &statepb.Column{
+					Started: float64(now * 1000),
+				},
+				Cells: map[string]Cell{
+					"." + overallRow: {
+						Result:  statuspb.TestStatus_PASS,
+						Metrics: setElapsed(nil, 1),
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1895,6 +1941,57 @@ func TestConvertResult(t *testing.T) {
 			actual := convertResult(log, tc.nameCfg, tc.id, tc.headers, tc.result, tc.opt)
 			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("convertResult() got unexpected diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestIgnoreStatus(t *testing.T) {
+	cases := []struct {
+		opt    groupOptions
+		status statuspb.TestStatus
+		want   bool
+	}{
+		{
+			opt:    groupOptions{},
+			status: statuspb.TestStatus_NO_RESULT,
+			want:   true,
+		},
+		{
+			opt:    groupOptions{},
+			status: statuspb.TestStatus_PASS,
+			want:   false,
+		},
+		{
+			opt:    groupOptions{},
+			status: statuspb.TestStatus_PASS_WITH_SKIPS,
+			want:   false,
+		},
+		{
+			opt:    groupOptions{},
+			status: statuspb.TestStatus_RUNNING,
+			want:   false,
+		},
+		{
+			opt:    groupOptions{ignoreSkip: true},
+			status: statuspb.TestStatus_PASS,
+			want:   false,
+		},
+		{
+			opt:    groupOptions{ignoreSkip: true},
+			status: statuspb.TestStatus_PASS_WITH_SKIPS,
+			want:   true,
+		},
+		{
+			opt:    groupOptions{ignoreSkip: true},
+			status: statuspb.TestStatus_RUNNING,
+			want:   false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("ignoreStatus(%+v, %v)", tc.opt, tc.status), func(t *testing.T) {
+			if got := ignoreStatus(tc.opt, tc.status); got != tc.want {
+				t.Errorf("ignoreStatus(%v, %v) got %v, want %v", tc.opt, tc.status, got, tc.want)
 			}
 		})
 	}

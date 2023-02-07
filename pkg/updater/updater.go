@@ -88,7 +88,7 @@ func (mets *Metrics) start() *metrics.CycleReporter {
 type GroupUpdater func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error)
 
 // GCS returns a GCS-based GroupUpdater, which knows how to process result data stored in GCS.
-func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool) GroupUpdater {
+func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeout time.Duration, concurrency int, write bool, enableIgnoreSkip bool) GroupUpdater {
 	var readResult *resultReader
 	if poolCtx == nil {
 		// TODO(fejta): remove check soon
@@ -103,7 +103,7 @@ func GCS(poolCtx context.Context, colClient gcs.Client, groupTimeout, buildTimeo
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
-		gcsColReader := gcsColumnReader(colClient, buildTimeout, readResult)
+		gcsColReader := gcsColumnReader(colClient, buildTimeout, readResult, enableIgnoreSkip)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
 		return InflateDropAppend(ctx, log, client, tg, gridPath, write, gcsColReader, reprocess)
 	}
