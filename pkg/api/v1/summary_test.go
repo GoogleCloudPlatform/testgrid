@@ -69,6 +69,7 @@ func TestListTabSummaries(t *testing.T) {
 			},
 			expectError: true,
 		},
+
 		{
 			name: "Returns correct tab summaries for a dashboard",
 			config: map[string]*configpb.Configuration{
@@ -164,6 +165,212 @@ func TestListTabSummaries(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := setupTestServer(t, tc.config, nil, tc.summaries)
 			got, err := server.ListTabSummaries(context.Background(), tc.req)
+			switch {
+			case err != nil:
+				if !tc.expectError {
+					t.Errorf("got unexpected error: %v", err)
+				}
+			case tc.expectError:
+				t.Error("failed to receive an error")
+			default:
+				if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("got unexpected diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+
+	}
+
+}
+
+func GetTabSummary(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      map[string]*configpb.Configuration
+		summaries   map[string]*summarypb.DashboardSummary
+		req         *apipb.GetTabSummaryRequest
+		want        *apipb.GetTabSummaryResponse
+		expectError bool
+	}{
+		{
+			name: "Returns an error when there's no dashboard in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "missing",
+				Tab:       "Carpe Noctem",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns an error when there's no tab in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Aurora",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name: "Borealis",
+								},
+							},
+						},
+					},
+				},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "Aurora",
+				Tab:       "Noctem",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns an error when there's no summary for dashboard yet",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "ACME",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "me-me",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "acme",
+				Tab:       "me-me",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns an error when there's no summary for a tab",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+								{
+									Name:          "polo-2",
+									TestGroupName: "tiramisu",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800),
+							LastRunTimestamp:    float64(915166800),
+						},
+					},
+				},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "marco",
+				Tab:       "polo-2",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns correct tab summary for a dashboard-tab",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+								{
+									Name:          "polo-2",
+									TestGroupName: "tiramisu",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800),
+							LastRunTimestamp:    float64(915166800),
+						},
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-2",
+							Status:              "1/7 tests are failing!",
+							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
+							LatestGreen:         "Lantern",
+							LastUpdateTimestamp: float64(916166800),
+							LastRunTimestamp:    float64(916166800),
+						},
+					},
+				},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "marco",
+				Tab:       "polo-1",
+			},
+			want: &apipb.GetTabSummaryResponse{
+				TabSummary: &apipb.TabSummary{
+					DashboardName:         "Marco",
+					TabName:               "polo-1",
+					DetailedStatusMessage: "1/7 tests are passing!",
+					OverallStatus:         "FLAKY",
+					LatestPassingBuild:    "Hulk",
+					LastRunTimestamp: &timestamp.Timestamp{
+						Seconds: 915166800,
+					},
+					LastUpdateTimestamp: &timestamp.Timestamp{
+						Seconds: 915166800,
+					},
+				},
+			},
+		},
+		{
+			name: "Server error with unreadable config",
+			config: map[string]*configpb.Configuration{
+				"gs://welp/config": {},
+			},
+			req: &apipb.GetTabSummaryRequest{
+				Dashboard: "non refert",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, nil, tc.summaries)
+			got, err := server.GetTabSummary(context.Background(), tc.req)
 			switch {
 			case err != nil:
 				if !tc.expectError {

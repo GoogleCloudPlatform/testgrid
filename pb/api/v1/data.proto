@@ -44,6 +44,9 @@ service TestGridData {
   // GET /dashboards/{dashboard}/tab-summaries
   // Returns the list of tab summaries for dashboard.
   rpc ListTabSummaries(ListTabSummariesRequest) returns (ListTabSummariesResponse){}
+
+  // GET /dashboards/{dashboard}/tab-summaries/{tab}
+  rpc GetTabSummary(GetTabSummaryRequest) returns (GetTabSummaryResponse){}
 }
 
 message ListDashboardRequest { string scope = 1; }
@@ -162,6 +165,7 @@ message Resource {
 message ListTabSummariesRequest {
   // Scope defines the GCS bucket to read the results from.
   string scope = 1;
+
   // Name of the dashboard to fetch tab summaries for.
   string dashboard = 2;
 }
@@ -169,6 +173,22 @@ message ListTabSummariesRequest {
 message ListTabSummariesResponse {
   // List of tab summaries.
   repeated TabSummary tab_summaries = 1;
+}
+
+message GetTabSummaryRequest{
+  // Scope defines the GCS bucket to read the results from.
+  string scope = 1;
+
+  // Name of the dashboard to fetch tab summaries for.
+  string dashboard = 2;
+
+  // Name of the particular tab to fetch the summary for.
+  string tab = 3;
+}
+
+message GetTabSummaryResponse{
+  //Summary for the tab
+  TabSummary tab_summary = 1;
 }
 
 message TabSummary {
