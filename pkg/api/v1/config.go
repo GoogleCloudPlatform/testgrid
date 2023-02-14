@@ -77,7 +77,7 @@ func (s Server) ListDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, &groups)
+	s.writeJSON(w, groups)
 }
 
 // GetDashboardGroup returns a given dashboard group
@@ -164,7 +164,7 @@ func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, &dashboards)
+	s.writeJSON(w, dashboards)
 }
 
 // GetDashboard returns a given dashboard

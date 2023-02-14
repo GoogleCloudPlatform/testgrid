@@ -94,7 +94,8 @@ func (s Server) Grid(ctx context.Context, scope string, dashboardName, tabName, 
 }
 
 // decodeRLE decodes the run length encoded data
-//   [0, 3, 5, 4] -> [0, 0, 0, 5, 5, 5, 5]
+//
+//	[0, 3, 5, 4] -> [0, 0, 0, 5, 5, 5, 5]
 func decodeRLE(encodedData []int32) []int32 {
 	var decodedResult []int32
 	encodedDataLength := len(encodedData)
@@ -169,7 +170,7 @@ func (s Server) ListHeadersHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, &resp)
+	s.writeJSON(w, resp)
 }
 
 // ListRows returns dashboard tab rows
@@ -240,5 +241,5 @@ func (s Server) ListRowsHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, &resp)
+	s.writeJSON(w, resp)
 }

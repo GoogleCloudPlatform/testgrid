@@ -137,7 +137,7 @@ func (s Server) ListTabSummariesHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, &resp)
+	s.writeJSON(w, resp)
 }
 
 // GetTabSummary returns the tab summary for the particular dashboard and tab.
@@ -204,5 +204,5 @@ func (s Server) GetTabSummaryHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, &resp)
+	s.writeJSON(w, resp)
 }
