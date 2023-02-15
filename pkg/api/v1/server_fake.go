@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"

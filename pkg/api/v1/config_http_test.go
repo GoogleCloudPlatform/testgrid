@@ -90,7 +90,7 @@ func TestListDashboardGroups(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"/dashboard-groups/group1"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1", "link":"/dashboard-groups/group1"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -107,7 +107,7 @@ func TestListDashboardGroups(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"/dashboard-groups/group1"},{"name":"Second Group","link":"/dashboard-groups/secondgroup"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1", "link":"/dashboard-groups/group1"}, {"name":"Second Group", "link":"/dashboard-groups/secondgroup"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -122,7 +122,7 @@ func TestListDashboardGroups(t *testing.T) {
 				},
 			},
 			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1","link":"/dashboard-groups/group1?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboard_groups":[{"name":"Group1", "link":"/dashboard-groups/group1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -175,7 +175,7 @@ func TestGetDashboardGroup(t *testing.T) {
 				},
 			},
 			endpoint:         "stooges",
-			expectedResponse: `{"dashboards":[{"name":"curly","link":"/dashboards/curly"},{"name":"larry","link":"/dashboards/larry"},{"name":"moe","link":"/dashboards/moe"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"curly", "link":"/dashboards/curly"}, {"name":"larry", "link":"/dashboards/larry"}, {"name":"moe", "link":"/dashboards/moe"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -199,7 +199,7 @@ func TestGetDashboardGroup(t *testing.T) {
 				},
 			},
 			endpoint:         "rightgroup?scope=gs://example",
-			expectedResponse: `{"dashboards":[{"name":"yes","link":"/dashboards/yes?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"yes", "link":"/dashboards/yes?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 	}
@@ -227,7 +227,7 @@ func TestListDashboards(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"/dashboards/dashboard1"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"Dashboard1", "link":"/dashboards/dashboard1"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -244,7 +244,7 @@ func TestListDashboards(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"/dashboards/dashboard1"},{"name":"Dashboard2","link":"/dashboards/dashboard2"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"Dashboard1", "link":"/dashboards/dashboard1"}, {"name":"Dashboard2", "link":"/dashboards/dashboard2"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -259,7 +259,7 @@ func TestListDashboards(t *testing.T) {
 				},
 			},
 			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1","link":"/dashboards/dashboard1?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboards":[{"name":"Dashboard1", "link":"/dashboards/dashboard1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -320,7 +320,7 @@ func TestGetDashboard(t *testing.T) {
 				},
 			},
 			endpoint:         "dashboard1",
-			expectedResponse: `{"notifications":[{"summary":"Notification summary","context_link":"Notification context link"}],"default_tab":"defaultTab","suppress_failing_tabs":true,"highlight_today":true}`,
+			expectedResponse: `{"notifications":[{"summary":"Notification summary", "context_link":"Notification context link"}], "default_tab":"defaultTab", "suppress_failing_tabs":true, "highlight_today":true}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -356,7 +356,7 @@ func TestGetDashboard(t *testing.T) {
 			},
 			endpoint:         "correctdashboard",
 			params:           "?scope=gs://example",
-			expectedResponse: `{"default_tab":"correct-dashboard defaultTab","suppress_failing_tabs":true,"highlight_today":true}`,
+			expectedResponse: `{"default_tab":"correct-dashboard defaultTab", "suppress_failing_tabs":true, "highlight_today":true}`,
 			expectedCode:     http.StatusOK,
 		},
 	}
@@ -410,7 +410,7 @@ func TestGetDashboardTabs(t *testing.T) {
 				},
 			},
 			endpoint:         "dashboard1/tabs",
-			expectedResponse: `{"dashboard_tabs":[{"name":"tab 1","link":"/dashboards/dashboard1/tabs/tab1"},{"name":"tab 2","link":"/dashboards/dashboard1/tabs/tab2"}]}`,
+			expectedResponse: `{"dashboard_tabs":[{"name":"tab 1", "link":"/dashboards/dashboard1/tabs/tab1"}, {"name":"tab 2", "link":"/dashboards/dashboard1/tabs/tab2"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -443,7 +443,7 @@ func TestGetDashboardTabs(t *testing.T) {
 			},
 			endpoint:         "correctdashboard/tabs",
 			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboard_tabs":[{"name":"correct-dashboard tab 1","link":"/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example"}]}`,
+			expectedResponse: `{"dashboard_tabs":[{"name":"correct-dashboard tab 1", "link":"/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example"}]}`,
 			expectedCode:     http.StatusOK,
 		},
 	}

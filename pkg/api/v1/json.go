@@ -26,7 +26,9 @@ import (
 // writeJSON will write obj to w as JSON, or will write the JSON marshalling error
 // Includes headers that are universal to all API responses
 func (s Server) writeJSON(w http.ResponseWriter, msg proto.Message) {
-	resp, err := protojson.Marshal(msg)
+
+	opts := protojson.MarshalOptions{UseProtoNames: true}
+	resp, err := opts.Marshal(msg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

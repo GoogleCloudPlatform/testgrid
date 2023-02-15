@@ -18,6 +18,8 @@ package v1
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
@@ -25,6 +27,7 @@ import (
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -387,4 +390,200 @@ func GetTabSummary(t *testing.T) {
 
 	}
 
+}
+
+func TestListTabSummariesHTTP(t *testing.T) {
+	tests := []struct {
+		name             string
+		config           map[string]*configpb.Configuration
+		summaries        map[string]*summarypb.DashboardSummary
+		endpoint         string
+		params           string
+		expectedCode     int
+		expectedResponse *apipb.ListTabSummariesResponse
+	}{
+		{
+			name: "Returns an error when there's no dashboard in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			endpoint:     "/dashboards/whatever/tab-summaries",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			name: "Returns an error when there's no summary for dashboard yet",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "ACME",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "me-me",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboards/acme/tab-summaries",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			name: "Returns correct tab summaries for a dashboard",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+								{
+									Name:          "polo-2",
+									TestGroupName: "tiramisu",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800),
+							LastRunTimestamp:    float64(915166800),
+						},
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-2",
+							Status:              "1/7 tests are failing!",
+							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
+							LatestGreen:         "Lantern",
+							LastUpdateTimestamp: float64(916166800),
+							LastRunTimestamp:    float64(916166800),
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboards/marco/tab-summaries",
+			expectedCode: http.StatusOK,
+			expectedResponse: &apipb.ListTabSummariesResponse{
+				TabSummaries: []*apipb.TabSummary{
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-1",
+						OverallStatus:         "FLAKY",
+						DetailedStatusMessage: "1/7 tests are passing!",
+						LatestPassingBuild:    "Hulk",
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Seconds: 915166800,
+						},
+						LastRunTimestamp: &timestamp.Timestamp{
+							Seconds: 915166800,
+						},
+					},
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-2",
+						OverallStatus:         "ACCEPTABLE",
+						DetailedStatusMessage: "1/7 tests are failing!",
+						LatestPassingBuild:    "Lantern",
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Seconds: 916166800,
+						},
+						LastRunTimestamp: &timestamp.Timestamp{
+							Seconds: 916166800,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Returns correct tab summaries for a dashboard with an updated scope",
+			config: map[string]*configpb.Configuration{
+				"gs://k9s/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://k9s/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800),
+							LastRunTimestamp:    float64(915166800),
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboards/marco/tab-summaries?scope=gs://k9s",
+			expectedCode: http.StatusOK,
+			expectedResponse: &apipb.ListTabSummariesResponse{
+				TabSummaries: []*apipb.TabSummary{
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-1",
+						OverallStatus:         "FLAKY",
+						DetailedStatusMessage: "1/7 tests are passing!",
+						LatestPassingBuild:    "Hulk",
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Seconds: 915166800,
+						},
+						LastRunTimestamp: &timestamp.Timestamp{
+							Seconds: 915166800,
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := Route(nil, setupTestServer(t, test.config, nil, test.summaries))
+			request, err := http.NewRequest("GET", test.endpoint, nil)
+			if err != nil {
+				t.Fatalf("Can't form request: %v", err)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			if response.Code != test.expectedCode {
+				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
+			}
+
+			if response.Code == http.StatusOK {
+				var ts apipb.ListTabSummariesResponse
+				if err := protojson.Unmarshal(response.Body.Bytes(), &ts); err != nil {
+					t.Fatalf("Failed to unmarshal json message into a proto message: %v", err)
+				}
+				if diff := cmp.Diff(test.expectedResponse, ts, protocmp.Transform()); diff != "" {
+					t.Errorf("Obtained unexpected  diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
 }
