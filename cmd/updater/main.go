@@ -186,15 +186,15 @@ func main() {
 
 	u := updater.UpdateOptions{
 	  ConfigPath:             opt.config,
-	  GridPrefix:         opt.gridPrefix,
-	  GroupConcurrency:   opt.groupConcurrency,
+	  GridPrefix:             opt.gridPrefix,
+	  GroupConcurrency:       opt.groupConcurrency,
 	  GroupNames:             opt.groups.Strings(),
-   Write:            opt.confirm,
-	  Freq:               opt.wait,
+   Write:                  opt.confirm,
+	  Freq:                   opt.wait,
 
  }   
 
-	if err := updater.Update(ctx, u , client, mets, groupUpdater, fixers...); err != nil {
+	if err := updater.Update(ctx, client, mets, groupUpdater, u, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not update")
 	}
 }

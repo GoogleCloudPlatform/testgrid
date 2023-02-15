@@ -244,15 +244,16 @@ type Fixer func(context.Context, logrus.FieldLogger, *config.TestGroupQueue, []*
 // Filters down to a single group when set.
 // Returns after all groups updated once if freq is zero.
 type UpdateOptions struct {
-	 ConfigPath              gcs.Path
-	 GridPrefix              string
-	 GroupConcurrency        int
-	 GroupNames              []string
-	 Write                   bool
-	 Freq                    time.Duration
+	ConfigPath       gcs.Path
+	GridPrefix       string
+	GroupConcurrency int
+	GroupNames       []string
+	Write            bool
+	Freq             time.Duration
 }
 
-func Update(parent context.Context, u UpdateOptions,client gcs.ConditionalClient, mets *Metrics,  updateGroup GroupUpdater, fixers ...Fixer) error {
+//Update reads and processes test results into a grid.
+func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, updateGroup GroupUpdater, u UpdateOptions, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	log := logrus.WithField("config", u.ConfigPath)
