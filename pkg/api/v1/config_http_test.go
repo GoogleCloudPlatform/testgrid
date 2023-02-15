@@ -21,8 +21,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	pb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
+	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestQueryParams(t *testing.T) {
@@ -61,43 +67,51 @@ func TestQueryParams(t *testing.T) {
 
 type TestSpec struct {
 	name             string
-	config           map[string]*pb.Configuration
+	config           map[string]*configpb.Configuration
+	summaries        map[string]*summarypb.DashboardSummary
 	grid             map[string]*statepb.Grid
 	endpoint         string
 	params           string
-	expectedResponse string
+	expectedResponse proto.Message
 	expectedCode     int
 }
 
-func TestListDashboardGroups(t *testing.T) {
+func TestListDashboardGroupHTTP(t *testing.T) {
 	tests := []TestSpec{
 		{
 			name: "Returns an empty JSON when there's no groups",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			expectedResponse: `{}`,
+			expectedResponse: &apipb.ListDashboardGroupResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns a Dashboard Group",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name: "Group1",
 						},
 					},
 				},
 			},
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1", "link":"/dashboard-groups/group1"}]}`,
-			expectedCode:     http.StatusOK,
+			expectedResponse: &apipb.ListDashboardGroupResponse{
+				DashboardGroups: []*apipb.Resource{
+					{
+						Name: "Group1",
+						Link: "/dashboard-groups/group1",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Returns multiple Dashboard Groups",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name: "Group1",
 						},
@@ -107,66 +121,82 @@ func TestListDashboardGroups(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1", "link":"/dashboard-groups/group1"}, {"name":"Second Group", "link":"/dashboard-groups/secondgroup"}]}`,
-			expectedCode:     http.StatusOK,
+			expectedResponse: &apipb.ListDashboardGroupResponse{
+				DashboardGroups: []*apipb.Resource{
+					{
+						Name: "Group1",
+						Link: "/dashboard-groups/group1",
+					},
+					{
+						Name: "Second Group",
+						Link: "/dashboard-groups/secondgroup",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Reads specified configs",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://example/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name: "Group1",
 						},
 					},
 				},
 			},
-			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboard_groups":[{"name":"Group1", "link":"/dashboard-groups/group1?scope=gs://example"}]}`,
-			expectedCode:     http.StatusOK,
+			params: "?scope=gs://example",
+			expectedResponse: &apipb.ListDashboardGroupResponse{
+				DashboardGroups: []*apipb.Resource{
+					{
+						Name: "Group1",
+						Link: "/dashboard-groups/group1?scope=gs://example",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
-			name:             "Server error with unreadable config",
-			params:           "?scope=gs://bad-path",
-			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusNotFound,
+			name:         "Server error with unreadable config",
+			params:       "?scope=gs://bad-path",
+			expectedCode: http.StatusNotFound,
 		},
 	}
-
-	RunTestsAgainstEndpoint(t, "/dashboard-groups", tests)
+	var resp apipb.ListDashboardGroupResponse
+	RunTestsAgainstEndpoint(t, "/dashboard-groups", tests, &resp)
 }
 
-func TestGetDashboardGroup(t *testing.T) {
+func TestGetDashboardGroupHTTP(t *testing.T) {
 	tests := []TestSpec{
 		{
 			name: "Returns an error when there's no resource",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			endpoint:         "missing",
-			expectedResponse: "Dashboard group \"missing\" not found\n",
-			expectedCode:     http.StatusNotFound,
+			endpoint:     "missing",
+			expectedCode: http.StatusNotFound,
 		},
 		{
 			name: "Returns empty JSON from an empty Dashboard Group",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name: "Group1",
 						},
 					},
 				},
 			},
-			endpoint:         "group1",
-			expectedResponse: `{}`,
+			endpoint:         "/group1",
+			expectedResponse: &apipb.GetDashboardGroupResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns dashboards from group",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name:           "stooges",
 							DashboardNames: []string{"larry", "curly", "moe"},
@@ -174,15 +204,30 @@ func TestGetDashboardGroup(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "stooges",
-			expectedResponse: `{"dashboards":[{"name":"curly", "link":"/dashboards/curly"}, {"name":"larry", "link":"/dashboards/larry"}, {"name":"moe", "link":"/dashboards/moe"}]}`,
-			expectedCode:     http.StatusOK,
+			endpoint: "/stooges",
+			expectedResponse: &apipb.GetDashboardGroupResponse{
+				Dashboards: []*apipb.Resource{
+					{
+						Name: "curly",
+						Link: "/dashboards/curly",
+					},
+					{
+						Name: "larry",
+						Link: "/dashboards/larry",
+					},
+					{
+						Name: "moe",
+						Link: "/dashboards/moe",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Reads 'scope' parameter",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name:           "wrong-group",
 							DashboardNames: []string{"no"},
@@ -190,7 +235,7 @@ func TestGetDashboardGroup(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					DashboardGroups: []*pb.DashboardGroup{
+					DashboardGroups: []*configpb.DashboardGroup{
 						{
 							Name:           "right-group",
 							DashboardNames: []string{"yes"},
@@ -198,43 +243,58 @@ func TestGetDashboardGroup(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "rightgroup?scope=gs://example",
-			expectedResponse: `{"dashboards":[{"name":"yes", "link":"/dashboards/yes?scope=gs://example"}]}`,
-			expectedCode:     http.StatusOK,
+			endpoint: "/rightgroup?scope=gs://example",
+			expectedResponse: &apipb.GetDashboardGroupResponse{
+				Dashboards: []*apipb.Resource{
+					{
+						Name: "yes",
+						Link: "/dashboards/yes?scope=gs://example",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 	}
-	RunTestsAgainstEndpoint(t, "/dashboard-groups/", tests)
+	var resp apipb.GetDashboardGroupResponse
+	RunTestsAgainstEndpoint(t, "/dashboard-groups", tests, &resp)
 }
 
-func TestListDashboards(t *testing.T) {
+func TestListDashboardsHTTP(t *testing.T) {
 	tests := []TestSpec{
 		{
 			name: "Returns an empty JSON when there is no dashboards",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			expectedResponse: `{}`,
+			expectedResponse: &apipb.ListDashboardResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns a Dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "Dashboard1",
 						},
 					},
 				},
 			},
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1", "link":"/dashboards/dashboard1"}]}`,
-			expectedCode:     http.StatusOK,
+			expectedResponse: &apipb.ListDashboardResponse{
+				Dashboards: []*apipb.Resource{
+					{
+						Name: "Dashboard1",
+						Link: "/dashboards/dashboard1",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Returns multiple Dashboards",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "Dashboard1",
 						},
@@ -244,72 +304,88 @@ func TestListDashboards(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1", "link":"/dashboards/dashboard1"}, {"name":"Dashboard2", "link":"/dashboards/dashboard2"}]}`,
-			expectedCode:     http.StatusOK,
+			expectedResponse: &apipb.ListDashboardResponse{
+				Dashboards: []*apipb.Resource{
+					{
+						Name: "Dashboard1",
+						Link: "/dashboards/dashboard1",
+					},
+					{
+						Name: "Dashboard2",
+						Link: "/dashboards/dashboard2",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Reads from other config/scope",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "Dashboard1",
 						},
 					},
 				},
 			},
-			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboards":[{"name":"Dashboard1", "link":"/dashboards/dashboard1?scope=gs://example"}]}`,
-			expectedCode:     http.StatusOK,
+			params: "?scope=gs://example",
+			expectedResponse: &apipb.ListDashboardResponse{
+				Dashboards: []*apipb.Resource{
+					{
+						Name: "Dashboard1",
+						Link: "/dashboards/dashboard1?scope=gs://example",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
-			name:             "Server error with unreadable config",
-			params:           "?scope=gs://bad-path",
-			expectedResponse: "Could not read config at \"gs://bad-path/config\"\n",
-			expectedCode:     http.StatusNotFound,
+			name:         "Server error with unreadable config",
+			params:       "?scope=gs://bad-path",
+			expectedCode: http.StatusNotFound,
 		},
 	}
-
-	RunTestsAgainstEndpoint(t, "/dashboards", tests)
+	var resp apipb.ListDashboardResponse
+	RunTestsAgainstEndpoint(t, "/dashboards", tests, &resp)
 }
 
-func TestGetDashboard(t *testing.T) {
+func TestGetDashboardHTTP(t *testing.T) {
 	tests := []TestSpec{
 		{
 			name: "Returns an error when there's no resource",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			endpoint:         "missing",
-			expectedResponse: "Dashboard \"missing\" not found\n",
-			expectedCode:     http.StatusNotFound,
+			endpoint:     "/missing",
+			expectedCode: http.StatusNotFound,
 		},
 		{
 			name: "Returns empty JSON from an empty Dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "Dashboard1",
 						},
 					},
 				},
 			},
-			endpoint:         "dashboard1",
-			expectedResponse: `{}`,
+			endpoint:         "/dashboard1",
+			expectedResponse: &apipb.GetDashboardResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns dashboard info from dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:                "Dashboard1",
 							DefaultTab:          "defaultTab",
 							HighlightToday:      true,
 							DownplayFailingTabs: true,
-							Notifications: []*pb.Notification{
+							Notifications: []*configpb.Notification{
 								{
 									Summary:     "Notification summary",
 									ContextLink: "Notification context link",
@@ -319,21 +395,31 @@ func TestGetDashboard(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "dashboard1",
-			expectedResponse: `{"notifications":[{"summary":"Notification summary", "context_link":"Notification context link"}], "default_tab":"defaultTab", "suppress_failing_tabs":true, "highlight_today":true}`,
-			expectedCode:     http.StatusOK,
+			endpoint: "/dashboard1",
+			expectedResponse: &apipb.GetDashboardResponse{
+				Notifications: []*configpb.Notification{
+					{
+						Summary:     "Notification summary",
+						ContextLink: "Notification context link",
+					},
+				},
+				DefaultTab:          "defaultTab",
+				SuppressFailingTabs: true,
+				HighlightToday:      true,
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Reads 'scope' parameter",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:                "wrong-dashboard",
 							DefaultTab:          "wrong-dashboard defaultTab",
 							HighlightToday:      true,
 							DownplayFailingTabs: true,
-							Notifications: []*pb.Notification{
+							Notifications: []*configpb.Notification{
 								{
 									Summary:     "Notification summary",
 									ContextLink: "Notification context link",
@@ -343,61 +429,65 @@ func TestGetDashboard(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:                "correct-dashboard",
 							DefaultTab:          "correct-dashboard defaultTab",
 							HighlightToday:      true,
 							DownplayFailingTabs: true,
-							Notifications:       []*pb.Notification{},
+							Notifications:       []*configpb.Notification{},
 						},
 					},
 				},
 			},
-			endpoint:         "correctdashboard",
-			params:           "?scope=gs://example",
-			expectedResponse: `{"default_tab":"correct-dashboard defaultTab", "suppress_failing_tabs":true, "highlight_today":true}`,
-			expectedCode:     http.StatusOK,
+			endpoint: "/correctdashboard",
+			params:   "?scope=gs://example",
+			expectedResponse: &apipb.GetDashboardResponse{
+				DefaultTab:          "correct-dashboard defaultTab",
+				SuppressFailingTabs: true,
+				HighlightToday:      true,
+			},
+			expectedCode: http.StatusOK,
 		},
 	}
-	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
+	var resp apipb.GetDashboardResponse
+	RunTestsAgainstEndpoint(t, "/dashboards", tests, &resp)
 }
 
-func TestGetDashboardTabs(t *testing.T) {
+func TestListDashboardTabsHTTP(t *testing.T) {
 	tests := []TestSpec{
 		{
 			name: "Returns an error",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			endpoint:         "missingdashboard/tabs",
-			expectedResponse: "Dashboard \"missingdashboard\" not found\n",
-			expectedCode:     http.StatusNotFound,
+			endpoint:     "/missingdashboard/tabs",
+			expectedCode: http.StatusNotFound,
 		},
 		{
 			name: "Returns empty JSON from an empty Dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name:         "Dashboard1",
-							DashboardTab: []*pb.DashboardTab{},
+							DashboardTab: []*configpb.DashboardTab{},
 						},
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs",
-			expectedResponse: `{}`,
+			endpoint:         "/dashboard1/tabs",
+			expectedResponse: &apipb.ListDashboardTabsResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
 			name: "Returns tabs list from a Dashboard",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "Dashboard1",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "tab 1",
 								},
@@ -409,18 +499,29 @@ func TestGetDashboardTabs(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "dashboard1/tabs",
-			expectedResponse: `{"dashboard_tabs":[{"name":"tab 1", "link":"/dashboards/dashboard1/tabs/tab1"}, {"name":"tab 2", "link":"/dashboards/dashboard1/tabs/tab2"}]}`,
-			expectedCode:     http.StatusOK,
+			endpoint: "/dashboard1/tabs",
+			expectedResponse: &apipb.ListDashboardTabsResponse{
+				DashboardTabs: []*apipb.Resource{
+					{
+						Name: "tab 1",
+						Link: "/dashboards/dashboard1/tabs/tab1",
+					},
+					{
+						Name: "tab 2",
+						Link: "/dashboards/dashboard1/tabs/tab2",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 		{
 			name: "Reads 'scope' parameter",
-			config: map[string]*pb.Configuration{
+			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "wrong-dashboard",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "wrong-dashboard tab 1",
 								},
@@ -429,10 +530,10 @@ func TestGetDashboardTabs(t *testing.T) {
 					},
 				},
 				"gs://example/config": {
-					Dashboards: []*pb.Dashboard{
+					Dashboards: []*configpb.Dashboard{
 						{
 							Name: "correct-dashboard",
-							DashboardTab: []*pb.DashboardTab{
+							DashboardTab: []*configpb.DashboardTab{
 								{
 									Name: "correct-dashboard tab 1",
 								},
@@ -441,30 +542,46 @@ func TestGetDashboardTabs(t *testing.T) {
 					},
 				},
 			},
-			endpoint:         "correctdashboard/tabs",
-			params:           "?scope=gs://example",
-			expectedResponse: `{"dashboard_tabs":[{"name":"correct-dashboard tab 1", "link":"/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example"}]}`,
-			expectedCode:     http.StatusOK,
+			endpoint: "/correctdashboard/tabs",
+			params:   "?scope=gs://example",
+			expectedResponse: &apipb.ListDashboardTabsResponse{
+				DashboardTabs: []*apipb.Resource{
+					{
+						Name: "correct-dashboard tab 1",
+						Link: "/dashboards/correctdashboard/tabs/correctdashboardtab1?scope=gs://example",
+					},
+				},
+			},
+			expectedCode: http.StatusOK,
 		},
 	}
-	RunTestsAgainstEndpoint(t, "/dashboards/", tests)
+	var resp apipb.ListDashboardTabsResponse
+	RunTestsAgainstEndpoint(t, "/dashboards", tests, &resp)
 }
 
-func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []TestSpec) {
+func RunTestsAgainstEndpoint(t *testing.T, baseEndpoint string, tests []TestSpec, resp proto.Message) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			router := Route(nil, setupTestServer(t, test.config, test.grid, nil))
-			request, err := http.NewRequest("GET", baseEndpoint+test.endpoint+test.params, nil)
+			router := Route(nil, setupTestServer(t, test.config, nil, nil))
+			absEndpoint := baseEndpoint + test.endpoint + test.params
+			request, err := http.NewRequest("GET", absEndpoint, nil)
 			if err != nil {
 				t.Fatalf("Can't form request: %v", err)
 			}
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
+
 			if response.Code != test.expectedCode {
 				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
 			}
-			if response.Body.String() != test.expectedResponse {
-				t.Errorf("In Body, Expected %q; got %q", test.expectedResponse, response.Body.String())
+
+			if response.Code == http.StatusOK {
+				if err := protojson.Unmarshal(response.Body.Bytes(), resp); err != nil {
+					t.Fatalf("Failed to unmarshal json message into a proto message: %v", err)
+				}
+				if diff := cmp.Diff(test.expectedResponse, resp, protocmp.Transform()); diff != "" {
+					t.Errorf("Obtained unexpected  diff (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}
