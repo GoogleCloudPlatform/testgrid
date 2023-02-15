@@ -243,33 +243,42 @@ type Fixer func(context.Context, logrus.FieldLogger, *config.TestGroupQueue, []*
 //
 // Filters down to a single group when set.
 // Returns after all groups updated once if freq is zero.
-func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, gridPrefix string, groupConcurrency int, groupNames []string, updateGroup GroupUpdater, write bool, freq time.Duration, fixers ...Fixer) error {
+type UpdateOptions struct {
+	 ConfigPath              gcs.Path
+	 GridPrefix              string
+	 GroupConcurrency        int
+	 GroupNames              []string
+	 Write                   bool
+	 Freq                    time.Duration
+}
+
+func Update(parent context.Context, u UpdateOptions,client gcs.ConditionalClient, mets *Metrics,  updateGroup GroupUpdater, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	log := logrus.WithField("config", configPath)
+	log := logrus.WithField("config", u.ConfigPath)
 
 	var q config.TestGroupQueue
 
 	log.Debug("Observing config...")
-	newConfig, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
+	newConfig, err := snapshot.Observe(ctx, log, client, u.ConfigPath, time.NewTicker(time.Minute).C)
 	if err != nil {
 		return fmt.Errorf("observe config: %w", err)
 
 	}
 	cfg := <-newConfig
-	groups, err := testGroups(cfg, groupNames...)
+	groups, err := testGroups(cfg, u.GroupNames...)
 	if err != nil {
 		return fmt.Errorf("filter test groups: %w", err)
 	}
 
-	q.Init(log, groups, time.Now().Add(freq))
+	q.Init(log, groups, time.Now().Add(u.Freq))
 
 	log.Debug("Fetching initial start times...")
 	fixLastUpdated := lastUpdated{
 		client:     client,
-		gridPrefix: gridPrefix,
-		configPath: configPath,
-		freq:       freq,
+		gridPrefix: u.GridPrefix,
+		configPath: u.ConfigPath,
+		freq:       u.Freq,
 	}
 	if err := fixLastUpdated.fixOnce(ctx, log, &q, groups); err != nil {
 		return fmt.Errorf("get generations: %v", err)
@@ -292,7 +301,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				delay = 0
 				log = log.WithField("sleep", -delay)
 			}
-			if max := freq * 2; max > 0 && delay > max {
+			if max := u.Freq * 2; max > 0 && delay > max {
 				delay = max
 			}
 			log = log.WithField("delay", delay.Round(time.Second))
@@ -335,14 +344,14 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 					return
 				}
 				log.Info("Updating config")
-				groups, err = testGroups(cfg, groupNames...)
+				groups, err = testGroups(cfg, u.GroupNames...)
 				if err != nil {
 					log.Errorf("Error during config update: %v", err)
 				}
 				log.Debug("Cancelling fixers on old test groups...")
 				fixCancel()
 				fixWg.Wait()
-				q.Init(log, groups, time.Now().Add(freq))
+				q.Init(log, groups, time.Now().Add(u.Freq))
 				log.Debug("Canceled fixers on old test groups")
 				fixCtx, fixCancel = context.WithCancel(ctx)
 				fixAll()
@@ -353,7 +362,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	active := map[string]bool{}
 	var lock sync.RWMutex
 	var wg sync.WaitGroup
-	wg.Add(groupConcurrency)
+	wg.Add(u.GroupConcurrency)
 	defer wg.Wait()
 	channel := make(chan *configpb.TestGroup)
 	defer close(channel)
@@ -369,7 +378,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			return
 		}
 		fin := mets.start()
-		tgp, err := TestGroupPath(configPath, gridPrefix, name)
+		tgp, err := TestGroupPath(u.ConfigPath, u.GridPrefix, name)
 		if err != nil {
 			fin.Fail()
 			log.WithError(err).Error("Bad path")
@@ -399,8 +408,8 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 				log.Error("Failed to update group")
 			}
 			var delay time.Duration
-			if freq > 0 {
-				delay = freq/4 + time.Duration(rand.Int63n(int64(freq/4))) // Int63n() panics if freq <= 0
+			if u.Freq > 0 {
+				delay = u.Freq/4 + time.Duration(rand.Int63n(int64(u.Freq/4))) // Int63n() panics if freq <= 0
 				log = log.WithField("delay", delay.Seconds())
 				q.Fix(tg.Name, time.Now().Add(delay), true)
 			}
@@ -412,7 +421,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 		}
 	}
 
-	for i := 0; i < groupConcurrency; i++ {
+	for i := 0; i < u.GroupConcurrency; i++ {
 		go func() {
 			defer wg.Done()
 			for tg := range channel {
@@ -422,7 +431,7 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 	}
 
 	log.Info("Starting to process test groups...")
-	return q.Send(ctx, channel, freq)
+	return q.Send(ctx, channel, u.Freq)
 }
 
 // TestGroupPath returns the path to a test_group proto given this proto
