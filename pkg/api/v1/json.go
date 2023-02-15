@@ -17,14 +17,18 @@ limitations under the License.
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // writeJSON will write obj to w as JSON, or will write the JSON marshalling error
 // Includes headers that are universal to all API responses
-func (s Server) writeJSON(w http.ResponseWriter, obj interface{}) {
-	resp, err := json.Marshal(obj)
+func (s Server) writeJSON(w http.ResponseWriter, msg proto.Message) {
+
+	opts := protojson.MarshalOptions{UseProtoNames: true}
+	resp, err := opts.Marshal(msg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
