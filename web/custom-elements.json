@@ -203,6 +203,24 @@
     },
     {
       "kind": "javascript-module",
+      "path": "coverage/lcov-report/block-navigation.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/prettify.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/sorter.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/gen/google/protobuf/timestamp.ts",
       "declarations": [
         {
