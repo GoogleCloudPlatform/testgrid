@@ -152,7 +152,18 @@ func main() {
 		fixers = append(fixers, summarizer.FixPersistent(log, client, path, ticker.C))
 	}
 
-	if err := summarizer.Update(ctx, client, metrics, opt.config, opt.concurrency, opt.tabPathPrefix, opt.summaryPathPrefix, opt.dashboards.Strings(), opt.confirm, opt.features, opt.wait, fixers...); err != nil {
+	opts := &summarizer.UpdateOptions{
+		ConfigPath:        opt.config,
+		Concurrency:       opt.concurrency,
+		TabPathPrefix:     opt.tabPathPrefix,
+		SummaryPathPrefix: opt.summaryPathPrefix,
+		AllowedDashboards: opt.dashboards.Strings(),
+		Confirm:           opt.confirm,
+		Features:          opt.features,
+		Freq:              opt.wait,
+	}
+
+	if err := summarizer.Update(ctx, client, metrics, opts, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not summarize")
 	}
 }

@@ -126,7 +126,6 @@ func gatherOptions() options {
 	return gatherFlagOptions(flag.CommandLine, os.Args[1:]...)
 }
 
-
 func main() {
 	opt := gatherOptions()
 	if err := opt.validate(); err != nil {
@@ -184,17 +183,16 @@ func main() {
 		fixers = append(fixers, updater.FixPersistent(log, client, path, ticker.C))
 	}
 
-	u := updater.UpdateOptions{
-	  ConfigPath:             opt.config,
-	  GridPrefix:             opt.gridPrefix,
-	  GroupConcurrency:       opt.groupConcurrency,
-	  GroupNames:             opt.groups.Strings(),
-   Write:                  opt.confirm,
-	  Freq:                   opt.wait,
+	opts := &updater.UpdateOptions{
+		ConfigPath:       opt.config,
+		GridPrefix:       opt.gridPrefix,
+		GroupConcurrency: opt.groupConcurrency,
+		GroupNames:       opt.groups.Strings(),
+		Write:            opt.confirm,
+		Freq:             opt.wait,
+	}
 
- }   
-
-	if err := updater.Update(ctx, client, mets, groupUpdater, u, fixers...); err != nil {
+	if err := updater.Update(ctx, client, mets, groupUpdater, opts, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not update")
 	}
 }

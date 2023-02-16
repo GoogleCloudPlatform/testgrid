@@ -83,25 +83,40 @@ func mapTasks(cfg *snapshot.Config) map[string][]writeTask {
 // Fixer should adjust the queue until the context expires.
 type Fixer func(context.Context, *config.TestGroupQueue) error
 
+//UpdateOptions aggregates the Update function parameter into a single structure.
+type UpdateOptions struct {
+	ConfigPath          gcs.Path
+	ReadConcurrency     int
+	WriteConcurrency    int
+	GridPathPrefix      string
+	TabsPathPrefix      string
+	AllowedGroups       []string
+	Confirm             bool
+	CalculateStats      bool
+	UseTabAlertSettings bool
+	ExtendState         bool
+	Freq                time.Duration
+}
+
 // Update tab state with the given frequency continuously. If freq == 0, runs only once.
 //
 // Copies the grid into the tab state, removing unneeded data.
 // Observes each test group in allowedGroups, or all of them in the config if not specified
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, readConcurrency, writeConcurrency int, gridPathPrefix, tabsPathPrefix string, allowedGroups []string, confirm, calculateStats, useTabAlertSettings, extendState bool, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, opts *UpdateOptions, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if readConcurrency < 1 || writeConcurrency < 1 {
-		return fmt.Errorf("concurrency must be positive, got read %d and write %d", readConcurrency, writeConcurrency)
+	if opts.ReadConcurrency < 1 || opts.WriteConcurrency < 1 {
+		return fmt.Errorf("concurrency must be positive, got read %d and write %d", opts.ReadConcurrency, opts.WriteConcurrency)
 	}
-	log := logrus.WithField("config", configPath)
+	log := logrus.WithField("config", opts.ConfigPath)
 
 	var q config.TestGroupQueue
 
 	log.Debug("Observing config...")
-	cfgChanged, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
+	cfgChanged, err := snapshot.Observe(ctx, log, client, opts.ConfigPath, time.NewTicker(time.Minute).C)
 	if err != nil {
-		return fmt.Errorf("error while observing config %q: %w", configPath.String(), err)
+		return fmt.Errorf("error while observing config %q: %w", opts.ConfigPath.String(), err)
 	}
 
 	var cfg *snapshot.Config
@@ -110,9 +125,9 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		cfg = newConfig
 		tasksPerGroup = mapTasks(cfg)
 
-		if len(allowedGroups) != 0 {
-			groups := make([]*configpb.TestGroup, 0, len(allowedGroups))
-			for _, group := range allowedGroups {
+		if len(opts.AllowedGroups) != 0 {
+			groups := make([]*configpb.TestGroup, 0, len(opts.AllowedGroups))
+			for _, group := range opts.AllowedGroups {
 				c, ok := cfg.Groups[group]
 				if !ok {
 					log.Errorf("Could not find requested group %q in config", c)
@@ -204,7 +219,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			return errors.New("nil group to read")
 		}
 
-		fromPath, err := updater.TestGroupPath(configPath, gridPathPrefix, group.Name)
+		fromPath, err := updater.TestGroupPath(opts.ConfigPath, opts.GridPathPrefix, group.Name)
 		if err != nil {
 			return fmt.Errorf("can't make tg path %q: %w", group.Name, err)
 		}
@@ -241,8 +256,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 	// Run threads continuously
 	var readWg, writeWg sync.WaitGroup
-	readWg.Add(readConcurrency)
-	for i := 0; i < readConcurrency; i++ {
+	readWg.Add(opts.ReadConcurrency)
+	for i := 0; i < opts.ReadConcurrency; i++ {
 		go func() {
 			defer readWg.Done()
 			for group := range groups {
@@ -251,22 +266,22 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				err := read(readCtx, log, group)
 				cancel()
 				if err != nil {
-					next := time.Now().Add(freq / 10)
+					next := time.Now().Add(opts.Freq / 10)
 					q.Fix(group.Name, next, false)
 					log.WithError(err).WithField("retry-at", next).Error("failed to read, retry later")
 				}
 			}
 		}()
 	}
-	writeWg.Add(writeConcurrency)
-	for i := 0; i < writeConcurrency; i++ {
+	writeWg.Add(opts.WriteConcurrency)
+	for i := 0; i < opts.WriteConcurrency; i++ {
 		go func() {
 			defer writeWg.Done()
 			for task := range tasks {
 				writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 				finish := mets.UpdateState.Start()
 				log = log.WithField("dashboard", task.dashboard.Name).WithField("tab", task.tab.Name)
-				err := createTabState(writeCtx, log, client, task, configPath, tabsPathPrefix, confirm, calculateStats, useTabAlertSettings, extendState)
+				err := createTabState(writeCtx, log, client, task, opts.ConfigPath, opts.TabsPathPrefix, opts.Confirm, opts.CalculateStats, opts.UseTabAlertSettings, opts.ExtendState)
 				cancel()
 				if err != nil {
 					finish.Fail()
@@ -283,7 +298,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	defer readWg.Wait()
 	defer close(groups)
 
-	return q.Send(ctx, groups, freq)
+	return q.Send(ctx, groups, opts.Freq)
 }
 
 // createTabState creates the tab state from the group state
