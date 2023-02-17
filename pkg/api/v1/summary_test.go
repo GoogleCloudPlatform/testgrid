@@ -89,6 +89,14 @@ func TestListTabSummaries(t *testing.T) {
 									Name:          "polo-2",
 									TestGroupName: "tiramisu",
 								},
+								{
+									Name:          "polo-3",
+									TestGroupName: "donut",
+								},
+								{
+									Name:          "polo-4",
+									TestGroupName: "brownie",
+								},
 							},
 						},
 					},
@@ -103,17 +111,35 @@ func TestListTabSummaries(t *testing.T) {
 							Status:              "1/7 tests are passing!",
 							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
 							LatestGreen:         "Hulk",
-							LastUpdateTimestamp: float64(916166800.916166782),
-							LastRunTimestamp:    float64(916166800.916166782),
+							LastUpdateTimestamp: float64(915166800.916166782),
+							LastRunTimestamp:    float64(915166800.916166782),
 						},
 						{
 							DashboardName:       "Marco",
 							DashboardTabName:    "polo-2",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
+							LatestGreen:         "Lantern",
+							LastUpdateTimestamp: float64(0.1),
+							LastRunTimestamp:    float64(0.1),
+						},
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-3",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(916166800),
+							LastRunTimestamp:    float64(916166800),
+						},
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-4",
 							Status:              "1/7 tests are failing!",
 							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
 							LatestGreen:         "Lantern",
-							LastUpdateTimestamp: float64(916166800.916166782),
-							LastRunTimestamp:    float64(916166800.916166782),
+							LastUpdateTimestamp: float64(0.916166782),
+							LastRunTimestamp:    float64(0.916166782),
 						},
 					},
 				},
@@ -141,16 +167,40 @@ func TestListTabSummaries(t *testing.T) {
 					{
 						DashboardName:         "Marco",
 						TabName:               "polo-2",
+						DetailedStatusMessage: "1/7 tests are passing!",
+						OverallStatus:         "ACCEPTABLE",
+						LatestPassingBuild:    "Lantern",
+						LastRunTimestamp: &timestamp.Timestamp{
+							Nanos: 100000000,
+						},
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Nanos: 100000000,
+						},
+					},
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-3",
+						DetailedStatusMessage: "1/7 tests are passing!",
+						OverallStatus:         "ACCEPTABLE",
+						LatestPassingBuild:    "Hulk",
+						LastRunTimestamp: &timestamp.Timestamp{
+							Seconds: 916166800,
+						},
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Seconds: 916166800,
+						},
+					},
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-4",
 						DetailedStatusMessage: "1/7 tests are failing!",
 						OverallStatus:         "ACCEPTABLE",
 						LatestPassingBuild:    "Lantern",
 						LastRunTimestamp: &timestamp.Timestamp{
-							Seconds: 916166800,
-							Nanos:   0,
+							Nanos: 916166782,
 						},
 						LastUpdateTimestamp: &timestamp.Timestamp{
-							Seconds: 916166800,
-							Nanos:   0,
+							Nanos: 916166782,
 						},
 					},
 				},
@@ -355,11 +405,9 @@ func GetTabSummary(t *testing.T) {
 					LatestPassingBuild:    "Hulk",
 					LastRunTimestamp: &timestamp.Timestamp{
 						Seconds: 915166800,
-						Nanos:   0,
 					},
 					LastUpdateTimestamp: &timestamp.Timestamp{
 						Seconds: 915166800,
-						Nanos:   0,
 					},
 				},
 			},
@@ -493,11 +541,9 @@ func TestListTabSummariesHTTP(t *testing.T) {
 						LatestPassingBuild:    "Hulk",
 						LastUpdateTimestamp: &timestamp.Timestamp{
 							Seconds: 915166800,
-							Nanos:   0,
 						},
 						LastRunTimestamp: &timestamp.Timestamp{
 							Seconds: 915166800,
-							Nanos:   0,
 						},
 					},
 					{
@@ -508,11 +554,9 @@ func TestListTabSummariesHTTP(t *testing.T) {
 						LatestPassingBuild:    "Lantern",
 						LastUpdateTimestamp: &timestamp.Timestamp{
 							Seconds: 916166800,
-							Nanos:   0,
 						},
 						LastRunTimestamp: &timestamp.Timestamp{
 							Seconds: 916166800,
-							Nanos:   0,
 						},
 					},
 				},
@@ -562,11 +606,9 @@ func TestListTabSummariesHTTP(t *testing.T) {
 						LatestPassingBuild:    "Hulk",
 						LastUpdateTimestamp: &timestamp.Timestamp{
 							Seconds: 915166800,
-							Nanos:   0,
 						},
 						LastRunTimestamp: &timestamp.Timestamp{
 							Seconds: 915166800,
-							Nanos:   0,
 						},
 					},
 				},
