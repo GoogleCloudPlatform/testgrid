@@ -48,20 +48,20 @@ var (
 
 // convertSummary converts the tab summary from storage format (summary.proto) to wire format (data.proto)
 func convertSummary(tabSummary *summarypb.DashboardTabSummary) *apipb.TabSummary {
-	RSeconds, RNanos := math.Modf(tabSummary.LastRunTimestamp)
-	USeconds, UNanos := math.Modf(tabSummary.LastUpdateTimestamp)
+	LastRunSeconds, LastRunNanos := math.Modf(tabSummary.LastRunTimestamp)
+	LastUpdateSeconds, LastUpdateNanos := math.Modf(tabSummary.LastUpdateTimestamp)
 	return &apipb.TabSummary{
 		DashboardName:         tabSummary.DashboardName,
 		TabName:               tabSummary.DashboardTabName,
 		OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
 		DetailedStatusMessage: tabSummary.Status,
 		LastRunTimestamp: &timestamp.Timestamp{
-			Seconds: int64(RSeconds),
-			Nanos:   int32(RNanos * 1e9),
+			Seconds: int64(LastRunSeconds),
+			Nanos:   int32(LastRunNanos * 1e9),
 		},
 		LastUpdateTimestamp: &timestamp.Timestamp{
-			Seconds: int64(USeconds),
-			Nanos:   int32(UNanos * 1e9),
+			Seconds: int64(LastUpdateSeconds),
+			Nanos:   int32(LastUpdateNanos * 1e9),
 		},
 		LatestPassingBuild: tabSummary.LatestGreen,
 	}
