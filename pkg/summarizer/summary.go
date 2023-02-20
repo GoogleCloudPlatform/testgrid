@@ -96,23 +96,35 @@ func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.P
 // Fixer should adjust the dashboard queue until the context expires.
 type Fixer func(context.Context, *config.DashboardQueue) error
 
+//UpdateOptions aggregates the Update function parameter into a single structure.
+type UpdateOptions struct {
+	ConfigPath        gcs.Path
+	Concurrency       int
+	TabPathPrefix     string
+	SummaryPathPrefix string
+	AllowedDashboards []string
+	Confirm           bool
+	Features          FeatureFlags
+	Freq              time.Duration
+}
+
 // Update summary protos by reading the state protos defined in the config.
 //
 // Will use concurrency go routines to update dashboards in parallel.
 // Setting dashboard will limit update to this dashboard.
 // Will write summary proto when confirm is set.
-func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, configPath gcs.Path, concurrency int, tabPathPrefix, summaryPathPrefix string, allowedDashboards []string, confirm bool, features FeatureFlags, freq time.Duration, fixers ...Fixer) error {
+func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, opts *UpdateOptions, fixers ...Fixer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	if concurrency < 1 {
-		return fmt.Errorf("concurrency must be positive, got: %d", concurrency)
+	if opts.Concurrency < 1 {
+		return fmt.Errorf("concurrency must be positive, got: %d", opts.Concurrency)
 	}
-	log := logrus.WithField("config", configPath)
+	log := logrus.WithField("config", opts.ConfigPath)
 
 	var q config.DashboardQueue
 	var cfg *snapshot.Config
 
-	allowed := stringset.New(allowedDashboards...)
+	allowed := stringset.New(opts.AllowedDashboards...)
 	fixSnapshot := func(newConfig *snapshot.Config) error {
 		baseLog := log
 		log := log.WithField("fixSnapshot()", true)
@@ -123,7 +135,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		paths := make([]gcs.Path, 0, dashCap)
 		dashboards := make([]*configpb.Dashboard, 0, dashCap)
 		for _, d := range cfg.Dashboards {
-			path, err := SummaryPath(configPath, summaryPathPrefix, d.Name)
+			path, err := SummaryPath(opts.ConfigPath, opts.SummaryPathPrefix, d.Name)
 			if err != nil {
 				log.WithError(err).WithField("dashboard", d.Name).Error("Bad dashboard path")
 			}
@@ -140,7 +152,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			log := log.WithField("path", path)
 			switch {
 			case stat.Attrs != nil:
-				whens[name] = stat.Attrs.Updated.Add(freq)
+				whens[name] = stat.Attrs.Updated.Add(opts.Freq)
 			default:
 				if errors.Is(stat.Err, storage.ErrObjectNotExist) {
 					wg.Add(1)
@@ -165,7 +177,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 
 		wg.Wait()
 
-		q.Init(baseLog, dashboards, time.Now().Add(freq))
+		q.Init(baseLog, dashboards, time.Now().Add(opts.Freq))
 		if err := q.FixAll(whens, false); err != nil {
 			log.WithError(err).Error("Failed to fix all dashboards based on last update time")
 		}
@@ -173,7 +185,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	}
 
 	log.Debug("Observing config...")
-	cfgChanged, err := snapshot.Observe(ctx, log, client, configPath, time.NewTicker(time.Minute).C)
+	cfgChanged, err := snapshot.Observe(ctx, log, client, opts.ConfigPath, time.NewTicker(time.Minute).C)
 	if err != nil {
 		return fmt.Errorf("observe config: %w", err)
 	}
@@ -251,7 +263,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		if group == nil {
 			return nil, nil, nil, nil
 		}
-		groupPath, err := tabulator.TabStatePath(configPath, tabPathPrefix, dash, tab.Name)
+		groupPath, err := tabulator.TabStatePath(opts.ConfigPath, opts.TabPathPrefix, dash, tab.Name)
 		if err != nil {
 			return nil, group, nil, err
 		}
@@ -261,7 +273,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 		return groupPath, group, reader, nil
 	}
 
-	tabUpdater := tabUpdatePool(ctx, log, concurrency, features)
+	tabUpdater := tabUpdatePool(ctx, log, opts.Concurrency, opts.Features)
 
 	updateName := func(log *logrus.Entry, dashName string) (logrus.FieldLogger, bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
@@ -271,7 +283,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			return log, false, errors.New("dashboard not found")
 		}
 		log.Debug("Summarizing dashboard")
-		summaryPath, err := SummaryPath(configPath, summaryPathPrefix, dashName)
+		summaryPath, err := SummaryPath(opts.ConfigPath, opts.SummaryPathPrefix, dashName)
 		if err != nil {
 			return log, false, fmt.Errorf("summary path: %v", err)
 		}
@@ -302,7 +314,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 			"failures":      failures,
 			"healthy-tests": healthyTests,
 		})
-		if !confirm {
+		if !opts.Confirm {
 			return log, more, nil
 		}
 		size, err := writeSummary(ctx, client, *summaryPath, sum)
@@ -314,8 +326,8 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
+	wg.Add(opts.Concurrency)
+	for i := 0; i < opts.Concurrency; i++ {
 		go func() {
 			defer wg.Done()
 			for dashName := range dashboardNames {
@@ -333,7 +345,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 				finish := mets.Summarize.Start()
 				if log, more, err := updateName(log, dashName); err != nil {
 					finish.Fail()
-					q.Fix(dashName, time.Now().Add(freq/2), false)
+					q.Fix(dashName, time.Now().Add(opts.Freq/2), false)
 					log.WithError(err).Error("Failed to summarize dashboard")
 				} else {
 					finish.Success()
@@ -358,7 +370,7 @@ func Update(ctx context.Context, client gcs.ConditionalClient, mets *Metrics, co
 	defer wg.Wait()
 	defer close(dashboardNames)
 
-	return q.Send(ctx, dashboardNames, freq)
+	return q.Send(ctx, dashboardNames, opts.Freq)
 }
 
 func filterDashboards(dashboards map[string]*configpb.Dashboard, allowed stringset.Set) map[string]*configpb.Dashboard {

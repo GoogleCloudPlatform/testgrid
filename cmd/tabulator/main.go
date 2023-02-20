@@ -155,7 +155,21 @@ func main() {
 
 	mets := tabulator.CreateMetrics(prometheus.NewFactory())
 
-	if err := tabulator.Update(ctx, client, mets, opt.config, opt.readConcurrency, opt.writeConcurrency, opt.gridPathPrefix, opt.tabStatePathPrefix, opt.groups.Strings(), opt.confirm, opt.calculateStats, opt.useTabAlertSettings, opt.extendState, opt.wait, fixers...); err != nil {
+	opts := &tabulator.UpdateOptions{
+		ConfigPath:          opt.config,
+		ReadConcurrency:     opt.readConcurrency,
+		WriteConcurrency:    opt.writeConcurrency,
+		GridPathPrefix:      opt.gridPathPrefix,
+		TabsPathPrefix:      opt.tabStatePathPrefix,
+		AllowedGroups:       opt.groups.Strings(),
+		Confirm:             opt.confirm,
+		CalculateStats:      opt.calculateStats,
+		UseTabAlertSettings: opt.useTabAlertSettings,
+		ExtendState:         opt.extendState,
+		Freq:                opt.wait,
+	}
+
+	if err := tabulator.Update(ctx, client, mets, opts, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not tabulate")
 	}
 }

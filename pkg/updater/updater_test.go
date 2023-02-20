@@ -427,17 +427,20 @@ func TestUpdate(t *testing.T) {
 				defer poolCancel()
 				tc.groupUpdater = GCS(poolCtx, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, false)
 			}
+			opts := &UpdateOptions{
+				ConfigPath:       configPath,
+				GridPrefix:       tc.gridPrefix,
+				GroupConcurrency: tc.groupConcurrency,
+				GroupNames:       tc.groupNames,
+				Write:            !tc.skipConfirm,
+				Freq:             tc.freq,
+			}
 			err := Update(
 				ctx,
 				client,
-				nil, // metric
-				configPath,
-				tc.gridPrefix,
-				tc.groupConcurrency,
-				tc.groupNames,
+				nil, // metric,
 				tc.groupUpdater,
-				!tc.skipConfirm,
-				tc.freq,
+				opts,
 			)
 			switch {
 			case err != nil:

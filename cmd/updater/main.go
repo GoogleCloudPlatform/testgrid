@@ -183,7 +183,16 @@ func main() {
 		fixers = append(fixers, updater.FixPersistent(log, client, path, ticker.C))
 	}
 
-	if err := updater.Update(ctx, client, mets, opt.config, opt.gridPrefix, opt.groupConcurrency, opt.groups.Strings(), groupUpdater, opt.confirm, opt.wait, fixers...); err != nil {
+	opts := &updater.UpdateOptions{
+		ConfigPath:       opt.config,
+		GridPrefix:       opt.gridPrefix,
+		GroupConcurrency: opt.groupConcurrency,
+		GroupNames:       opt.groups.Strings(),
+		Write:            opt.confirm,
+		Freq:             opt.wait,
+	}
+
+	if err := updater.Update(ctx, client, mets, groupUpdater, opts, fixers...); err != nil {
 		logrus.WithError(err).Error("Could not update")
 	}
 }
