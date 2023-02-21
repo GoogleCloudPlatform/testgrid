@@ -4,6 +4,10 @@
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
 import { TestGridData } from './data';
+import type { GetTabSummaryResponse } from './data';
+import type { GetTabSummaryRequest } from './data';
+import type { ListTabSummariesResponse } from './data';
+import type { ListTabSummariesRequest } from './data';
 import type { ListRowsResponse } from './data';
 import type { ListRowsRequest } from './data';
 import type { ListHeadersResponse } from './data';
@@ -76,16 +80,6 @@ export interface ITestGridDataClient {
     input: GetDashboardGroupRequest,
     options?: RpcOptions
   ): UnaryCall<GetDashboardGroupRequest, GetDashboardGroupResponse>;
-  // GET /dashboards/{dashboard}/tabs/{tab}
-  // Returns a tab’s configuration, as stored
-  // rpc GetDashboardTab(GetDashboardTabRequest) returns
-  // (GetDashboardTabResponse) {}
-
-  // GET /summary/{dashboard}
-  // GET /dashboards/{dashboard}/summary
-  // Returns a summary of this dashboard, as stored
-  // rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse) {}
-
   /**
    * GET /dashboards/{dashboard}/tabs/{tab}/headers
    * Returns the headers for grid results
@@ -106,6 +100,25 @@ export interface ITestGridDataClient {
     input: ListRowsRequest,
     options?: RpcOptions
   ): UnaryCall<ListRowsRequest, ListRowsResponse>;
+  /**
+   * GET /dashboards/{dashboard}/tab-summaries
+   * Returns the list of tab summaries for dashboard.
+   *
+   * @generated from protobuf rpc: ListTabSummaries(testgrid.api.v1.ListTabSummariesRequest) returns (testgrid.api.v1.ListTabSummariesResponse);
+   */
+  listTabSummaries(
+    input: ListTabSummariesRequest,
+    options?: RpcOptions
+  ): UnaryCall<ListTabSummariesRequest, ListTabSummariesResponse>;
+  /**
+   * GET /dashboards/{dashboard}/tab-summaries/{tab}
+   *
+   * @generated from protobuf rpc: GetTabSummary(testgrid.api.v1.GetTabSummaryRequest) returns (testgrid.api.v1.GetTabSummaryResponse);
+   */
+  getTabSummary(
+    input: GetTabSummaryRequest,
+    options?: RpcOptions
+  ): UnaryCall<GetTabSummaryRequest, GetTabSummaryResponse>;
 }
 /**
  * @generated from protobuf service testgrid.api.v1.TestGridData
@@ -213,16 +226,6 @@ export class TestGridDataClient implements ITestGridDataClient, ServiceInfo {
       input
     );
   }
-  // GET /dashboards/{dashboard}/tabs/{tab}
-  // Returns a tab’s configuration, as stored
-  // rpc GetDashboardTab(GetDashboardTabRequest) returns
-  // (GetDashboardTabResponse) {}
-
-  // GET /summary/{dashboard}
-  // GET /dashboards/{dashboard}/summary
-  // Returns a summary of this dashboard, as stored
-  // rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse) {}
-
   /**
    * GET /dashboards/{dashboard}/tabs/{tab}/headers
    * Returns the headers for grid results
@@ -256,6 +259,45 @@ export class TestGridDataClient implements ITestGridDataClient, ServiceInfo {
     const method = this.methods[6],
       opt = this._transport.mergeOptions(options);
     return stackIntercept<ListRowsRequest, ListRowsResponse>(
+      'unary',
+      this._transport,
+      method,
+      opt,
+      input
+    );
+  }
+  /**
+   * GET /dashboards/{dashboard}/tab-summaries
+   * Returns the list of tab summaries for dashboard.
+   *
+   * @generated from protobuf rpc: ListTabSummaries(testgrid.api.v1.ListTabSummariesRequest) returns (testgrid.api.v1.ListTabSummariesResponse);
+   */
+  listTabSummaries(
+    input: ListTabSummariesRequest,
+    options?: RpcOptions
+  ): UnaryCall<ListTabSummariesRequest, ListTabSummariesResponse> {
+    const method = this.methods[7],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<ListTabSummariesRequest, ListTabSummariesResponse>(
+      'unary',
+      this._transport,
+      method,
+      opt,
+      input
+    );
+  }
+  /**
+   * GET /dashboards/{dashboard}/tab-summaries/{tab}
+   *
+   * @generated from protobuf rpc: GetTabSummary(testgrid.api.v1.GetTabSummaryRequest) returns (testgrid.api.v1.GetTabSummaryResponse);
+   */
+  getTabSummary(
+    input: GetTabSummaryRequest,
+    options?: RpcOptions
+  ): UnaryCall<GetTabSummaryRequest, GetTabSummaryResponse> {
+    const method = this.methods[8],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<GetTabSummaryRequest, GetTabSummaryResponse>(
       'unary',
       this._transport,
       method,

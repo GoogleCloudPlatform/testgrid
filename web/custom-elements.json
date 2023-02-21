@@ -93,6 +93,89 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/dashboard-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "DashboardSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tabSummariesInfo",
+              "type": {
+                "text": "Array<TabSummaryInfo>"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "input",
+              "type": {
+                "text": "HTMLInputElement"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "getTabSummaries"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "src/dashboard-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/tab-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TabSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "info",
+              "type": {
+                "text": "TabSummaryInfo | undefined"
+              }
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "src/tab-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "stories/testgrid-index.stories.ts",
       "declarations": [
         {
@@ -117,6 +200,568 @@
           }
         }
       ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/026a31ed.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/1d1f8f99.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/281d0bb6.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/4b568637.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/4c2a1879.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/4fb798e6.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/530d819e.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/5afc66be.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/72552c1e.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/c2c1b651.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/d53e3844.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "e",
+          "type": {
+            "text": "object"
+          },
+          "default": "{}"
+        },
+        {
+          "kind": "variable",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "u"
+            },
+            {
+              "name": "l"
+            },
+            {
+              "name": "p"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/d53e3844.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/d53e3844.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/d6204f1f.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/e8facca6.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/ee5c08da.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/block-navigation.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/prettify.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/sorter.js",
+      "declarations": [],
+      "exports": []
     },
     {
       "kind": "javascript-module",
@@ -176,6 +821,119 @@
     },
     {
       "kind": "javascript-module",
+      "path": "out-tsc/src/dashboard-summary-canvas.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TabSummaryInfo",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "default": "name"
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "default": "icon"
+            },
+            {
+              "kind": "field",
+              "name": "overallStatus",
+              "default": "overallStatus"
+            },
+            {
+              "kind": "field",
+              "name": "detailedStatusMsg",
+              "default": "detailedStatusMsg"
+            },
+            {
+              "kind": "field",
+              "name": "lastRunTimestamp",
+              "default": "lastRunTimestamp"
+            },
+            {
+              "kind": "field",
+              "name": "lastUpdateTimestamp",
+              "default": "lastUpdateTimestamp"
+            },
+            {
+              "kind": "field",
+              "name": "latestGreenBuild",
+              "default": "latestGreenBuild"
+            }
+          ]
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummaryCanvas",
+          "default": "class DashboardSummaryCanvas extends LitElement {\n    constructor() {\n        super(...arguments);\n        this._tabSummariesInfo = [];\n    }\n    render() {\n        return html `\n      ${map(this._tabSummariesInfo, (ts, _) => {\n            return html `<testgrid-tab-summary .info=${ts}></testgrid-tab-summary>`;\n        })}s\n      <input id=\"dashboard-name-input\" label=\"Dashboard name\">\n      <mwc-button raised @click=\"${this.getTabSummaries}\">Fetch</mwc-button>\n    `;\n    }\n    getTabSummaries() {\n        this._tabSummariesInfo = [];\n        fetch('http://localhost:8080/api/v1/dashboards/' + this.input.value + '/tab-summaries').then(async (response) => {\n            console.log('pinging http://localhost:8080/api/v1/dashboards/' + this.input.value + '/tab-summaries');\n            const resp = ListTabSummariesResponse.fromJson(await response.json());\n            resp.tabSummaries.forEach(ts => {\n                let si = new TabSummaryInfo(tabStatusIcon.get(ts.overallStatus), ts.tabName, ts.overallStatus, ts.detailedStatusMessage, Timestamp.toDate(ts.lastUpdateTimestamp).toISOString(), Timestamp.toDate(ts.lastRunTimestamp).toISOString(), ts.latestPassingBuild);\n                this._tabSummariesInfo = [...this._tabSummariesInfo, si];\n                console.log(this._tabSummariesInfo);\n            });\n        });\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabSummaryInfo",
+          "declaration": {
+            "name": "TabSummaryInfo",
+            "module": "out-tsc/src/dashboard-summary-canvas.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummaryCanvas",
+          "declaration": {
+            "name": "DashboardSummaryCanvas",
+            "module": "out-tsc/src/dashboard-summary-canvas.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/dashboard-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "class DashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabSummariesInfo = [];\n    }\n    render() {\n        return html `\n      ${map(this.tabSummariesInfo, (ts) => {\n            return html `<tab-summary .info=${ts}></tab-summary>`;\n        })}\n      <input id=\"dashboard-name-input\" label=\"Dashboard name\">\n      <mwc-button raised @click=\"${this.getTabSummaries}\">Fetch</mwc-button>\n    `;\n    }\n    async getTabSummaries() {\n        this.tabSummariesInfo = [];\n        try {\n            const response = await fetch('http://localhost:8080/api/v1/dashboards/' + this.input.value + '/tab-summaries');\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            data.tabSummaries.forEach(ts => {\n                let si = convertResponse(ts);\n                this.tabSummariesInfo = [...this.tabSummariesInfo, si];\n            });\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "out-tsc/src/dashboard-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/tab-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TabSummary",
+          "default": "class TabSummary extends LitElement {\n    render() {\n        var _a, _b, _c, _d, _e, _f, _g, _h;\n        // TODO(sultan-duisenbay): find / reuse and existing openwc component\n        return html `\n      <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/icon?family=Material+Icons\">\n      <div class=\"tab\">\n        <div class=\"left\">\n          <div class=\"icon-wrapper\">\n            <i class=\"material-icons ${(_a = this.info) === null || _a === void 0 ? void 0 : _a.overallStatus}\">${(_b = this.info) === null || _b === void 0 ? void 0 : _b.icon}</i>\n          </div>\n        </div>\n        <div class=\"mid\">\n          <div class=\"name\">${(_c = this.info) === null || _c === void 0 ? void 0 : _c.name}: ${(_d = this.info) === null || _d === void 0 ? void 0 : _d.overallStatus}</div>\n          <div class=\"detailed-status\">${(_e = this.info) === null || _e === void 0 ? void 0 : _e.detailedStatusMsg}</div>\n        </div>\n        <div class=\"right\">\n          <div class=\"stats\">Last update: ${(_f = this.info) === null || _f === void 0 ? void 0 : _f.lastUpdateTimestamp}</div>\n          <div class=\"stats\">Tests last ran: ${(_g = this.info) === null || _g === void 0 ? void 0 : _g.lastRunTimestamp}</div>\n          <div class=\"stats\">Last green run: ${(_h = this.info) === null || _h === void 0 ? void 0 : _h.latestGreenBuild}</div>\n        </div>\n      </div>\n    `;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "out-tsc/src/tab-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "out-tsc/stories/testgrid-index.stories.js",
       "declarations": [
         {
@@ -203,19 +961,49 @@
     },
     {
       "kind": "javascript-module",
-      "path": "coverage/lcov-report/block-navigation.js",
+      "path": "storybook-static/polyfills/core-js.9964f9f05b01fb9591d580801fe52818.js",
       "declarations": [],
       "exports": []
     },
     {
       "kind": "javascript-module",
-      "path": "coverage/lcov-report/prettify.js",
+      "path": "storybook-static/polyfills/custom-elements-es5-adapter.79106fd9b808b3bbd70d54b934850301.js",
       "declarations": [],
       "exports": []
     },
     {
       "kind": "javascript-module",
-      "path": "coverage/lcov-report/sorter.js",
+      "path": "storybook-static/polyfills/fetch.886cc00da4c5ab22092c0d092eda808a.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/intersection-observer.1dfab822bea56de541280683e0923ef2.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/regenerator-runtime.e2c951e2eae648aacbcac529428355da.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/resize-observer.467474095074c8a92dde0e006c40eb12.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/systemjs.c12345a3f6a1d7c2542d26a81dfc5f25.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/webcomponents.a551e00e9f31a5519876700c4ae6d987.js",
       "declarations": [],
       "exports": []
     },
@@ -1670,6 +2458,56 @@
                 }
               ],
               "description": "GET /dashboards/{dashboard}/tabs/{tab}/rows\nReturns information on grid rows, and data within those rows"
+            },
+            {
+              "kind": "method",
+              "name": "listTabSummaries",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListTabSummariesRequest, ListTabSummariesResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListTabSummariesRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tab-summaries\nReturns the list of tab summaries for dashboard."
+            },
+            {
+              "kind": "method",
+              "name": "getTabSummary",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<GetTabSummaryRequest, GetTabSummaryResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "GetTabSummaryRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tab-summaries/{tab}"
             }
           ]
         }
@@ -1781,8 +2619,33 @@
         },
         {
           "kind": "variable",
+          "name": "ListTabSummariesRequest",
+          "default": "new ListTabSummariesRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListTabSummariesResponse",
+          "default": "new ListTabSummariesResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetTabSummaryRequest",
+          "default": "new GetTabSummaryRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetTabSummaryResponse",
+          "default": "new GetTabSummaryResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TabSummary",
+          "default": "new TabSummary$Type()"
+        },
+        {
+          "kind": "variable",
           "name": "TestGridData",
-          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n  {\n    name: 'ListDashboard',\n    options: {},\n    I: ListDashboardRequest,\n    O: ListDashboardResponse,\n  },\n  {\n    name: 'ListDashboardGroup',\n    options: {},\n    I: ListDashboardGroupRequest,\n    O: ListDashboardGroupResponse,\n  },\n  {\n    name: 'ListDashboardTabs',\n    options: {},\n    I: ListDashboardTabsRequest,\n    O: ListDashboardTabsResponse,\n  },\n  {\n    name: 'GetDashboard',\n    options: {},\n    I: GetDashboardRequest,\n    O: GetDashboardResponse,\n  },\n  {\n    name: 'GetDashboardGroup',\n    options: {},\n    I: GetDashboardGroupRequest,\n    O: GetDashboardGroupResponse,\n  },\n  {\n    name: 'ListHeaders',\n    options: {},\n    I: ListHeadersRequest,\n    O: ListHeadersResponse,\n  },\n  { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n])"
+          "default": "new ServiceType(\"testgrid.api.v1.TestGridData\", [\n    { name: \"ListDashboard\", options: {}, I: ListDashboardRequest, O: ListDashboardResponse },\n    { name: \"ListDashboardGroup\", options: {}, I: ListDashboardGroupRequest, O: ListDashboardGroupResponse },\n    { name: \"ListDashboardTabs\", options: {}, I: ListDashboardTabsRequest, O: ListDashboardTabsResponse },\n    { name: \"GetDashboard\", options: {}, I: GetDashboardRequest, O: GetDashboardResponse },\n    { name: \"GetDashboardGroup\", options: {}, I: GetDashboardGroupRequest, O: GetDashboardGroupResponse },\n    { name: \"ListHeaders\", options: {}, I: ListHeadersRequest, O: ListHeadersResponse },\n    { name: \"ListRows\", options: {}, I: ListRowsRequest, O: ListRowsResponse },\n    { name: \"ListTabSummaries\", options: {}, I: ListTabSummariesRequest, O: ListTabSummariesResponse },\n    { name: \"GetTabSummary\", options: {}, I: GetTabSummaryRequest, O: GetTabSummaryResponse }\n])"
         }
       ],
       "exports": [
@@ -1932,6 +2795,46 @@
         },
         {
           "kind": "js",
+          "name": "ListTabSummariesRequest",
+          "declaration": {
+            "name": "ListTabSummariesRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListTabSummariesResponse",
+          "declaration": {
+            "name": "ListTabSummariesResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetTabSummaryRequest",
+          "declaration": {
+            "name": "GetTabSummaryRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetTabSummaryResponse",
+          "declaration": {
+            "name": "GetTabSummaryResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
           "name": "TestGridData",
           "declaration": {
             "name": "TestGridData",
@@ -2039,6 +2942,32 @@
                 }
               ],
               "description": "GET /dashboards/{dashboard}/tabs/{tab}/rows\nReturns information on grid rows, and data within those rows"
+            },
+            {
+              "kind": "method",
+              "name": "listTabSummaries",
+              "parameters": [
+                {
+                  "name": "input"
+                },
+                {
+                  "name": "options"
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tab-summaries\nReturns the list of tab summaries for dashboard."
+            },
+            {
+              "kind": "method",
+              "name": "getTabSummary",
+              "parameters": [
+                {
+                  "name": "input"
+                },
+                {
+                  "name": "options"
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tab-summaries/{tab}"
             },
             {
               "kind": "field",
@@ -2167,8 +3096,33 @@
         },
         {
           "kind": "variable",
+          "name": "ListTabSummariesRequest",
+          "default": "new ListTabSummariesRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListTabSummariesResponse",
+          "default": "new ListTabSummariesResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetTabSummaryRequest",
+          "default": "new GetTabSummaryRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetTabSummaryResponse",
+          "default": "new GetTabSummaryResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TabSummary",
+          "default": "new TabSummary$Type()"
+        },
+        {
+          "kind": "variable",
           "name": "TestGridData",
-          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n    {\n        name: 'ListDashboard',\n        options: {},\n        I: ListDashboardRequest,\n        O: ListDashboardResponse,\n    },\n    {\n        name: 'ListDashboardGroup',\n        options: {},\n        I: ListDashboardGroupRequest,\n        O: ListDashboardGroupResponse,\n    },\n    {\n        name: 'ListDashboardTabs',\n        options: {},\n        I: ListDashboardTabsRequest,\n        O: ListDashboardTabsResponse,\n    },\n    {\n        name: 'GetDashboard',\n        options: {},\n        I: GetDashboardRequest,\n        O: GetDashboardResponse,\n    },\n    {\n        name: 'GetDashboardGroup',\n        options: {},\n        I: GetDashboardGroupRequest,\n        O: GetDashboardGroupResponse,\n    },\n    {\n        name: 'ListHeaders',\n        options: {},\n        I: ListHeadersRequest,\n        O: ListHeadersResponse,\n    },\n    { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n])"
+          "default": "new ServiceType(\"testgrid.api.v1.TestGridData\", [\n    { name: \"ListDashboard\", options: {}, I: ListDashboardRequest, O: ListDashboardResponse },\n    { name: \"ListDashboardGroup\", options: {}, I: ListDashboardGroupRequest, O: ListDashboardGroupResponse },\n    { name: \"ListDashboardTabs\", options: {}, I: ListDashboardTabsRequest, O: ListDashboardTabsResponse },\n    { name: \"GetDashboard\", options: {}, I: GetDashboardRequest, O: GetDashboardResponse },\n    { name: \"GetDashboardGroup\", options: {}, I: GetDashboardGroupRequest, O: GetDashboardGroupResponse },\n    { name: \"ListHeaders\", options: {}, I: ListHeadersRequest, O: ListHeadersResponse },\n    { name: \"ListRows\", options: {}, I: ListRowsRequest, O: ListRowsResponse },\n    { name: \"ListTabSummaries\", options: {}, I: ListTabSummariesRequest, O: ListTabSummariesResponse },\n    { name: \"GetTabSummary\", options: {}, I: GetTabSummaryRequest, O: GetTabSummaryResponse }\n])"
         }
       ],
       "exports": [
@@ -2313,6 +3267,46 @@
           "name": "Resource",
           "declaration": {
             "name": "Resource",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListTabSummariesRequest",
+          "declaration": {
+            "name": "ListTabSummariesRequest",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListTabSummariesResponse",
+          "declaration": {
+            "name": "ListTabSummariesResponse",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetTabSummaryRequest",
+          "declaration": {
+            "name": "GetTabSummaryRequest",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetTabSummaryResponse",
+          "declaration": {
+            "name": "GetTabSummaryResponse",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
             "module": "out-tsc/src/gen/pb/api/v1/data.js"
           }
         },

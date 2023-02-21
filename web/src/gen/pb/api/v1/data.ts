@@ -295,6 +295,115 @@ export interface Resource {
    */
   link: string;
 }
+/**
+ * @generated from protobuf message testgrid.api.v1.ListTabSummariesRequest
+ */
+export interface ListTabSummariesRequest {
+  /**
+   * Scope defines the GCS bucket to read the results from.
+   *
+   * @generated from protobuf field: string scope = 1;
+   */
+  scope: string;
+  /**
+   * Name of the dashboard to fetch tab summaries for.
+   *
+   * @generated from protobuf field: string dashboard = 2;
+   */
+  dashboard: string;
+}
+/**
+ * @generated from protobuf message testgrid.api.v1.ListTabSummariesResponse
+ */
+export interface ListTabSummariesResponse {
+  /**
+   * List of tab summaries.
+   *
+   * @generated from protobuf field: repeated testgrid.api.v1.TabSummary tab_summaries = 1;
+   */
+  tabSummaries: TabSummary[];
+}
+/**
+ * @generated from protobuf message testgrid.api.v1.GetTabSummaryRequest
+ */
+export interface GetTabSummaryRequest {
+  /**
+   * Scope defines the GCS bucket to read the results from.
+   *
+   * @generated from protobuf field: string scope = 1;
+   */
+  scope: string;
+  /**
+   * Name of the dashboard to fetch tab summaries for.
+   *
+   * @generated from protobuf field: string dashboard = 2;
+   */
+  dashboard: string;
+  /**
+   * Name of the particular tab to fetch the summary for.
+   *
+   * @generated from protobuf field: string tab = 3;
+   */
+  tab: string;
+}
+/**
+ * @generated from protobuf message testgrid.api.v1.GetTabSummaryResponse
+ */
+export interface GetTabSummaryResponse {
+  /**
+   * Summary for the tab
+   *
+   * @generated from protobuf field: testgrid.api.v1.TabSummary tab_summary = 1;
+   */
+  tabSummary?: TabSummary;
+}
+/**
+ * @generated from protobuf message testgrid.api.v1.TabSummary
+ */
+export interface TabSummary {
+  /**
+   * The name of the dashboard this tab belongs to.
+   *
+   * @generated from protobuf field: string dashboard_name = 1;
+   */
+  dashboardName: string;
+  /**
+   * The name of the tab.
+   *
+   * @generated from protobuf field: string tab_name = 2;
+   */
+  tabName: string;
+  /**
+   * Overall status for the dashboard tab (e.g. PASSING, FAILING, etc.)
+   *
+   * @generated from protobuf field: string overall_status = 3;
+   */
+  overallStatus: string;
+  /**
+   * Summary of the status for this dashboard tab.
+   *
+   * @generated from protobuf field: string detailed_status_message = 4;
+   */
+  detailedStatusMessage: string;
+  /**
+   * Timestamp at which tests last ran.
+   *
+   * @generated from protobuf field: google.protobuf.Timestamp last_run_timestamp = 5;
+   */
+  lastRunTimestamp?: Timestamp;
+  /**
+   * Timestamp at which the test group was last updated.
+   *
+   * @generated from protobuf field: google.protobuf.Timestamp last_update_timestamp = 6;
+   */
+  lastUpdateTimestamp?: Timestamp;
+  /**
+   * The ID for the latest passing build.
+   *
+   * @generated from protobuf field: string latest_passing_build = 7;
+   */
+  latestPassingBuild: string;
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class ListDashboardRequest$Type extends MessageType<ListDashboardRequest> {
   constructor() {
@@ -1920,6 +2029,512 @@ class Resource$Type extends MessageType<Resource> {
  * @generated MessageType for protobuf message testgrid.api.v1.Resource
  */
 export const Resource = new Resource$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListTabSummariesRequest$Type extends MessageType<ListTabSummariesRequest> {
+  constructor() {
+    super('testgrid.api.v1.ListTabSummariesRequest', [
+      { no: 1, name: 'scope', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'dashboard', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ]);
+  }
+  create(
+    value?: PartialMessage<ListTabSummariesRequest>
+  ): ListTabSummariesRequest {
+    const message = { scope: '', dashboard: '' };
+    globalThis.Object.defineProperty(message, MESSAGE_TYPE, {
+      enumerable: false,
+      value: this,
+    });
+    if (value !== undefined)
+      reflectionMergePartial<ListTabSummariesRequest>(this, message, value);
+    return message;
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ListTabSummariesRequest
+  ): ListTabSummariesRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length;
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag();
+      switch (fieldNo) {
+        case /* string scope */ 1:
+          message.scope = reader.string();
+          break;
+        case /* string dashboard */ 2:
+          message.dashboard = reader.string();
+          break;
+        default:
+          let u = options.readUnknownField;
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            );
+          let d = reader.skip(wireType);
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            );
+      }
+    }
+    return message;
+  }
+  internalBinaryWrite(
+    message: ListTabSummariesRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string scope = 1; */
+    if (message.scope !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.scope);
+    /* string dashboard = 2; */
+    if (message.dashboard !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.dashboard);
+    let u = options.writeUnknownFields;
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      );
+    return writer;
+  }
+}
+/**
+ * @generated MessageType for protobuf message testgrid.api.v1.ListTabSummariesRequest
+ */
+export const ListTabSummariesRequest = new ListTabSummariesRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListTabSummariesResponse$Type extends MessageType<ListTabSummariesResponse> {
+  constructor() {
+    super('testgrid.api.v1.ListTabSummariesResponse', [
+      {
+        no: 1,
+        name: 'tab_summaries',
+        kind: 'message',
+        repeat: 1 /*RepeatType.PACKED*/,
+        T: () => TabSummary,
+      },
+    ]);
+  }
+  create(
+    value?: PartialMessage<ListTabSummariesResponse>
+  ): ListTabSummariesResponse {
+    const message = { tabSummaries: [] };
+    globalThis.Object.defineProperty(message, MESSAGE_TYPE, {
+      enumerable: false,
+      value: this,
+    });
+    if (value !== undefined)
+      reflectionMergePartial<ListTabSummariesResponse>(this, message, value);
+    return message;
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ListTabSummariesResponse
+  ): ListTabSummariesResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length;
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag();
+      switch (fieldNo) {
+        case /* repeated testgrid.api.v1.TabSummary tab_summaries */ 1:
+          message.tabSummaries.push(
+            TabSummary.internalBinaryRead(reader, reader.uint32(), options)
+          );
+          break;
+        default:
+          let u = options.readUnknownField;
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            );
+          let d = reader.skip(wireType);
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            );
+      }
+    }
+    return message;
+  }
+  internalBinaryWrite(
+    message: ListTabSummariesResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* repeated testgrid.api.v1.TabSummary tab_summaries = 1; */
+    for (let i = 0; i < message.tabSummaries.length; i++)
+      TabSummary.internalBinaryWrite(
+        message.tabSummaries[i],
+        writer.tag(1, WireType.LengthDelimited).fork(),
+        options
+      ).join();
+    let u = options.writeUnknownFields;
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      );
+    return writer;
+  }
+}
+/**
+ * @generated MessageType for protobuf message testgrid.api.v1.ListTabSummariesResponse
+ */
+export const ListTabSummariesResponse = new ListTabSummariesResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetTabSummaryRequest$Type extends MessageType<GetTabSummaryRequest> {
+  constructor() {
+    super('testgrid.api.v1.GetTabSummaryRequest', [
+      { no: 1, name: 'scope', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'dashboard', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 3, name: 'tab', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ]);
+  }
+  create(value?: PartialMessage<GetTabSummaryRequest>): GetTabSummaryRequest {
+    const message = { scope: '', dashboard: '', tab: '' };
+    globalThis.Object.defineProperty(message, MESSAGE_TYPE, {
+      enumerable: false,
+      value: this,
+    });
+    if (value !== undefined)
+      reflectionMergePartial<GetTabSummaryRequest>(this, message, value);
+    return message;
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: GetTabSummaryRequest
+  ): GetTabSummaryRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length;
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag();
+      switch (fieldNo) {
+        case /* string scope */ 1:
+          message.scope = reader.string();
+          break;
+        case /* string dashboard */ 2:
+          message.dashboard = reader.string();
+          break;
+        case /* string tab */ 3:
+          message.tab = reader.string();
+          break;
+        default:
+          let u = options.readUnknownField;
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            );
+          let d = reader.skip(wireType);
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            );
+      }
+    }
+    return message;
+  }
+  internalBinaryWrite(
+    message: GetTabSummaryRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string scope = 1; */
+    if (message.scope !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.scope);
+    /* string dashboard = 2; */
+    if (message.dashboard !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.dashboard);
+    /* string tab = 3; */
+    if (message.tab !== '')
+      writer.tag(3, WireType.LengthDelimited).string(message.tab);
+    let u = options.writeUnknownFields;
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      );
+    return writer;
+  }
+}
+/**
+ * @generated MessageType for protobuf message testgrid.api.v1.GetTabSummaryRequest
+ */
+export const GetTabSummaryRequest = new GetTabSummaryRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetTabSummaryResponse$Type extends MessageType<GetTabSummaryResponse> {
+  constructor() {
+    super('testgrid.api.v1.GetTabSummaryResponse', [
+      { no: 1, name: 'tab_summary', kind: 'message', T: () => TabSummary },
+    ]);
+  }
+  create(value?: PartialMessage<GetTabSummaryResponse>): GetTabSummaryResponse {
+    const message = {};
+    globalThis.Object.defineProperty(message, MESSAGE_TYPE, {
+      enumerable: false,
+      value: this,
+    });
+    if (value !== undefined)
+      reflectionMergePartial<GetTabSummaryResponse>(this, message, value);
+    return message;
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: GetTabSummaryResponse
+  ): GetTabSummaryResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length;
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag();
+      switch (fieldNo) {
+        case /* testgrid.api.v1.TabSummary tab_summary */ 1:
+          message.tabSummary = TabSummary.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.tabSummary
+          );
+          break;
+        default:
+          let u = options.readUnknownField;
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            );
+          let d = reader.skip(wireType);
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            );
+      }
+    }
+    return message;
+  }
+  internalBinaryWrite(
+    message: GetTabSummaryResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* testgrid.api.v1.TabSummary tab_summary = 1; */
+    if (message.tabSummary)
+      TabSummary.internalBinaryWrite(
+        message.tabSummary,
+        writer.tag(1, WireType.LengthDelimited).fork(),
+        options
+      ).join();
+    let u = options.writeUnknownFields;
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      );
+    return writer;
+  }
+}
+/**
+ * @generated MessageType for protobuf message testgrid.api.v1.GetTabSummaryResponse
+ */
+export const GetTabSummaryResponse = new GetTabSummaryResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TabSummary$Type extends MessageType<TabSummary> {
+  constructor() {
+    super('testgrid.api.v1.TabSummary', [
+      {
+        no: 1,
+        name: 'dashboard_name',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      { no: 2, name: 'tab_name', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 3,
+        name: 'overall_status',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'detailed_status_message',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 5,
+        name: 'last_run_timestamp',
+        kind: 'message',
+        T: () => Timestamp,
+      },
+      {
+        no: 6,
+        name: 'last_update_timestamp',
+        kind: 'message',
+        T: () => Timestamp,
+      },
+      {
+        no: 7,
+        name: 'latest_passing_build',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ]);
+  }
+  create(value?: PartialMessage<TabSummary>): TabSummary {
+    const message = {
+      dashboardName: '',
+      tabName: '',
+      overallStatus: '',
+      detailedStatusMessage: '',
+      latestPassingBuild: '',
+    };
+    globalThis.Object.defineProperty(message, MESSAGE_TYPE, {
+      enumerable: false,
+      value: this,
+    });
+    if (value !== undefined)
+      reflectionMergePartial<TabSummary>(this, message, value);
+    return message;
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: TabSummary
+  ): TabSummary {
+    let message = target ?? this.create(),
+      end = reader.pos + length;
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag();
+      switch (fieldNo) {
+        case /* string dashboard_name */ 1:
+          message.dashboardName = reader.string();
+          break;
+        case /* string tab_name */ 2:
+          message.tabName = reader.string();
+          break;
+        case /* string overall_status */ 3:
+          message.overallStatus = reader.string();
+          break;
+        case /* string detailed_status_message */ 4:
+          message.detailedStatusMessage = reader.string();
+          break;
+        case /* google.protobuf.Timestamp last_run_timestamp */ 5:
+          message.lastRunTimestamp = Timestamp.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.lastRunTimestamp
+          );
+          break;
+        case /* google.protobuf.Timestamp last_update_timestamp */ 6:
+          message.lastUpdateTimestamp = Timestamp.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.lastUpdateTimestamp
+          );
+          break;
+        case /* string latest_passing_build */ 7:
+          message.latestPassingBuild = reader.string();
+          break;
+        default:
+          let u = options.readUnknownField;
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            );
+          let d = reader.skip(wireType);
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            );
+      }
+    }
+    return message;
+  }
+  internalBinaryWrite(
+    message: TabSummary,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string dashboard_name = 1; */
+    if (message.dashboardName !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.dashboardName);
+    /* string tab_name = 2; */
+    if (message.tabName !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.tabName);
+    /* string overall_status = 3; */
+    if (message.overallStatus !== '')
+      writer.tag(3, WireType.LengthDelimited).string(message.overallStatus);
+    /* string detailed_status_message = 4; */
+    if (message.detailedStatusMessage !== '')
+      writer
+        .tag(4, WireType.LengthDelimited)
+        .string(message.detailedStatusMessage);
+    /* google.protobuf.Timestamp last_run_timestamp = 5; */
+    if (message.lastRunTimestamp)
+      Timestamp.internalBinaryWrite(
+        message.lastRunTimestamp,
+        writer.tag(5, WireType.LengthDelimited).fork(),
+        options
+      ).join();
+    /* google.protobuf.Timestamp last_update_timestamp = 6; */
+    if (message.lastUpdateTimestamp)
+      Timestamp.internalBinaryWrite(
+        message.lastUpdateTimestamp,
+        writer.tag(6, WireType.LengthDelimited).fork(),
+        options
+      ).join();
+    /* string latest_passing_build = 7; */
+    if (message.latestPassingBuild !== '')
+      writer
+        .tag(7, WireType.LengthDelimited)
+        .string(message.latestPassingBuild);
+    let u = options.writeUnknownFields;
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      );
+    return writer;
+  }
+}
+/**
+ * @generated MessageType for protobuf message testgrid.api.v1.TabSummary
+ */
+export const TabSummary = new TabSummary$Type();
 /**
  * @generated ServiceType for protobuf service testgrid.api.v1.TestGridData
  */
@@ -1961,4 +2576,16 @@ export const TestGridData = new ServiceType('testgrid.api.v1.TestGridData', [
     O: ListHeadersResponse,
   },
   { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },
+  {
+    name: 'ListTabSummaries',
+    options: {},
+    I: ListTabSummariesRequest,
+    O: ListTabSummariesResponse,
+  },
+  {
+    name: 'GetTabSummary',
+    options: {},
+    I: GetTabSummaryRequest,
+    O: GetTabSummaryResponse,
+  },
 ]);
