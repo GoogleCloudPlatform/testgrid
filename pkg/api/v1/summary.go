@@ -19,6 +19,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -47,16 +48,20 @@ var (
 
 // convertSummary converts the tab summary from storage format (summary.proto) to wire format (data.proto)
 func convertSummary(tabSummary *summarypb.DashboardTabSummary) *apipb.TabSummary {
+	LastRunSeconds, LastRunNanos := math.Modf(tabSummary.LastRunTimestamp)
+	LastUpdateSeconds, LastUpdateNanos := math.Modf(tabSummary.LastUpdateTimestamp)
 	return &apipb.TabSummary{
 		DashboardName:         tabSummary.DashboardName,
 		TabName:               tabSummary.DashboardTabName,
 		OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
 		DetailedStatusMessage: tabSummary.Status,
 		LastRunTimestamp: &timestamp.Timestamp{
-			Seconds: int64(tabSummary.LastRunTimestamp),
+			Seconds: int64(LastRunSeconds),
+			Nanos:   int32(LastRunNanos * 1e9),
 		},
 		LastUpdateTimestamp: &timestamp.Timestamp{
-			Seconds: int64(tabSummary.LastUpdateTimestamp),
+			Seconds: int64(LastUpdateSeconds),
+			Nanos:   int32(LastUpdateNanos * 1e9),
 		},
 		LatestPassingBuild: tabSummary.LatestGreen,
 	}
