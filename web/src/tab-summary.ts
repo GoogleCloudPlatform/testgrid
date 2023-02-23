@@ -71,8 +71,6 @@ export class TabSummary extends LitElement {
       color: #fff;
     }
 
-    // TODO(sultan-duisenbay) - move shared styles to a separate file.
-    /* Colors for the tab status icons. */
     .PENDING {
       background-color: #cc8200;
     }

@@ -179,8 +179,32 @@
       "path": "stories/tab-summary.stories.ts",
       "declarations": [
         {
-          "kind": "function",
+          "kind": "variable",
           "name": "Passing"
+        },
+        {
+          "kind": "variable",
+          "name": "Flaky"
+        },
+        {
+          "kind": "variable",
+          "name": "Failing"
+        },
+        {
+          "kind": "variable",
+          "name": "Stale"
+        },
+        {
+          "kind": "variable",
+          "name": "Broken"
+        },
+        {
+          "kind": "variable",
+          "name": "Pending"
+        },
+        {
+          "kind": "variable",
+          "name": "Acceptable"
         }
       ],
       "exports": [
@@ -196,6 +220,54 @@
           "name": "Passing",
           "declaration": {
             "name": "Passing",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Flaky",
+          "declaration": {
+            "name": "Flaky",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Failing",
+          "declaration": {
+            "name": "Failing",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Stale",
+          "declaration": {
+            "name": "Stale",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Broken",
+          "declaration": {
+            "name": "Broken",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Pending",
+          "declaration": {
+            "name": "Pending",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Acceptable",
+          "declaration": {
+            "name": "Acceptable",
             "module": "stories/tab-summary.stories.ts"
           }
         }
@@ -236,6 +308,12 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/06d29c57.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/1d1f8f99.js",
       "declarations": [],
       "exports": []
@@ -248,7 +326,25 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/2ca18063.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/3802ddf3.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/3936f309.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/3ab98a47.js",
       "declarations": [],
       "exports": []
     },
@@ -278,6 +374,12 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/52d63ff7.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/530d819e.js",
       "declarations": [],
       "exports": []
@@ -291,6 +393,12 @@
     {
       "kind": "javascript-module",
       "path": "storybook-static/646dbe71.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/64a4cd00.js",
       "declarations": [],
       "exports": []
     },
@@ -786,7 +894,497 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/8a96e35f.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/8f56c693.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "e",
+          "type": {
+            "text": "object"
+          },
+          "default": "{}"
+        },
+        {
+          "kind": "variable",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "u"
+            },
+            {
+              "name": "l"
+            },
+            {
+              "name": "p"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/8f56c693.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/8f56c693.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/99be43df.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/9cfc154a.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/c2c1b651.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/cb30324f.js",
       "declarations": [],
       "exports": []
     },
@@ -1258,9 +1856,493 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/d5c827b1.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/d6204f1f.js",
       "declarations": [],
       "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/d6c2bcc5.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/daf0d74e.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/e0aa853b.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "e",
+          "type": {
+            "text": "object"
+          },
+          "default": "{}"
+        },
+        {
+          "kind": "variable",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "u"
+            },
+            {
+              "name": "l"
+            },
+            {
+              "name": "p"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/e0aa853b.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/e0aa853b.js"
+          }
+        }
+      ]
     },
     {
       "kind": "javascript-module",
@@ -1271,6 +2353,12 @@
     {
       "kind": "javascript-module",
       "path": "storybook-static/ee5c08da.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/eea081fb.js",
       "declarations": [],
       "exports": []
     },
@@ -1401,8 +2489,32 @@
       "path": "out-tsc/stories/tab-summary.stories.js",
       "declarations": [
         {
-          "kind": "function",
+          "kind": "variable",
           "name": "Passing"
+        },
+        {
+          "kind": "variable",
+          "name": "Flaky"
+        },
+        {
+          "kind": "variable",
+          "name": "Failing"
+        },
+        {
+          "kind": "variable",
+          "name": "Stale"
+        },
+        {
+          "kind": "variable",
+          "name": "Broken"
+        },
+        {
+          "kind": "variable",
+          "name": "Pending"
+        },
+        {
+          "kind": "variable",
+          "name": "Acceptable"
         }
       ],
       "exports": [
@@ -1418,6 +2530,54 @@
           "name": "Passing",
           "declaration": {
             "name": "Passing",
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Flaky",
+          "declaration": {
+            "name": "Flaky",
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Failing",
+          "declaration": {
+            "name": "Failing",
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Stale",
+          "declaration": {
+            "name": "Stale",
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Broken",
+          "declaration": {
+            "name": "Broken",
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Pending",
+          "declaration": {
+            "name": "Pending",
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Acceptable",
+          "declaration": {
+            "name": "Acceptable",
             "module": "out-tsc/stories/tab-summary.stories.js"
           }
         }
@@ -1515,6 +2675,66 @@
           "declaration": {
             "name": "Timestamp",
             "module": "src/gen/google/protobuf/timestamp.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/gen/pb/custom_evaluator/custom_evaluator.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "RuleSet",
+          "default": "new RuleSet$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "Rule",
+          "default": "new Rule$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TestResultComparison",
+          "default": "new TestResultComparison$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "Comparison",
+          "default": "new Comparison$Type()"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "RuleSet",
+          "declaration": {
+            "name": "RuleSet",
+            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Rule",
+          "declaration": {
+            "name": "Rule",
+            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestResultComparison",
+          "declaration": {
+            "name": "TestResultComparison",
+            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Comparison",
+          "declaration": {
+            "name": "Comparison",
+            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
           }
         }
       ]
@@ -1848,66 +3068,6 @@
           "declaration": {
             "name": "DefaultConfiguration",
             "module": "src/gen/pb/config/config.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/gen/pb/custom_evaluator/custom_evaluator.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "RuleSet",
-          "default": "new RuleSet$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "Rule",
-          "default": "new Rule$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "TestResultComparison",
-          "default": "new TestResultComparison$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "Comparison",
-          "default": "new Comparison$Type()"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "RuleSet",
-          "declaration": {
-            "name": "RuleSet",
-            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Rule",
-          "declaration": {
-            "name": "Rule",
-            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TestResultComparison",
-          "declaration": {
-            "name": "TestResultComparison",
-            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Comparison",
-          "declaration": {
-            "name": "Comparison",
-            "module": "src/gen/pb/custom_evaluator/custom_evaluator.ts"
           }
         }
       ]
