@@ -42,7 +42,6 @@ type options struct {
 	dashboards        util.Strings
 	concurrency       int
 	wait              time.Duration
-	gridPathPrefix    string // TODO(fejta): remove
 	summaryPathPrefix string
 	pubsub            string
 	tabPathPrefix     string

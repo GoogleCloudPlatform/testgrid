@@ -65,7 +65,7 @@ func findDashboardTab(cfg *cachedConfig, dashboardInput string, tabInput string)
 
 // GroupGrid fetch tab group name grid info (columns, rows, ..etc)
 func (s Server) GroupGrid(ctx context.Context, configPath *gcs.Path, groupName string) (*statepb.Grid, error) {
-	groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(s.GridPathPrefix, groupName)})
+	groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(s.TabPathPrefix, groupName)})
 	if err != nil {
 		return nil, fmt.Errorf("resolve: %v", err)
 	}
@@ -81,9 +81,6 @@ func (s Server) Grid(ctx context.Context, scope string, dashboardName, tabName, 
 	configPath, _, err := s.configPath(scope)
 	if err != nil {
 		return nil, err
-	}
-	if s.TabPathPrefix == "" { // TODO(chases2): Delete; all APIs should be configured to use Tabulator now
-		return s.GroupGrid(ctx, configPath, testGroupNanme)
 	}
 	path, err := tabulator.TabStatePath(*configPath, s.TabPathPrefix, dashboardName, tabName)
 	if err != nil {

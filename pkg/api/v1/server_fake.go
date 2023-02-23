@@ -38,7 +38,6 @@ import (
 var (
 	serverDefaultBucket     = "gs://default"
 	serverSummaryPathPrefix = "summary"
-	serverGridPathPrefix    = "grid"
 	serverTabPathPrefix     = ""
 )
 
@@ -90,8 +89,7 @@ func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, 
 
 	return Server{
 		Client:            fc,
-		DefaultBucket:     serverDefaultBucket,  // Needs test coverage
-		GridPathPrefix:    serverGridPathPrefix, // Needs test coverage
+		DefaultBucket:     serverDefaultBucket, // Needs test coverage
 		TabPathPrefix:     serverTabPathPrefix,
 		SummaryPathPrefix: serverSummaryPathPrefix,
 		Timeout:           10 * time.Second, // Needs test coverage
