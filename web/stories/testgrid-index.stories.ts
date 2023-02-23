@@ -4,15 +4,15 @@ import '../src/TestgridIndex.js';
 export default {
   title: 'Index',
   component: 'testgrid-index',
-  // argTypes: {
-  //   backgroundColor: { control: 'color' },
-  // },
+  argTypes: {
+    backgroundColor: { control: 'color' },
+  },
 };
 
 interface Story<T> {
   (args: T): TemplateResult;
   args?: Partial<T>;
-  // argTypes?: Record<string, unknown>;
+  argTypes?: Record<string, unknown>;
 }
 
 interface ArgTypes {
