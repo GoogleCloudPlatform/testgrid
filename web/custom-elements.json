@@ -176,6 +176,33 @@
     },
     {
       "kind": "javascript-module",
+      "path": "stories/tab-summary.stories.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "Passing"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Passing",
+          "declaration": {
+            "name": "Passing",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "stories/testgrid-index.stories.ts",
       "declarations": [
         {
@@ -221,6 +248,18 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/3936f309.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/3f77a615.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/4b568637.js",
       "declarations": [],
       "exports": []
@@ -251,9 +290,499 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/646dbe71.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/6736214d.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "storybook-static/72552c1e.js",
       "declarations": [],
       "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/7d4714e7.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/81fdbf5a.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/8494735a.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "e",
+          "type": {
+            "text": "object"
+          },
+          "default": "{}"
+        },
+        {
+          "kind": "variable",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "u"
+            },
+            {
+              "name": "l"
+            },
+            {
+              "name": "p"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "o"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/8494735a.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/8494735a.js"
+          }
+        }
+      ]
     },
     {
       "kind": "javascript-module",
@@ -747,6 +1276,12 @@
     },
     {
       "kind": "javascript-module",
+      "path": "storybook-static/ff87b586.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
       "path": "coverage/lcov-report/block-navigation.js",
       "declarations": [],
       "exports": []
@@ -857,6 +1392,33 @@
           "declaration": {
             "name": "TabSummary",
             "module": "out-tsc/src/tab-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/stories/tab-summary.stories.js",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "Passing"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "out-tsc/stories/tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Passing",
+          "declaration": {
+            "name": "Passing",
+            "module": "out-tsc/stories/tab-summary.stories.js"
           }
         }
       ]
