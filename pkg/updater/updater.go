@@ -51,6 +51,7 @@ const componentName = "updater"
 type Metrics struct {
 	UpdateState  metrics.Cyclic
 	DelaySeconds metrics.Duration
+	MoreCounter metrics.Counter
 }
 
 // CreateMetrics creates metrics for this controller
@@ -58,6 +59,7 @@ func CreateMetrics(factory metrics.Factory) *Metrics {
 	return &Metrics{
 		UpdateState:  factory.NewCyclic(componentName),
 		DelaySeconds: factory.NewDuration("delay", "Seconds updater is behind schedule", "component"),
+		MoreCounter: factory.NewCounter("counter", "number of unread columns"),
 	}
 }
 
@@ -567,7 +569,7 @@ func SortStarted(cols []InflatedColumn) {
 const byteCeiling = 2e6 // 2 megabytes
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
-func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, reprocess time.Duration) (bool, error) {
+func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, reprocess time.Duration, mets *Metrics) (bool, error) {
 	log := alog.(logrus.Ext1FieldLogger) // Add trace method
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -736,6 +738,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	}
 	if unreadColumns {
 		log = log.WithField("more", true)
+		mets.MoreCounter.Add(1)
 	}
 	log.WithFields(logrus.Fields{
 		"cols":     len(grid.Columns),
