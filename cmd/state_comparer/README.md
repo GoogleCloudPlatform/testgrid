@@ -7,8 +7,8 @@ You should have two directories set up: one each for the states you want to comp
 
 ```shell
 # Example basic run:
-bazel run //cmd/state_comparer -- --first="/tmp/cmp/first/" --second="/tmp/cmp/second/" --diff-ratio-ok=0.3
+bazelisk run //cmd/state_comparer -- --first="/tmp/cmp/first/" --second="/tmp/cmp/second/" --diff-ratio-ok=0.3
 
 # Example detailed/advanced run:
-bazel run //cmd/state_comparer -- --first="/tmp/tgcmp/first/" --second="/tmp/tgcmp/second/" --diff-ratio-ok=0.3 --test-group-url="http://testgrid-canary/q/testgroup/" --config="/tmp/cmp/config" --debug
+bazelisk run //cmd/state_comparer -- --first="/tmp/tgcmp/first/" --second="/tmp/tgcmp/second/" --diff-ratio-ok=0.3 --test-group-url="http://testgrid-canary/q/testgroup/" --config="/tmp/cmp/config" --debug
 ```

@@ -1,6 +1,14 @@
 # Config Merger
-The config merger combines two or more configurations into a single TestGrid
-configuration.
+This component validates and combines two or more [config proto] files into a single TestGrid
+configuration (also a config proto). This config is used by basically every other component in TestGrid.
+
+## Local development
+See also [common tips](/cmd/README.md) for running locally.
+
+```bash
+  --config-list=/tmp/testgrid/my-config-list.yaml \  # See 'Configuration List' below for details.
+  # --confirm \
+```
 
 ## Configuration List
 The config merger requires a YAML file containing:
@@ -27,3 +35,5 @@ is added as a prefix, giving precedence by alphabetical order.
 
 For example, if both configurations in the example above contain a dashboard 
 named `"foo"`, the red dashboard will be renamed to `"red-foo"`.
+
+[config proto]: /pb/config/config.proto
