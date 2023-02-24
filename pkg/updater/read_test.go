@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"net/url"
 	"sort"
 	"sync"
@@ -526,9 +527,9 @@ func TestReadColumns(t *testing.T) {
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
-				ancientColumn("10", .01, nil),
-				ancientColumn("11", .02, nil),
-				ancientColumn("12", .03, nil),
+				ancientColumn("10", .01, nil, fmt.Sprintf("build too old; started %v before %v)", now+10, now+13)),
+				ancientColumn("11", .02, nil, fmt.Sprintf("build too old; started %v before %v)", now+11, now+13)),
+				ancientColumn("12", .03, nil, fmt.Sprintf("build too old; started %v before %v)", now+12, now+13)),
 				{
 					Column: &statepb.Column{
 						Build:   "13",
