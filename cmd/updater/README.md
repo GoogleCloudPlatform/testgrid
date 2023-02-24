@@ -3,27 +3,19 @@
 
 This component is responsible for compiling collated GCS results into a [state proto].
 
-The testgrid frontend reads these protos, converts them to JSON which the
-javascript UI reads and renders on the screen.
+These protos are read by the [Tabulator] component.
 
 ## Local development
+See also [common tips](/cmd/README.md) for running locally.
 
 ```bash
+# --config can take a local file (e.g. `/tmp/testgrid/config`) or GCS file (e.g. `gs://my-testgrid-bucket/config`)
 bazelisk run //cmd/updater -- \
   --config=gs://my-testgrid-bucket/somewhere/config \
-  # --wait=10m \
-  # --test-group=foo \
+  # --test-group=foo,bar \  # If specified, only update these test groups.
   # --debug \
   # --confirm \
 ```
-
-See `bazelisk run //cmd/updater -- --help` for full flag list and descriptions.
-
-
-### Authentication
-
-Use `gcloud auth application-default login` in order to create credentials
-that golang will automatically recognize.
 
 ### Debugging
 
@@ -32,8 +24,7 @@ The two most useful flags are `--test-group=foo` and `--confirm=false` (default)
 Setting the `--test-group` flag tells the client to only update a specific group.
 This is useful when debugging problems in a specific group.
 
-The `--confirm` flag controls whether anything is written to GCS.
-Nothing is written by default.
+The `--confirm` flag controls whether any data is written. Nothing is written by default.
 
 
 ## Update cycles
@@ -63,3 +54,4 @@ If the `--wait` flag is unset, the job returns at this time.
 Otherwise it repeats after sleeping for that duration.
 
 [state proto]: /pb/state/state.proto
+[Tabulator]: /cmd/tabulator
