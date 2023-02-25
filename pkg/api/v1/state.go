@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"net/url"
-	"path"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/gorilla/mux"
@@ -61,19 +59,6 @@ func findDashboardTab(cfg *cachedConfig, dashboardInput string, tabInput string)
 	}
 
 	return dashboardName, tabName, "", fmt.Errorf("Test group not found")
-}
-
-// GroupGrid fetch tab group name grid info (columns, rows, ..etc)
-func (s Server) GroupGrid(ctx context.Context, configPath *gcs.Path, groupName string) (*statepb.Grid, error) {
-	groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(s.TabPathPrefix, groupName)})
-	if err != nil {
-		return nil, fmt.Errorf("resolve: %v", err)
-	}
-	grid, _, err := gcs.DownloadGrid(ctx, s.Client, *groupPath)
-	if err != nil {
-		return nil, fmt.Errorf("load: %w", err)
-	}
-	return grid, err
 }
 
 // Grid fetch tab and grid info (columns, rows, ..etc)

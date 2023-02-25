@@ -38,7 +38,7 @@ import (
 var (
 	serverDefaultBucket     = "gs://default"
 	serverSummaryPathPrefix = "summary"
-	serverTabPathPrefix     = ""
+	serverTabPathPrefix     = "tabs"
 )
 
 func setupTestServer(t *testing.T, configurations map[string]*pb.Configuration, grids map[string]*statepb.Grid, summaries map[string]*summarypb.DashboardSummary) Server {
