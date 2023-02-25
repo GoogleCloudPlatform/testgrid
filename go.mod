@@ -1,7 +1,7 @@
 module github.com/GoogleCloudPlatform/testgrid
 
 require (
-	bitbucket.org/creachadair/stringset v0.0.9
+	bitbucket.org/creachadair/stringset v0.0.11
 	cloud.google.com/go/pubsub v1.22.2
 	cloud.google.com/go/storage v1.22.1
 	github.com/client9/misspell v0.3.4
