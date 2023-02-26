@@ -163,9 +163,9 @@ func main() {
 	})
 	log.Info("Configured concurrency")
 
-	groupUpdater := updater.GCS(ctx, client, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, opt.enableIgnoreSkip)
-
 	mets := updater.CreateMetrics(prometheus.NewFactory())
+
+	groupUpdater := updater.GCS(ctx, client, mets, opt.groupTimeout, opt.buildTimeout, opt.buildConcurrency, opt.confirm, opt.enableIgnoreSkip)
 
 	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(opt.creds))
 	if err != nil {
