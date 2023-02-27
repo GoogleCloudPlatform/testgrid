@@ -124,7 +124,7 @@ func TestListHeaders(t *testing.T) {
 				},
 			},
 			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {},
+				"gs://default/tabs/Dashboard1/tab%201": {},
 			},
 			req: &apipb.ListHeadersRequest{
 				Dashboard: "Dashboard1",
@@ -150,7 +150,7 @@ func TestListHeaders(t *testing.T) {
 				},
 			},
 			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {
+				"gs://default/tabs/Dashboard1/tab%201": {
 					Columns: []*statepb.Column{
 						{
 							Build:   "99",
@@ -204,7 +204,7 @@ func TestListHeaders(t *testing.T) {
 				},
 			},
 			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {
+				"gs://default/tabs/Dashboard1/tab%201": {
 					Columns: []*statepb.Column{
 						{
 							Build:   "99",
@@ -330,7 +330,7 @@ func TestListRows(t *testing.T) {
 				},
 			},
 			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {},
+				"gs://default/tabs/Dashboard1/tab%201": {},
 			},
 			req: &apipb.ListRowsRequest{
 				Scope:     "gs://default",
@@ -357,7 +357,7 @@ func TestListRows(t *testing.T) {
 				},
 			},
 			grid: map[string]*statepb.Grid{
-				"gs://default/grid/testgroupname": {
+				"gs://default/tabs/Dashboard1/tab%201": {
 					Rows: []*statepb.Row{
 						{
 							Name:     "tabrow1",

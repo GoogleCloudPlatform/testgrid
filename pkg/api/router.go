@@ -37,7 +37,6 @@ import (
 type RouterOptions struct {
 	GcsCredentials           string
 	HomeBucket               string
-	GridPathPrefix           string
 	TabPathPrefix            string
 	SummaryPathPrefix        string
 	AccessControlAllowOrigin string
@@ -85,7 +84,6 @@ func GetServer(options RouterOptions, storageClient *storage.Client) (*v1.Server
 	return &v1.Server{
 		Client:                   gcs.NewClient(storageClient),
 		DefaultBucket:            options.HomeBucket,
-		GridPathPrefix:           options.GridPathPrefix,
 		TabPathPrefix:            options.TabPathPrefix,
 		SummaryPathPrefix:        options.SummaryPathPrefix,
 		AccessControlAllowOrigin: options.AccessControlAllowOrigin,

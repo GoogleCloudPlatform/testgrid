@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"net/url"
-	"path"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/gorilla/mux"
@@ -63,27 +61,11 @@ func findDashboardTab(cfg *cachedConfig, dashboardInput string, tabInput string)
 	return dashboardName, tabName, "", fmt.Errorf("Test group not found")
 }
 
-// GroupGrid fetch tab group name grid info (columns, rows, ..etc)
-func (s Server) GroupGrid(ctx context.Context, configPath *gcs.Path, groupName string) (*statepb.Grid, error) {
-	groupPath, err := configPath.ResolveReference(&url.URL{Path: path.Join(s.GridPathPrefix, groupName)})
-	if err != nil {
-		return nil, fmt.Errorf("resolve: %v", err)
-	}
-	grid, _, err := gcs.DownloadGrid(ctx, s.Client, *groupPath)
-	if err != nil {
-		return nil, fmt.Errorf("load: %w", err)
-	}
-	return grid, err
-}
-
 // Grid fetch tab and grid info (columns, rows, ..etc)
 func (s Server) Grid(ctx context.Context, scope string, dashboardName, tabName, testGroupNanme string) (*statepb.Grid, error) {
 	configPath, _, err := s.configPath(scope)
 	if err != nil {
 		return nil, err
-	}
-	if s.TabPathPrefix == "" { // TODO(chases2): Delete; all APIs should be configured to use Tabulator now
-		return s.GroupGrid(ctx, configPath, testGroupNanme)
 	}
 	path, err := tabulator.TabStatePath(*configPath, s.TabPathPrefix, dashboardName, tabName)
 	if err != nil {

@@ -43,7 +43,6 @@ func gatherOptions() (options, error) {
 	flag.StringVar(&o.httpPort, "http-port", "8080", "Port to deploy REST server to")
 	flag.StringVar(&o.grpcPort, "grpc-port", "50051", "Port to deploy gRPC server to")
 	flag.StringVar(&o.router.AccessControlAllowOrigin, "allowed-origin", "", "Allowed 'Access-Control-Allow-Origin' for HTTP calls, if any")
-	flag.StringVar(&o.router.GridPathPrefix, "grid", "grid", "Read grid states under this GCS path.")
 	flag.StringVar(&o.router.TabPathPrefix, "tab", "tabs", "Read tab states under this path")
 	flag.StringVar(&o.router.SummaryPathPrefix, "summary", "summary", "Read summaries under this path.")
 	flag.DurationVar(&o.router.Timeout, "timeout", 10*time.Minute, "Maximum time allocated to complete one request")

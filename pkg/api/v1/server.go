@@ -29,7 +29,6 @@ import (
 type Server struct {
 	Client                   gcs.ConditionalClient
 	DefaultBucket            string
-	GridPathPrefix           string
 	TabPathPrefix            string
 	SummaryPathPrefix        string
 	AccessControlAllowOrigin string
