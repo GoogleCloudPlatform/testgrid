@@ -601,6 +601,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	}
 
 	stop := time.Now().Add(-dur)
+	log = log.WithField("stop", stop)
 
 	var oldCols []InflatedColumn
 	var issues map[string][]string
