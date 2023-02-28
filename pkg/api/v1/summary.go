@@ -22,7 +22,7 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
@@ -131,10 +131,9 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 // ListTabSummariesHTTP returns the list of tab summaries as a json.
 // Response json: ListTabSummariesResponse
 func (s Server) ListTabSummariesHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
 	req := apipb.ListTabSummariesRequest{
 		Scope:     r.URL.Query().Get(scopeParam),
-		Dashboard: vars["dashboard"],
+		Dashboard: chi.URLParam(r, "dashboard"),
 	}
 	resp, err := s.ListTabSummaries(r.Context(), &req)
 	if err != nil {
@@ -197,11 +196,10 @@ func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequ
 // GetTabSummaryHTTP returns the tab summary as a json.
 // Response json: GetTabSummaryResponse
 func (s Server) GetTabSummaryHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
 	req := apipb.GetTabSummaryRequest{
 		Scope:     r.URL.Query().Get(scopeParam),
-		Dashboard: vars["dashboard"],
-		Tab:       vars["tab"],
+		Dashboard: chi.URLParam(r, "dashboard"),
+		Tab:       chi.URLParam(r, "tab"),
 	}
 	resp, err := s.GetTabSummary(r.Context(), &req)
 	if err != nil {

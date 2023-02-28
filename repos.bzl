@@ -244,6 +244,15 @@ def go_repositories():
         version = "v1.0.0",
     )
     go_repository(
+        name = "com_github_go_chi_chi",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/go-chi/chi",
+        sum = "h1:QHdzF2szwjqVV4wmByUnTcsbIg7UGaQ0tPF2t5GcAIs=",
+        version = "v1.5.4",
+    )
+
+    go_repository(
         name = "com_github_go_gl_glfw",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -476,14 +485,6 @@ def go_repositories():
         version = "v1.0.0",
     )
 
-    go_repository(
-        name = "com_github_gorilla_mux",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/gorilla/mux",
-        sum = "h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=",
-        version = "v1.8.0",
-    )
     go_repository(
         name = "com_github_grpc_ecosystem_grpc_gateway",
         build_file_generation = "on",
