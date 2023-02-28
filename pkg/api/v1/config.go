@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi"
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
@@ -113,11 +113,9 @@ func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardG
 // GetDashboardGroupHTTP returns a given dashboard group
 // Response json: GetDashboardGroupResponse
 func (s Server) GetDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
 	req := apipb.GetDashboardGroupRequest{
 		Scope:          r.URL.Query().Get(scopeParam),
-		DashboardGroup: vars["dashboard-group"],
+		DashboardGroup: chi.URLParam(r, "dashboard-group"),
 	}
 	resp, err := s.GetDashboardGroup(r.Context(), &req)
 	if err != nil {
@@ -195,11 +193,9 @@ func (s *Server) GetDashboard(ctx context.Context, req *apipb.GetDashboardReques
 // GetDashboardHTTP returns a given dashboard
 // Response json: GetDashboardResponse
 func (s Server) GetDashboardHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
 	req := apipb.GetDashboardRequest{
 		Scope:     r.URL.Query().Get(scopeParam),
-		Dashboard: vars["dashboard"],
+		Dashboard: chi.URLParam(r, "dashboard"),
 	}
 	resp, err := s.GetDashboard(r.Context(), &req)
 	if err != nil {
@@ -242,10 +238,9 @@ func (s *Server) ListDashboardTabs(ctx context.Context, req *apipb.ListDashboard
 // ListDashboardTabsHTTP returns a given dashboard tabs
 // Response json: ListDashboardTabsResponse
 func (s Server) ListDashboardTabsHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
 	req := apipb.ListDashboardTabsRequest{
 		Scope:     r.URL.Query().Get(scopeParam),
-		Dashboard: vars["dashboard"],
+		Dashboard: chi.URLParam(r, "dashboard"),
 	}
 
 	resp, err := s.ListDashboardTabs(r.Context(), &req)

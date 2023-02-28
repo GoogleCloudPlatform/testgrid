@@ -23,8 +23,8 @@ import (
 	"math"
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
@@ -140,11 +140,10 @@ func (s *Server) ListHeaders(ctx context.Context, req *apipb.ListHeadersRequest)
 // ListHeadersHTTP returns dashboard tab headers
 // Response json: ListHeadersResponse
 func (s Server) ListHeadersHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
 	req := apipb.ListHeadersRequest{
 		Scope:     r.URL.Query().Get(scopeParam),
-		Dashboard: vars["dashboard"],
-		Tab:       vars["tab"],
+		Dashboard: chi.URLParam(r, "dashboard"),
+		Tab:       chi.URLParam(r, "tab"),
 	}
 	resp, err := s.ListHeaders(r.Context(), &req)
 	if err != nil {
@@ -211,11 +210,10 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 // ListRowsHTTP returns dashboard tab rows
 // Response json: ListRowsResponse
 func (s Server) ListRowsHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
 	req := apipb.ListRowsRequest{
 		Scope:     r.URL.Query().Get(scopeParam),
-		Dashboard: vars["dashboard"],
-		Tab:       vars["tab"],
+		Dashboard: chi.URLParam(r, "dashboard"),
+		Tab:       chi.URLParam(r, "tab"),
 	}
 	resp, err := s.ListRows(r.Context(), &req)
 	if err != nil {

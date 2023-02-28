@@ -22,7 +22,7 @@ import (
 
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi"
 )
 
 // Server contains the necessary settings and i/o objects needed to serve this api
@@ -41,20 +41,20 @@ var _ apipb.TestGridDataServer = (*Server)(nil)
 
 // Route applies all the v1 API functions provided by the Server to the Router given.
 // If the router is nil, a new one is instantiated.
-func Route(r *mux.Router, s Server) *mux.Router {
+func Route(r *chi.Mux, s Server) *chi.Mux {
 	if r == nil {
-		r = mux.NewRouter()
+		r = chi.NewRouter()
 	}
-	r.HandleFunc("/dashboard-groups", s.ListDashboardGroupHTTP).Methods("GET")
-	r.HandleFunc("/dashboard-groups/{dashboard-group}", s.GetDashboardGroupHTTP).Methods("GET")
-	r.HandleFunc("/dashboards", s.ListDashboardsHTTP).Methods("GET")
-	r.HandleFunc("/dashboards/{dashboard}/tabs", s.ListDashboardTabsHTTP).Methods("GET")
-	r.HandleFunc("/dashboards/{dashboard}", s.GetDashboardHTTP).Methods("GET")
+	r.Get("/dashboard-groups", s.ListDashboardGroupHTTP)
+	r.Get("/dashboard-groups/{dashboard-group}", s.GetDashboardGroupHTTP)
+	r.Get("/dashboards", s.ListDashboardsHTTP)
+	r.Get("/dashboards/{dashboard}/tabs", s.ListDashboardTabsHTTP)
+	r.Get("/dashboards/{dashboard}", s.GetDashboardHTTP)
 
-	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/headers", s.ListHeadersHTTP).Methods("GET")
-	r.HandleFunc("/dashboards/{dashboard}/tabs/{tab}/rows", s.ListRowsHTTP).Methods("GET")
+	r.Get("/dashboards/{dashboard}/tabs/{tab}/headers", s.ListHeadersHTTP)
+	r.Get("/dashboards/{dashboard}/tabs/{tab}/rows", s.ListRowsHTTP)
 
-	r.HandleFunc("/dashboards/{dashboard}/tab-summaries", s.ListTabSummariesHTTP).Methods("GET")
-	r.HandleFunc("/dashboards/{dashboard}/tab-summaries/{tab}", s.GetTabSummaryHTTP).Methods("GET")
+	r.Get("/dashboards/{dashboard}/tab-summaries", s.ListTabSummariesHTTP)
+	r.Get("/dashboards/{dashboard}/tab-summaries/{tab}", s.GetTabSummaryHTTP)
 	return r
 }

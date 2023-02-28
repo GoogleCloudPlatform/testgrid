@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -49,18 +49,17 @@ var healthCheckFile = "pkg/api/README.md" // a relative path
 
 // GetRouters returns an http router and gRPC server that both serve TestGrid's API
 // It also instantiates necessary caching and i/o objects
-func GetRouters(options RouterOptions, storageClient *storage.Client) (*mux.Router, *grpc.Server, error) {
+func GetRouters(options RouterOptions, storageClient *storage.Client) (http.Handler, *grpc.Server, error) {
 	server, err := GetServer(options, storageClient)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	router := mux.NewRouter()
+	router := chi.NewRouter()
 	router.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		http.ServeFile(w, req, healthCheckFile)
 	})
-	sub1 := router.PathPrefix(v1InfixRef).Subrouter()
-	v1.Route(sub1, *server)
+	router.Mount(v1InfixRef, v1.Route(nil, *server))
 
 	grpcOptions := []grpc.ServerOption{}
 	grpcServer := grpc.NewServer(grpcOptions...)
