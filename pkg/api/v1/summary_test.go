@@ -634,7 +634,7 @@ func TestListTabSummariesHTTP(t *testing.T) {
 				if err := protojson.Unmarshal(response.Body.Bytes(), &ts); err != nil {
 					t.Fatalf("Failed to unmarshal json message into a proto message: %v", err)
 				}
-				if diff := cmp.Diff(test.expectedResponse, ts, protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(test.expectedResponse, &ts, protocmp.Transform()); diff != "" {
 					t.Errorf("Obtained unexpected  diff (-want +got):\n%s", diff)
 				}
 			}
