@@ -22,6 +22,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# set USE_GKE_CLOUD_AUTH_PLUGIN to True to fix gcp auth plugin warnings
+export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+
 if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
   echo "Detected GOOGLE_APPLICATION_CREDENTIALS, activating..." >&2
   gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
