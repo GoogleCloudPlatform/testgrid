@@ -168,6 +168,16 @@ message ListTabSummariesRequest {
 
   // Name of the dashboard to fetch tab summaries for.
   string dashboard = 2;
+
+  // Number of top failings tests to fetch.
+  // At most this many failing tests will be returned as part of TabSummary.
+  // Will be displayed in summarized view (failing tests summary).  
+  int32 num_failing_tests = 3;
+
+  // Number of top flaky tests to fetch.
+  // At most this many flaky tests will be returned as part of TabSummary.
+  // Will be displayed in summarized view (healthiness info summary).
+  int32 num_flaky_tests = 4;
 }
 
 message ListTabSummariesResponse {
@@ -212,4 +222,12 @@ message TabSummary {
 
   // The ID for the latest passing build.
   string latest_passing_build = 7;
+
+  // Summarized info on the failing tests.
+  // In this case, any test which raised an alert and did not supress it is considered failing.
+	FailuresSummary failures_summary = 8;
+
+	// Summary of the tests' healthiness.
+	HealthinessSummary healthiness_summary = 9;
+
 }
