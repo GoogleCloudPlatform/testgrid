@@ -190,7 +190,7 @@ message GetTabSummaryRequest{
   // Name of the particular tab to fetch the summary for.
   string tab = 3;
 
-    // Number of top failings tests to fetch.
+  // Number of top failings tests to fetch.
   // At most this many failing tests will be returned as part of TabSummary.
   // Will be displayed in summarized view (failing tests summary).  
   int32 num_failing_tests = 4;
@@ -227,19 +227,19 @@ message TabSummary {
 
   // Summarized info on the failing tests.
   // In this case, any test which raised an alert and did not suppress it is considered failing.
-	FailuresSummary failures_summary = 8;
+  FailuresSummary failures_summary = 8;
 }
 
 // Summarized representation of data from failing test summaries.
 // Will be rendered in failures summary component within tab summary.
 message FailuresSummary {
 
-	// Top failing tests by fail count.
+  // Top failing tests by fail count.
   // Configured via num_failing_tests in the request. 
-	repeated FailingTestInfo top_failing_tests = 1;
+  repeated FailingTestInfo top_failing_tests = 1;
 
-	// Aggregated stats across all failing tests.
-	FailureStats failure_stats = 2;
+  // Aggregated stats across all failing tests.
+  FailureStats failure_stats = 2;
 }
 
 // Subset of data from FailingTestSummary defined in summary.proto.
@@ -262,6 +262,6 @@ message FailingTestInfo {
 message FailureStats {
 
   // Number of failing tests for the tab.
-	int32 num_failing_tests = 1;
+  int32 num_failing_tests = 1;
 }
 
