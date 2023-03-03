@@ -33,7 +33,6 @@ filegroup(
         "//cmd/tabulator:all-srcs",
         "//cmd/updater:all-srcs",
         "//config:all-srcs",
-        "//google.golang.org/protobuf/types/known/wrapperspb:all-srcs",
         "//hack:all-srcs",
         "//images:all-srcs",
         "//internal/result:all-srcs",
