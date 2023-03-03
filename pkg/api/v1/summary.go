@@ -48,7 +48,7 @@ var (
 )
 
 // convertSummary converts the tab summary from storage format (summary.proto) to wire format (data.proto)
-func convertSummary(tabSummary *summarypb.DashboardTabSummary, numFailingTests, numFlakyTests int32) *apipb.TabSummary {
+func convertSummary(tabSummary *summarypb.DashboardTabSummary, numFailingTests int32) *apipb.TabSummary {
 
 	fs := extractFailuresSummary(tabSummary.GetFailingTestSummaries(), numFailingTests)
 	return &apipb.TabSummary{
@@ -73,7 +73,7 @@ func generateTimestamp(ts float64) *timestamp.Timestamp {
 }
 
 // extractFailuresSummary extracts the most important info from summary proto's FailingTestSummaries field.
-// This includes stats as well most failing tests info.
+// This includes stats as well top failing tests info.
 func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFailingTests int32) *apipb.FailuresSummary {
 	if len(failingTests) == 0 {
 		return nil
@@ -89,6 +89,7 @@ func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFai
 	var topTests []*apipb.FailingTestInfo
 	for i := 0; i < topN; i++ {
 		s := failingTests[i]
+
 		fti := &apipb.FailingTestInfo{
 			DisplayName:   s.DisplayName,
 			FailCount:     s.FailCount,
@@ -159,7 +160,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
-		ts := convertSummary(tabSummary, req.GetNumFailingTests(), req.GetNumFlakyTests())
+		ts := convertSummary(tabSummary, req.GetNumFailingTests())
 		resp.TabSummaries = append(resp.TabSummaries, ts)
 	}
 	return &resp, nil
@@ -222,7 +223,7 @@ func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequ
 	var resp apipb.GetTabSummaryResponse
 	for _, tabSummary := range summary.GetTabSummaries() {
 		if tabSummary.DashboardTabName == tabName {
-			resp.TabSummary = convertSummary(tabSummary, req.GetNumFailingTests(), req.GetNumFlakyTests())
+			resp.TabSummary = convertSummary(tabSummary, req.GetNumFailingTests())
 			return &resp, nil
 		}
 	}
