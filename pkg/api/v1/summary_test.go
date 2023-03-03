@@ -72,7 +72,6 @@ func TestListTabSummaries(t *testing.T) {
 			},
 			expectError: true,
 		},
-
 		{
 			name: "Returns correct tab summaries for a dashboard, >0 failing tests requested",
 			config: map[string]*configpb.Configuration{
@@ -224,6 +223,126 @@ func TestListTabSummaries(t *testing.T) {
 										Seconds: int64(914176800),
 									},
 								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Returns correct tab summaries for a dashboard, no failing tests requested",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+								{
+									Name:          "polo-2",
+									TestGroupName: "tiramisu",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800.916166782),
+							LastRunTimestamp:    float64(915166800.916166782),
+							FailingTestSummaries: []*summarypb.FailingTestSummary{
+								{
+									DisplayName:   "failure-1",
+									FailCount:     3,
+									PassTimestamp: float64(914166800.33),
+									FailTimestamp: float64(914166852.33),
+								},
+								{
+									DisplayName:   "top-failure-1",
+									FailCount:     322,
+									PassTimestamp: float64(1677883461.2543),
+									FailTimestamp: float64(1677883441),
+								},
+								{
+									DisplayName:   "top-failure-2",
+									FailCount:     128,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+							},
+						},
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-2",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
+							LatestGreen:         "Lantern",
+							LastUpdateTimestamp: float64(0.1),
+							LastRunTimestamp:    float64(0.1),
+							FailingTestSummaries: []*summarypb.FailingTestSummary{
+								{
+									DisplayName:   "top-failure-1",
+									FailCount:     33,
+									PassTimestamp: float64(914166800.213),
+									FailTimestamp: float64(914176800),
+								},
+							},
+						},
+					},
+				},
+			},
+			req: &apipb.ListTabSummariesRequest{
+				Dashboard:       "marco",
+				NumFailingTests: 0,
+			},
+			want: &apipb.ListTabSummariesResponse{
+				TabSummaries: []*apipb.TabSummary{
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-1",
+						DetailedStatusMessage: "1/7 tests are passing!",
+						OverallStatus:         "FLAKY",
+						LatestPassingBuild:    "Hulk",
+						LastRunTimestamp: &timestamp.Timestamp{
+							Seconds: 915166800,
+							Nanos:   916166782,
+						},
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Seconds: 915166800,
+							Nanos:   916166782,
+						},
+						FailuresSummary: &apipb.FailuresSummary{
+							FailureStats: &apipb.FailureStats{
+								NumFailingTests: 3,
+							},
+						},
+					},
+					{
+						DashboardName:         "Marco",
+						TabName:               "polo-2",
+						DetailedStatusMessage: "1/7 tests are passing!",
+						OverallStatus:         "ACCEPTABLE",
+						LatestPassingBuild:    "Lantern",
+						LastRunTimestamp: &timestamp.Timestamp{
+							Nanos: 100000000,
+						},
+						LastUpdateTimestamp: &timestamp.Timestamp{
+							Nanos: 100000000,
+						},
+						FailuresSummary: &apipb.FailuresSummary{
+							FailureStats: &apipb.FailureStats{
+								NumFailingTests: 1,
 							},
 						},
 					},
