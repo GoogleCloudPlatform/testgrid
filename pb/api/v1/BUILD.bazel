@@ -23,7 +23,6 @@ go_proto_library(
     deps = [
         "//pb/config:go_default_library",
         "//pb/state:go_default_library",
-        "//pb/summary:go_default_library",
     ],
 )
 

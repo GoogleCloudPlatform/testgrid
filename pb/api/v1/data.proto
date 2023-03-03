@@ -7,7 +7,6 @@ option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/api/v1";
 import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 import "pb/state/state.proto";
-import "pb/summary/summary.proto";
 
 service TestGridData {
   // GET /dashboards
@@ -239,9 +238,6 @@ message TabSummary {
   // Summarized info on the failing tests.
   // In this case, any test which raised an alert and did not suppress it is considered failing.
 	FailuresSummary failures_summary = 8;
-
-	// Summarized info on the tests' healthiness.
-	HealthinessSummary healthiness_summary = 9;
 }
 
 // Summarized representation of data from failing test summaries.
@@ -277,51 +273,5 @@ message FailureStats {
 
   // Number of failing tests for the tab.
 	int32 num_failing_tests = 1;
-}
-
-// Summarized representation of data from healthiness info.
-// Will be rendered in healthiness summary component within tab summary.
-message HealthinessSummary {
-
-  // Top flaky tests by current flakiness.
-  // Configured via num_flaky_tests in the request. 
-	repeated FlakyTestInfo top_flaky_tests = 1;
-
-  // Aggregated healthiness stats across all tests.
-	HealthinessStats healthiness_stats = 2;
-}
-
-// Subset of data from TestInfo defined in summary.proto.
-message FlakyTestInfo {
-
-  // Name of the flaky test.
-	string display_name = 1;
-
-  // Test's current flakiness, %s measured out of 100.
-	float flakiness = 2;
-
-  // The change of flakiness based on the last interval's flakiness
-  testgrid.summary.TestInfo.Trend trend_change = 3;
-}
-
-// Aggregate healthiness stats across all tests.
-message HealthinessStats {
-
-  // The start of the time frame that the analysis was run for.
-  google.protobuf.Timestamp start = 1;
-
-  // The end of the time frame that the analysis was run for.
-  google.protobuf.Timestamp end = 2;
-
-  // Number of flaky tests.
-  int32 num_flaky_tests = 3;
-
-  // Current average flakiness across all tests.
-  // Measured in % out of 100.
-  float average_flakiness = 4;
-
-  // Previous average flakiness across all tests.
-  // Measured in % out of 100.
-  float previous_flakiness = 5;
 }
 
