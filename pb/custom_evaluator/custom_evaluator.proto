@@ -52,6 +52,12 @@ message TestResultComparison {
     //
     // NOTE: Only supported for string and numerical values
     string test_result_error_field = 4;
+
+    // This will find the scalar field with the given name within the TargetResult
+    // proto. The value of that field will be used to evaluate.
+    //
+    // NOTE: Only supported for TestStatus values.
+    string target_result_field = 5;
   }
 }
 
@@ -104,5 +110,8 @@ message Comparison {
 
     // For operations EQ, NE, LT, LE, GT, GE
     double numerical_value = 3;
+
+    // For operations EQ
+    testgrid.test_status.TestStatus target_status_value = 4;
   }
 }

@@ -371,3 +371,93 @@ func TestCustomStatus(t *testing.T) {
 		})
 	}
 }
+
+
+type fakeTargetResult struct {
+	targetStatus tspb.TestStatus
+}
+
+func (r fakeTargetResult) TargetStatus() tspb.TestStatus {
+	return r.targetStatus;
+}
+
+func makeTargetResult(status tspb.TestStatus) *fakeTargetResult {
+	return &fakeTargetResult{
+		targetStatus: status,
+	}
+}
+
+func TestCustomTargetStatus(t *testing.T) {
+	abort := tspb.TestStatus_CATEGORIZED_ABORT
+	cases := []struct {
+		name  string
+		rules []*evalpb.Rule
+		tgr    TargetResult
+		want  *tspb.TestStatus
+	}{
+		{
+			name: "empty",
+		},
+		{
+			name: "target status equal",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_CATEGORIZED_ABORT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_TargetResultField{
+								TargetResultField: "target_status",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_EQ,
+								ComparisonValue: &evalpb.Comparison_TargetStatusValue{
+									TargetStatusValue: tspb.TestStatus_TOOL_FAIL,
+								},
+							},
+						},
+					},
+				},
+			},
+			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+			want: &abort,
+		},
+		{
+			name: "target status not equal",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_TIMED_OUT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_TargetResultField{
+								TargetResultField: "target_status",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_EQ,
+								ComparisonValue: &evalpb.Comparison_TargetStatusValue{
+									TargetStatusValue: tspb.TestStatus_CATEGORIZED_ABORT,
+								},
+							},
+						},
+					},
+				},
+			},
+			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := CustomTargetStatus(tc.rules, tc.tgr)
+			switch {
+			case got == nil:
+				if tc.want != nil {
+					t.Errorf("CustomTargetStatus() got nil, want %v", tc.want)
+				}
+			case tc.want == nil:
+				t.Errorf("CustomTargetStatus() should be nil, not %v", got)
+			case *tc.want != *got:
+				t.Errorf("CustomTargetStatus() got %v, want %v", *got, *tc.want)
+			}
+		})
+	}
+}

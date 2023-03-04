@@ -69,6 +69,10 @@ func numNE(a, b float64) bool {
 	return a != b
 }
 
+func targetStatusEQ(a, b tspb.TestStatus) bool {
+	return a == b
+}
+
 // TestResult defines the interface for accessing data about the result.
 type TestResult interface {
 	// Properties for the test result.
@@ -83,6 +87,11 @@ type TestResult interface {
 	Exceptions() []string
 }
 
+// TargetResult defines the interface for accessing data about the target/suite result.
+type TargetResult interface {
+	TargetStatus() tspb.TestStatus
+}
+
 // CustomStatus evaluates the result according to the rules.
 //
 // Returns nil if no rule matches, otherwise returns the overridden status.
@@ -94,6 +103,19 @@ func CustomStatus(rules []*evalpb.Rule, testResult TestResult) *tspb.TestStatus 
 	}
 	return nil
 }
+
+// CustomTargetStatus evaluates the result according to the rules.
+//
+// Returns nil if no rule matches, otherwise returns the overridden status.
+func CustomTargetStatus(rules []*evalpb.Rule, targetResult TargetResult) *tspb.TestStatus {
+	for _, rule := range rules {
+		if got := evalTargetProperties(rule, targetResult); got != nil {
+			return got
+		}
+	}
+	return nil
+}
+
 
 type jUnitTestResult struct {
 	Result *junit.Result
@@ -222,6 +244,40 @@ func evalProperties(rule *evalpb.Rule, testResult TestResult) *tspb.TestStatus {
 			}
 			if !good {
 				return nil
+			}
+		} else {
+			return nil
+		}
+
+	}
+	want := rule.GetComputedStatus()
+	return &want
+}
+
+func evalTargetProperties(rule *evalpb.Rule, targetResult TargetResult) *tspb.TestStatus {
+	for _, cmp := range rule.TestResultComparisons {
+		if cmp.Comparison == nil {
+			return nil
+		}
+		var stscmp func(tspb.TestStatus, tspb.TestStatus) bool
+		stsval := cmp.Comparison.GetTargetStatusValue()
+		switch cmp.Comparison.Op {
+		case evalpb.Comparison_OP_EQ:
+			stscmp = targetStatusEQ
+		}
+		if f := cmp.GetTargetResultField(); f != "" {
+			var getSts func() tspb.TestStatus
+			switch f {
+			case "target_status":
+				getSts = targetResult.TargetStatus
+			default:
+				return nil
+			}
+			switch {
+			case getSts != nil:
+				if !stscmp(getSts(), stsval) {
+					return nil
+				}
 			}
 		} else {
 			return nil
