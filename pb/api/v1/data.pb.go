@@ -1186,7 +1186,6 @@ type FailuresSummary struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Top failing tests by fail count.
-	// Configured via num_failing_tests in the request.
 	TopFailingTests []*FailingTestInfo `protobuf:"bytes,1,rep,name=top_failing_tests,json=topFailingTests,proto3" json:"top_failing_tests,omitempty"`
 	// Aggregated stats across all failing tests.
 	FailureStats *FailureStats `protobuf:"bytes,2,opt,name=failure_stats,json=failureStats,proto3" json:"failure_stats,omitempty"`

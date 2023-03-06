@@ -225,7 +225,6 @@ message TabSummary {
 message FailuresSummary {
 
   // Top failing tests by fail count.
-  // Configured via num_failing_tests in the request. 
   repeated FailingTestInfo top_failing_tests = 1;
 
   // Aggregated stats across all failing tests.
