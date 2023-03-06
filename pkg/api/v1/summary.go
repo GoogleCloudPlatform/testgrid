@@ -34,6 +34,11 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
 )
 
+// TODO(sultan-duisenbay) - consider setting these as API module flags in main.go
+const (
+	numSummaryFailingTests = 5
+)
+
 var (
 	// These should be in line with the TabStatus enum in state.proto.
 	tabStatusStr = map[summarypb.DashboardTabSummary_TabStatus]string{
@@ -74,6 +79,7 @@ func generateTimestamp(ts float64) *timestamp.Timestamp {
 
 // extractFailuresSummary extracts the most important info from summary proto's FailingTestSummaries field.
 // This includes stats as well top failing tests info.
+// Top failing tests # is determined by numSummaryFailingTests above.
 func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFailingTests int32) *apipb.FailuresSummary {
 	if len(failingTests) == 0 {
 		return nil
@@ -160,7 +166,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
-		ts := convertSummary(tabSummary, req.GetNumFailingTests())
+		ts := convertSummary(tabSummary, numSummaryFailingTests)
 		resp.TabSummaries = append(resp.TabSummaries, ts)
 	}
 	return &resp, nil
@@ -223,7 +229,7 @@ func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequ
 	var resp apipb.GetTabSummaryResponse
 	for _, tabSummary := range summary.GetTabSummaries() {
 		if tabSummary.DashboardTabName == tabName {
-			resp.TabSummary = convertSummary(tabSummary, req.GetNumFailingTests())
+			resp.TabSummary = convertSummary(tabSummary, numSummaryFailingTests)
 			return &resp, nil
 		}
 	}
