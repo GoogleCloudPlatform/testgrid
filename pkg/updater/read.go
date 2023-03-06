@@ -186,8 +186,11 @@ func readColumns(ctx context.Context, client gcs.Downloader, log logrus.FieldLog
 				}
 				when := started + 0.01*float64(failures)
 				var ancientErr *ancientError
+				var noStartErr *noStartError
 				if errors.As(err, &ancientErr) {
-					col = ancientColumn(id, when, extra, err.Error())
+					col = ancientColumn(id, when, extra, ancientErr.Error())
+				} else if errors.As(err, &noStartErr) {
+					col = noStartColumn(id, when, extra, noStartErr.Error())
 				} else {
 					msg := fmt.Sprintf("Failed to download %s: %s", b, err.Error())
 					col = erroredColumn(id, when, extra, msg)
@@ -244,6 +247,23 @@ func ancientColumn(id string, when float64, extra []string, msg string) Inflated
 			overallRow: {
 				Message: msg,
 				Result:  statuspb.TestStatus_UNKNOWN,
+			},
+		},
+	}
+}
+
+func noStartColumn(id string, when float64, extra []string, msg string) InflatedColumn {
+	return InflatedColumn{
+		Column: &statepb.Column{
+			Build:   id,
+			Hint:    id,
+			Started: when,
+			Extra:   extra,
+		},
+		Cells: map[string]Cell{
+			overallRow: {
+				Message: msg,
+				Result:  statuspb.TestStatus_RUNNING,
 			},
 		},
 	}
@@ -384,6 +404,12 @@ func (e *ancientError) Error() string {
 	return e.msg
 }
 
+type noStartError struct{}
+
+func (e *noStartError) Error() string {
+	return "Start timestamp for this job is 0."
+}
+
 // readResult will download all GCS artifacts in parallel.
 //
 // Specifically download the following files:
@@ -439,6 +465,9 @@ func readResult(parent context.Context, client gcs.Downloader, build gcs.Build, 
 			err = fmt.Errorf("started: %w", err)
 		case time.Unix(s.Timestamp, 0).Before(stop):
 			err = &ancientError{fmt.Sprintf("build too old; started %v before %v)", s.Timestamp, stop.Unix())}
+			if s.Timestamp == 0 {
+				err = &noStartError{}
+			}
 		default:
 			result.started = *s
 		}
