@@ -168,11 +168,6 @@ message ListTabSummariesRequest {
 
   // Name of the dashboard to fetch tab summaries for.
   string dashboard = 2;
-
-  // Number of top failings tests to fetch.
-  // At most this many failing tests will be returned as part of TabSummary.
-  // Will be displayed in summarized view (failing tests summary).  
-  int32 num_failing_tests = 3;
 }
 
 message ListTabSummariesResponse {
@@ -189,11 +184,6 @@ message GetTabSummaryRequest{
 
   // Name of the particular tab to fetch the summary for.
   string tab = 3;
-
-  // Number of top failings tests to fetch.
-  // At most this many failing tests will be returned as part of TabSummary.
-  // Will be displayed in summarized view (failing tests summary).  
-  int32 num_failing_tests = 4;
 }
 
 message GetTabSummaryResponse{

@@ -73,7 +73,7 @@ func TestListTabSummaries(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "Returns correct tab summaries for a dashboard, >0 failing tests requested",
+			name: "Returns correct tab summaries for a dashboard, with failing tests",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -106,7 +106,7 @@ func TestListTabSummaries(t *testing.T) {
 							LastRunTimestamp:    float64(915166800.916166782),
 							FailingTestSummaries: []*summarypb.FailingTestSummary{
 								{
-									DisplayName:   "failure-1",
+									DisplayName:   "top-failure-3",
 									FailCount:     3,
 									PassTimestamp: float64(914166800.33),
 									FailTimestamp: float64(914166852.33),
@@ -120,6 +120,24 @@ func TestListTabSummaries(t *testing.T) {
 								{
 									DisplayName:   "top-failure-2",
 									FailCount:     128,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+								{
+									DisplayName:   "top-failure-4",
+									FailCount:     64,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+								{
+									DisplayName:   "top-failure-5",
+									FailCount:     32,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+								{
+									DisplayName:   "not-top-failure-1",
+									FailCount:     2,
 									PassTimestamp: float64(1677983461.354),
 									FailTimestamp: float64(1677983561),
 								},
@@ -146,8 +164,7 @@ func TestListTabSummaries(t *testing.T) {
 				},
 			},
 			req: &apipb.ListTabSummariesRequest{
-				Dashboard:       "marco",
-				NumFailingTests: 2,
+				Dashboard: "marco",
 			},
 			want: &apipb.ListTabSummariesResponse{
 				TabSummaries: []*apipb.TabSummary{
@@ -167,7 +184,7 @@ func TestListTabSummaries(t *testing.T) {
 						},
 						FailuresSummary: &apipb.FailuresSummary{
 							FailureStats: &apipb.FailureStats{
-								NumFailingTests: 3,
+								NumFailingTests: 6,
 							},
 							TopFailingTests: []*apipb.FailingTestInfo{
 								{
@@ -190,6 +207,40 @@ func TestListTabSummaries(t *testing.T) {
 									},
 									FailTimestamp: &timestamp.Timestamp{
 										Seconds: int64(1677983561),
+									},
+								},
+								{
+									DisplayName: "top-failure-4",
+									FailCount:   64,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983461),
+										Nanos:   int32(354000091),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983561),
+									},
+								},
+								{
+									DisplayName: "top-failure-5",
+									FailCount:   32,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983461),
+										Nanos:   int32(354000091),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983561),
+									},
+								},
+								{
+									DisplayName: "top-failure-3",
+									FailCount:   3,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(914166800),
+										Nanos:   int32(330000042),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(914166852),
+										Nanos:   int32(330000042),
 									},
 								},
 							},
@@ -230,7 +281,7 @@ func TestListTabSummaries(t *testing.T) {
 			},
 		},
 		{
-			name: "Returns correct tab summaries for a dashboard, no failing tests requested",
+			name: "Returns correct tab summaries for a dashboard, without failing tests",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -261,26 +312,6 @@ func TestListTabSummaries(t *testing.T) {
 							LatestGreen:         "Hulk",
 							LastUpdateTimestamp: float64(915166800.916166782),
 							LastRunTimestamp:    float64(915166800.916166782),
-							FailingTestSummaries: []*summarypb.FailingTestSummary{
-								{
-									DisplayName:   "failure-1",
-									FailCount:     3,
-									PassTimestamp: float64(914166800.33),
-									FailTimestamp: float64(914166852.33),
-								},
-								{
-									DisplayName:   "top-failure-1",
-									FailCount:     322,
-									PassTimestamp: float64(1677883461.2543),
-									FailTimestamp: float64(1677883441),
-								},
-								{
-									DisplayName:   "top-failure-2",
-									FailCount:     128,
-									PassTimestamp: float64(1677983461.354),
-									FailTimestamp: float64(1677983561),
-								},
-							},
 						},
 						{
 							DashboardName:       "Marco",
@@ -290,21 +321,12 @@ func TestListTabSummaries(t *testing.T) {
 							LatestGreen:         "Lantern",
 							LastUpdateTimestamp: float64(0.1),
 							LastRunTimestamp:    float64(0.1),
-							FailingTestSummaries: []*summarypb.FailingTestSummary{
-								{
-									DisplayName:   "top-failure-1",
-									FailCount:     33,
-									PassTimestamp: float64(914166800.213),
-									FailTimestamp: float64(914176800),
-								},
-							},
 						},
 					},
 				},
 			},
 			req: &apipb.ListTabSummariesRequest{
-				Dashboard:       "marco",
-				NumFailingTests: 0,
+				Dashboard: "marco",
 			},
 			want: &apipb.ListTabSummariesResponse{
 				TabSummaries: []*apipb.TabSummary{
@@ -322,11 +344,6 @@ func TestListTabSummaries(t *testing.T) {
 							Seconds: 915166800,
 							Nanos:   916166782,
 						},
-						FailuresSummary: &apipb.FailuresSummary{
-							FailureStats: &apipb.FailureStats{
-								NumFailingTests: 3,
-							},
-						},
 					},
 					{
 						DashboardName:         "Marco",
@@ -339,11 +356,6 @@ func TestListTabSummaries(t *testing.T) {
 						},
 						LastUpdateTimestamp: &timestamp.Timestamp{
 							Nanos: 100000000,
-						},
-						FailuresSummary: &apipb.FailuresSummary{
-							FailureStats: &apipb.FailureStats{
-								NumFailingTests: 1,
-							},
 						},
 					},
 				},
