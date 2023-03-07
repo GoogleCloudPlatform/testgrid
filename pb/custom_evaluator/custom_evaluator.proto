@@ -53,11 +53,9 @@ message TestResultComparison {
     // NOTE: Only supported for string and numerical values
     string test_result_error_field = 4;
 
-    // This will find the scalar field with the given name within the TargetResult
-    // proto. The value of that field will be used to evaluate.
-    //
-    // NOTE: Only supported for TestStatus values.
-    string target_result_field = 5;
+    // This will enable the target status comparation. The value of the status
+    // will be used to evaluate.
+    bool target_status_field = 5;
   }
 }
 

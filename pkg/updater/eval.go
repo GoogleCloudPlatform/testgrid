@@ -259,30 +259,21 @@ func evalTargetProperties(rule *evalpb.Rule, targetResult TargetResult) *tspb.Te
 		if cmp.Comparison == nil {
 			return nil
 		}
-		var stscmp func(tspb.TestStatus, tspb.TestStatus) bool
-		stsval := cmp.Comparison.GetTargetStatusValue()
-		switch cmp.Comparison.Op {
-		case evalpb.Comparison_OP_EQ:
-			stscmp = targetStatusEQ
+		// Only EQ is supported
+		if cmp.Comparison.Op != evalpb.Comparison_OP_EQ {
+			return nil
 		}
-		if f := cmp.GetTargetResultField(); f != "" {
-			var getSts func() tspb.TestStatus
-			switch f {
-			case "target_status":
-				getSts = targetResult.TargetStatus
-			default:
+		// Only target_status is supported
+		if f := cmp.GetTargetStatusField(); f == true {
+			getSts := targetResult.TargetStatus
+			stscmp := targetStatusEQ
+			stsval := cmp.Comparison.GetTargetStatusValue()
+			if !stscmp(getSts(), stsval) {
 				return nil
-			}
-			switch {
-			case getSts != nil:
-				if !stscmp(getSts(), stsval) {
-					return nil
-				}
 			}
 		} else {
 			return nil
 		}
-
 	}
 	want := rule.GetComputedStatus()
 	return &want

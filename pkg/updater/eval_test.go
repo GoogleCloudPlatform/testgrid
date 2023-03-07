@@ -405,8 +405,8 @@ func TestCustomTargetStatus(t *testing.T) {
 					ComputedStatus: tspb.TestStatus_CATEGORIZED_ABORT,
 					TestResultComparisons: []*evalpb.TestResultComparison{
 						{
-							TestResultInfo: &evalpb.TestResultComparison_TargetResultField{
-								TargetResultField: "target_status",
+							TestResultInfo: &evalpb.TestResultComparison_TargetStatusField{
+								TargetStatusField: true,
 							},
 							Comparison: &evalpb.Comparison{
 								Op: evalpb.Comparison_OP_EQ,
@@ -428,8 +428,8 @@ func TestCustomTargetStatus(t *testing.T) {
 					ComputedStatus: tspb.TestStatus_TIMED_OUT,
 					TestResultComparisons: []*evalpb.TestResultComparison{
 						{
-							TestResultInfo: &evalpb.TestResultComparison_TargetResultField{
-								TargetResultField: "target_status",
+							TestResultInfo: &evalpb.TestResultComparison_TargetStatusField{
+								TargetStatusField: true,
 							},
 							Comparison: &evalpb.Comparison{
 								Op: evalpb.Comparison_OP_EQ,
@@ -442,6 +442,30 @@ func TestCustomTargetStatus(t *testing.T) {
 				},
 			},
 			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+			want: nil,
+		},
+		{
+			name: "target status comparation not enabled",
+			rules: []*evalpb.Rule{
+				{
+					ComputedStatus: tspb.TestStatus_CATEGORIZED_ABORT,
+					TestResultComparisons: []*evalpb.TestResultComparison{
+						{
+							TestResultInfo: &evalpb.TestResultComparison_PropertyKey{
+								PropertyKey: "want",
+							},
+							Comparison: &evalpb.Comparison{
+								Op: evalpb.Comparison_OP_EQ,
+								ComparisonValue: &evalpb.Comparison_TargetStatusValue{
+									TargetStatusValue: tspb.TestStatus_TOOL_FAIL,
+								},
+							},
+						},
+					},
+				},
+			},
+			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+			want: nil,
 		},
 	}
 
