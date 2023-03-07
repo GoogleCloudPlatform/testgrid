@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sort"
 
 	"github.com/go-chi/chi"
 
@@ -32,11 +31,6 @@ import (
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/summarizer"
-)
-
-// TODO(sultan-duisenbay) - consider setting these as API module flags in main.go
-const (
-	numSummaryFailingTests = 5
 )
 
 var (
@@ -53,63 +47,23 @@ var (
 )
 
 // convertSummary converts the tab summary from storage format (summary.proto) to wire format (data.proto)
-func convertSummary(tabSummary *summarypb.DashboardTabSummary, numFailingTests int32) *apipb.TabSummary {
-
-	fs := extractFailuresSummary(tabSummary.GetFailingTestSummaries(), numFailingTests)
+func convertSummary(tabSummary *summarypb.DashboardTabSummary) *apipb.TabSummary {
+	LastRunSeconds, LastRunNanos := math.Modf(tabSummary.LastRunTimestamp)
+	LastUpdateSeconds, LastUpdateNanos := math.Modf(tabSummary.LastUpdateTimestamp)
 	return &apipb.TabSummary{
 		DashboardName:         tabSummary.DashboardName,
 		TabName:               tabSummary.DashboardTabName,
 		OverallStatus:         tabStatusStr[tabSummary.OverallStatus],
 		DetailedStatusMessage: tabSummary.Status,
-		LastRunTimestamp:      generateTimestamp(tabSummary.LastRunTimestamp),
-		LastUpdateTimestamp:   generateTimestamp(tabSummary.LastUpdateTimestamp),
-		LatestPassingBuild:    tabSummary.LatestGreen,
-		FailuresSummary:       fs,
-	}
-}
-
-// generateTimestamp converts the float to a pointer to Timestamp proto struct
-func generateTimestamp(ts float64) *timestamp.Timestamp {
-	sec, nano := math.Modf(ts)
-	return &timestamp.Timestamp{
-		Seconds: int64(sec),
-		Nanos:   int32(nano * 1e9),
-	}
-}
-
-// extractFailuresSummary extracts the most important info from summary proto's FailingTestSummaries field.
-// This includes stats as well top failing tests info.
-// Top failing tests # is determined by numSummaryFailingTests above.
-func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFailingTests int32) *apipb.FailuresSummary {
-	if len(failingTests) == 0 {
-		return nil
-	}
-
-	// fetch top failing tests
-	topN := int(math.Min(float64(numFailingTests), float64(len(failingTests))))
-
-	sort.SliceStable(failingTests, func(i, j int) bool {
-		return failingTests[i].FailCount > failingTests[j].FailCount
-	})
-
-	var topTests []*apipb.FailingTestInfo
-	for i := 0; i < topN; i++ {
-		s := failingTests[i]
-
-		fti := &apipb.FailingTestInfo{
-			DisplayName:   s.DisplayName,
-			FailCount:     s.FailCount,
-			PassTimestamp: generateTimestamp(s.PassTimestamp),
-			FailTimestamp: generateTimestamp(s.FailTimestamp),
-		}
-		topTests = append(topTests, fti)
-	}
-
-	return &apipb.FailuresSummary{
-		FailureStats: &apipb.FailureStats{
-			NumFailingTests: int32(len(failingTests)),
+		LastRunTimestamp: &timestamp.Timestamp{
+			Seconds: int64(LastRunSeconds),
+			Nanos:   int32(LastRunNanos * 1e9),
 		},
-		TopFailingTests: topTests,
+		LastUpdateTimestamp: &timestamp.Timestamp{
+			Seconds: int64(LastUpdateSeconds),
+			Nanos:   int32(LastUpdateNanos * 1e9),
+		},
+		LatestPassingBuild: tabSummary.LatestGreen,
 	}
 }
 
@@ -164,9 +118,10 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 		return nil, fmt.Errorf("summary for dashboard {%q} not found.", dashboardKey)
 	}
 
+	// TODO(sultan-duisenbay): convert the fractional part of timestamp into nanos of timestamppb
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
-		ts := convertSummary(tabSummary, numSummaryFailingTests)
+		ts := convertSummary(tabSummary)
 		resp.TabSummaries = append(resp.TabSummaries, ts)
 	}
 	return &resp, nil
@@ -227,9 +182,10 @@ func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequ
 	}
 
 	var resp apipb.GetTabSummaryResponse
+	// TODO(sultan-duisenbay): convert fractional part of timestamp to nanos of timestamppb
 	for _, tabSummary := range summary.GetTabSummaries() {
 		if tabSummary.DashboardTabName == tabName {
-			resp.TabSummary = convertSummary(tabSummary, numSummaryFailingTests)
+			resp.TabSummary = convertSummary(tabSummary)
 			return &resp, nil
 		}
 	}
