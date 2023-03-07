@@ -372,13 +372,12 @@ func TestCustomStatus(t *testing.T) {
 	}
 }
 
-
 type fakeTargetResult struct {
 	targetStatus tspb.TestStatus
 }
 
 func (r fakeTargetResult) TargetStatus() tspb.TestStatus {
-	return r.targetStatus;
+	return r.targetStatus
 }
 
 func makeTargetResult(status tspb.TestStatus) *fakeTargetResult {
@@ -392,7 +391,7 @@ func TestCustomTargetStatus(t *testing.T) {
 	cases := []struct {
 		name  string
 		rules []*evalpb.Rule
-		tgr    TargetResult
+		tgr   TargetResult
 		want  *tspb.TestStatus
 	}{
 		{
@@ -418,7 +417,7 @@ func TestCustomTargetStatus(t *testing.T) {
 					},
 				},
 			},
-			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+			tgr:  makeTargetResult(tspb.TestStatus_TOOL_FAIL),
 			want: &abort,
 		},
 		{
@@ -441,7 +440,7 @@ func TestCustomTargetStatus(t *testing.T) {
 					},
 				},
 			},
-			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+			tgr:  makeTargetResult(tspb.TestStatus_TOOL_FAIL),
 			want: nil,
 		},
 		{
@@ -464,7 +463,7 @@ func TestCustomTargetStatus(t *testing.T) {
 					},
 				},
 			},
-			tgr: makeTargetResult(tspb.TestStatus_TOOL_FAIL),
+			tgr:  makeTargetResult(tspb.TestStatus_TOOL_FAIL),
 			want: nil,
 		},
 	}

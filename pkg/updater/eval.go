@@ -116,7 +116,6 @@ func CustomTargetStatus(rules []*evalpb.Rule, targetResult TargetResult) *tspb.T
 	return nil
 }
 
-
 type jUnitTestResult struct {
 	Result *junit.Result
 }
