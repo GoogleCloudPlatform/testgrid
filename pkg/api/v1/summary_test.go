@@ -72,9 +72,8 @@ func TestListTabSummaries(t *testing.T) {
 			},
 			expectError: true,
 		},
-
 		{
-			name: "Returns correct tab summaries for a dashboard",
+			name: "Returns correct tab summaries for a dashboard, with failing tests",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -88,14 +87,6 @@ func TestListTabSummaries(t *testing.T) {
 								{
 									Name:          "polo-2",
 									TestGroupName: "tiramisu",
-								},
-								{
-									Name:          "polo-3",
-									TestGroupName: "donut",
-								},
-								{
-									Name:          "polo-4",
-									TestGroupName: "brownie",
 								},
 							},
 						},
@@ -113,6 +104,44 @@ func TestListTabSummaries(t *testing.T) {
 							LatestGreen:         "Hulk",
 							LastUpdateTimestamp: float64(915166800.916166782),
 							LastRunTimestamp:    float64(915166800.916166782),
+							FailingTestSummaries: []*summarypb.FailingTestSummary{
+								{
+									DisplayName:   "top-failure-3",
+									FailCount:     3,
+									PassTimestamp: float64(914166800.33),
+									FailTimestamp: float64(914166852.33),
+								},
+								{
+									DisplayName:   "top-failure-1",
+									FailCount:     322,
+									PassTimestamp: float64(1677883461.2543),
+									FailTimestamp: float64(1677883441),
+								},
+								{
+									DisplayName:   "top-failure-2",
+									FailCount:     128,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+								{
+									DisplayName:   "top-failure-4",
+									FailCount:     64,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+								{
+									DisplayName:   "top-failure-5",
+									FailCount:     32,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+								{
+									DisplayName:   "not-top-failure-1",
+									FailCount:     2,
+									PassTimestamp: float64(1677983461.354),
+									FailTimestamp: float64(1677983561),
+								},
+							},
 						},
 						{
 							DashboardName:       "Marco",
@@ -122,24 +151,14 @@ func TestListTabSummaries(t *testing.T) {
 							LatestGreen:         "Lantern",
 							LastUpdateTimestamp: float64(0.1),
 							LastRunTimestamp:    float64(0.1),
-						},
-						{
-							DashboardName:       "Marco",
-							DashboardTabName:    "polo-3",
-							Status:              "1/7 tests are passing!",
-							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
-							LatestGreen:         "Hulk",
-							LastUpdateTimestamp: float64(916166800),
-							LastRunTimestamp:    float64(916166800),
-						},
-						{
-							DashboardName:       "Marco",
-							DashboardTabName:    "polo-4",
-							Status:              "1/7 tests are failing!",
-							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
-							LatestGreen:         "Lantern",
-							LastUpdateTimestamp: float64(0.916166782),
-							LastRunTimestamp:    float64(0.916166782),
+							FailingTestSummaries: []*summarypb.FailingTestSummary{
+								{
+									DisplayName:   "top-failure-1",
+									FailCount:     33,
+									PassTimestamp: float64(914166800.213),
+									FailTimestamp: float64(914176800),
+								},
+							},
 						},
 					},
 				},
@@ -163,6 +182,69 @@ func TestListTabSummaries(t *testing.T) {
 							Seconds: 915166800,
 							Nanos:   916166782,
 						},
+						FailuresSummary: &apipb.FailuresSummary{
+							FailureStats: &apipb.FailureStats{
+								NumFailingTests: 6,
+							},
+							TopFailingTests: []*apipb.FailingTestInfo{
+								{
+									DisplayName: "top-failure-1",
+									FailCount:   322,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677883461),
+										Nanos:   int32(254300117),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677883441),
+									},
+								},
+								{
+									DisplayName: "top-failure-2",
+									FailCount:   128,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983461),
+										Nanos:   int32(354000091),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983561),
+									},
+								},
+								{
+									DisplayName: "top-failure-4",
+									FailCount:   64,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983461),
+										Nanos:   int32(354000091),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983561),
+									},
+								},
+								{
+									DisplayName: "top-failure-5",
+									FailCount:   32,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983461),
+										Nanos:   int32(354000091),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(1677983561),
+									},
+								},
+								{
+									DisplayName: "top-failure-3",
+									FailCount:   3,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(914166800),
+										Nanos:   int32(330000042),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(914166852),
+										Nanos:   int32(330000042),
+									},
+								},
+							},
+						},
 					},
 					{
 						DashboardName:         "Marco",
@@ -176,31 +258,236 @@ func TestListTabSummaries(t *testing.T) {
 						LastUpdateTimestamp: &timestamp.Timestamp{
 							Nanos: 100000000,
 						},
+						FailuresSummary: &apipb.FailuresSummary{
+							FailureStats: &apipb.FailureStats{
+								NumFailingTests: 1,
+							},
+							TopFailingTests: []*apipb.FailingTestInfo{
+								{
+									DisplayName: "top-failure-1",
+									FailCount:   33,
+									PassTimestamp: &timestamp.Timestamp{
+										Seconds: int64(914166800),
+										Nanos:   int32(213000059),
+									},
+									FailTimestamp: &timestamp.Timestamp{
+										Seconds: int64(914176800),
+									},
+								},
+							},
+						},
 					},
+				},
+			},
+		},
+		{
+			name: "Returns correct tab summaries for a dashboard, with healthiness info",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+								{
+									Name:          "polo-2",
+									TestGroupName: "tiramisu",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-1",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_FLAKY,
+							LatestGreen:         "Hulk",
+							LastUpdateTimestamp: float64(915166800.916166782),
+							LastRunTimestamp:    float64(915166800.916166782),
+							Healthiness: &summarypb.HealthinessInfo{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(915166800),
+									Nanos:   int32(916166782),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(916166800),
+									Nanos:   int32(916166782),
+								},
+								AverageFlakiness:  float32(35.0),
+								PreviousFlakiness: []float32{44.0},
+								Tests: []*summarypb.TestInfo{
+									{
+										DisplayName:            "top-flaky-1",
+										Flakiness:              float32(47.0),
+										ChangeFromLastInterval: summarypb.TestInfo_DOWN,
+									},
+									{
+										DisplayName:            "top-flaky-2",
+										Flakiness:              float32(67.6),
+										ChangeFromLastInterval: summarypb.TestInfo_UP,
+									},
+									{
+										DisplayName:            "top-flaky-3",
+										Flakiness:              float32(67.6),
+										ChangeFromLastInterval: summarypb.TestInfo_NO_CHANGE,
+									},
+									{
+										DisplayName:            "top-flaky-4",
+										Flakiness:              float32(33.3),
+										ChangeFromLastInterval: summarypb.TestInfo_DOWN,
+									},
+									{
+										DisplayName:            "top-flaky-5",
+										Flakiness:              float32(89.25),
+										ChangeFromLastInterval: summarypb.TestInfo_NO_CHANGE,
+									},
+									{
+										DisplayName:            "not-top-flaky-1",
+										Flakiness:              float32(15.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UP,
+									},
+									{
+										DisplayName:            "not-top-flaky-2",
+										Flakiness:              float32(0.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UNKNOWN,
+									},
+								},
+							},
+						},
+						{
+							DashboardName:       "Marco",
+							DashboardTabName:    "polo-2",
+							Status:              "1/7 tests are passing!",
+							OverallStatus:       summarypb.DashboardTabSummary_ACCEPTABLE,
+							LatestGreen:         "Lantern",
+							LastUpdateTimestamp: float64(0.1),
+							LastRunTimestamp:    float64(0.1),
+							Healthiness: &summarypb.HealthinessInfo{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(946702801),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(946704801),
+								},
+								AverageFlakiness: float32(15.2),
+								Tests: []*summarypb.TestInfo{
+									{
+										DisplayName:            "top-flaky-1",
+										Flakiness:              float32(75.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UP,
+									},
+									{
+										DisplayName:            "not-top-flaky-1",
+										Flakiness:              float32(0.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UNKNOWN,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			req: &apipb.ListTabSummariesRequest{
+				Dashboard: "marco",
+			},
+			want: &apipb.ListTabSummariesResponse{
+				TabSummaries: []*apipb.TabSummary{
 					{
 						DashboardName:         "Marco",
-						TabName:               "polo-3",
+						TabName:               "polo-1",
 						DetailedStatusMessage: "1/7 tests are passing!",
-						OverallStatus:         "ACCEPTABLE",
+						OverallStatus:         "FLAKY",
 						LatestPassingBuild:    "Hulk",
 						LastRunTimestamp: &timestamp.Timestamp{
-							Seconds: 916166800,
+							Seconds: 915166800,
+							Nanos:   916166782,
 						},
 						LastUpdateTimestamp: &timestamp.Timestamp{
-							Seconds: 916166800,
+							Seconds: 915166800,
+							Nanos:   916166782,
+						},
+						HealthinessSummary: &apipb.HealthinessSummary{
+							HealthinessStats: &apipb.HealthinessStats{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(915166800),
+									Nanos:   int32(916166782),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(916166800),
+									Nanos:   int32(916166782),
+								},
+								AverageFlakiness:  float32(35.0),
+								PreviousFlakiness: float32(44.0),
+								NumFlakyTests:     int32(6),
+							},
+							TopFlakyTests: []*apipb.FlakyTestInfo{
+								{
+									DisplayName: "top-flaky-5",
+									Flakiness:   float32(89.25),
+									Change:      summarypb.TestInfo_NO_CHANGE,
+								},
+								{
+									DisplayName: "top-flaky-2",
+									Flakiness:   float32(67.6),
+									Change:      summarypb.TestInfo_UP,
+								},
+								{
+									DisplayName: "top-flaky-3",
+									Flakiness:   float32(67.6),
+									Change:      summarypb.TestInfo_NO_CHANGE,
+								},
+								{
+									DisplayName: "top-flaky-1",
+									Flakiness:   float32(47.0),
+									Change:      summarypb.TestInfo_DOWN,
+								},
+								{
+									DisplayName: "top-flaky-4",
+									Flakiness:   float32(33.3),
+									Change:      summarypb.TestInfo_DOWN,
+								},
+							},
 						},
 					},
 					{
 						DashboardName:         "Marco",
-						TabName:               "polo-4",
-						DetailedStatusMessage: "1/7 tests are failing!",
+						TabName:               "polo-2",
+						DetailedStatusMessage: "1/7 tests are passing!",
 						OverallStatus:         "ACCEPTABLE",
 						LatestPassingBuild:    "Lantern",
 						LastRunTimestamp: &timestamp.Timestamp{
-							Nanos: 916166782,
+							Nanos: 100000000,
 						},
 						LastUpdateTimestamp: &timestamp.Timestamp{
-							Nanos: 916166782,
+							Nanos: 100000000,
+						},
+						HealthinessSummary: &apipb.HealthinessSummary{
+							HealthinessStats: &apipb.HealthinessStats{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(946702801),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(946704801),
+								},
+								AverageFlakiness:  float32(15.2),
+								PreviousFlakiness: float32(-1.0),
+								NumFlakyTests:     int32(1),
+							},
+							TopFlakyTests: []*apipb.FlakyTestInfo{
+								{
+									DisplayName: "top-flaky-1",
+									Flakiness:   float32(75.0),
+									Change:      summarypb.TestInfo_UP,
+								},
+							},
 						},
 					},
 				},
@@ -634,7 +921,7 @@ func TestListTabSummariesHTTP(t *testing.T) {
 				if err := protojson.Unmarshal(response.Body.Bytes(), &ts); err != nil {
 					t.Fatalf("Failed to unmarshal json message into a proto message: %v", err)
 				}
-				if diff := cmp.Diff(test.expectedResponse, ts, protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(test.expectedResponse, &ts, protocmp.Transform()); diff != "" {
 					t.Errorf("Obtained unexpected  diff (-want +got):\n%s", diff)
 				}
 			}

@@ -152,14 +152,6 @@ def go_repositories():
     )
 
     go_repository(
-        name = "com_github_creachadair_staticfile",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/creachadair/staticfile",
-        sum = "h1:RhyrMgi7IQn3GejgmGtFuCec58vboEMt5CH6N3ulRJk=",
-        version = "v0.1.3",
-    )
-    go_repository(
         name = "com_github_davecgh_go_spew",
         build_file_generation = "on",
         build_file_proto_mode = "disable",
@@ -251,6 +243,15 @@ def go_repositories():
         sum = "h1:wQHKEahhL6wmXdzwWG11gIVCkOv05bNOh+Rxn0yngAk=",
         version = "v1.0.0",
     )
+    go_repository(
+        name = "com_github_go_chi_chi",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/go-chi/chi",
+        sum = "h1:QHdzF2szwjqVV4wmByUnTcsbIg7UGaQ0tPF2t5GcAIs=",
+        version = "v1.5.4",
+    )
+
     go_repository(
         name = "com_github_go_gl_glfw",
         build_file_generation = "on",
@@ -484,14 +485,6 @@ def go_repositories():
         version = "v1.0.0",
     )
 
-    go_repository(
-        name = "com_github_gorilla_mux",
-        build_file_generation = "on",
-        build_file_proto_mode = "disable",
-        importpath = "github.com/gorilla/mux",
-        sum = "h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=",
-        version = "v1.8.0",
-    )
     go_repository(
         name = "com_github_grpc_ecosystem_grpc_gateway",
         build_file_generation = "on",
@@ -1109,8 +1102,8 @@ def go_repositories():
         build_file_generation = "on",
         build_file_proto_mode = "disable",
         importpath = "bitbucket.org/creachadair/stringset",
-        sum = "h1:L4vld9nzPt90UZNrXjNelTshD74ps4P5NGs3Iq6yN3o=",
-        version = "v0.0.9",
+        sum = "h1:6Sv4CCv14Wm+OipW4f3tWOb0SQVpBDLW0knnJqUnmZ8=",
+        version = "v0.0.11",
     )
     go_repository(
         name = "org_golang_google_api",

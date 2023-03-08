@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"net/url"
 	"sort"
 	"sync"
@@ -199,6 +200,7 @@ func TestReadColumns(t *testing.T) {
 	now := time.Now().Unix()
 	yes := true
 	var no bool
+	var noStartErr *noStartError
 	cases := []struct {
 		name               string
 		ctx                context.Context
@@ -526,9 +528,9 @@ func TestReadColumns(t *testing.T) {
 				GcsPrefix: "bucket/path/to/build/",
 			},
 			expected: []InflatedColumn{
-				ancientColumn("10", .01, nil),
-				ancientColumn("11", .02, nil),
-				ancientColumn("12", .03, nil),
+				ancientColumn("10", .01, nil, fmt.Sprintf("build too old; started %v before %v)", now+10, now+13)),
+				ancientColumn("11", .02, nil, fmt.Sprintf("build too old; started %v before %v)", now+11, now+13)),
+				ancientColumn("12", .03, nil, fmt.Sprintf("build too old; started %v before %v)", now+12, now+13)),
 				{
 					Column: &statepb.Column{
 						Build:   "13",
@@ -556,6 +558,89 @@ func TestReadColumns(t *testing.T) {
 							Result: statuspb.TestStatus_PASS,
 							Metrics: map[string]float64{
 								"test-duration-minutes": 14 / 60.0,
+							},
+						},
+						"build." + podInfoRow: podInfoPassCell,
+					},
+				},
+			},
+		},
+		{
+			name: "include no-start-time column",
+			stop: time.Unix(now+13, 0), // should capture 15, 14, 13
+			builds: []fakeBuild{
+				{
+					id: "15",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 15}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 30),
+							Passed:    &yes,
+						}),
+					},
+					podInfo: podInfoSuccess,
+				},
+				{
+					id: "14",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: 0}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 28),
+							Passed:    &yes,
+						}),
+					},
+					podInfo: podInfoSuccess,
+				},
+				{
+					id: "13",
+					started: &fakeObject{
+						Data: jsonData(metadata.Started{Timestamp: now + 13}),
+					},
+					finished: &fakeObject{
+						Data: jsonData(metadata.Finished{
+							Timestamp: pint64(now + 26),
+							Passed:    &yes,
+						}),
+					},
+					podInfo: podInfoSuccess,
+				},
+			},
+			group: &configpb.TestGroup{
+				GcsPrefix: "bucket/path/to/build/",
+			},
+			expected: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Build:   "13",
+						Hint:    "13",
+						Started: float64(now+13) * 1000,
+					},
+					Cells: map[string]cell{
+						"build." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 13 / 60.0,
+							},
+						},
+						"build." + podInfoRow: podInfoPassCell,
+					},
+				},
+				noStartColumn("14", float64(now+13)*1000+0.01, nil, noStartErr.Error()), // start * 1000 + 0.01 * failures (1)
+				{
+					Column: &statepb.Column{
+						Build:   "15",
+						Hint:    "15",
+						Started: float64(now+15) * 1000,
+					},
+					Cells: map[string]cell{
+						"build." + overallRow: {
+							Result: statuspb.TestStatus_PASS,
+							Metrics: map[string]float64{
+								"test-duration-minutes": 15 / 60.0,
 							},
 						},
 						"build." + podInfoRow: podInfoPassCell,
