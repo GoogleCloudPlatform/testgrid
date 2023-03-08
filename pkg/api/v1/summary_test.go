@@ -281,7 +281,7 @@ func TestListTabSummaries(t *testing.T) {
 			},
 		},
 		{
-			name: "Returns correct tab summaries for a dashboard, without failing tests",
+			name: "Returns correct tab summaries for a dashboard, with healthiness info",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -312,6 +312,55 @@ func TestListTabSummaries(t *testing.T) {
 							LatestGreen:         "Hulk",
 							LastUpdateTimestamp: float64(915166800.916166782),
 							LastRunTimestamp:    float64(915166800.916166782),
+							Healthiness: &summarypb.HealthinessInfo{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(915166800),
+									Nanos:   int32(916166782),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(916166800),
+									Nanos:   int32(916166782),
+								},
+								AverageFlakiness:  float32(35.0),
+								PreviousFlakiness: []float32{44.0},
+								Tests: []*summarypb.TestInfo{
+									{
+										DisplayName:            "top-flaky-1",
+										Flakiness:              float32(47.0),
+										ChangeFromLastInterval: summarypb.TestInfo_DOWN,
+									},
+									{
+										DisplayName:            "top-flaky-2",
+										Flakiness:              float32(67.6),
+										ChangeFromLastInterval: summarypb.TestInfo_UP,
+									},
+									{
+										DisplayName:            "top-flaky-3",
+										Flakiness:              float32(67.6),
+										ChangeFromLastInterval: summarypb.TestInfo_NO_CHANGE,
+									},
+									{
+										DisplayName:            "top-flaky-4",
+										Flakiness:              float32(33.3),
+										ChangeFromLastInterval: summarypb.TestInfo_DOWN,
+									},
+									{
+										DisplayName:            "top-flaky-5",
+										Flakiness:              float32(89.25),
+										ChangeFromLastInterval: summarypb.TestInfo_NO_CHANGE,
+									},
+									{
+										DisplayName:            "not-top-flaky-1",
+										Flakiness:              float32(15.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UP,
+									},
+									{
+										DisplayName:            "not-top-flaky-2",
+										Flakiness:              float32(0.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UNKNOWN,
+									},
+								},
+							},
 						},
 						{
 							DashboardName:       "Marco",
@@ -321,6 +370,27 @@ func TestListTabSummaries(t *testing.T) {
 							LatestGreen:         "Lantern",
 							LastUpdateTimestamp: float64(0.1),
 							LastRunTimestamp:    float64(0.1),
+							Healthiness: &summarypb.HealthinessInfo{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(946702801),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(946704801),
+								},
+								AverageFlakiness: float32(15.2),
+								Tests: []*summarypb.TestInfo{
+									{
+										DisplayName:            "top-flaky-1",
+										Flakiness:              float32(75.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UP,
+									},
+									{
+										DisplayName:            "not-top-flaky-1",
+										Flakiness:              float32(0.0),
+										ChangeFromLastInterval: summarypb.TestInfo_UNKNOWN,
+									},
+								},
+							},
 						},
 					},
 				},
@@ -344,6 +414,48 @@ func TestListTabSummaries(t *testing.T) {
 							Seconds: 915166800,
 							Nanos:   916166782,
 						},
+						HealthinessSummary: &apipb.HealthinessSummary{
+							HealthinessStats: &apipb.HealthinessStats{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(915166800),
+									Nanos:   int32(916166782),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(916166800),
+									Nanos:   int32(916166782),
+								},
+								AverageFlakiness:  float32(35.0),
+								PreviousFlakiness: float32(44.0),
+								NumFlakyTests:     int32(6),
+							},
+							TopFlakyTests: []*apipb.FlakyTestInfo{
+								{
+									DisplayName: "top-flaky-5",
+									Flakiness:   float32(89.25),
+									Change:      summarypb.TestInfo_NO_CHANGE,
+								},
+								{
+									DisplayName: "top-flaky-2",
+									Flakiness:   float32(67.6),
+									Change:      summarypb.TestInfo_UP,
+								},
+								{
+									DisplayName: "top-flaky-3",
+									Flakiness:   float32(67.6),
+									Change:      summarypb.TestInfo_NO_CHANGE,
+								},
+								{
+									DisplayName: "top-flaky-1",
+									Flakiness:   float32(47.0),
+									Change:      summarypb.TestInfo_DOWN,
+								},
+								{
+									DisplayName: "top-flaky-4",
+									Flakiness:   float32(33.3),
+									Change:      summarypb.TestInfo_DOWN,
+								},
+							},
+						},
 					},
 					{
 						DashboardName:         "Marco",
@@ -356,6 +468,26 @@ func TestListTabSummaries(t *testing.T) {
 						},
 						LastUpdateTimestamp: &timestamp.Timestamp{
 							Nanos: 100000000,
+						},
+						HealthinessSummary: &apipb.HealthinessSummary{
+							HealthinessStats: &apipb.HealthinessStats{
+								Start: &timestamp.Timestamp{
+									Seconds: int64(946702801),
+								},
+								End: &timestamp.Timestamp{
+									Seconds: int64(946704801),
+								},
+								AverageFlakiness:  float32(15.2),
+								PreviousFlakiness: float32(-1.0),
+								NumFlakyTests:     int32(1),
+							},
+							TopFlakyTests: []*apipb.FlakyTestInfo{
+								{
+									DisplayName: "top-flaky-1",
+									Flakiness:   float32(75.0),
+									Change:      summarypb.TestInfo_UP,
+								},
+							},
 						},
 					},
 				},
