@@ -7,6 +7,7 @@ option go_package = "github.com/GoogleCloudPlatform/testgrid/pb/api/v1";
 import "google/protobuf/timestamp.proto";
 import "pb/config/config.proto";
 import "pb/state/state.proto";
+import "pb/summary/summary.proto";
 
 service TestGridData {
   // GET /dashboards
@@ -218,6 +219,9 @@ message TabSummary {
   // Summarized info on the failing tests.
   // In this case, any test which raised an alert and did not suppress it is considered failing.
   FailuresSummary failures_summary = 8;
+
+  //Summarized info on the tab's healthiness.
+  HealthinessSummary healthiness_summary = 9;
 }
 
 // Summarized representation of data from failing test summaries.
@@ -254,3 +258,46 @@ message FailureStats {
   int32 num_failing_tests = 1;
 }
 
+// Summarized representation of data from tab's HealthinessInfo.
+// Will be rendered in healthiness summary component within tab summary.
+message HealthinessSummary {
+
+  // Top flaky tests (with flakiness > 0) by the current flakiness %.
+  repeated FlakyTestInfo top_flaky_tests = 1;
+
+  // Aggregated healthiness stats for the tab.
+  HealthinessStats healthiness_stats = 2;
+}
+
+// Subset of data from HealthinessInfo.TestInfo defined in summary.proto.
+message FlakyTestInfo {
+
+  // Name of the flaky test.
+  string display_name = 1;
+
+  // The flakiness of the test, in % measured out of 100
+  float flakiness = 2;
+
+  // The change of flakiness based on the last interval's flakiness
+  // The interval is set by each tab's config, with a default of 7 days.
+  testgrid.summary.TestInfo.Trend change = 3;
+}
+
+// Aggregated healthiness stats across the tab.
+message HealthinessStats {
+
+  // The start of the time frame that the analysis was run for.
+  google.protobuf.Timestamp start = 1;
+
+  // The end of the time frame that the analysis was run for.
+  google.protobuf.Timestamp end = 2;
+
+  // Number of flaky tests in the tab.
+  int32 num_flaky_tests = 3;
+
+  // Average flakiness for the current analysis interval.
+  float average_flakiness = 4;
+
+  // Average flakiness for the previous analysis interval.
+  float previous_flakiness = 5;
+}
