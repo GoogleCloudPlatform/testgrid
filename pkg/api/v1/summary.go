@@ -37,6 +37,7 @@ import (
 // TODO(sultan-duisenbay) - consider setting these as API module flags in main.go
 const (
 	numSummaryFailingTests = 5
+	numSummaryFlakyTests   = 5
 )
 
 var (
@@ -53,9 +54,10 @@ var (
 )
 
 // convertSummary converts the tab summary from storage format (summary.proto) to wire format (data.proto)
-func convertSummary(tabSummary *summarypb.DashboardTabSummary, numFailingTests int32) *apipb.TabSummary {
+func convertSummary(tabSummary *summarypb.DashboardTabSummary) *apipb.TabSummary {
 
-	fs := extractFailuresSummary(tabSummary.GetFailingTestSummaries(), numFailingTests)
+	fs := extractFailuresSummary(tabSummary.GetFailingTestSummaries())
+	hs := extractHealthinessSummary(tabSummary.GetHealthiness())
 	return &apipb.TabSummary{
 		DashboardName:         tabSummary.DashboardName,
 		TabName:               tabSummary.DashboardTabName,
@@ -65,6 +67,7 @@ func convertSummary(tabSummary *summarypb.DashboardTabSummary, numFailingTests i
 		LastUpdateTimestamp:   generateTimestamp(tabSummary.LastUpdateTimestamp),
 		LatestPassingBuild:    tabSummary.LatestGreen,
 		FailuresSummary:       fs,
+		HealthinessSummary:    hs,
 	}
 }
 
@@ -79,14 +82,14 @@ func generateTimestamp(ts float64) *timestamp.Timestamp {
 
 // extractFailuresSummary extracts the most important info from summary proto's FailingTestSummaries field.
 // This includes stats as well top failing tests info.
-// Top failing tests # is determined by numSummaryFailingTests above.
-func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFailingTests int32) *apipb.FailuresSummary {
+// Top failing tests # is determined by numSummaryFailingTests.
+func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary) *apipb.FailuresSummary {
 	if len(failingTests) == 0 {
 		return nil
 	}
 
 	// fetch top failing tests
-	topN := int(math.Min(float64(numFailingTests), float64(len(failingTests))))
+	topN := int(math.Min(float64(numSummaryFailingTests), float64(len(failingTests))))
 
 	sort.SliceStable(failingTests, func(i, j int) bool {
 		return failingTests[i].FailCount > failingTests[j].FailCount
@@ -94,13 +97,13 @@ func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFai
 
 	var topTests []*apipb.FailingTestInfo
 	for i := 0; i < topN; i++ {
-		s := failingTests[i]
+		test := failingTests[i]
 
 		fti := &apipb.FailingTestInfo{
-			DisplayName:   s.DisplayName,
-			FailCount:     s.FailCount,
-			PassTimestamp: generateTimestamp(s.PassTimestamp),
-			FailTimestamp: generateTimestamp(s.FailTimestamp),
+			DisplayName:   test.DisplayName,
+			FailCount:     test.FailCount,
+			PassTimestamp: generateTimestamp(test.PassTimestamp),
+			FailTimestamp: generateTimestamp(test.FailTimestamp),
 		}
 		topTests = append(topTests, fti)
 	}
@@ -110,6 +113,62 @@ func extractFailuresSummary(failingTests []*summarypb.FailingTestSummary, numFai
 			NumFailingTests: int32(len(failingTests)),
 		},
 		TopFailingTests: topTests,
+	}
+}
+
+// extractHealthinessSummary extracts the most important info from summary proto's Healthiness field.
+// This includes stats as well top flaky tests info.
+// Top flaky tests # is determined by numSummaryFlakyTests.
+func extractHealthinessSummary(healthiness *summarypb.HealthinessInfo) *apipb.HealthinessSummary {
+	if healthiness == nil {
+		return nil
+	}
+
+	// obtain previous flakiness for the whole tab
+	// need to distinguish between zero flakiness and absent flakiness
+	var prevFlakiness float32
+	if len(healthiness.PreviousFlakiness) == 0 {
+		prevFlakiness = -1.0
+	} else {
+		prevFlakiness = healthiness.PreviousFlakiness[0]
+	}
+
+	sort.SliceStable(healthiness.Tests, func(i, j int) bool {
+		return healthiness.Tests[i].Flakiness > healthiness.Tests[j].Flakiness
+	})
+
+	// fetch top flaky tests (with +ve flakiness)
+	numFlakyTests := 0
+	for i := 0; i < len(healthiness.Tests); i++ {
+		t := healthiness.Tests[i]
+		if t.Flakiness <= 0 {
+			break
+		}
+		numFlakyTests++
+	}
+
+	topN := int(math.Min(float64(numSummaryFlakyTests), float64(numFlakyTests)))
+
+	var topTests []*apipb.FlakyTestInfo
+	for i := 0; i < topN; i++ {
+		test := healthiness.Tests[i]
+		fti := &apipb.FlakyTestInfo{
+			DisplayName: test.DisplayName,
+			Flakiness:   test.Flakiness,
+			Change:      test.ChangeFromLastInterval,
+		}
+		topTests = append(topTests, fti)
+	}
+
+	return &apipb.HealthinessSummary{
+		TopFlakyTests: topTests,
+		HealthinessStats: &apipb.HealthinessStats{
+			Start:             healthiness.Start,
+			End:               healthiness.End,
+			AverageFlakiness:  healthiness.AverageFlakiness,
+			PreviousFlakiness: prevFlakiness,
+			NumFlakyTests:     int32(numFlakyTests),
+		},
 	}
 }
 
@@ -166,7 +225,7 @@ func (s *Server) ListTabSummaries(ctx context.Context, req *apipb.ListTabSummari
 
 	var resp apipb.ListTabSummariesResponse
 	for _, tabSummary := range summary.TabSummaries {
-		ts := convertSummary(tabSummary, numSummaryFailingTests)
+		ts := convertSummary(tabSummary)
 		resp.TabSummaries = append(resp.TabSummaries, ts)
 	}
 	return &resp, nil
@@ -229,7 +288,7 @@ func (s *Server) GetTabSummary(ctx context.Context, req *apipb.GetTabSummaryRequ
 	var resp apipb.GetTabSummaryResponse
 	for _, tabSummary := range summary.GetTabSummaries() {
 		if tabSummary.DashboardTabName == tabName {
-			resp.TabSummary = convertSummary(tabSummary, numSummaryFailingTests)
+			resp.TabSummary = convertSummary(tabSummary)
 			return &resp, nil
 		}
 	}
