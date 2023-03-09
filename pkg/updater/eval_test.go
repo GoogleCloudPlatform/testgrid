@@ -404,8 +404,8 @@ func TestCustomTargetStatus(t *testing.T) {
 					ComputedStatus: tspb.TestStatus_CATEGORIZED_ABORT,
 					TestResultComparisons: []*evalpb.TestResultComparison{
 						{
-							TestResultInfo: &evalpb.TestResultComparison_TargetStatusField{
-								TargetStatusField: true,
+							TestResultInfo: &evalpb.TestResultComparison_TargetStatus{
+								TargetStatus: true,
 							},
 							Comparison: &evalpb.Comparison{
 								Op: evalpb.Comparison_OP_EQ,
@@ -427,8 +427,8 @@ func TestCustomTargetStatus(t *testing.T) {
 					ComputedStatus: tspb.TestStatus_TIMED_OUT,
 					TestResultComparisons: []*evalpb.TestResultComparison{
 						{
-							TestResultInfo: &evalpb.TestResultComparison_TargetStatusField{
-								TargetStatusField: true,
+							TestResultInfo: &evalpb.TestResultComparison_TargetStatus{
+								TargetStatus: true,
 							},
 							Comparison: &evalpb.Comparison{
 								Op: evalpb.Comparison_OP_EQ,

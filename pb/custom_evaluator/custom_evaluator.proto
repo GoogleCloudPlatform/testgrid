@@ -55,7 +55,7 @@ message TestResultComparison {
 
     // This will enable the target status comparation. The value of the status
     // will be used to evaluate.
-    bool target_status_field = 5;
+    bool target_status = 5;
   }
 }
 
