@@ -28,6 +28,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/updater/resultstore"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -270,6 +271,22 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	}
 	if tg.GetNumColumnsRecent() <= 0 {
 		mErr = multierror.Append(mErr, errors.New("num_columns_recent should be positive"))
+	}
+
+	// Result sources should be valid.
+	if src := tg.GetResultSource().GetResultStoreConfig(); src != nil {
+		if src.GetQuery() == "" && src.GetSimpleQuery() == "" {
+			mErr = multierror.Append(mErr, errors.New("resultStore result source requires one of 'query' or 'simple_query'"))
+		} else if src.GetQuery() != "" && src.GetSimpleQuery() != "" {
+			mErr = multierror.Append(mErr, errors.New("only one of query or simple_query can be specified in a resultStore result source"))
+		} else {
+			if _, err := resultstore.ComplexQuery(src.GetSimpleQuery()); err != nil {
+				mErr = multierror.Append(mErr, fmt.Errorf("invalid simple query for ResultStore result source: %v", err))
+			}
+			if tg.GcsPrefix != "" {
+				mErr = multierror.Append(mErr, errors.New("cannot specify gcs_prefix and a ResultStore result source"))
+			}
+		}
 	}
 
 	// Regexes should be valid.

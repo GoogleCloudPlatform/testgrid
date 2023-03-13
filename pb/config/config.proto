@@ -296,11 +296,12 @@ message TestGroup {
   string fallback_grouping_configuration_value = 49;
 
   message ResultSource {
-    reserved 1, 3; // Legacy sources
+    reserved 1, 3, 4, 5; // Legacy or internal sources
 
     oneof result_source_config {
       // GCS buckets holding junit and json results, typically created by prow.
       GCSConfig gcs_config = 2;
+      ResultStoreConfig result_store_config = 6;
     }
   }
 
@@ -356,6 +357,28 @@ message GCSConfig {
   string pubsub_project = 2;
   // The pubsub subscription ID in the above topic
   string pubsub_subscription = 3;
+}
+
+// ResultStoreConfig specifies results stored in ResultStore.
+//
+// Invocations are stored in a Google Cloud Platform project, and searched with a query.
+message ResultStoreConfig {
+  // Google Cloud Platform project ID where ResultStore results are stored.
+  string project = 1;
+
+  // ResultStore search query, as used by `SearchInvocationsRequest.query`.
+  string query = 2;
+
+  // Like `query`, but simpler syntax. Note:
+  // - no `before:`, `after:`, or `status:` tokens
+  // - AND/OR combinations must be unambiguous
+  // Useful tokens:
+  // - `label:<label>`
+  // - `user:<user>`
+  // - `<configuration_value_key>:<configuration_value_value>` (case_sensitive)
+  // - `[target|exact_target]:<exact target name>`
+  // - AND/OR/NOT (case-sensitive)
+  string simple_query = 3;
 }
 
 // Options for where to gather linked issues from.

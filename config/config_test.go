@@ -481,6 +481,7 @@ func TestValidateTestGroup(t *testing.T) {
 		},
 		{
 			name: "Must have days_of_results",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				GcsPrefix:        "fake path",
@@ -489,6 +490,7 @@ func TestValidateTestGroup(t *testing.T) {
 		},
 		{
 			name: "days_of_results must be positive",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    -1,
@@ -498,6 +500,7 @@ func TestValidateTestGroup(t *testing.T) {
 		},
 		{
 			name: "Must have gcs_prefix",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
@@ -506,6 +509,7 @@ func TestValidateTestGroup(t *testing.T) {
 		},
 		{
 			name: "Must have num_columns_recent",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:          "test_group",
 				DaysOfResults: 1,
@@ -514,6 +518,7 @@ func TestValidateTestGroup(t *testing.T) {
 		},
 		{
 			name: "num_columns_recent must be positive",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,
@@ -522,7 +527,104 @@ func TestValidateTestGroup(t *testing.T) {
 			},
 		},
 		{
+			name: "ResultStore source with simple query works",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultStoreConfig{
+						ResultStoreConfig: &configpb.ResultStoreConfig{
+							SimpleQuery: "label:foo",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ResultStore source with query works",
+			pass: true,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultStoreConfig{
+						ResultStoreConfig: &configpb.ResultStoreConfig{
+							Query: "invocation_attributes.labels:\"foo\"",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ResultStore source with no queries fails",
+			pass: false,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultStoreConfig{
+						ResultStoreConfig: &configpb.ResultStoreConfig{},
+					},
+				},
+			},
+		},
+		{
+			name: "ResultStore source with both queries fails",
+			pass: false,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultStoreConfig{
+						ResultStoreConfig: &configpb.ResultStoreConfig{
+							Query:       "invocation_attributes.labels:\"foo\"",
+							SimpleQuery: "label:foo",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ResultStore source with invalid query fails",
+			pass: false,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultStoreConfig{
+						ResultStoreConfig: &configpb.ResultStoreConfig{
+							SimpleQuery: "before:some-date",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "cannot specify GCS prefix and ResultStore source together",
+			pass: false,
+			testGroup: &configpb.TestGroup{
+				Name:             "test_group",
+				DaysOfResults:    1,
+				GcsPrefix:        "fake path",
+				NumColumnsRecent: 1,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultStoreConfig{
+						ResultStoreConfig: &configpb.ResultStoreConfig{
+							SimpleQuery: "label:foo",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "test_method_match_regex must compile",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:                 "test_group",
 				DaysOfResults:        1,
@@ -533,6 +635,7 @@ func TestValidateTestGroup(t *testing.T) {
 		},
 		{
 			name: "Notifications must have a summary",
+			pass: false,
 			testGroup: &configpb.TestGroup{
 				Name:             "test_group",
 				DaysOfResults:    1,

@@ -13,6 +13,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pb/config:go_default_library",
+        "//pkg/updater/resultstore:go_default_library",
         "//util/gcs:go_default_library",
         "//util/queue:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
