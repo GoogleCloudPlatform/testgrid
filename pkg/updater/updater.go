@@ -562,9 +562,7 @@ func SortStarted(cols []InflatedColumn) {
 	})
 }
 
-var (
-	byteCeiling int = 2e6 // 2mb, var so testing can change
-)
+const byteCeiling = 2e6 // 2 megabytes
 
 // InflateDropAppend updates groups by downloading the existing grid, dropping old rows and appending new ones.
 func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path, write bool, readCols ColumnReader, reprocess time.Duration) (bool, error) {
@@ -828,8 +826,10 @@ func shrinkGridInline(ctx context.Context, log logrus.FieldLogger, tg *configpb.
 
 	}
 
-	// One column isn't small enough. Return it anyway.
-	log.WithField("size", len(buf)).Info("Shrunk to minimum")
+	// One column isn't small enough. Return a single-cell grid.
+	grid = constructGridFromGroupConfig(log, tg, deletedColumn(cols[0]), nil)
+	buf, err = gcs.MarshalGrid(grid)
+	log.WithField("size", len(buf)).Info("Shrunk to minimum; storing metadata only")
 	return grid, buf, err
 }
 
@@ -860,6 +860,22 @@ func truncatedCells(orig, max, dropped int, entity string) map[string]Cell {
 			Result:  statuspb.TestStatus_UNKNOWN,
 			ID:      truncatedRow,
 			Message: fmt.Sprintf("%d %s grid exceeds maximum size of %d %ss, removed %d rows", orig, entity, max, entity, dropped),
+		},
+	}
+}
+
+// A column with the same header data, but all the rows deleted.
+func deletedColumn(latestColumn InflatedColumn) []InflatedColumn {
+	return []InflatedColumn{
+		{
+			Column: latestColumn.Column,
+			Cells: map[string]Cell{
+				truncatedRow: {
+					Result:  statuspb.TestStatus_UNKNOWN,
+					ID:      truncatedRow,
+					Message: fmt.Sprintf("The grid is too large to update. Split this testgroup into multiple testgroups."),
+				},
+			},
 		},
 	}
 }

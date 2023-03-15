@@ -1119,7 +1119,6 @@ func TestInflateDropAppend(t *testing.T) {
 		groupTimeout *time.Duration
 		buildTimeout *time.Duration
 		current      *fake.Object
-		byteCeiling  int
 		expected     *fakeUpload
 		err          bool
 	}{
@@ -1408,114 +1407,6 @@ func TestInflateDropAppend(t *testing.T) {
 								Result:  statuspb.TestStatus_FLAKY,
 								Message: "keep me",
 								Icon:    "yes stay",
-							},
-						),
-					},
-				}),
-				CacheControl: "no-cache",
-				WorldRead:    gcs.DefaultACL,
-				Generation:   1,
-			},
-		},
-		{
-			name: "only shrink",
-			group: &configpb.TestGroup{
-				GcsPrefix: "bucket/path/to/build/",
-				ColumnHeader: []*configpb.TestGroup_ColumnHeader{
-					{
-						ConfigurationValue: "Commit",
-					},
-				},
-			},
-			reprocess:   time.Nanosecond,
-			byteCeiling: 1,
-			builds: []fakeBuild{
-				{
-					id:      "bad",
-					started: jsonStarted(now),
-				},
-			},
-			current: &fake.Object{
-				Attrs: &storage.ReaderObjectAttrs{
-					Size: 100000000,
-				},
-				Data: string(mustGrid(&statepb.Grid{
-					Columns: []*statepb.Column{
-						{
-							Build:   "a",
-							Hint:    "10",
-							Started: float64(now * 1000),
-							Extra:   []string{""},
-						},
-						{
-							Build:   "b",
-							Hint:    "5",
-							Started: float64(now-5) * 1000,
-							Extra:   []string{""},
-						},
-						{
-							Build:   "c",
-							Hint:    "3",
-							Started: float64(now-7) * 1000,
-							Extra:   []string{""},
-						},
-						{
-							Build:   "d",
-							Hint:    "2",
-							Started: float64(now-8) * 1000,
-							Extra:   []string{""},
-						},
-					},
-					Rows: []*statepb.Row{
-						setupRow(
-							&statepb.Row{
-								Name: "build." + overallRow,
-								Id:   "build." + overallRow,
-							},
-							cell{
-								Result:  statuspb.TestStatus_PASS,
-								Message: "a",
-								Icon:    "a",
-							},
-							cell{
-								Result:  statuspb.TestStatus_FAIL,
-								Message: "b",
-								Icon:    "b",
-							},
-							cell{
-								Result:  statuspb.TestStatus_FAIL,
-								Message: "c",
-								Icon:    "c",
-							},
-							cell{
-								Result:  statuspb.TestStatus_FAIL,
-								Message: "d",
-								Icon:    "d",
-							},
-						),
-					},
-				})),
-			},
-			expected: &fakeUpload{
-				Buf: mustGrid(&statepb.Grid{
-					Columns: []*statepb.Column{
-						{
-							Build:   "a",
-							Hint:    "10",
-							Started: float64(now * 1000),
-							Extra:   []string{""},
-						},
-					},
-					Rows: []*statepb.Row{
-						setupRow(
-							&statepb.Row{
-								Name: "build." + overallRow,
-								Id:   "build." + overallRow,
-							},
-							cell{
-								Result:  statuspb.TestStatus_UNKNOWN,
-								Message: "XXX byte grid exceeds maximum size of 1 bytes", // exact number of bytes is not deterministic
-								Icon:    "...",
 							},
 						),
 					},
@@ -2121,13 +2012,6 @@ func TestInflateDropAppend(t *testing.T) {
 			ctx, cancel := context.WithCancel(tc.ctx)
 			defer cancel()
 
-			if tc.byteCeiling != 0 {
-				defer func(orig int) {
-					byteCeiling = orig
-				}(byteCeiling)
-				byteCeiling = tc.byteCeiling
-			}
-
 			if tc.concurrency == 0 {
 				tc.concurrency = 1
 			}
@@ -2206,7 +2090,7 @@ func TestInflateDropAppend(t *testing.T) {
 				if err != nil {
 					t.Errorf("expected gcs.DownloadGrid() got unexpected error: %v", err)
 				}
-				diff = cmp.Diff(expectedGrid, actualGrid, protocmp.Transform(), protocmp.IgnoreFields(&statepb.Row{}, "messages"))
+				diff = cmp.Diff(expectedGrid, actualGrid, protocmp.Transform())
 				if diff == "" {
 					return
 				}
@@ -2555,6 +2439,42 @@ func Test_ShrinkGridInline(t *testing.T) {
 			},
 		},
 		{
+			name: "delete most column data",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "hi",
+						Build: "there",
+					},
+					Cells: map[string]Cell{
+						"cell": {
+							Result:  statuspb.TestStatus_FAIL,
+							Message: "yo",
+						},
+					},
+				},
+			},
+			ceiling: 1, // Too small for even one cell
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				expect := []InflatedColumn{
+					{
+						Column: &statepb.Column{
+							Name:  "hi",
+							Build: "there",
+						},
+						Cells: map[string]Cell{
+							"Truncated": {
+								Result:  statuspb.TestStatus_UNKNOWN,
+								Message: "The grid is too large to update. Split this testgroup into multiple testgroups.",
+							},
+						},
+					},
+				}
+				return constructGridFromGroupConfig(logrus.New(), tg, expect, nil)
+			},
+		},
+		{
 			name: "cancelled context",
 			ctx: func() context.Context {
 				ctx, cancel := context.WithCancel(context.Background())
@@ -2670,10 +2590,7 @@ func Test_ShrinkGridInline(t *testing.T) {
 			if tc.ctx == nil {
 				tc.ctx = context.Background()
 			}
-			var want *statepb.Grid
-			if tc.want != nil {
-				want = tc.want(tc.tg, tc.cols, tc.issues)
-			}
+			want := tc.want(tc.tg, tc.cols, tc.issues)
 			got, buf, err := shrinkGridInline(tc.ctx, logrus.WithField("name", tc.name), tc.tg, tc.cols, tc.issues, tc.ceiling)
 			switch {
 			case err != nil:
