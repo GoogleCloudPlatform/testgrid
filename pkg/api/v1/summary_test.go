@@ -928,3 +928,381 @@ func TestListTabSummariesHTTP(t *testing.T) {
 		})
 	}
 }
+
+func TestListDashboardSummaries(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      map[string]*configpb.Configuration
+		summaries   map[string]*summarypb.DashboardSummary
+		req         *apipb.ListDashboardSummariesRequest
+		want        *apipb.ListDashboardSummariesResponse
+		expectError bool
+	}{
+		{
+			name: "Returns an error when there's no dashboard group in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			req: &apipb.ListDashboardSummariesRequest{
+				DashboardGroup: "missing",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns empty response for group with no dashboards, different names but same normalized",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*configpb.DashboardGroup{
+						{
+							Name: "Voila",
+						},
+					},
+				},
+			},
+			req: &apipb.ListDashboardSummariesRequest{
+				DashboardGroup: "[voilA]",
+			},
+			want: &apipb.ListDashboardSummariesResponse{},
+		},
+		{
+			name: "Returns correct dashboard summaries for a dashboard group, same name",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Ed",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "ed-tab-1",
+									TestGroupName: "ed-tg-1",
+								},
+								{
+									Name:          "ed-tab-2",
+									TestGroupName: "ed-tg-2",
+								},
+								{
+									Name:          "ed-tab-3",
+									TestGroupName: "ed-tg-3",
+								},
+							},
+						},
+						{
+							Name: "Edd",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "edd-tab-1",
+									TestGroupName: "edd-tg-1",
+								},
+								{
+									Name:          "edd-tab-2",
+									TestGroupName: "edd-tg-2",
+								},
+								{
+									Name:          "edd-tab-3",
+									TestGroupName: "edd-tg-3",
+								},
+							},
+						},
+						{
+							Name: "Eddie",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "eddie-tab-1",
+									TestGroupName: "eddie-tg-1",
+								},
+								{
+									Name:          "eddie-tab-2",
+									TestGroupName: "eddie-tg-2",
+								},
+								{
+									Name:          "eddie-tab-3",
+									TestGroupName: "eddie-tg-3",
+								},
+							},
+						},
+					},
+					DashboardGroups: []*configpb.DashboardGroup{
+						{
+							Name:           "C-N[123]",
+							DashboardNames: []string{"Ed", "Edd", "Eddie"},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-ed": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_ACCEPTABLE,
+						},
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_FLAKY,
+						},
+					},
+				},
+				"gs://default/summary/summary-edd": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Edd",
+							DashboardTabName: "edd-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PENDING,
+						},
+						{
+							DashboardName:    "Edd",
+							DashboardTabName: "edd-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_STALE,
+						},
+						{
+							DashboardName:    "Edd",
+							DashboardTabName: "edd-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_BROKEN,
+						},
+					},
+				},
+				"gs://default/summary/summary-eddie": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Eddie",
+							DashboardTabName: "eddie-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Eddie",
+							DashboardTabName: "eddie-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Eddie",
+							DashboardTabName: "eddie-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+					},
+				},
+			},
+			req: &apipb.ListDashboardSummariesRequest{
+				DashboardGroup: "C-N[123]",
+			},
+			want: &apipb.ListDashboardSummariesResponse{
+				DashboardSummaries: []*apipb.DashboardSummary{
+					{
+						Name:          "Ed",
+						OverallStatus: flaky,
+						TabStatusCount: map[string]int32{
+							passing:    1,
+							acceptable: 1,
+							flaky:      1,
+						},
+					},
+					{
+						Name:          "Edd",
+						OverallStatus: broken,
+						TabStatusCount: map[string]int32{
+							pending: 1,
+							stale:   1,
+							broken:  1,
+						},
+					},
+					{
+						Name:          "Eddie",
+						OverallStatus: passing,
+						TabStatusCount: map[string]int32{
+							passing: 3,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Server error with unreadable config",
+			config: map[string]*configpb.Configuration{
+				"gs://welp/config": {},
+			},
+			req: &apipb.ListDashboardSummariesRequest{
+				DashboardGroup: "doesntmatter",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, nil, tc.summaries)
+			got, err := server.ListDashboardSummaries(context.Background(), tc.req)
+			switch {
+			case err != nil:
+				if !tc.expectError {
+					t.Errorf("got unexpected error: %v", err)
+				}
+			case tc.expectError:
+				t.Error("failed to receive an error")
+			default:
+				if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("got unexpected diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+
+	}
+}
+
+func TestGetDashboardSummary(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      map[string]*configpb.Configuration
+		summaries   map[string]*summarypb.DashboardSummary
+		req         *apipb.GetDashboardSummaryRequest
+		want        *apipb.GetDashboardSummaryResponse
+		expectError bool
+	}{
+		{
+			name: "Returns an error when there's no dashboard group in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			req: &apipb.GetDashboardSummaryRequest{
+				Dashboard: "missing",
+			},
+			expectError: true,
+		},
+		{
+			name: "Returns correct dashboard summary for a dashboard, same name",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Plank",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "plank-tab-1",
+									TestGroupName: "plank-tg-1",
+								},
+								{
+									Name:          "plank-tab-2",
+									TestGroupName: "plank-tg-2",
+								},
+								{
+									Name:          "plank-tab-3",
+									TestGroupName: "plank-tg-3",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-plank": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Plank",
+							DashboardTabName: "plank-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Plank",
+							DashboardTabName: "plank-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_ACCEPTABLE,
+						},
+						{
+							DashboardName:    "Plank",
+							DashboardTabName: "plank-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_FLAKY,
+						},
+					},
+				},
+			},
+			req: &apipb.GetDashboardSummaryRequest{
+				Dashboard: "Plank",
+			},
+			want: &apipb.GetDashboardSummaryResponse{
+				DashboardSummary: &apipb.DashboardSummary{
+					Name:          "Plank",
+					OverallStatus: flaky,
+					TabStatusCount: map[string]int32{
+						passing:    1,
+						acceptable: 1,
+						flaky:      1,
+					},
+				},
+			},
+		},
+		{
+			name: "Returns correct dashboard summary for a dashboard, different names but same normalized",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Plank",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "plank-tab-1",
+									TestGroupName: "plank-tg-1",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-plank": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Plank",
+							DashboardTabName: "plank-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+					},
+				},
+			},
+			req: &apipb.GetDashboardSummaryRequest{
+				Dashboard: "P_L-A(N}K",
+			},
+			want: &apipb.GetDashboardSummaryResponse{
+				DashboardSummary: &apipb.DashboardSummary{
+					Name:          "Plank",
+					OverallStatus: passing,
+					TabStatusCount: map[string]int32{
+						passing: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Server error with unreadable config",
+			config: map[string]*configpb.Configuration{
+				"gs://welp/config": {},
+			},
+			req: &apipb.GetDashboardSummaryRequest{
+				Dashboard: "doesntmatter",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, nil, tc.summaries)
+			got, err := server.GetDashboardSummary(context.Background(), tc.req)
+			switch {
+			case err != nil:
+				if !tc.expectError {
+					t.Errorf("got unexpected error: %v", err)
+				}
+			case tc.expectError:
+				t.Error("failed to receive an error")
+			default:
+				if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+					t.Errorf("got unexpected diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}

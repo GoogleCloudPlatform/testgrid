@@ -48,6 +48,12 @@ service TestGridData {
 
   // GET /dashboards/{dashboard}/tab-summaries/{tab}
   rpc GetTabSummary(GetTabSummaryRequest) returns (GetTabSummaryResponse){}
+
+  // GET /dashboard-groups/{dashboard-group}/dashboard-summaries
+  rpc ListDashboardSummaries(ListDashboardSummariesRequest) returns (ListDashboardSummariesResponse){}
+
+  // GET /dashboards/{dashboard}/summary
+  rpc GetDashboardSummary(GetDashboardSummaryRequest) returns (GetDashboardSummaryResponse){}
 }
 
 message ListDashboardRequest { string scope = 1; }
@@ -188,8 +194,34 @@ message GetTabSummaryRequest{
 }
 
 message GetTabSummaryResponse{
-  //Summary for the tab
+  // Summary for the tab
   TabSummary tab_summary = 1;
+}
+
+message ListDashboardSummariesRequest{
+  // Scope defines the GCS bucket to read the results from.
+  string scope = 1;
+
+  // Name of the dashboard group to fetch dashboard summaries for.
+  string dashboard_group = 2;
+}
+
+message ListDashboardSummariesResponse{
+  // List of dashboard summaries.
+  repeated DashboardSummary dashboard_summaries = 1;
+}
+
+message GetDashboardSummaryRequest{
+  // Scope defines the GCS bucket to read the results from.
+  string scope = 1;
+
+  // Name of the dashboard to fetch the summary for.
+  string dashboard = 2;
+}
+
+message GetDashboardSummaryResponse{
+  // Summary for the dashboard.
+  DashboardSummary dashboard_summary = 1;
 }
 
 // Summary for a particular tab.
@@ -300,4 +332,19 @@ message HealthinessStats {
 
   // Average flakiness for the previous analysis interval.
   float previous_flakiness = 5;
+}
+
+// Summary for a particular dashboard.
+// Contains the info required to render dashboard summary in UI (done in the dashboard group view).
+message DashboardSummary{
+  
+  // Name of the dashboard.
+  string name = 1;
+
+  // Overall status of the dashboard.
+  // Will be calculated based on the presence and importance of underlying tabs.
+  string overall_status = 2;
+
+  // Count of the tabs by status.
+  map<string, int32> tab_status_count = 3;
 }
