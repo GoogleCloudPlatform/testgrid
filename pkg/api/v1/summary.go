@@ -395,7 +395,7 @@ func (s *Server) GetDashboardSummary(ctx context.Context, req *apipb.GetDashboar
 	}
 
 	if summary == nil {
-		return nil, fmt.Errorf("summary for dashboard {%q} not found.", dashboardKey)
+		return nil, fmt.Errorf("summary for dashboard {%q} not found", dashboardKey)
 	}
 
 	return &apipb.GetDashboardSummaryResponse{
