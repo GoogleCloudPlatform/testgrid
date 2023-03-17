@@ -237,7 +237,7 @@ func (fixer lastUpdated) Fix(ctx context.Context, log logrus.FieldLogger, q *con
 // request an immediate update whenever the data changes.
 type Fixer func(context.Context, logrus.FieldLogger, *config.TestGroupQueue, []*configpb.TestGroup) error
 
-//UpdateOptions aggregates the Update function parameter into a single structure.
+// UpdateOptions aggregates the Update function parameter into a single structure.
 type UpdateOptions struct {
 	ConfigPath       gcs.Path
 	GridPrefix       string
@@ -398,7 +398,9 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			active[name] = false
 			lock.Unlock()
 		}()
+		start := time.Now()
 		unprocessed, err := updateGroup(ctx, log, client, tg, *tgp)
+		log.WithField("duration", time.Since(start)).Info("Finished processing group.")
 		if err != nil {
 			log := log.WithError(err)
 			if gcs.IsPreconditionFailed(err) {
