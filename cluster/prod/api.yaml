@@ -27,6 +27,7 @@ spec:
       - name: api
         image: gcr.io/k8s-testgrid/api:v20230316-v0.0.158-2-g776fc0aa
         args:
+        - --allowed-origin=*
         - --scope=gs://k8s-testgrid
         - --port=8080
 ---
