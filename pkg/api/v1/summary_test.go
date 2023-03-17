@@ -1306,3 +1306,404 @@ func TestGetDashboardSummary(t *testing.T) {
 		})
 	}
 }
+
+func TestListDashboardSummariesHTTP(t *testing.T) {
+	tests := []struct {
+		name             string
+		config           map[string]*configpb.Configuration
+		summaries        map[string]*summarypb.DashboardSummary
+		endpoint         string
+		params           string
+		expectedCode     int
+		expectedResponse *apipb.ListDashboardSummariesResponse
+	}{
+		{
+			name: "Returns an error when there's no dashboard in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			endpoint:     "/dashboard-groups/whatever/dashboard-summaries",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			name: "Returns an empty response for group with no dashboards, different names but same normalized",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					DashboardGroups: []*configpb.DashboardGroup{
+						{
+							Name: "Sherlock",
+						},
+					},
+				},
+			},
+			endpoint:         "/dashboard-groups/sherLOCK/dashboard-summaries",
+			expectedCode:     http.StatusOK,
+			expectedResponse: &apipb.ListDashboardSummariesResponse{},
+		},
+		{
+			name: "Returns correct dashboard summaries for a dashboard group, same name",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Ed",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "ed-tab-1",
+									TestGroupName: "ed-tg-1",
+								},
+								{
+									Name:          "ed-tab-2",
+									TestGroupName: "ed-tg-2",
+								},
+								{
+									Name:          "ed-tab-3",
+									TestGroupName: "ed-tg-3",
+								},
+							},
+						},
+						{
+							Name: "Edd",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "edd-tab-1",
+									TestGroupName: "edd-tg-1",
+								},
+								{
+									Name:          "edd-tab-2",
+									TestGroupName: "edd-tg-2",
+								},
+								{
+									Name:          "edd-tab-3",
+									TestGroupName: "edd-tg-3",
+								},
+							},
+						},
+						{
+							Name: "Eddie",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "eddie-tab-1",
+									TestGroupName: "eddie-tg-1",
+								},
+								{
+									Name:          "eddie-tab-2",
+									TestGroupName: "eddie-tg-2",
+								},
+								{
+									Name:          "eddie-tab-3",
+									TestGroupName: "eddie-tg-3",
+								},
+							},
+						},
+					},
+					DashboardGroups: []*configpb.DashboardGroup{
+						{
+							Name:           "C-N[123]",
+							DashboardNames: []string{"Ed", "Edd", "Eddie"},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-ed": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_ACCEPTABLE,
+						},
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_FLAKY,
+						},
+					},
+				},
+				"gs://default/summary/summary-edd": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Edd",
+							DashboardTabName: "edd-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PENDING,
+						},
+						{
+							DashboardName:    "Edd",
+							DashboardTabName: "edd-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_STALE,
+						},
+						{
+							DashboardName:    "Edd",
+							DashboardTabName: "edd-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_BROKEN,
+						},
+					},
+				},
+				"gs://default/summary/summary-eddie": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Eddie",
+							DashboardTabName: "eddie-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Eddie",
+							DashboardTabName: "eddie-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Eddie",
+							DashboardTabName: "eddie-tab-3",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboard-groups/C-N[123]/dashboard-summaries",
+			expectedCode: http.StatusOK,
+			expectedResponse: &apipb.ListDashboardSummariesResponse{
+				DashboardSummaries: []*apipb.DashboardSummary{
+					{
+						Name:          "Ed",
+						OverallStatus: flaky,
+						TabStatusCount: map[string]int32{
+							passing:    1,
+							acceptable: 1,
+							flaky:      1,
+						},
+					},
+					{
+						Name:          "Edd",
+						OverallStatus: broken,
+						TabStatusCount: map[string]int32{
+							pending: 1,
+							stale:   1,
+							broken:  1,
+						},
+					},
+					{
+						Name:          "Eddie",
+						OverallStatus: passing,
+						TabStatusCount: map[string]int32{
+							passing: 3,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Returns correct dashboard summaries for a group with an updated scope",
+			config: map[string]*configpb.Configuration{
+				"gs://k9s/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+							},
+						},
+					},
+					DashboardGroups: []*configpb.DashboardGroup{
+						{
+							Name:           "explorers",
+							DashboardNames: []string{"Marco"},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://k9s/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Marco",
+							DashboardTabName: "polo-1",
+							OverallStatus:    summarypb.DashboardTabSummary_FLAKY,
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboard-groups/explorers/dashboard-summaries?scope=gs://k9s",
+			expectedCode: http.StatusOK,
+			expectedResponse: &apipb.ListDashboardSummariesResponse{
+				DashboardSummaries: []*apipb.DashboardSummary{
+					{
+						Name:          "Marco",
+						OverallStatus: flaky,
+						TabStatusCount: map[string]int32{
+							flaky: 1,
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := Route(nil, setupTestServer(t, test.config, nil, test.summaries))
+			request, err := http.NewRequest("GET", test.endpoint, nil)
+			if err != nil {
+				t.Fatalf("Can't form request: %v", err)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			if response.Code != test.expectedCode {
+				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
+			}
+
+			if response.Code == http.StatusOK {
+				var ts apipb.ListDashboardSummariesResponse
+				if err := protojson.Unmarshal(response.Body.Bytes(), &ts); err != nil {
+					t.Fatalf("Failed to unmarshal json message into a proto message: %v", err)
+				}
+				if diff := cmp.Diff(test.expectedResponse, &ts, protocmp.Transform()); diff != "" {
+					t.Errorf("Obtained unexpected  diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestGetDashboardSummaryHTTP(t *testing.T) {
+	tests := []struct {
+		name             string
+		config           map[string]*configpb.Configuration
+		summaries        map[string]*summarypb.DashboardSummary
+		endpoint         string
+		params           string
+		expectedCode     int
+		expectedResponse *apipb.GetDashboardSummaryResponse
+	}{
+		{
+			name: "Returns an error when there's no dashboard in config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			endpoint:     "/dashboards/whatever/summary",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			name: "Returns correct dashboard summary for a dashboard, different names but same normalized",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Ed",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "ed-tab-1",
+									TestGroupName: "ed-tg-1",
+								},
+								{
+									Name:          "ed-tab-2",
+									TestGroupName: "ed-tg-2",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://default/summary/summary-ed": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-1",
+							OverallStatus:    summarypb.DashboardTabSummary_PASS,
+						},
+						{
+							DashboardName:    "Ed",
+							DashboardTabName: "ed-tab-2",
+							OverallStatus:    summarypb.DashboardTabSummary_ACCEPTABLE,
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboards/ED/summary",
+			expectedCode: http.StatusOK,
+			expectedResponse: &apipb.GetDashboardSummaryResponse{
+				DashboardSummary: &apipb.DashboardSummary{
+					Name:          "Ed",
+					OverallStatus: acceptable,
+					TabStatusCount: map[string]int32{
+						passing:    1,
+						acceptable: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "Returns correct dashboard summary for a dashboard with an updated scope",
+			config: map[string]*configpb.Configuration{
+				"gs://k9s/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Marco",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "polo-1",
+									TestGroupName: "cheesecake",
+								},
+							},
+						},
+					},
+				},
+			},
+			summaries: map[string]*summarypb.DashboardSummary{
+				"gs://k9s/summary/summary-marco": {
+					TabSummaries: []*summarypb.DashboardTabSummary{
+						{
+							DashboardName:    "Marco",
+							DashboardTabName: "polo-1",
+							OverallStatus:    summarypb.DashboardTabSummary_BROKEN,
+						},
+					},
+				},
+			},
+			endpoint:     "/dashboards/marco/summary?scope=gs://k9s",
+			expectedCode: http.StatusOK,
+			expectedResponse: &apipb.GetDashboardSummaryResponse{
+				DashboardSummary: &apipb.DashboardSummary{
+					Name:          "Marco",
+					OverallStatus: broken,
+					TabStatusCount: map[string]int32{
+						broken: 1,
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := Route(nil, setupTestServer(t, test.config, nil, test.summaries))
+			request, err := http.NewRequest("GET", test.endpoint, nil)
+			if err != nil {
+				t.Fatalf("Can't form request: %v", err)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			if response.Code != test.expectedCode {
+				t.Errorf("Expected %d, but got %d", test.expectedCode, response.Code)
+			}
+
+			if response.Code == http.StatusOK {
+				var ts apipb.GetDashboardSummaryResponse
+				if err := protojson.Unmarshal(response.Body.Bytes(), &ts); err != nil {
+					t.Fatalf("Failed to unmarshal json message into a proto message: %v", err)
+				}
+				if diff := cmp.Diff(test.expectedResponse, &ts, protocmp.Transform()); diff != "" {
+					t.Errorf("Obtained unexpected  diff (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
