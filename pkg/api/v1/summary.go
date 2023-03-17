@@ -363,6 +363,22 @@ func (s *Server) ListDashboardSummaries(ctx context.Context, req *apipb.ListDash
 	return &resp, nil
 }
 
+// ListDashboardSummariesHTTP returns the list of dashboard summaries as a json.
+// Response json: ListDashboardSummariesResponse
+func (s Server) ListDashboardSummariesHTTP(w http.ResponseWriter, r *http.Request) {
+	req := apipb.ListDashboardSummariesRequest{
+		Scope:          r.URL.Query().Get(scopeParam),
+		DashboardGroup: chi.URLParam(r, "dashboard-group"),
+	}
+	resp, err := s.ListDashboardSummaries(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	s.writeJSON(w, resp)
+}
+
 // GetDashboardSummary returns the dashboard summary for the particular dashboard. Think of it as aggregated view of ListTabSummaries data.
 // Dashboard name doesn't have to be normalized. Returns an error iff
 // - dashboard name does not exist in config
@@ -402,6 +418,22 @@ func (s *Server) GetDashboardSummary(ctx context.Context, req *apipb.GetDashboar
 		DashboardSummary: dashboardSummary(summary, denormalizedName),
 	}, nil
 
+}
+
+// GetDashboardSummaryHTTP returns the dashboard summary as a json.
+// Response json: GetDashboardSummaryResponse
+func (s Server) GetDashboardSummaryHTTP(w http.ResponseWriter, r *http.Request) {
+	req := apipb.GetDashboardSummaryRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: chi.URLParam(r, "dashboard"),
+	}
+	resp, err := s.GetDashboardSummary(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	s.writeJSON(w, resp)
 }
 
 // dashboardSummary generates a dashboard summary in a wire data format defined in api/v1/data.proto

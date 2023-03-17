@@ -56,5 +56,8 @@ func Route(r *chi.Mux, s Server) *chi.Mux {
 
 	r.Get("/dashboards/{dashboard}/tab-summaries", s.ListTabSummariesHTTP)
 	r.Get("/dashboards/{dashboard}/tab-summaries/{tab}", s.GetTabSummaryHTTP)
+
+	r.Get("/dashboard-groups/{dashboard-group}/dashboard-summaries", s.ListDashboardSummariesHTTP)
+	r.Get("/dashboards/{dashboard}/summary", s.GetDashboardSummaryHTTP)
 	return r
 }
