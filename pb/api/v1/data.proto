@@ -337,7 +337,7 @@ message HealthinessStats {
 // Summary for a particular dashboard.
 // Contains the info required to render dashboard summary in UI (done in the dashboard group view).
 message DashboardSummary{
-  
+
   // Name of the dashboard.
   string name = 1;
 
