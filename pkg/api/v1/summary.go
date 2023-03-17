@@ -38,18 +38,27 @@ import (
 const (
 	numSummaryFailingTests = 5
 	numSummaryFlakyTests   = 5
+
+	passing    = "PASSING"
+	failing    = "FAILING"
+	flaky      = "FLAKY"
+	stale      = "STALE"
+	broken     = "BROKEN"
+	pending    = "PENDING"
+	acceptable = "ACCEPTABLE"
+	unknown    = "UNKNOWN"
 )
 
 var (
 	// These should be in line with the TabStatus enum in state.proto.
 	tabStatusStr = map[summarypb.DashboardTabSummary_TabStatus]string{
-		summarypb.DashboardTabSummary_PASS:       "PASSING",
-		summarypb.DashboardTabSummary_FAIL:       "FAILING",
-		summarypb.DashboardTabSummary_FLAKY:      "FLAKY",
-		summarypb.DashboardTabSummary_STALE:      "STALE",
-		summarypb.DashboardTabSummary_BROKEN:     "BROKEN",
-		summarypb.DashboardTabSummary_PENDING:    "PENDING",
-		summarypb.DashboardTabSummary_ACCEPTABLE: "ACCEPTABLE",
+		summarypb.DashboardTabSummary_PASS:       passing,
+		summarypb.DashboardTabSummary_FAIL:       failing,
+		summarypb.DashboardTabSummary_FLAKY:      flaky,
+		summarypb.DashboardTabSummary_STALE:      stale,
+		summarypb.DashboardTabSummary_BROKEN:     broken,
+		summarypb.DashboardTabSummary_PENDING:    pending,
+		summarypb.DashboardTabSummary_ACCEPTABLE: acceptable,
 	}
 )
 
@@ -311,4 +320,121 @@ func (s Server) GetTabSummaryHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeJSON(w, resp)
+}
+
+// ListDashboardSummaries returns the list of dashboard summaries for the particular dashboard group. Think of it as aggregated view of ListTabSummaries data.
+// Dashboard group name doesn't have to be normalized. Returns an error iff
+// - dashboard name does not exist in config
+// - the server can't read summary from GCS bucket
+func (s *Server) ListDashboardSummaries(ctx context.Context, req *apipb.ListDashboardSummariesRequest) (*apipb.ListDashboardSummariesResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
+	defer cancel()
+
+	scope := req.GetScope()
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), scope)
+
+	// TODO(sultan-duisenbay): return canonical error codes
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch config from {%q}: %v", scope, err)
+	}
+
+	cfg.Mutex.RLock()
+	defer cfg.Mutex.RUnlock()
+
+	dashboardGroupKey := config.Normalize(req.GetDashboardGroup())
+	denormalizedName, ok := cfg.NormalDashboardGroup[dashboardGroupKey]
+	if !ok {
+		return nil, fmt.Errorf("dashboard group {%q} not found", denormalizedName)
+	}
+
+	var resp apipb.ListDashboardSummariesResponse
+	for _, dashboardName := range cfg.Config.DashboardGroups[denormalizedName].DashboardNames {
+		summary, err := s.fetchSummary(ctx, scope, dashboardName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch summary for dashboard {%q}: %v", dashboardName, err)
+		}
+		// skip over non-existing dashboards
+		if summary == nil {
+			continue
+		}
+		resp.DashboardSummaries = append(resp.DashboardSummaries, dashboardSummary(summary, dashboardName))
+	}
+
+	return &resp, nil
+}
+
+// GetDashboardSummary returns the dashboard summary for the particular dashboard. Think of it as aggregated view of ListTabSummaries data.
+// Dashboard name doesn't have to be normalized. Returns an error iff
+// - dashboard name does not exist in config
+// - the server can't read summary from GCS bucket
+// - dashboard summary doesn't exist
+func (s *Server) GetDashboardSummary(ctx context.Context, req *apipb.GetDashboardSummaryRequest) (*apipb.GetDashboardSummaryResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
+	defer cancel()
+
+	scope := req.GetScope()
+	cfg, err := s.getConfig(ctx, logrus.WithContext(ctx), scope)
+
+	// TODO(sultan-duisenbay): return canonical error codes
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch config from {%q}: %v", scope, err)
+	}
+
+	cfg.Mutex.RLock()
+	defer cfg.Mutex.RUnlock()
+
+	dashboardKey := config.Normalize(req.GetDashboard())
+	denormalizedName, ok := cfg.NormalDashboard[dashboardKey]
+	if !ok {
+		return nil, fmt.Errorf("dashboard {%q} not found", dashboardKey)
+	}
+
+	summary, err := s.fetchSummary(ctx, scope, dashboardKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch summary for dashboard {%q}: %v", dashboardKey, err)
+	}
+
+	if summary == nil {
+		return nil, fmt.Errorf("summary for dashboard {%q} not found.", dashboardKey)
+	}
+
+	return &apipb.GetDashboardSummaryResponse{
+		DashboardSummary: dashboardSummary(summary, denormalizedName),
+	}, nil
+
+}
+
+// dashboardSummary generates a dashboard summary in a wire data format defined in api/v1/data.proto
+// overall dashboard status is defined by priority/severity within this function.
+func dashboardSummary(summary *summarypb.DashboardSummary, dashboardName string) *apipb.DashboardSummary {
+
+	tabStatusCount := make(map[string]int32)
+	for _, tab := range summary.TabSummaries {
+		statusStr := tabStatusStr[tab.OverallStatus]
+		tabStatusCount[statusStr]++
+	}
+
+	overallStatus := unknown
+	switch {
+	case tabStatusCount[broken] > 0:
+		overallStatus = broken
+	case tabStatusCount[stale] > 0:
+		overallStatus = stale
+	case tabStatusCount[failing] > 0:
+		overallStatus = failing
+	case tabStatusCount[flaky] > 0:
+		overallStatus = flaky
+	case tabStatusCount[pending] > 0:
+		overallStatus = pending
+	case tabStatusCount[acceptable] > 0:
+		overallStatus = acceptable
+	case tabStatusCount[passing] > 0:
+		overallStatus = passing
+	}
+
+	return &apipb.DashboardSummary{
+		Name:           dashboardName,
+		OverallStatus:  overallStatus,
+		TabStatusCount: tabStatusCount,
+	}
 }
