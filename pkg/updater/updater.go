@@ -706,9 +706,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 
 	SortStarted(cols)
 
-	if truncateGrid(cols, byteCeiling) {
-		cols = groupColumns(tg, cols)
-	}
+	cols = truncateGrid(cols, byteCeiling) // Assume each cell is at least 1 byte
 	var grid *statepb.Grid
 	var buf []byte
 	grid, buf, err = shrinkGridInline(shrinkGrace, log, tg, cols, issues, byteCeiling)
@@ -737,31 +735,19 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	return unreadColumns, nil
 }
 
-// Cuts grid down to 'cellCeiling' or fewer cells
-
-// Used as a cheap way to truncate before the finer-tuned shrinkGridInline
-// Assumes each cell contains at least 1 byte
-func truncateGrid(cols []InflatedColumn, cellCeiling int) bool {
+// truncateGrid cuts grid down to 'cellCeiling' or fewer cells
+// Used as a cheap way to truncate before the finer-tuned shrinkGridInline.
+func truncateGrid(cols []InflatedColumn, cellCeiling int) []InflatedColumn {
 	var cells int
-	var max int
-	var dropped int
 	for i := 0; i < len(cols); i++ {
 		nc := len(cols[i].Cells)
 		cells += nc
 		if i < 2 || cells <= cellCeiling {
 			continue
 		}
-		dropped += nc
-		if max > 0 { // merge together these columns
-			cols[i].Column.Name = ""
-			cols[i].Column.Build = ""
-			cols[i].Cells = nil
-		} else {
-			max = i
-		}
-		cols[max].Cells = truncatedCells(cells, cellCeiling, dropped, "cell")
+		return cols[:i]
 	}
-	return max > 0
+	return cols
 }
 
 // reprocessColumn returns a column with a running result if the previous config differs from the current one
@@ -834,7 +820,7 @@ func shrinkGridInline(ctx context.Context, log logrus.FieldLogger, tg *configpb.
 }
 
 // Legacy row name to report data truncation
-const truncatedRow = "Truncated"
+const truncatedRowName = "Truncated"
 
 func truncateLastColumn(grid []InflatedColumn, orig, max int, entity string) {
 	if len(grid) == 0 {
@@ -842,8 +828,8 @@ func truncateLastColumn(grid []InflatedColumn, orig, max int, entity string) {
 	}
 	last := len(grid) - 1
 	for name, cell := range grid[last].Cells {
-		if name == truncatedRow {
-			delete(grid[last].Cells, truncatedRow)
+		if name == truncatedRowName {
+			delete(grid[last].Cells, truncatedRowName)
 			continue
 		}
 		cell.Result = statuspb.TestStatus_UNKNOWN
@@ -853,26 +839,15 @@ func truncateLastColumn(grid []InflatedColumn, orig, max int, entity string) {
 	}
 }
 
-// TODO(chases2): deprecate this method of reporting a resource overrun; use truncateLastColumn instead
-func truncatedCells(orig, max, dropped int, entity string) map[string]Cell {
-	return map[string]Cell{
-		truncatedRow: {
-			Result:  statuspb.TestStatus_UNKNOWN,
-			ID:      truncatedRow,
-			Message: fmt.Sprintf("%d %s grid exceeds maximum size of %d %ss, removed %d rows", orig, entity, max, entity, dropped),
-		},
-	}
-}
-
 // A column with the same header data, but all the rows deleted.
 func deletedColumn(latestColumn InflatedColumn) []InflatedColumn {
 	return []InflatedColumn{
 		{
 			Column: latestColumn.Column,
 			Cells: map[string]Cell{
-				truncatedRow: {
+				truncatedRowName: {
 					Result:  statuspb.TestStatus_UNKNOWN,
-					ID:      truncatedRow,
+					ID:      truncatedRowName,
 					Message: fmt.Sprintf("The grid is too large to update. Split this testgroup into multiple testgroups."),
 				},
 			},

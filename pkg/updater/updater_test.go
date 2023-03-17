@@ -2214,18 +2214,9 @@ func TestTruncateGrid(t *testing.T) {
 				addRows(1000, nil),
 				addRows(1000, nil),
 			),
-			want: append(
-				addCols(
-					addRows(1000, nil),
-					addRows(1000, nil),
-					truncatedCells(5000, 0, 3000, "cell"),
-				),
-				InflatedColumn{
-					Column: &statepb.Column{},
-				},
-				InflatedColumn{
-					Column: &statepb.Column{},
-				},
+			want: addCols(
+				addRows(1000, nil),
+				addRows(1000, nil),
 			),
 		},
 		{
@@ -2243,15 +2234,14 @@ func TestTruncateGrid(t *testing.T) {
 				addRows(1000, nil),
 				addRows(1000, nil),
 				addRows(1, nil),
-				truncatedCells(4001, 3001, 1000, "cell"),
 			),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			truncateGrid(tc.cols, tc.ceiling)
-			if diff := cmp.Diff(tc.want, tc.cols, protocmp.Transform()); diff != "" {
+			got := truncateGrid(tc.cols, tc.ceiling)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("truncateGrid() got unexpected diff (-want +got):\n%s", diff)
 			}
 		})
