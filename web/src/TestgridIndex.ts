@@ -2,9 +2,18 @@ import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import { ListDashboardResponse } from './gen/pb/api/v1/data.js';
 import '@material/mwc-button';
 import '@material/mwc-list';
+
+// API Object
+export interface Resource {
+  name: string;
+}
+
+// API Object
+export interface ListDashboardResponse {
+  dashboards: Resource[];
+}
 
 @customElement('testgrid-index')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -35,15 +44,17 @@ export class TestgridIndex extends LitElement {
   getDashboards() {
     this.dashboards = ['Loading...'];
 
-    fetch('http://localhost:8080/api/v1/dashboards').then(async response => {
-      const resp = ListDashboardResponse.fromJson(await response.json());
+    fetch('http://testgrid-data.k8s.io/api/v1/dashboards').then(
+      async response => {
+        const resp: ListDashboardResponse = await response.json();
 
-      this.dashboards = [];
+        this.dashboards = [];
 
-      resp.dashboards.forEach(db => {
-        this.dashboards.push(db.name);
-      });
-    });
+        resp.dashboards.forEach(db => {
+          this.dashboards.push(db.name);
+        });
+      }
+    );
   }
 
   static styles = css`

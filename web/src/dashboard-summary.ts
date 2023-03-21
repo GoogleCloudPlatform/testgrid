@@ -1,12 +1,28 @@
+/* eslint-disable camelcase */
 import { LitElement, html } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, query, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
-import { Timestamp } from './gen/google/protobuf/timestamp.js';
 import '@material/mwc-button';
 import './tab-summary.js';
 
+// TODO(chases2): Split into API client and view object
+// API Object
+export interface TabSummary {
+  overall_status: string;
+  tab_name: string;
+  detailed_status_message: string;
+  latest_passing_build: string;
+  last_update_timestamp: string;
+  last_run_timestamp: string;
+}
+
+// API Object
+export interface ListTabSummariesResponse {
+  tab_summaries: TabSummary[];
+}
+
+// Controller Object
 export interface TabSummaryInfo {
   icon: string;
   name: string;
@@ -28,18 +44,15 @@ const tabStatusIcon = new Map<string, string>([
   ['ACCEPTABLE', 'add_circle_outline'],
 ]);
 
-// TODO: generate the correct time representation
 function convertResponse(ts: TabSummary) {
   const tsi: TabSummaryInfo = {
-    icon: tabStatusIcon.get(ts.overallStatus)!,
-    name: ts.tabName,
-    overallStatus: ts.overallStatus,
-    detailedStatusMsg: ts.detailedStatusMessage,
-    lastUpdateTimestamp: Timestamp.toDate(
-      ts.lastUpdateTimestamp!
-    ).toISOString(),
-    lastRunTimestamp: Timestamp.toDate(ts.lastRunTimestamp!).toISOString(),
-    latestGreenBuild: ts.latestPassingBuild,
+    icon: tabStatusIcon.get(ts.overall_status)!,
+    name: ts.tab_name,
+    overallStatus: ts.overall_status,
+    detailedStatusMsg: ts.detailed_status_message,
+    lastUpdateTimestamp: new Date(ts.last_update_timestamp).toISOString(),
+    lastRunTimestamp: new Date(ts.last_run_timestamp).toISOString(),
+    latestGreenBuild: ts.latest_passing_build,
   };
   return tsi;
 }
@@ -73,8 +86,8 @@ export class DashboardSummary extends LitElement {
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
       }
-      const data = ListTabSummariesResponse.fromJson(await response.json());
-      data.tabSummaries.forEach(ts => {
+      const data: ListTabSummariesResponse = await response.json();
+      data.tab_summaries.forEach(ts => {
         const si = convertResponse(ts);
         this.tabSummariesInfo = [...this.tabSummariesInfo, si];
       });
