@@ -106,6 +106,16 @@ export interface TestResultComparison {
         testResultErrorField: string;
       }
     | {
+        oneofKind: 'targetStatus';
+        /**
+         * This will enable the target status comparation. The value of the status
+         * will be used to evaluate.
+         *
+         * @generated from protobuf field: bool target_status = 5;
+         */
+        targetStatus: boolean;
+      }
+    | {
         oneofKind: undefined;
       };
 }
@@ -145,6 +155,15 @@ export interface Comparison {
          * @generated from protobuf field: double numerical_value = 3;
          */
         numericalValue: number;
+      }
+    | {
+        oneofKind: 'targetStatusValue';
+        /**
+         * For operations EQ
+         *
+         * @generated from protobuf field: testgrid.test_status.TestStatus target_status_value = 4;
+         */
+        targetStatusValue: TestStatus;
       }
     | {
         oneofKind: undefined;
@@ -427,6 +446,13 @@ class TestResultComparison$Type extends MessageType<TestResultComparison> {
         oneof: 'testResultInfo',
         T: 9 /*ScalarType.STRING*/,
       },
+      {
+        no: 5,
+        name: 'target_status',
+        kind: 'scalar',
+        oneof: 'testResultInfo',
+        T: 8 /*ScalarType.BOOL*/,
+      },
     ]);
   }
   create(value?: PartialMessage<TestResultComparison>): TestResultComparison {
@@ -476,6 +502,12 @@ class TestResultComparison$Type extends MessageType<TestResultComparison> {
             testResultErrorField: reader.string(),
           };
           break;
+        case /* bool target_status */ 5:
+          message.testResultInfo = {
+            oneofKind: 'targetStatus',
+            targetStatus: reader.bool(),
+          };
+          break;
         default:
           let u = options.readUnknownField;
           if (u === 'throw')
@@ -522,6 +554,9 @@ class TestResultComparison$Type extends MessageType<TestResultComparison> {
       writer
         .tag(4, WireType.LengthDelimited)
         .string(message.testResultInfo.testResultErrorField);
+    /* bool target_status = 5; */
+    if (message.testResultInfo.oneofKind === 'targetStatus')
+      writer.tag(5, WireType.Varint).bool(message.testResultInfo.targetStatus);
     let u = options.writeUnknownFields;
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -563,6 +598,13 @@ class Comparison$Type extends MessageType<Comparison> {
         oneof: 'comparisonValue',
         T: 1 /*ScalarType.DOUBLE*/,
       },
+      {
+        no: 4,
+        name: 'target_status_value',
+        kind: 'enum',
+        oneof: 'comparisonValue',
+        T: () => ['testgrid.test_status.TestStatus', TestStatus],
+      },
     ]);
   }
   create(value?: PartialMessage<Comparison>): Comparison {
@@ -601,6 +643,12 @@ class Comparison$Type extends MessageType<Comparison> {
             numericalValue: reader.double(),
           };
           break;
+        case /* testgrid.test_status.TestStatus target_status_value */ 4:
+          message.comparisonValue = {
+            oneofKind: 'targetStatusValue',
+            targetStatusValue: reader.int32(),
+          };
+          break;
         default:
           let u = options.readUnknownField;
           if (u === 'throw')
@@ -637,6 +685,11 @@ class Comparison$Type extends MessageType<Comparison> {
       writer
         .tag(3, WireType.Bit64)
         .double(message.comparisonValue.numericalValue);
+    /* testgrid.test_status.TestStatus target_status_value = 4; */
+    if (message.comparisonValue.oneofKind === 'targetStatusValue')
+      writer
+        .tag(4, WireType.Varint)
+        .int32(message.comparisonValue.targetStatusValue);
     let u = options.writeUnknownFields;
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
