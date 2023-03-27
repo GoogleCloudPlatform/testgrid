@@ -4,6 +4,10 @@
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
 import { TestGridData } from './data';
+import type { GetDashboardSummaryResponse } from './data';
+import type { GetDashboardSummaryRequest } from './data';
+import type { ListDashboardSummariesResponse } from './data';
+import type { ListDashboardSummariesRequest } from './data';
 import type { GetTabSummaryResponse } from './data';
 import type { GetTabSummaryRequest } from './data';
 import type { ListTabSummariesResponse } from './data';
@@ -119,6 +123,24 @@ export interface ITestGridDataClient {
     input: GetTabSummaryRequest,
     options?: RpcOptions
   ): UnaryCall<GetTabSummaryRequest, GetTabSummaryResponse>;
+  /**
+   * GET /dashboard-groups/{dashboard-group}/dashboard-summaries
+   *
+   * @generated from protobuf rpc: ListDashboardSummaries(testgrid.api.v1.ListDashboardSummariesRequest) returns (testgrid.api.v1.ListDashboardSummariesResponse);
+   */
+  listDashboardSummaries(
+    input: ListDashboardSummariesRequest,
+    options?: RpcOptions
+  ): UnaryCall<ListDashboardSummariesRequest, ListDashboardSummariesResponse>;
+  /**
+   * GET /dashboards/{dashboard}/summary
+   *
+   * @generated from protobuf rpc: GetDashboardSummary(testgrid.api.v1.GetDashboardSummaryRequest) returns (testgrid.api.v1.GetDashboardSummaryResponse);
+   */
+  getDashboardSummary(
+    input: GetDashboardSummaryRequest,
+    options?: RpcOptions
+  ): UnaryCall<GetDashboardSummaryRequest, GetDashboardSummaryResponse>;
 }
 /**
  * @generated from protobuf service testgrid.api.v1.TestGridData
@@ -304,5 +326,37 @@ export class TestGridDataClient implements ITestGridDataClient, ServiceInfo {
       opt,
       input
     );
+  }
+  /**
+   * GET /dashboard-groups/{dashboard-group}/dashboard-summaries
+   *
+   * @generated from protobuf rpc: ListDashboardSummaries(testgrid.api.v1.ListDashboardSummariesRequest) returns (testgrid.api.v1.ListDashboardSummariesResponse);
+   */
+  listDashboardSummaries(
+    input: ListDashboardSummariesRequest,
+    options?: RpcOptions
+  ): UnaryCall<ListDashboardSummariesRequest, ListDashboardSummariesResponse> {
+    const method = this.methods[9],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<
+      ListDashboardSummariesRequest,
+      ListDashboardSummariesResponse
+    >('unary', this._transport, method, opt, input);
+  }
+  /**
+   * GET /dashboards/{dashboard}/summary
+   *
+   * @generated from protobuf rpc: GetDashboardSummary(testgrid.api.v1.GetDashboardSummaryRequest) returns (testgrid.api.v1.GetDashboardSummaryResponse);
+   */
+  getDashboardSummary(
+    input: GetDashboardSummaryRequest,
+    options?: RpcOptions
+  ): UnaryCall<GetDashboardSummaryRequest, GetDashboardSummaryResponse> {
+    const method = this.methods[10],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<
+      GetDashboardSummaryRequest,
+      GetDashboardSummaryResponse
+    >('unary', this._transport, method, opt, input);
   }
 }

@@ -26,6 +26,7 @@ cd "${WORKDIR}/web"
 npx protoc --ts_out ${PROTO_DEST} --proto_path ${WORKDIR} --ts_opt long_type_string \
   ${WORKDIR}/pb/custom_evaluator/custom_evaluator.proto \
   ${WORKDIR}/pb/state/state.proto \
+  ${WORKDIR}/pb/summary/summary.proto \
   ${WORKDIR}/pb/config/config.proto \
   ${WORKDIR}/pb/test_status/test_status.proto \
   ${WORKDIR}/pb/api/v1/data.proto
