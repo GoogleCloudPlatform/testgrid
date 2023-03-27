@@ -58,7 +58,8 @@
               "type": {
                 "text": "string"
               },
-              "default": "'My app'"
+              "default": "'My app'",
+              "attribute": "title"
             },
             {
               "kind": "field",
@@ -66,17 +67,37 @@
               "type": {
                 "text": "Array<string>"
               },
-              "default": "[]"
+              "default": "[]",
+              "attribute": "dashboards"
             },
             {
               "kind": "method",
               "name": "getDashboards"
             }
           ],
+          "attributes": [
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "'My app'",
+              "fieldName": "title"
+            },
+            {
+              "name": "dashboards",
+              "type": {
+                "text": "Array<string>"
+              },
+              "default": "[]",
+              "fieldName": "dashboards"
+            }
+          ],
           "superclass": {
             "name": "LitElement",
             "package": "lit"
           },
+          "tagName": "testgrid-index",
           "customElement": true
         }
       ],
@@ -84,6 +105,14 @@
         {
           "kind": "js",
           "name": "TestgridIndex",
+          "declaration": {
+            "name": "TestgridIndex",
+            "module": "src/TestgridIndex.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-index",
           "declaration": {
             "name": "TestgridIndex",
             "module": "src/TestgridIndex.ts"
@@ -125,6 +154,7 @@
             "name": "LitElement",
             "package": "lit"
           },
+          "tagName": "dashboard-summary",
           "customElement": true
         }
       ],
@@ -132,6 +162,14 @@
         {
           "kind": "js",
           "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "src/dashboard-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dashboard-summary",
           "declaration": {
             "name": "DashboardSummary",
             "module": "src/dashboard-summary.ts"
@@ -153,13 +191,24 @@
               "name": "info",
               "type": {
                 "text": "TabSummaryInfo | undefined"
-              }
+              },
+              "attribute": "info"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "info",
+              "type": {
+                "text": "TabSummaryInfo | undefined"
+              },
+              "fieldName": "info"
             }
           ],
           "superclass": {
             "name": "LitElement",
             "package": "lit"
           },
+          "tagName": "tab-summary",
           "customElement": true
         }
       ],
@@ -167,6 +216,14 @@
         {
           "kind": "js",
           "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "src/tab-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "tab-summary",
           "declaration": {
             "name": "TabSummary",
             "module": "src/tab-summary.ts"
@@ -299,6 +356,24 @@
           }
         }
       ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/block-navigation.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/prettify.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/sorter.js",
+      "declarations": [],
+      "exports": []
     },
     {
       "kind": "javascript-module",
@@ -1104,6 +1179,105 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/gen/pb/summary/summary.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "FailingTestSummary",
+          "default": "new FailingTestSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TestInfo",
+          "default": "new TestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessInfo",
+          "default": "new HealthinessInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "AlertingData",
+          "default": "new AlertingData$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummary",
+          "default": "new DashboardTabSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummaryMetrics",
+          "default": "new DashboardTabSummaryMetrics$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "new DashboardSummary$Type()"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "FailingTestSummary",
+          "declaration": {
+            "name": "FailingTestSummary",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestInfo",
+          "declaration": {
+            "name": "TestInfo",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessInfo",
+          "declaration": {
+            "name": "HealthinessInfo",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "AlertingData",
+          "declaration": {
+            "name": "AlertingData",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummary",
+          "declaration": {
+            "name": "DashboardTabSummary",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummaryMetrics",
+          "declaration": {
+            "name": "DashboardTabSummaryMetrics",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "src/gen/pb/summary/summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/gen/pb/test_status/test_status.ts",
       "declarations": [],
       "exports": []
@@ -1762,6 +1936,129 @@
     },
     {
       "kind": "javascript-module",
+      "path": "out-tsc/src/gen/pb/summary/summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestInfo_Trend"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummary_TabStatus"
+        },
+        {
+          "kind": "variable",
+          "name": "FailingTestSummary",
+          "default": "new FailingTestSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TestInfo",
+          "default": "new TestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessInfo",
+          "default": "new HealthinessInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "AlertingData",
+          "default": "new AlertingData$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummary",
+          "default": "new DashboardTabSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummaryMetrics",
+          "default": "new DashboardTabSummaryMetrics$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "new DashboardSummary$Type()"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestInfo_Trend",
+          "declaration": {
+            "name": "TestInfo_Trend",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummary_TabStatus",
+          "declaration": {
+            "name": "DashboardTabSummary_TabStatus",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailingTestSummary",
+          "declaration": {
+            "name": "FailingTestSummary",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestInfo",
+          "declaration": {
+            "name": "TestInfo",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessInfo",
+          "declaration": {
+            "name": "HealthinessInfo",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "AlertingData",
+          "declaration": {
+            "name": "AlertingData",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummary",
+          "declaration": {
+            "name": "DashboardTabSummary",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummaryMetrics",
+          "declaration": {
+            "name": "DashboardTabSummaryMetrics",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "out-tsc/src/gen/pb/test_status/test_status.js",
       "declarations": [
         {
@@ -2025,6 +2322,56 @@
                 }
               ],
               "description": "GET /dashboards/{dashboard}/tab-summaries/{tab}"
+            },
+            {
+              "kind": "method",
+              "name": "listDashboardSummaries",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListDashboardSummariesRequest, ListDashboardSummariesResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListDashboardSummariesRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboard-groups/{dashboard-group}/dashboard-summaries"
+            },
+            {
+              "kind": "method",
+              "name": "getDashboardSummary",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<GetDashboardSummaryRequest, GetDashboardSummaryResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "GetDashboardSummaryRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/summary"
             }
           ]
         }
@@ -2156,13 +2503,68 @@
         },
         {
           "kind": "variable",
+          "name": "ListDashboardSummariesRequest",
+          "default": "new ListDashboardSummariesRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardSummariesResponse",
+          "default": "new ListDashboardSummariesResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardSummaryRequest",
+          "default": "new GetDashboardSummaryRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardSummaryResponse",
+          "default": "new GetDashboardSummaryResponse$Type()"
+        },
+        {
+          "kind": "variable",
           "name": "TabSummary",
           "default": "new TabSummary$Type()"
         },
         {
           "kind": "variable",
+          "name": "FailuresSummary",
+          "default": "new FailuresSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailingTestInfo",
+          "default": "new FailingTestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailureStats",
+          "default": "new FailureStats$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessSummary",
+          "default": "new HealthinessSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FlakyTestInfo",
+          "default": "new FlakyTestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessStats",
+          "default": "new HealthinessStats$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "new DashboardSummary$Type()"
+        },
+        {
+          "kind": "variable",
           "name": "TestGridData",
-          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n  {\n    name: 'ListDashboard',\n    options: {},\n    I: ListDashboardRequest,\n    O: ListDashboardResponse,\n  },\n  {\n    name: 'ListDashboardGroup',\n    options: {},\n    I: ListDashboardGroupRequest,\n    O: ListDashboardGroupResponse,\n  },\n  {\n    name: 'ListDashboardTabs',\n    options: {},\n    I: ListDashboardTabsRequest,\n    O: ListDashboardTabsResponse,\n  },\n  {\n    name: 'GetDashboard',\n    options: {},\n    I: GetDashboardRequest,\n    O: GetDashboardResponse,\n  },\n  {\n    name: 'GetDashboardGroup',\n    options: {},\n    I: GetDashboardGroupRequest,\n    O: GetDashboardGroupResponse,\n  },\n  {\n    name: 'ListHeaders',\n    options: {},\n    I: ListHeadersRequest,\n    O: ListHeadersResponse,\n  },\n  { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n  {\n    name: 'ListTabSummaries',\n    options: {},\n    I: ListTabSummariesRequest,\n    O: ListTabSummariesResponse,\n  },\n  {\n    name: 'GetTabSummary',\n    options: {},\n    I: GetTabSummaryRequest,\n    O: GetTabSummaryResponse,\n  },\n])"
+          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n  {\n    name: 'ListDashboard',\n    options: {},\n    I: ListDashboardRequest,\n    O: ListDashboardResponse,\n  },\n  {\n    name: 'ListDashboardGroup',\n    options: {},\n    I: ListDashboardGroupRequest,\n    O: ListDashboardGroupResponse,\n  },\n  {\n    name: 'ListDashboardTabs',\n    options: {},\n    I: ListDashboardTabsRequest,\n    O: ListDashboardTabsResponse,\n  },\n  {\n    name: 'GetDashboard',\n    options: {},\n    I: GetDashboardRequest,\n    O: GetDashboardResponse,\n  },\n  {\n    name: 'GetDashboardGroup',\n    options: {},\n    I: GetDashboardGroupRequest,\n    O: GetDashboardGroupResponse,\n  },\n  {\n    name: 'ListHeaders',\n    options: {},\n    I: ListHeadersRequest,\n    O: ListHeadersResponse,\n  },\n  { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n  {\n    name: 'ListTabSummaries',\n    options: {},\n    I: ListTabSummariesRequest,\n    O: ListTabSummariesResponse,\n  },\n  {\n    name: 'GetTabSummary',\n    options: {},\n    I: GetTabSummaryRequest,\n    O: GetTabSummaryResponse,\n  },\n  {\n    name: 'ListDashboardSummaries',\n    options: {},\n    I: ListDashboardSummariesRequest,\n    O: ListDashboardSummariesResponse,\n  },\n  {\n    name: 'GetDashboardSummary',\n    options: {},\n    I: GetDashboardSummaryRequest,\n    O: GetDashboardSummaryResponse,\n  },\n])"
         }
       ],
       "exports": [
@@ -2344,9 +2746,97 @@
         },
         {
           "kind": "js",
+          "name": "ListDashboardSummariesRequest",
+          "declaration": {
+            "name": "ListDashboardSummariesRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardSummariesResponse",
+          "declaration": {
+            "name": "ListDashboardSummariesResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardSummaryRequest",
+          "declaration": {
+            "name": "GetDashboardSummaryRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardSummaryResponse",
+          "declaration": {
+            "name": "GetDashboardSummaryResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
           "name": "TabSummary",
           "declaration": {
             "name": "TabSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailuresSummary",
+          "declaration": {
+            "name": "FailuresSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailingTestInfo",
+          "declaration": {
+            "name": "FailingTestInfo",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailureStats",
+          "declaration": {
+            "name": "FailureStats",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessSummary",
+          "declaration": {
+            "name": "HealthinessSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FlakyTestInfo",
+          "declaration": {
+            "name": "FlakyTestInfo",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessStats",
+          "declaration": {
+            "name": "HealthinessStats",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
             "module": "src/gen/pb/api/v1/data.ts"
           }
         },
@@ -2485,6 +2975,32 @@
                 }
               ],
               "description": "GET /dashboards/{dashboard}/tab-summaries/{tab}"
+            },
+            {
+              "kind": "method",
+              "name": "listDashboardSummaries",
+              "parameters": [
+                {
+                  "name": "input"
+                },
+                {
+                  "name": "options"
+                }
+              ],
+              "description": "GET /dashboard-groups/{dashboard-group}/dashboard-summaries"
+            },
+            {
+              "kind": "method",
+              "name": "getDashboardSummary",
+              "parameters": [
+                {
+                  "name": "input"
+                },
+                {
+                  "name": "options"
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/summary"
             },
             {
               "kind": "field",
@@ -2633,13 +3149,68 @@
         },
         {
           "kind": "variable",
+          "name": "ListDashboardSummariesRequest",
+          "default": "new ListDashboardSummariesRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardSummariesResponse",
+          "default": "new ListDashboardSummariesResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardSummaryRequest",
+          "default": "new GetDashboardSummaryRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardSummaryResponse",
+          "default": "new GetDashboardSummaryResponse$Type()"
+        },
+        {
+          "kind": "variable",
           "name": "TabSummary",
           "default": "new TabSummary$Type()"
         },
         {
           "kind": "variable",
+          "name": "FailuresSummary",
+          "default": "new FailuresSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailingTestInfo",
+          "default": "new FailingTestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailureStats",
+          "default": "new FailureStats$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessSummary",
+          "default": "new HealthinessSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FlakyTestInfo",
+          "default": "new FlakyTestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessStats",
+          "default": "new HealthinessStats$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "new DashboardSummary$Type()"
+        },
+        {
+          "kind": "variable",
           "name": "TestGridData",
-          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n    {\n        name: 'ListDashboard',\n        options: {},\n        I: ListDashboardRequest,\n        O: ListDashboardResponse,\n    },\n    {\n        name: 'ListDashboardGroup',\n        options: {},\n        I: ListDashboardGroupRequest,\n        O: ListDashboardGroupResponse,\n    },\n    {\n        name: 'ListDashboardTabs',\n        options: {},\n        I: ListDashboardTabsRequest,\n        O: ListDashboardTabsResponse,\n    },\n    {\n        name: 'GetDashboard',\n        options: {},\n        I: GetDashboardRequest,\n        O: GetDashboardResponse,\n    },\n    {\n        name: 'GetDashboardGroup',\n        options: {},\n        I: GetDashboardGroupRequest,\n        O: GetDashboardGroupResponse,\n    },\n    {\n        name: 'ListHeaders',\n        options: {},\n        I: ListHeadersRequest,\n        O: ListHeadersResponse,\n    },\n    { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n    {\n        name: 'ListTabSummaries',\n        options: {},\n        I: ListTabSummariesRequest,\n        O: ListTabSummariesResponse,\n    },\n    {\n        name: 'GetTabSummary',\n        options: {},\n        I: GetTabSummaryRequest,\n        O: GetTabSummaryResponse,\n    },\n])"
+          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n    {\n        name: 'ListDashboard',\n        options: {},\n        I: ListDashboardRequest,\n        O: ListDashboardResponse,\n    },\n    {\n        name: 'ListDashboardGroup',\n        options: {},\n        I: ListDashboardGroupRequest,\n        O: ListDashboardGroupResponse,\n    },\n    {\n        name: 'ListDashboardTabs',\n        options: {},\n        I: ListDashboardTabsRequest,\n        O: ListDashboardTabsResponse,\n    },\n    {\n        name: 'GetDashboard',\n        options: {},\n        I: GetDashboardRequest,\n        O: GetDashboardResponse,\n    },\n    {\n        name: 'GetDashboardGroup',\n        options: {},\n        I: GetDashboardGroupRequest,\n        O: GetDashboardGroupResponse,\n    },\n    {\n        name: 'ListHeaders',\n        options: {},\n        I: ListHeadersRequest,\n        O: ListHeadersResponse,\n    },\n    { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n    {\n        name: 'ListTabSummaries',\n        options: {},\n        I: ListTabSummariesRequest,\n        O: ListTabSummariesResponse,\n    },\n    {\n        name: 'GetTabSummary',\n        options: {},\n        I: GetTabSummaryRequest,\n        O: GetTabSummaryResponse,\n    },\n    {\n        name: 'ListDashboardSummaries',\n        options: {},\n        I: ListDashboardSummariesRequest,\n        O: ListDashboardSummariesResponse,\n    },\n    {\n        name: 'GetDashboardSummary',\n        options: {},\n        I: GetDashboardSummaryRequest,\n        O: GetDashboardSummaryResponse,\n    },\n])"
         }
       ],
       "exports": [
@@ -2821,9 +3392,97 @@
         },
         {
           "kind": "js",
+          "name": "ListDashboardSummariesRequest",
+          "declaration": {
+            "name": "ListDashboardSummariesRequest",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardSummariesResponse",
+          "declaration": {
+            "name": "ListDashboardSummariesResponse",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardSummaryRequest",
+          "declaration": {
+            "name": "GetDashboardSummaryRequest",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardSummaryResponse",
+          "declaration": {
+            "name": "GetDashboardSummaryResponse",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
           "name": "TabSummary",
           "declaration": {
             "name": "TabSummary",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailuresSummary",
+          "declaration": {
+            "name": "FailuresSummary",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailingTestInfo",
+          "declaration": {
+            "name": "FailingTestInfo",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailureStats",
+          "declaration": {
+            "name": "FailureStats",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessSummary",
+          "declaration": {
+            "name": "HealthinessSummary",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FlakyTestInfo",
+          "declaration": {
+            "name": "FlakyTestInfo",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessStats",
+          "declaration": {
+            "name": "HealthinessStats",
+            "module": "out-tsc/src/gen/pb/api/v1/data.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
             "module": "out-tsc/src/gen/pb/api/v1/data.js"
           }
         },
