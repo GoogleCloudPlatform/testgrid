@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
-import { TabSummaryInfo } from './dashboard-summary.js';
+import { TabSummaryInfo } from './testgrid-dashboard-summary.js';
 
 @customElement('tab-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

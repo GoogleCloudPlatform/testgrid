@@ -1,6 +1,6 @@
 import { html, TemplateResult } from 'lit';
-import '../src/tab-summary.js';
-import { TabSummaryInfo } from '../src/dashboard-summary.js';
+import '../src/testgrid-tab-summary.js';
+import { TabSummaryInfo } from '../src/testgrid-dashboard-summary.js';
 
 export default {
   title: 'Tab summary',

@@ -5,7 +5,7 @@ import { map } from 'lit/directives/map.js';
 import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
 import '@material/mwc-button';
-import './tab-summary.js';
+import './testgrid-tab-summary.js';
 
 export interface TabSummaryInfo {
   icon: string;
@@ -44,7 +44,7 @@ function convertResponse(ts: TabSummary) {
   return tsi;
 }
 
-@customElement('dashboard-summary')
+@customElement('testgrid-dashboard-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class DashboardSummary extends LitElement {
   @state()

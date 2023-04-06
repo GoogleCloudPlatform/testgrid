@@ -3,6 +3,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { ListDashboardResponse } from './gen/pb/api/v1/data.js';
+import { navigate } from './utils/navigation';
 import '@material/mwc-button';
 import '@material/mwc-list';
 
@@ -17,15 +18,15 @@ export class TestgridIndex extends LitElement {
 
   render() {
     return html`
-      <mwc-list>
+      <mwc-list activatable>
         ${map(this.dashboards, (dash: string, index: number) => {
           if (index !== 0) {
             return html`
               <li divider role="separator"></li>
-              <mwc-list-item>${dash}</mwc-list-item>
+              <mwc-list-item @click=${() => navigate(dash)}>${dash}</mwc-list-item>
             `;
           }
-          return html`<mwc-list-item>${dash}</mwc-list-item>`;
+          return html`<mwc-list-item @click=${() => navigate(dash)}>${dash}</mwc-list-item>`;
         })}
       </mwc-list>
       <mwc-button raised @click="${this.getDashboards}">Call API</mwc-button>

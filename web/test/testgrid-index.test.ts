@@ -6,7 +6,7 @@ import {
   expect,
 } from '@open-wc/testing';
 
-import { TestgridIndex } from '../src/TestgridIndex.js';
+import { TestgridIndex } from '../src/testgrid-index.js';
 
 describe('ExampleApp', () => {
   let element: TestgridIndex;

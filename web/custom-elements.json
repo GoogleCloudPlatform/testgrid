@@ -45,7 +45,92 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/TestgridIndex.ts",
+      "path": "src/testgrid-app.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridApp",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-app",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-app",
+          "declaration": {
+            "name": "TestgridApp",
+            "module": "src/testgrid-app.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/testgrid-dashboard-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "DashboardSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tabSummariesInfo",
+              "type": {
+                "text": "Array<TabSummaryInfo>"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "input",
+              "type": {
+                "text": "HTMLInputElement"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "getTabSummaries"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-dashboard-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "src/testgrid-dashboard-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-dashboard-summary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "src/testgrid-dashboard-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/testgrid-index.ts",
       "declarations": [
         {
           "kind": "class",
@@ -107,7 +192,7 @@
           "name": "TestgridIndex",
           "declaration": {
             "name": "TestgridIndex",
-            "module": "src/TestgridIndex.ts"
+            "module": "src/testgrid-index.ts"
           }
         },
         {
@@ -115,71 +200,57 @@
           "name": "testgrid-index",
           "declaration": {
             "name": "TestgridIndex",
-            "module": "src/TestgridIndex.ts"
+            "module": "src/testgrid-index.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/dashboard-summary.ts",
+      "path": "src/testgrid-router.ts",
       "declarations": [
         {
           "kind": "class",
           "description": "",
-          "name": "DashboardSummary",
+          "name": "TestgridRouter",
           "members": [
             {
               "kind": "field",
-              "name": "tabSummariesInfo",
-              "type": {
-                "text": "Array<TabSummaryInfo>"
-              },
+              "name": "router",
               "privacy": "private",
-              "default": "[]"
-            },
-            {
-              "kind": "field",
-              "name": "input",
-              "type": {
-                "text": "HTMLInputElement"
-              }
-            },
-            {
-              "kind": "method",
-              "name": "getTabSummaries"
+              "default": "new Router(\n        this,\n        [\n            {\n                path: '/dashboards',\n                render: () => html`<testgrid-dashboard-summary></testgrid-dashboard-summary>`,\n            },\n            {\n                path: '/',\n                render: () => html`<testgrid-index></testgrid-index>`,\n            },\n        ]\n    )"
             }
           ],
           "superclass": {
             "name": "LitElement",
             "package": "lit"
           },
-          "tagName": "dashboard-summary",
+          "tagName": "testgrid-router",
           "customElement": true
         }
       ],
       "exports": [
         {
           "kind": "js",
-          "name": "DashboardSummary",
+          "name": "TestgridRouter",
           "declaration": {
-            "name": "DashboardSummary",
-            "module": "src/dashboard-summary.ts"
+            "name": "TestgridRouter",
+            "module": "src/testgrid-router.ts"
           }
         },
         {
           "kind": "custom-element-definition",
-          "name": "dashboard-summary",
+          "name": "testgrid-router",
           "declaration": {
-            "name": "DashboardSummary",
-            "module": "src/dashboard-summary.ts"
+            "name": "TestgridRouter",
+            "module": "src/testgrid-router.ts"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "src/tab-summary.ts",
+      "path": "src/testgrid-tab-summary.ts",
       "declarations": [
         {
           "kind": "class",
@@ -218,7 +289,7 @@
           "name": "TabSummary",
           "declaration": {
             "name": "TabSummary",
-            "module": "src/tab-summary.ts"
+            "module": "src/testgrid-tab-summary.ts"
           }
         },
         {
@@ -226,7 +297,7 @@
           "name": "tab-summary",
           "declaration": {
             "name": "TabSummary",
-            "module": "src/tab-summary.ts"
+            "module": "src/testgrid-tab-summary.ts"
           }
         }
       ]
@@ -359,24 +430,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "coverage/lcov-report/block-navigation.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "coverage/lcov-report/prettify.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "coverage/lcov-report/sorter.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
       "path": "out-tsc/src/APIClient.js",
       "declarations": [
         {
@@ -412,28 +465,13 @@
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/TestgridIndex.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridIndex",
-          "default": "class TestgridIndex extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.title = 'My app';\n        this.dashboards = [];\n    }\n    // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later\n    render() {\n        return html `\n      <mwc-list>\n        ${map(this.dashboards, (dash, index) => {\n            if (index !== 0) {\n                return html `\n              <li divider role=\"separator\"></li>\n              <mwc-list-item>${dash}</mwc-list-item>\n            `;\n            }\n            return html `<mwc-list-item>${dash}</mwc-list-item>`;\n        })}\n      </mwc-list>\n      <mwc-button raised @click=\"${this.getDashboards}\">Call API</mwc-button>\n    `;\n    }\n    getDashboards() {\n        this.dashboards = ['Loading...'];\n        fetch('http://localhost:8080/api/v1/dashboards').then(async (response) => {\n            const resp = ListDashboardResponse.fromJson(await response.json());\n            this.dashboards = [];\n            resp.dashboards.forEach(db => {\n                this.dashboards.push(db.name);\n            });\n        });\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridIndex",
-          "declaration": {
-            "name": "TestgridIndex",
-            "module": "out-tsc/src/TestgridIndex.js"
-          }
-        }
-      ]
+      "path": "out-tsc/src/testgrid-app.js",
+      "declarations": [],
+      "exports": []
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/dashboard-summary.js",
+      "path": "out-tsc/src/testgrid-dashboard-summary.js",
       "declarations": [
         {
           "kind": "variable",
@@ -447,14 +485,56 @@
           "name": "DashboardSummary",
           "declaration": {
             "name": "DashboardSummary",
-            "module": "out-tsc/src/dashboard-summary.js"
+            "module": "out-tsc/src/testgrid-dashboard-summary.js"
           }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/tab-summary.js",
+      "path": "out-tsc/src/testgrid-index.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridIndex",
+          "default": "class TestgridIndex extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.title = 'My app';\n        this.dashboards = [];\n    }\n    // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later\n    render() {\n        return html `\n      <mwc-list activatable>\n        ${map(this.dashboards, (dash, index) => {\n            if (index !== 0) {\n                return html `\n              <li divider role=\"separator\"></li>\n              <mwc-list-item @click=${() => navigate(dash)}>${dash}</mwc-list-item>\n            `;\n            }\n            return html `<mwc-list-item @click=${() => navigate(dash)}>${dash}</mwc-list-item>`;\n        })}\n      </mwc-list>\n      <mwc-button raised @click=\"${this.getDashboards}\">Call API</mwc-button>\n    `;\n    }\n    getDashboards() {\n        this.dashboards = ['Loading...'];\n        fetch('http://localhost:8080/api/v1/dashboards').then(async (response) => {\n            const resp = ListDashboardResponse.fromJson(await response.json());\n            this.dashboards = [];\n            resp.dashboards.forEach(db => {\n                this.dashboards.push(db.name);\n            });\n        });\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridIndex",
+          "declaration": {
+            "name": "TestgridIndex",
+            "module": "out-tsc/src/testgrid-index.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-router.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridRouter",
+          "default": "class TestgridRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.router = new Router(this, [\n            {\n                path: '/dashboards',\n                render: () => html `<testgrid-dashboard-summary></testgrid-dashboard-summary>`,\n            },\n            {\n                path: '/',\n                render: () => html `<testgrid-index></testgrid-index>`,\n            },\n        ]);\n    }\n    firstUpdated() {\n        window.addEventListener('location-changed', () => {\n            this.router.goto(location.pathname);\n        });\n    }\n    render() {\n        console.log(location.href);\n        return html `${this.router.outlet()}`;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridRouter",
+          "declaration": {
+            "name": "TestgridRouter",
+            "module": "out-tsc/src/testgrid-router.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-tab-summary.js",
       "declarations": [
         {
           "kind": "variable",
@@ -468,7 +548,7 @@
           "name": "TabSummary",
           "declaration": {
             "name": "TabSummary",
-            "module": "out-tsc/src/tab-summary.js"
+            "module": "out-tsc/src/testgrid-tab-summary.js"
           }
         }
       ]
@@ -595,6 +675,64 @@
           "declaration": {
             "name": "App",
             "module": "out-tsc/stories/testgrid-index.stories.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/utils/navigation.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "navigate",
+          "parameters": [
+            {
+              "name": "path",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Navigates application to a specified page."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "navigate",
+          "declaration": {
+            "name": "navigate",
+            "module": "src/utils/navigation.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/utils/navigation.js",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "navigate",
+          "parameters": [
+            {
+              "name": "path",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Navigates application to a specified page."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "navigate",
+          "declaration": {
+            "name": "navigate",
+            "module": "out-tsc/src/utils/navigation.js"
           }
         }
       ]
