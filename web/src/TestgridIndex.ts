@@ -1,63 +1,225 @@
 import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import { ListDashboardResponse } from './gen/pb/api/v1/data.js';
+import {
+  ListDashboardResponse,
+  ListDashboardGroupResponse,
+} from './gen/pb/api/v1/data.js';
+// import { styles } from './styles.js';
 import '@material/mwc-button';
 import '@material/mwc-list';
+import './dashboard-summary.js';
+
+// dashboards template
+const dashboardTemplate = (dashboards: Array<string>) => html`
+  <div>
+    <mwc-list style="min-width: 755px">
+      ${map(
+        dashboards,
+        (dash: string, index: number) => html`
+          <mwc-list-item id=${index} class="column card dashboard">
+            <a
+              href="http://testgrid-data.k8s.io/api/v1/dashboards/${dash.replace(
+                /\W/g,
+                ''
+              )}/tabs"
+            >
+              <div class="container">
+                <p>${dash}</p>
+              </div>
+            </a>
+          </mwc-list-item>
+        `
+      )}
+    </mwc-list>
+  </div>
+`;
 
 @customElement('testgrid-index')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TestgridIndex extends LitElement {
-  @property({ type: String }) title: string = 'My app';
-
   @property({ type: Array<string> }) dashboards: Array<string> = [];
+
+  @property({ type: Array<string> }) dashboardGroups: Array<string> = [];
+
+  @property({ type: Array<string> }) respectiveDashboards: Array<string> = [];
+
+  @property({ type: Boolean }) show = true;
 
   // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later
 
   render() {
     return html`
-      <mwc-list>
-        ${map(this.dashboards, (dash: string, index: number) => {
-          if (index !== 0) {
-            return html`
-              <li divider role="separator"></li>
-              <mwc-list-item>${dash}</mwc-list-item>
-            `;
-          }
-          return html`<mwc-list-item>${dash}</mwc-list-item>`;
-        })}
-      </mwc-list>
-      <mwc-button raised @click="${this.getDashboards}">Call API</mwc-button>
+      <mwc-button raised @click="${this.callAPI}">Call API</mwc-button>
+
+      <div class="flex-container">
+        <!-- loading dashboard groups -->
+        <mwc-list style="min-width: 760px">
+          ${map(
+            this.dashboardGroups,
+            (dash: string, index: number) => html`
+              <mwc-list-item
+                id=${index}
+                class="column card dashboard-group"
+                raised
+                @click="${() => this.getRespectiveDashboards(dash)}"
+              >
+                <div class="container">
+                  <p>${dash}</p>
+                </div>
+              </mwc-list-item>
+            `
+          )}
+        </mwc-list>
+
+        <!-- loading dashboards -->
+        ${this.show ? dashboardTemplate(this.dashboards) : ''}
+
+        <!-- loading respective dashboards -->
+        ${!this.show ? dashboardTemplate(this.respectiveDashboards) : ''}
+        ${!this.show
+          ? html`
+              <mwc-button
+                class="column"
+                raised
+                @click="${() => {
+                  this.show = !this.show;
+                }}"
+                >X</mwc-button
+              >
+            `
+          : ''}
+      </div>
     `;
   }
 
+  // function to get dashboards
   getDashboards() {
     this.dashboards = ['Loading...'];
 
-    fetch('http://localhost:8080/api/v1/dashboards').then(async response => {
-      const resp = ListDashboardResponse.fromJson(await response.json());
+    fetch('http://testgrid-data.k8s.io/api/v1/dashboards').then(
+      async response => {
+        const resp = ListDashboardResponse.fromJson(await response.json());
 
-      this.dashboards = [];
+        this.dashboards = [];
 
-      resp.dashboards.forEach(db => {
-        this.dashboards.push(db.name);
-      });
-    });
+        resp.dashboards.forEach(db => {
+          this.dashboards.push(db.name);
+        });
+      }
+    );
+  }
+
+  // function to get dashboard groups
+  getDashboardGroups() {
+    this.dashboardGroups = ['Loading...'];
+
+    fetch('http://testgrid-data.k8s.io/api/v1/dashboard-groups').then(
+      async response => {
+        const resp = ListDashboardGroupResponse.fromJson(await response.json());
+
+        this.dashboardGroups = [];
+
+        resp.dashboardGroups.forEach(db => {
+          this.dashboardGroups.push(db.name);
+        });
+      }
+    );
+  }
+
+  // function to get respective dashboards of dashboard group
+  async getRespectiveDashboards(name: string) {
+    this.show = false;
+    // this.respectiveDashboards = ['Loading...'];
+    try {
+      fetch(`http://testgrid-data.k8s.io/api/v1/dashboard-groups/${name}`).then(
+        async response => {
+          const resp = ListDashboardResponse.fromJson(await response.json());
+
+          this.respectiveDashboards = [];
+
+          resp.dashboards.forEach(ts => {
+            this.respectiveDashboards.push(ts.name);
+          });
+          console.log(this.respectiveDashboards);
+        }
+      );
+    } catch (error) {
+      console.error(`Could not get dashboard summaries: ${error}`);
+    }
+  }
+
+  // call both of these at same time
+  callAPI() {
+    this.getDashboardGroups();
+    this.getDashboards();
   }
 
   static styles = css`
     :host {
+      overflow: auto;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
+      justify-content: flex;
       font-size: calc(10px + 2vmin);
       color: #1a2b42;
-      max-width: 960px;
+      /* max-width: 960px; */
       margin: 0 auto;
       text-align: center;
       background-color: var(--example-app-background-color);
+    }
+
+    .flex-container {
+      display: grid;
+      gap: 30px;
+      grid-template-columns: auto auto auto;
+    }
+
+    .column {
+      display: inline-grid;
+      padding: 10px;
+    }
+
+    .card {
+      /* Add shadows to create the "card" effect */
+      width: 350px;
+      height: 80px;
+      /* transition: 0.3s; */
+      margin-bottom: 10px;
+      box-shadow: 0 30px 30px -25px rgba(#7168c9, 0.25);
+    }
+
+    .dashboard {
+      background-color: #9e60eb;
+      color: #fff;
+    }
+
+    .dashboard-group {
+      background-color: #707df1;
+      color: #fff;
+    }
+
+    .dashboard-group:focus,
+    .dashboard-group:hover {
+      background-color: #fff;
+      color: #707df1;
+      border-style: solid;
+      border-color: #707df1;
+    }
+
+    .dashboard:hover,
+    .dashboard:focus {
+      background-color: #fff;
+      color: #9e60eb;
+      border-style: solid;
+      border-color: #9e60eb;
+    }
+
+    /* Add some padding inside the card container */
+    .container {
+      padding: 2px 16px;
     }
   `;
 }

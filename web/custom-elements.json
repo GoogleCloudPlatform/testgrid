@@ -17,11 +17,21 @@
               "type": {
                 "text": "String"
               },
-              "default": "'http://localhost:8080'"
+              "default": "'testgrid-data.k8s.io'"
             },
             {
               "kind": "method",
               "name": "getDashboards",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "Array<String>"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "getDashboardGroups",
               "privacy": "public",
               "return": {
                 "type": {
@@ -54,15 +64,6 @@
           "members": [
             {
               "kind": "field",
-              "name": "title",
-              "type": {
-                "text": "string"
-              },
-              "default": "'My app'",
-              "attribute": "title"
-            },
-            {
-              "kind": "field",
               "name": "dashboards",
               "type": {
                 "text": "Array<string>"
@@ -71,19 +72,58 @@
               "attribute": "dashboards"
             },
             {
+              "kind": "field",
+              "name": "dashboardGroups",
+              "type": {
+                "text": "Array<string>"
+              },
+              "default": "[]",
+              "attribute": "dashboardGroups"
+            },
+            {
+              "kind": "field",
+              "name": "respectiveDashboards",
+              "type": {
+                "text": "Array<string>"
+              },
+              "default": "[]",
+              "attribute": "respectiveDashboards"
+            },
+            {
+              "kind": "field",
+              "name": "show",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true",
+              "attribute": "show"
+            },
+            {
               "kind": "method",
               "name": "getDashboards"
+            },
+            {
+              "kind": "method",
+              "name": "getDashboardGroups"
+            },
+            {
+              "kind": "method",
+              "name": "getRespectiveDashboards",
+              "parameters": [
+                {
+                  "name": "name",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "callAPI"
             }
           ],
           "attributes": [
-            {
-              "name": "title",
-              "type": {
-                "text": "string"
-              },
-              "default": "'My app'",
-              "fieldName": "title"
-            },
             {
               "name": "dashboards",
               "type": {
@@ -91,6 +131,30 @@
               },
               "default": "[]",
               "fieldName": "dashboards"
+            },
+            {
+              "name": "dashboardGroups",
+              "type": {
+                "text": "Array<string>"
+              },
+              "default": "[]",
+              "fieldName": "dashboardGroups"
+            },
+            {
+              "name": "respectiveDashboards",
+              "type": {
+                "text": "Array<string>"
+              },
+              "default": "[]",
+              "fieldName": "respectiveDashboards"
+            },
+            {
+              "name": "show",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true",
+              "fieldName": "show"
             }
           ],
           "superclass": {
@@ -337,6 +401,42 @@
         {
           "kind": "variable",
           "name": "App"
+        },
+        {
+          "kind": "function",
+          "name": "Dashboards",
+          "parameters": [
+            {
+              "name": "{\n  backgroundColor = 'white',\n}",
+              "type": {
+                "text": "ArgTypes"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "DashboardGroups",
+          "parameters": [
+            {
+              "name": "{\n  backgroundColor = 'white',\n}",
+              "type": {
+                "text": "ArgTypes"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "RespectiveDashboards",
+          "parameters": [
+            {
+              "name": "{\n  backgroundColor = 'white',\n}",
+              "type": {
+                "text": "ArgTypes"
+              }
+            }
+          ]
         }
       ],
       "exports": [
@@ -354,26 +454,32 @@
             "name": "App",
             "module": "stories/testgrid-index.stories.ts"
           }
+        },
+        {
+          "kind": "js",
+          "name": "Dashboards",
+          "declaration": {
+            "name": "Dashboards",
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardGroups",
+          "declaration": {
+            "name": "DashboardGroups",
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "RespectiveDashboards",
+          "declaration": {
+            "name": "RespectiveDashboards",
+            "module": "stories/testgrid-index.stories.ts"
+          }
         }
       ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "coverage/lcov-report/block-navigation.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "coverage/lcov-report/prettify.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "coverage/lcov-report/sorter.js",
-      "declarations": [],
-      "exports": []
     },
     {
       "kind": "javascript-module",
@@ -389,12 +495,16 @@
               "name": "getDashboards"
             },
             {
+              "kind": "method",
+              "name": "getDashboardGroups"
+            },
+            {
               "kind": "field",
               "name": "host",
               "type": {
                 "text": "string"
               },
-              "default": "'http://localhost:8080'"
+              "default": "'testgrid-data.k8s.io'"
             }
           ]
         }
@@ -417,7 +527,7 @@
         {
           "kind": "variable",
           "name": "TestgridIndex",
-          "default": "class TestgridIndex extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.title = 'My app';\n        this.dashboards = [];\n    }\n    // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later\n    render() {\n        return html `\n      <mwc-list>\n        ${map(this.dashboards, (dash, index) => {\n            if (index !== 0) {\n                return html `\n              <li divider role=\"separator\"></li>\n              <mwc-list-item>${dash}</mwc-list-item>\n            `;\n            }\n            return html `<mwc-list-item>${dash}</mwc-list-item>`;\n        })}\n      </mwc-list>\n      <mwc-button raised @click=\"${this.getDashboards}\">Call API</mwc-button>\n    `;\n    }\n    getDashboards() {\n        this.dashboards = ['Loading...'];\n        fetch('http://localhost:8080/api/v1/dashboards').then(async (response) => {\n            const resp = ListDashboardResponse.fromJson(await response.json());\n            this.dashboards = [];\n            resp.dashboards.forEach(db => {\n                this.dashboards.push(db.name);\n            });\n        });\n    }\n}"
+          "default": "class TestgridIndex extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboards = [];\n        this.dashboardGroups = [];\n        this.respectiveDashboards = [];\n        this.show = true;\n    }\n    // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later\n    render() {\n        return html `\n      <mwc-button raised @click=\"${this.callAPI}\">Call API</mwc-button>\n\n      <div class=\"flex-container\">\n        <!-- loading dashboard groups -->\n        <mwc-list style=\"min-width: 760px\">\n          ${map(this.dashboardGroups, (dash, index) => html `\n              <mwc-list-item\n                id=${index}\n                class=\"column card dashboard-group\"\n                raised\n                @click=\"${() => this.getRespectiveDashboards(dash)}\"\n              >\n                <div class=\"container\">\n                  <p>${dash}</p>\n                </div>\n              </mwc-list-item>\n            `)}\n        </mwc-list>\n\n        <!-- loading dashboards -->\n        ${this.show ? dashboardTemplate(this.dashboards) : ''}\n\n        <!-- loading respective dashboards -->\n        ${!this.show ? dashboardTemplate(this.respectiveDashboards) : ''}\n        ${!this.show\n            ? html `\n              <mwc-button\n                class=\"column\"\n                raised\n                @click=\"${() => {\n                this.show = !this.show;\n            }}\"\n                >X</mwc-button\n              >\n            `\n            : ''}\n      </div>\n    `;\n    }\n    // function to get dashboards\n    getDashboards() {\n        this.dashboards = ['Loading...'];\n        fetch('http://testgrid-data.k8s.io/api/v1/dashboards').then(async (response) => {\n            const resp = ListDashboardResponse.fromJson(await response.json());\n            this.dashboards = [];\n            resp.dashboards.forEach(db => {\n                this.dashboards.push(db.name);\n            });\n        });\n    }\n    // function to get dashboard groups\n    getDashboardGroups() {\n        this.dashboardGroups = ['Loading...'];\n        fetch('http://testgrid-data.k8s.io/api/v1/dashboard-groups').then(async (response) => {\n            const resp = ListDashboardGroupResponse.fromJson(await response.json());\n            this.dashboardGroups = [];\n            resp.dashboardGroups.forEach(db => {\n                this.dashboardGroups.push(db.name);\n            });\n        });\n    }\n    // function to get respective dashboards of dashboard group\n    async getRespectiveDashboards(name) {\n        this.show = false;\n        // this.respectiveDashboards = ['Loading...'];\n        try {\n            fetch(`http://testgrid-data.k8s.io/api/v1/dashboard-groups/${name}`).then(async (response) => {\n                const resp = ListDashboardResponse.fromJson(await response.json());\n                this.respectiveDashboards = [];\n                resp.dashboards.forEach(ts => {\n                    this.respectiveDashboards.push(ts.name);\n                });\n                console.log(this.respectiveDashboards);\n            });\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // call both of these at same time\n    callAPI() {\n        this.getDashboardGroups();\n        this.getDashboards();\n    }\n}"
         }
       ],
       "exports": [
@@ -579,6 +689,33 @@
         {
           "kind": "variable",
           "name": "App"
+        },
+        {
+          "kind": "function",
+          "name": "Dashboards",
+          "parameters": [
+            {
+              "name": "{ backgroundColor = 'white', }"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "DashboardGroups",
+          "parameters": [
+            {
+              "name": "{ backgroundColor = 'white', }"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "RespectiveDashboards",
+          "parameters": [
+            {
+              "name": "{ backgroundColor = 'white', }"
+            }
+          ]
         }
       ],
       "exports": [
@@ -594,6 +731,30 @@
           "name": "App",
           "declaration": {
             "name": "App",
+            "module": "out-tsc/stories/testgrid-index.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Dashboards",
+          "declaration": {
+            "name": "Dashboards",
+            "module": "out-tsc/stories/testgrid-index.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardGroups",
+          "declaration": {
+            "name": "DashboardGroups",
+            "module": "out-tsc/stories/testgrid-index.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "RespectiveDashboards",
+          "declaration": {
+            "name": "RespectiveDashboards",
             "module": "out-tsc/stories/testgrid-index.stories.js"
           }
         }
