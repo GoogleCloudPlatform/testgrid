@@ -12,3 +12,16 @@ presubmits:
       - test
       - --config=ci
       - //...
+- name: test-testgrid-npm
+  decorate: true
+  always_run: true
+  spec:
+    serviceAccountName: presubmits
+    containers:
+    # See https://playwright.dev/docs/ci
+    - image: mcr.microsoft.com/playwright:v1.32.0-focal
+      command:
+      - bash
+      args:
+      - -c
+      - cd web && npm install && npm run build && npm test

@@ -7,7 +7,7 @@
   "scripts": {
     "lint": "eslint --ext .ts,.html . && prettier \"**/*.ts\" --check",
     "format": "eslint --ext .ts,.html . --fix && prettier \"**/*.ts\" --write",
-    "test": "tsc && wtr --coverage",
+    "test": "tsc && wtr --playwright --browsers chromium --coverage",
     "test:watch": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wtr --watch\"",
     "storybook": "tsc && npm run analyze -- --exclude dist && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wds -c .storybook/server.mjs\"",
     "storybook:build": "tsc && npm run analyze -- --exclude dist && build-storybook",
@@ -20,6 +20,7 @@
     "@material/mwc-button": "^0.27.0",
     "@material/mwc-list": "^0.27.0",
     "@protobuf-ts/plugin": "^2.8.3",
+    "@web/test-runner-playwright": "^0.9.0",
     "lit": "^2.7.0"
   },
   "devDependencies": {
