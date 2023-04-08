@@ -39,6 +39,16 @@ const dashboards = [
 
 const dashboardGroups = ['cert-manager', 'conformance', 'gardener', 'google'];
 
+const respectiveDashboards = {
+  'cert-manager': [
+    'cert-manager-jetstack-testing-janitors',
+    'cert-manager-periodics-master',
+    'cert-manager-periodics-release-1.10',
+    'cert-manager-periodics-release-1.11',
+    'cert-manager-presubmits-master',
+  ],
+};
+
 const Template: Story<ArgTypes> = ({
   backgroundColor = 'white',
 }: ArgTypes) => html`
@@ -75,6 +85,8 @@ export const RespectiveDashboards: Story<ArgTypes> = ({
 }: ArgTypes) => html`
   <testgrid-index
     style="--example-app-background-color: ${backgroundColor}"
-    .respectiveDashboards=${dashboardGroups[0]}
+    .show=${false}
+    .dashboardGroups=${[dashboardGroups[0]]}
+    .respectiveDashboards=${respectiveDashboards['cert-manager']}
   ></testgrid-index>
 `;
