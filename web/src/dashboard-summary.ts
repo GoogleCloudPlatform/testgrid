@@ -7,6 +7,8 @@ import { Timestamp } from './gen/google/protobuf/timestamp.js';
 import '@material/mwc-button';
 import './tab-summary.js';
 
+const host = 'testgrid-data.k8s.io';
+
 export interface TabSummaryInfo {
   icon: string;
   name: string;
@@ -68,7 +70,7 @@ export class DashboardSummary extends LitElement {
     this.tabSummariesInfo = [];
     try {
       const response = await fetch(
-        `http://localhost:8080/api/v1/dashboards/${this.input.value}/tab-summaries`
+        `http://${host}/api/v1/dashboards/${this.input.value}/tab-summaries`
       );
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);

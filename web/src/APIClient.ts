@@ -1,11 +1,15 @@
-import { ListDashboardResponse } from './gen/pb/api/v1/data.js';
+import {
+  ListDashboardResponse,
+  ListDashboardGroupResponse,
+} from './gen/pb/api/v1/data.js';
 
 export interface APIClient {
   getDashboards(): Array<String>;
+  getDashboardGroups(): Array<String>;
 }
 
 export class APIClientImpl implements APIClient {
-  host: String = 'http://localhost:8080';
+  host: String = 'testgrid-data.k8s.io';
 
   public getDashboards(): Array<String> {
     const dashboards: Array<String> = [];
@@ -18,5 +22,18 @@ export class APIClientImpl implements APIClient {
     });
 
     return dashboards;
+  }
+
+  public getDashboardGroups(): Array<String> {
+    const dashboardGroups: Array<String> = [];
+
+    fetch(`${this.host}/api/v1/dashboard-groups`).then(async response => {
+      const resp = ListDashboardGroupResponse.fromJson(await response.json());
+      resp.dashboardGroups.forEach(db => {
+        dashboardGroups.push(db.name);
+      });
+    });
+
+    return dashboardGroups;
   }
 }
