@@ -19,33 +19,34 @@ interface ArgTypes {
   backgroundColor?: string;
 }
 
-// data
-const dashboards = [
-  'cert-manager-jetstack-testing-janitors',
-  'cert-manager-periodics-master',
-  'cert-manager-periodics-release-1.10',
-  'cert-manager-periodics-release-1.11',
-  'cert-manager-presubmits-master',
-  'conformance-all',
-  'conformance-apisnoop',
-  'conformance-cloud-provider-huaweicloud',
-  'gardener-ci-infra',
-  'gardener-dependency-watchdog',
-  'gardener-extension-networking-calico',
-  'google-aws',
-  'google-cel',
-  'google-gce',
+// dummy data
+const dashboards: Array<string> = [
+  // dashboard-group_name-id
+  'dashboard-g1-1',
+  'dashboard-g1-2',
+  'dashboard-g1-3',
+  'dashboard-g1-4',
+  'dashboard-g2-5',
+  'dashboard-g2-6',
+  'dashboard-g3-7',
+  'dashboard-g3-8',
+  'dashboard-g4-9',
+  'dashboard-10',
 ];
 
-const dashboardGroups = ['cert-manager', 'conformance', 'gardener', 'google'];
+const dashboardGroups: Array<string> = [
+  'Group-1',
+  'Group-2',
+  'Group-3',
+  'Group-4',
+];
 
-const respectiveDashboards = {
-  'cert-manager': [
-    'cert-manager-jetstack-testing-janitors',
-    'cert-manager-periodics-master',
-    'cert-manager-periodics-release-1.10',
-    'cert-manager-periodics-release-1.11',
-    'cert-manager-presubmits-master',
+const respectiveDashboards: Record<string, Array<string>> = {
+  'Group-1': [
+    'dashboard-g1-1',
+    'dashboard-g1-2',
+    'dashboard-g1-3',
+    'dashboard-g1-4',
   ],
 };
 
@@ -87,6 +88,6 @@ export const RespectiveDashboards: Story<ArgTypes> = ({
     style="--example-app-background-color: ${backgroundColor}"
     .show=${false}
     .dashboardGroups=${[dashboardGroups[0]]}
-    .respectiveDashboards=${respectiveDashboards['cert-manager']}
+    .respectiveDashboards=${respectiveDashboards[dashboardGroups[0]]}
   ></testgrid-index>
 `;

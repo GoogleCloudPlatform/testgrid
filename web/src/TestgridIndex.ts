@@ -1,15 +1,16 @@
 import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import {
   ListDashboardResponse,
   ListDashboardGroupResponse,
 } from './gen/pb/api/v1/data.js';
-// import { styles } from './styles.js';
 import '@material/mwc-button';
 import '@material/mwc-list';
 import './dashboard-summary.js';
+
+const host = 'testgrid-data.k8s.io';
 
 // dashboards template
 const dashboardTemplate = (dashboards: Array<string>) => html`
@@ -20,7 +21,7 @@ const dashboardTemplate = (dashboards: Array<string>) => html`
         (dash: string, index: number) => html`
           <mwc-list-item id=${index} class="column card dashboard">
             <a
-              href="http://testgrid-data.k8s.io/api/v1/dashboards/${dash.replace(
+              href="http://${host}/api/v1/dashboards/${dash.replace(
                 /\W/g,
                 ''
               )}/tabs"
@@ -95,37 +96,33 @@ export class TestgridIndex extends LitElement {
   }
 
   // function to get dashboards
-  getDashboards() {
+  async getDashboards() {
     this.dashboards = ['Loading...'];
 
-    fetch('http://testgrid-data.k8s.io/api/v1/dashboards').then(
-      async response => {
-        const resp = ListDashboardResponse.fromJson(await response.json());
+    fetch(`http://${host}/api/v1/dashboards`).then(async response => {
+      const resp = ListDashboardResponse.fromJson(await response.json());
 
-        this.dashboards = [];
+      this.dashboards = [];
 
-        resp.dashboards.forEach(db => {
-          this.dashboards.push(db.name);
-        });
-      }
-    );
+      resp.dashboards.forEach(db => {
+        this.dashboards.push(db.name);
+      });
+    });
   }
 
   // function to get dashboard groups
-  getDashboardGroups() {
+  async getDashboardGroups() {
     this.dashboardGroups = ['Loading...'];
 
-    fetch('http://testgrid-data.k8s.io/api/v1/dashboard-groups').then(
-      async response => {
-        const resp = ListDashboardGroupResponse.fromJson(await response.json());
+    fetch(`http://${host}/api/v1/dashboard-groups`).then(async response => {
+      const resp = ListDashboardGroupResponse.fromJson(await response.json());
 
-        this.dashboardGroups = [];
+      this.dashboardGroups = [];
 
-        resp.dashboardGroups.forEach(db => {
-          this.dashboardGroups.push(db.name);
-        });
-      }
-    );
+      resp.dashboardGroups.forEach(db => {
+        this.dashboardGroups.push(db.name);
+      });
+    });
   }
 
   // function to get respective dashboards of dashboard group
@@ -133,7 +130,7 @@ export class TestgridIndex extends LitElement {
     this.show = false;
     // this.respectiveDashboards = ['Loading...'];
     try {
-      fetch(`http://testgrid-data.k8s.io/api/v1/dashboard-groups/${name}`).then(
+      fetch(`http://${host}/api/v1/dashboard-groups/${name}`).then(
         async response => {
           const resp = ListDashboardResponse.fromJson(await response.json());
 
@@ -165,7 +162,6 @@ export class TestgridIndex extends LitElement {
       justify-content: flex;
       font-size: calc(10px + 2vmin);
       color: #1a2b42;
-      /* max-width: 960px; */
       margin: 0 auto;
       text-align: center;
       background-color: var(--example-app-background-color);
@@ -186,7 +182,6 @@ export class TestgridIndex extends LitElement {
       /* Add shadows to create the "card" effect */
       width: 350px;
       height: 80px;
-      /* transition: 0.3s; */
       margin-bottom: 10px;
       box-shadow: 0 30px 30px -25px rgba(#7168c9, 0.25);
     }
