@@ -9,23 +9,19 @@ import {
 import '@material/mwc-button';
 import '@material/mwc-list';
 import './dashboard-summary.js';
+import { navigate } from './utils/navigation';
 
 const host = 'testgrid-data.k8s.io';
 
 // dashboards template
+// clicking on any dashboard should navigate to the /dashboards view
 const dashboardTemplate = (dashboards: Array<string>) => html`
   <div>
-    <mwc-list style="min-width: 755px">
+    <mwc-list activatable style="min-width: 755px">
       ${map(
         dashboards,
         (dash: string, index: number) => html`
-          <mwc-list-item id=${index} class="column card dashboard">
-            <a
-              href="http://${host}/api/v1/dashboards/${dash.replace(
-                /\W/g,
-                ''
-              )}/tabs"
-            >
+          <mwc-list-item id=${index} @click=${() => navigate()} class="column card dashboard">
               <div class="container">
                 <p>${dash}</p>
               </div>

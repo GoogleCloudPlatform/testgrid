@@ -17,6 +17,7 @@
     "start": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wds\""
   },
   "dependencies": {
+    "@lit-labs/router": "^0.1.1",
     "@material/mwc-button": "^0.27.0",
     "@material/mwc-list": "^0.27.0",
     "@protobuf-ts/plugin": "^2.8.3",
