@@ -21,6 +21,14 @@ export default /** @type {import("@web/test-runner").TestRunnerConfig} */ ({
     return true;
   },
 
+  /** configure test timeout */
+  testFramework: {
+    config: {
+      ui: 'bdd',
+      timeout: '10000',
+    },
+  },
+
   /** Compile JS for older browsers. Requires @web/dev-server-esbuild plugin */
   // esbuildTarget: 'auto',
 

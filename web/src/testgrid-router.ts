@@ -17,7 +17,8 @@ export class TestgridRouter extends LitElement{
         },
     ])
 
-    firstUpdated() {
+    connectedCallback() {
+        super.connectedCallback();
         window.addEventListener('location-changed', () => {
             this.router.goto(location.pathname);
         });

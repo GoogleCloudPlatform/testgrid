@@ -1,9 +1,13 @@
+import { Button } from '@material/mwc-button';
+import { ListItemBase } from '@material/mwc-list/mwc-list-item-base.js';
 import {
   html,
   fixture,
   defineCE,
   unsafeStatic,
   expect,
+  waitUntil,
+  aTimeout,
 } from '@open-wc/testing';
 
 import { TestgridIndex } from '../src/testgrid-index.js';
@@ -19,75 +23,118 @@ describe('ExampleApp', () => {
   });
 
   it('renders a button', async () => {
-    const h1 = element.shadowRoot!.querySelector('mwc-button')!;
-    expect(h1).to.exist;
+    const btn = element.shadowRoot!.querySelector('mwc-button')!;
+    expect(btn).to.exist;
   });
 
   it('passes the a11y audit', async () => {
     await expect(element).shadowDom.to.be.accessible();
   });
 
-  // clicking the button fetches dashboards and dashboard groups
-  it('clicking the button fetches dashboards and dashboard-groups', async () => {
-    // adding a click event to the button
-    const button = element.shadowRoot!.querySelector('mwc-button')!;
-    button.click();
+  it('fetches dashboards and dashboard-groups after clickin on a button', async () => {
+    const btn = element.shadowRoot!.querySelector('mwc-button')!;
+    btn.click();
 
-    // fetch dashboards and dashboard groups on button click
-    await element.getDashboards();
-    await element.getDashboardGroups();
+    // waiting until list items (dashboards and groups) are fully rendered
+    await waitUntil(
+      () => element.shadowRoot!.querySelector('mwc-list-item.dashboard'),
+      'Index did not render dashboards',
+      {
+        timeout: 4000,
+      },
+    );
 
+    await waitUntil(
+      () => element.shadowRoot!.querySelector('mwc-list-item.dashboard-group'),
+      'Index did not render dashboard groups',
+      {
+        timeout: 4000,
+      },
+    );
     // check if dashboards and dashboard groups exist
-    expect(element.dashboards).to.exist;
+    expect(element.dashboards).to.not.be.empty;
     expect(element.dashboardGroups).not.to.be.empty;
+    expect(element.respectiveDashboards).to.be.empty;
   });
 
-  // clicking on individual dashboard-group fetches respective dashboards
-  it('clicking on an individual dashboard-group fetches respective dashboards', async () => {
+  it('fetches respective dashboards after clicking on a dashboard-group ', async () => {
     // before click event, check if show (boolean) is true
     expect(element.show).to.be.true;
 
-    // check if dashboard-groups exist
-    await element.getDashboardGroups();
+    const btn = element.shadowRoot!.querySelector('mwc-button')!;
+    btn.click();
 
-    expect(element.dashboardGroups).to.exist;
+    await waitUntil(
+      () => element.shadowRoot!.querySelector('mwc-list-item.dashboard-group'),
+      'Index did not render dashboard groups',
+      {
+        timeout: 4000,
+      },
+    );
 
-    // adding a click event to the dashboard-group
-    const dashboardGroup = element.shadowRoot!.querySelector('mwc-list-item')!;
+    expect(element.dashboardGroups).to.not.be.empty;
+
+    // click on first dashboard group to fetch respective dashboards
+    const dashboardGroup: ListItemBase = element.shadowRoot!.querySelector('mwc-list-item.dashboard-group')!;
     dashboardGroup.click();
 
-    await element.getRespectiveDashboards('cert-manager');
-
-    expect(element.respectiveDashboards).to.exist;
+    await aTimeout(3000);
+    
+    expect(element.show).to.be.false;
+    expect(element.respectiveDashboards).to.not.be.empty;
   });
 
   // check the functionality of the close button
-  it('check the functionality of the close button', async () => {
-    // before rendering respective dashboards, show(boolean) is true
+  it('renders the close button and changes the show attribute after clicking on it', async () => {
     expect(element.show).to.be.true;
 
-    await element.getDashboardGroups();
+    const btn = element.shadowRoot!.querySelector('mwc-button')!;
+    btn.click();
 
-    // on click of dashboard-group, show(boolean) is false and close button is rendered
-    const dashboardGroup = element.shadowRoot!.querySelector('mwc-list-item')!;
+    await waitUntil(
+      () => element.shadowRoot!.querySelector('mwc-list-item.dashboard-group'),
+      'Index did not render dashboard groups',
+      {
+        timeout: 4000,
+      },
+    );
+
+    // click on first dashboard group to fetch respective dashboards
+    const dashboardGroup: ListItemBase = element.shadowRoot!.querySelector('mwc-list-item.dashboard-group')!;
     dashboardGroup.click();
 
-    element.show = false;
-
     expect(element.show).to.be.false;
-    expect(element.shadowRoot!.querySelector('mwc-button')).to.exist;
 
-    // on click of close button, show(boolean) is true, hide the respective dashboards and close button
-    const closeButton = element.shadowRoot!.querySelector('mwc-button')!;
-    closeButton.click();
-
-    element.show = true;
+    await waitUntil(
+      () => element.shadowRoot!.querySelector('mwc-button.column'),
+      'Element did not render children',
+      {
+        timeout: 4000,
+      },
+    );
+    
+    const closeBtn: Button = element.shadowRoot!.querySelector('mwc-button.column')!;
+    closeBtn.click();
     expect(element.show).to.be.true;
+  });
 
-    // check if dashboard-groups and dashboards exist
-    await element.getDashboards();
+  it('navigates to /dashboards after clicking on dashboard',async () => {
 
-    expect(element.dashboardGroups).to.exist;
-    expect(element.dashboards).to.exist;
+     const btn = element.shadowRoot!.querySelector('mwc-button')!;
+     btn.click();
+ 
+     await waitUntil(
+       () => element.shadowRoot!.querySelector('mwc-list-item.dashboard'),
+       'Index did not render dashboards',
+       {
+         timeout: 4000,
+       },
+     );
+ 
+     // click on first dashboard group to fetch respective dashboards
+     const dashboard: ListItemBase = element.shadowRoot!.querySelector('mwc-list-item.dashboard')!;
+     dashboard.click();
+
+     expect(location.pathname).to.equal('/dashboards');
   });
 });
