@@ -93,49 +93,59 @@ export class TestgridIndex extends LitElement {
 
   // function to get dashboards
   async getDashboards() {
-    this.dashboards = ['Loading...'];
+    try{
+      fetch(`http://${host}/api/v1/dashboards`).then(
+        async response => {
+          const resp = ListDashboardResponse.fromJson(await response.json());
+          const dashboards: string[] = [];
 
-    fetch(`http://${host}/api/v1/dashboards`).then(async response => {
-      const resp = ListDashboardResponse.fromJson(await response.json());
+          resp.dashboards.forEach(db => {
+            dashboards.push(db.name);
+          });
 
-      this.dashboards = [];
-
-      resp.dashboards.forEach(db => {
-        this.dashboards.push(db.name);
-      });
-    });
+          this.dashboards = dashboards;
+        }
+      );
+    } catch (error) {
+      console.log(`failed to fetch: ${error}`);
+    }
   }
 
   // function to get dashboard groups
   async getDashboardGroups() {
-    this.dashboardGroups = ['Loading...'];
+    try{
+      fetch(`http://${host}/api/v1/dashboard-groups`).then(
+        async response => {
+          const resp = ListDashboardGroupResponse.fromJson(await response.json());
 
-    fetch(`http://${host}/api/v1/dashboard-groups`).then(async response => {
-      const resp = ListDashboardGroupResponse.fromJson(await response.json());
+          const dashboardGroups: string[] = [];
 
-      this.dashboardGroups = [];
+          resp.dashboardGroups.forEach(db => {
+            dashboardGroups.push(db.name);
+          });
 
-      resp.dashboardGroups.forEach(db => {
-        this.dashboardGroups.push(db.name);
-      });
-    });
+          this.dashboardGroups = dashboardGroups;
+        }
+      );
+    } catch(error){
+      console.log(`failed to fetch: ${error}`);
+    }
   }
 
   // function to get respective dashboards of dashboard group
   async getRespectiveDashboards(name: string) {
     this.show = false;
-    // this.respectiveDashboards = ['Loading...'];
     try {
       fetch(`http://${host}/api/v1/dashboard-groups/${name}`).then(
         async response => {
           const resp = ListDashboardResponse.fromJson(await response.json());
-
-          this.respectiveDashboards = [];
+          const respectiveDashboards: string[] = [];
 
           resp.dashboards.forEach(ts => {
-            this.respectiveDashboards.push(ts.name);
+            respectiveDashboards.push(ts.name);
           });
-          console.log(this.respectiveDashboards);
+
+          this.respectiveDashboards = respectiveDashboards;
         }
       );
     } catch (error) {
