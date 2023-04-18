@@ -4,12 +4,17 @@ import {Router} from "@lit-labs/router";
 import './dashboard-summary';
 import './testgrid-index';
 
+
+interface RouteParameter {
+    [key: string]: string | undefined;
+}
+
 @customElement('testgrid-router')
 export class TestgridRouter extends LitElement{
     private router = new Router(this, [
         {
-            path: '/dashboards', 
-            render: () => html`<dashboard-summary></dashboard-summary>`,
+            path: '/:dashboard', 
+            render: (params: RouteParameter) => html`<dashboard-summary .name=${params.dashboard}></dashboard-summary>`,
         },
         {
             path: '/',

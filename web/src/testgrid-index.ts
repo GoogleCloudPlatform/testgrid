@@ -21,7 +21,7 @@ const dashboardTemplate = (dashboards: Array<string>) => html`
       ${map(
         dashboards,
         (dash: string, index: number) => html`
-          <mwc-list-item id=${index} @click=${() => navigate()} class="column card dashboard">
+          <mwc-list-item id=${index} @click=${() => navigate(dash)} class="column card dashboard">
               <div class="container">
                 <p>${dash}</p>
               </div>
@@ -48,7 +48,6 @@ export class TestgridIndex extends LitElement {
 
   render() {
     return html`
-      <mwc-button raised @click="${this.callAPI}">Call API</mwc-button>
 
       <div class="flex-container">
         <!-- loading dashboard groups -->
@@ -153,8 +152,9 @@ export class TestgridIndex extends LitElement {
     }
   }
 
-  // call both of these at same time
-  callAPI() {
+  // send the API request when the element is connected to DOM
+  connectedCallback() {
+    super.connectedCallback();
     this.getDashboardGroups();
     this.getDashboards();
   }

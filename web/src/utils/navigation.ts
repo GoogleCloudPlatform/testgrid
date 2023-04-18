@@ -3,9 +3,9 @@
  * @fires location-changed
  * @param {string} path
  */
-export function navigate(){
+export function navigate(name: string){
     const url = new URL(location.href);
-    url.pathname = `dashboards`;
+    url.pathname = name;
     history.pushState(null, '', url);
     window.dispatchEvent(new CustomEvent('location-changed'));
 }
