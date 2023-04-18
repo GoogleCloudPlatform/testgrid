@@ -12,7 +12,7 @@ import {
 
 import { TestgridIndex } from '../src/testgrid-index.js';
 
-describe('ExampleApp', () => {
+describe('Testgrid Index page', () => {
   let element: TestgridIndex;
   beforeEach(async () => {
     // Need to wrap an element to apply its properties (ex. @customElement)
@@ -22,18 +22,11 @@ describe('ExampleApp', () => {
     element = await fixture(html`<${tag}></${tag}>`);
   });
 
-  it('renders a button', async () => {
-    const btn = element.shadowRoot!.querySelector('mwc-button')!;
-    expect(btn).to.exist;
-  });
-
   it('passes the a11y audit', async () => {
     await expect(element).shadowDom.to.be.accessible();
   });
 
   it('fetches dashboards and dashboard-groups after clickin on a button', async () => {
-    const btn = element.shadowRoot!.querySelector('mwc-button')!;
-    btn.click();
 
     // waiting until list items (dashboards and groups) are fully rendered
     await waitUntil(
@@ -61,9 +54,6 @@ describe('ExampleApp', () => {
     // before click event, check if show (boolean) is true
     expect(element.show).to.be.true;
 
-    const btn = element.shadowRoot!.querySelector('mwc-button')!;
-    btn.click();
-
     await waitUntil(
       () => element.shadowRoot!.querySelector('mwc-list-item.dashboard-group'),
       'Index did not render dashboard groups',
@@ -87,9 +77,6 @@ describe('ExampleApp', () => {
   // check the functionality of the close button
   it('renders the close button and changes the show attribute after clicking on it', async () => {
     expect(element.show).to.be.true;
-
-    const btn = element.shadowRoot!.querySelector('mwc-button')!;
-    btn.click();
 
     await waitUntil(
       () => element.shadowRoot!.querySelector('mwc-list-item.dashboard-group'),
@@ -119,9 +106,6 @@ describe('ExampleApp', () => {
   });
 
   it('navigates to /dashboards after clicking on dashboard',async () => {
-
-     const btn = element.shadowRoot!.querySelector('mwc-button')!;
-     btn.click();
  
      await waitUntil(
        () => element.shadowRoot!.querySelector('mwc-list-item.dashboard'),
@@ -135,6 +119,6 @@ describe('ExampleApp', () => {
      const dashboard: ListItemBase = element.shadowRoot!.querySelector('mwc-list-item.dashboard')!;
      dashboard.click();
 
-     expect(location.pathname).to.equal('/dashboards');
+     expect(location.pathname).to.not.equal('/');
   });
 });

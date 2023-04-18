@@ -1,6 +1,6 @@
 import { LitElement, html } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { customElement, query, state } from 'lit/decorators.js';
+import { customElement, property, query, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
@@ -50,7 +50,10 @@ function convertResponse(ts: TabSummary) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class DashboardSummary extends LitElement {
   @state()
-  private tabSummariesInfo: Array<TabSummaryInfo> = [];
+  tabSummariesInfo: Array<TabSummaryInfo> = [];
+
+  @property()
+  name: string = '';
 
   render() {
     return html`
@@ -58,28 +61,29 @@ export class DashboardSummary extends LitElement {
         this.tabSummariesInfo,
         (ts: TabSummaryInfo) => html`<tab-summary .info=${ts}></tab-summary>`
       )}
-      <input id="dashboard-name-input" label="Dashboard name" />
-      <mwc-button raised @click="${this.getTabSummaries}">Fetch</mwc-button>
     `;
   }
 
-  @query('#dashboard-name-input')
-  input!: HTMLInputElement;
+  connectedCallback() {
+    super.connectedCallback();
+    this.getTabSummaries(this.name);
+  }
 
-  async getTabSummaries() {
-    this.tabSummariesInfo = [];
+  async getTabSummaries(dashboardName: string) {
     try {
       const response = await fetch(
-        `http://${host}/api/v1/dashboards/${this.input.value}/tab-summaries`
+        `http://${host}/api/v1/dashboards/${dashboardName}/tab-summaries`
       );
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
       }
       const data = ListTabSummariesResponse.fromJson(await response.json());
+      var tabSummaries: Array<TabSummaryInfo> = [];
       data.tabSummaries.forEach(ts => {
         const si = convertResponse(ts);
-        this.tabSummariesInfo = [...this.tabSummariesInfo, si];
+        tabSummaries.push(si);
       });
+      this.tabSummariesInfo = tabSummaries;
     } catch (error) {
       console.error(`Could not get dashboard summaries: ${error}`);
     }
