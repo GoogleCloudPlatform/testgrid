@@ -1,10 +1,12 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
 import '@material/mwc-button';
+import '@material/mwc-tab';
+import '@material/mwc-tab-bar';
 import './tab-summary.js';
 
 const host = 'testgrid-data.k8s.io';
@@ -49,14 +51,32 @@ function convertResponse(ts: TabSummary) {
 @customElement('dashboard-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class DashboardSummary extends LitElement {
+
+  tabNames: string[] = [];
+
   @state()
   tabSummariesInfo: Array<TabSummaryInfo> = [];
 
   @property()
   name: string = '';
 
+  @state() activeIndex = 0;
+
+  private onTabActivated(event: CustomEvent<{index: number}>) {
+    this.activeIndex = event.detail.index;
+    console.log(this.activeIndex);
+  }
+
   render() {
     return html`
+      <mwc-tab-bar @MDCTabBar:activated="${this.onTabActivated}">
+        ${map(
+          this.tabNames,
+          (name: string) => html`<mwc-tab label=${name}></mwc-tab>`
+        )}
+      </mwc-tab-bar>
+
+
       ${map(
         this.tabSummariesInfo,
         (ts: TabSummaryInfo) => html`<tab-summary .info=${ts}></tab-summary>`
@@ -79,13 +99,24 @@ export class DashboardSummary extends LitElement {
       }
       const data = ListTabSummariesResponse.fromJson(await response.json());
       var tabSummaries: Array<TabSummaryInfo> = [];
+      var tabNames: string[] = ['Summary'];
       data.tabSummaries.forEach(ts => {
         const si = convertResponse(ts);
         tabSummaries.push(si);
+        tabNames.push(si.name);
       });
       this.tabSummariesInfo = tabSummaries;
+      this.tabNames = tabNames;
     } catch (error) {
       console.error(`Could not get dashboard summaries: ${error}`);
     }
   }
+
+  static styles = css`
+    mwc-tab{
+      --mdc-typography-button-letter-spacing: 0;
+      --mdc-tab-horizontal-padding: 12px;
+      --mdc-typography-button-font-size: 0.8rem;
+    }
+`;
 }

@@ -64,6 +64,14 @@
           "members": [
             {
               "kind": "field",
+              "name": "tabNames",
+              "type": {
+                "text": "string[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "field",
               "name": "tabSummariesInfo",
               "type": {
                 "text": "Array<TabSummaryInfo>"
@@ -78,6 +86,27 @@
               },
               "default": "''",
               "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "activeIndex",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "method",
+              "name": "onTabActivated",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "CustomEvent<{index: number}>"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -1691,7 +1720,7 @@
         {
           "kind": "variable",
           "name": "DashboardSummary",
-          "default": "class DashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabSummariesInfo = [];\n        this.name = '';\n    }\n    render() {\n        return html `\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n    `;\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        this.getTabSummaries(this.name);\n    }\n    async getTabSummaries(dashboardName) {\n        try {\n            const response = await fetch(`http://${host}/api/v1/dashboards/${dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n            });\n            this.tabSummariesInfo = tabSummaries;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}"
+          "default": "class DashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.tabSummariesInfo = [];\n        this.name = '';\n        this.activeIndex = 0;\n    }\n    onTabActivated(event) {\n        this.activeIndex = event.detail.index;\n        console.log(this.activeIndex);\n    }\n    render() {\n        return html `\n      <!-- <div class=\"tab-bar\">\n      ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n      </div> -->\n      <mwc-tab-bar .activeIndex=${1} @MDCTabBar:activated=\"${this.onTabActivated}\">\n      ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n      </mwc-tab-bar>\n\n\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n    `;\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        // window.addEventListener('MDCTab:interacted', (e) => {\n        //   var tabId: string = (<CustomEvent>e).detail['tabId'];\n        //   // console.log('#'+tabId);\n        //   var x: Tab =  this.shadowRoot!.querySelector('#'+tabId)!;\n        //   // console.log(x);\n        //   var domRect = x!.getBoundingClientRect();\n        //   x.activate(domRect);\n        // })\n        this.getTabSummaries(this.name);\n    }\n    async getTabSummaries(dashboardName) {\n        try {\n            const response = await fetch(`http://${host}/api/v1/dashboards/${dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            var tabNames = ['Summary'];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n                tabNames.push(si.name);\n            });\n            this.tabSummariesInfo = tabSummaries;\n            this.tabNames = tabNames;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}"
         }
       ],
       "exports": [

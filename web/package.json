@@ -21,6 +21,8 @@
     "@lit-labs/router": "^0.1.1",
     "@material/mwc-button": "^0.27.0",
     "@material/mwc-list": "^0.27.0",
+    "@material/mwc-tab": "^0.27.0",
+    "@material/mwc-tab-bar": "^0.27.0",
     "@protobuf-ts/plugin": "^2.8.3",
     "@web/test-runner-playwright": "^0.9.0",
     "lit": "^2.7.0"

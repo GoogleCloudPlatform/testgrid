@@ -39,4 +39,19 @@ describe('Testgrid Dashboard Summary page', () => {
 
     expect(element.tabSummariesInfo).to.not.be.empty;
   });
+
+  it('renders the tab bar with tabs', async () => {
+
+    // waiting until list items (dashboards and groups) are fully rendered
+    await waitUntil(
+      () => element.shadowRoot!.querySelector('mwc-tab'),
+      'Dashboard summary did not render tabs within the tab bar',
+      {
+        timeout: 4000,
+      },
+    );
+
+    expect(element.tabNames).to.not.be.empty;
+    expect(element.tabNames.length).to.not.equal(1);
+  });
 });
