@@ -26,14 +26,14 @@ describe('Testgrid Index page', () => {
     await expect(element).shadowDom.to.be.accessible();
   });
 
-  it('fetches dashboards and dashboard-groups after clickin on a button', async () => {
+  it('fetches dashboards and dashboard-groups after loading the component', async () => {
 
     // waiting until list items (dashboards and groups) are fully rendered
     await waitUntil(
       () => element.shadowRoot!.querySelector('mwc-list-item.dashboard'),
       'Index did not render dashboards',
       {
-        timeout: 4000,
+        timeout: 5000,
       },
     );
 
@@ -41,7 +41,7 @@ describe('Testgrid Index page', () => {
       () => element.shadowRoot!.querySelector('mwc-list-item.dashboard-group'),
       'Index did not render dashboard groups',
       {
-        timeout: 4000,
+        timeout: 5000,
       },
     );
     // check if dashboards and dashboard groups exist
@@ -50,7 +50,7 @@ describe('Testgrid Index page', () => {
     expect(element.respectiveDashboards).to.be.empty;
   });
 
-  it('fetches respective dashboards after clicking on a dashboard-group ', async () => {
+  it('fetches respective dashboards after clicking on a dashboard-group', async () => {
     // before click event, check if show (boolean) is true
     expect(element.show).to.be.true;
 

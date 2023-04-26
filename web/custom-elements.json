@@ -55,111 +55,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/dashboard-summary.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "DashboardSummary",
-          "members": [
-            {
-              "kind": "field",
-              "name": "tabNames",
-              "type": {
-                "text": "string[]"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "field",
-              "name": "tabSummariesInfo",
-              "type": {
-                "text": "Array<TabSummaryInfo>"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "field",
-              "name": "name",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "name"
-            },
-            {
-              "kind": "field",
-              "name": "activeIndex",
-              "type": {
-                "text": "number"
-              },
-              "default": "0"
-            },
-            {
-              "kind": "method",
-              "name": "onTabActivated",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "event",
-                  "type": {
-                    "text": "CustomEvent<{index: number}>"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "getTabSummaries",
-              "parameters": [
-                {
-                  "name": "dashboardName",
-                  "type": {
-                    "text": "string"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "name"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "dashboard-summary",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "DashboardSummary",
-          "declaration": {
-            "name": "DashboardSummary",
-            "module": "src/dashboard-summary.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "dashboard-summary",
-          "declaration": {
-            "name": "DashboardSummary",
-            "module": "src/dashboard-summary.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "src/tab-summary.ts",
       "declarations": [
         {
@@ -218,7 +113,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "",
+          "description": "Class definition for the `testgrid-app` element.\nApplication root element.",
           "name": "TestgridApp",
           "members": [],
           "superclass": {
@@ -250,11 +145,301 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/testgrid-dashboard-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs).",
+          "name": "TestgridDashboardSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "tabSummariesInfo",
+              "type": {
+                "text": "Array<TabSummaryInfo>"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabSummaries",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-dashboard-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDashboardSummary",
+          "declaration": {
+            "name": "TestgridDashboardSummary",
+            "module": "src/testgrid-dashboard-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-dashboard-summary",
+          "declaration": {
+            "name": "TestgridDashboardSummary",
+            "module": "src/testgrid-dashboard-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/testgrid-data-content.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data.",
+          "name": "TestgridDataContent",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tabNames",
+              "type": {
+                "text": "string[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "activeIndex",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "showTab",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "showTab"
+            },
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "tabName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "tabName"
+            },
+            {
+              "kind": "method",
+              "name": "onTabActivated",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "CustomEvent<{index: number}>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabNames",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "highlightIndex",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "tabName",
+                  "type": {
+                    "text": "string | undefined"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "showTab",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "showTab"
+            },
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            },
+            {
+              "name": "tabName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "tabName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-data-content",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDataContent",
+          "declaration": {
+            "name": "TestgridDataContent",
+            "module": "src/testgrid-data-content.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-data-content",
+          "declaration": {
+            "name": "TestgridDataContent",
+            "module": "src/testgrid-data-content.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/testgrid-grid-display.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for `testgrid-grid-display` component.\nRenders the test results grid.",
+          "name": "TestgridGridDisplay",
+          "members": [
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "tabName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "attribute": "tabName"
+            },
+            {
+              "kind": "field",
+              "name": "tabGridRows",
+              "type": {
+                "text": "Array<ListRowsResponse_Row>"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabGridRows",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            },
+            {
+              "name": "tabName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "fieldName": "tabName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid-display",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridDisplay",
+          "declaration": {
+            "name": "TestgridGridDisplay",
+            "module": "src/testgrid-grid-display.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid-display",
+          "declaration": {
+            "name": "TestgridGridDisplay",
+            "module": "src/testgrid-grid-display.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/testgrid-index.ts",
       "declarations": [
         {
           "kind": "class",
-          "description": "",
+          "description": "Class definition for the `testgrid-index` element.\nRenders the list of dashboards and dashboard groups available.",
           "name": "TestgridIndex",
           "members": [
             {
@@ -295,11 +480,11 @@
             },
             {
               "kind": "method",
-              "name": "getDashboards"
+              "name": "fetchDashboards"
             },
             {
               "kind": "method",
-              "name": "getDashboardGroups"
+              "name": "fetchDashboardGroups"
             },
             {
               "kind": "method",
@@ -381,14 +566,14 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "",
+          "description": "Class definition for the `testgrid-router` element.\nHandles the routing logic.",
           "name": "TestgridRouter",
           "members": [
             {
               "kind": "field",
               "name": "router",
               "privacy": "private",
-              "default": "new Router(this, [\n        {\n            path: '/:dashboard', \n            render: (params: RouteParameter) => html`<dashboard-summary .name=${params.dashboard}></dashboard-summary>`,\n        },\n        {\n            path: '/',\n            render: () => html`<testgrid-index></testgrid-index>`,\n        },\n    ])"
+              "default": "new Router(this, [\n    {\n      path: '/:dashboard/*', \n      render: (params: RouteParameter) => html`<testgrid-data-content .dashboardName=${params.dashboard} .tabName=${params[0]} showTab></testgrid-data-content>`,\n    },\n    {\n      path: '/:dashboard', \n      render: (params: RouteParameter) => html`<testgrid-data-content .dashboardName=${params.dashboard}></testgrid-data-content>`,\n    },\n    {\n      path: '/',\n      render: () => html`<testgrid-index></testgrid-index>`,\n    },\n  ])"
             }
           ],
           "superclass": {
@@ -606,1058 +791,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "storybook-static/0ddd65c3.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/12a6fbe2.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/1896f80b.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "e",
-          "type": {
-            "text": "object"
-          },
-          "default": "{}"
-        },
-        {
-          "kind": "variable",
-          "name": "t"
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "u"
-            },
-            {
-              "name": "l"
-            },
-            {
-              "name": "p"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            },
-            {
-              "name": "o"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            },
-            {
-              "name": "o"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "custom-element-definition",
-          "name": "e",
-          "declaration": {
-            "name": "t",
-            "module": "storybook-static/1896f80b.js"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "e",
-          "declaration": {
-            "name": "t",
-            "module": "storybook-static/1896f80b.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/1d1f8f99.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/2b9bc55d.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/2db9d467.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/31032d85.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/3122593a.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "e",
-          "type": {
-            "text": "object"
-          },
-          "default": "{}"
-        },
-        {
-          "kind": "variable",
-          "name": "t"
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "u"
-            },
-            {
-              "name": "l"
-            },
-            {
-              "name": "p"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            },
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            },
-            {
-              "name": "o"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "e"
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            },
-            {
-              "name": "a"
-            },
-            {
-              "name": "o"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            },
-            {
-              "name": "r"
-            },
-            {
-              "name": "n"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "e"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "t",
-          "parameters": [
-            {
-              "name": "r"
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "e",
-          "parameters": [
-            {
-              "name": "t"
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "custom-element-definition",
-          "name": "e",
-          "declaration": {
-            "name": "t",
-            "module": "storybook-static/3122593a.js"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "e",
-          "declaration": {
-            "name": "t",
-            "module": "storybook-static/3122593a.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/4b568637.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/4e162969.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/4f4bdf71.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/530d819e.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/5a8bfcc8.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/5afc66be.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/7e3797f8.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/8d981ba8.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/973dfeaa.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/9a0e16ff.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/9adfdeeb.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/c2c1b651.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/dda9f6ae.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/e8facca6.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
       "path": "coverage/lcov-report/block-navigation.js",
       "declarations": [],
       "exports": []
@@ -1715,33 +848,12 @@
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/dashboard-summary.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "DashboardSummary",
-          "default": "class DashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.tabSummariesInfo = [];\n        this.name = '';\n        this.activeIndex = 0;\n    }\n    onTabActivated(event) {\n        this.activeIndex = event.detail.index;\n        console.log(this.activeIndex);\n    }\n    render() {\n        return html `\n      <!-- <div class=\"tab-bar\">\n      ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n      </div> -->\n      <mwc-tab-bar .activeIndex=${1} @MDCTabBar:activated=\"${this.onTabActivated}\">\n      ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n      </mwc-tab-bar>\n\n\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n    `;\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        // window.addEventListener('MDCTab:interacted', (e) => {\n        //   var tabId: string = (<CustomEvent>e).detail['tabId'];\n        //   // console.log('#'+tabId);\n        //   var x: Tab =  this.shadowRoot!.querySelector('#'+tabId)!;\n        //   // console.log(x);\n        //   var domRect = x!.getBoundingClientRect();\n        //   x.activate(domRect);\n        // })\n        this.getTabSummaries(this.name);\n    }\n    async getTabSummaries(dashboardName) {\n        try {\n            const response = await fetch(`http://${host}/api/v1/dashboards/${dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            var tabNames = ['Summary'];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n                tabNames.push(si.name);\n            });\n            this.tabSummariesInfo = tabSummaries;\n            this.tabNames = tabNames;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "DashboardSummary",
-          "declaration": {
-            "name": "DashboardSummary",
-            "module": "out-tsc/src/dashboard-summary.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "out-tsc/src/tab-summary.js",
       "declarations": [
         {
           "kind": "variable",
           "name": "TabSummary",
-          "default": "class TabSummary extends LitElement {\n    render() {\n        var _a, _b, _c, _d, _e, _f, _g, _h;\n        // TODO(sultan-duisenbay): find / reuse and existing openwc component\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <div class=\"tab\">\n        <div class=\"left\">\n          <div class=\"icon-wrapper\">\n            <i class=\"material-icons ${(_a = this.info) === null || _a === void 0 ? void 0 : _a.overallStatus}\"\n              >${(_b = this.info) === null || _b === void 0 ? void 0 : _b.icon}</i\n            >\n          </div>\n        </div>\n        <div class=\"mid\">\n          <div class=\"name\">\n            ${(_c = this.info) === null || _c === void 0 ? void 0 : _c.name}: ${(_d = this.info) === null || _d === void 0 ? void 0 : _d.overallStatus}\n          </div>\n          <div class=\"detailed-status\">${(_e = this.info) === null || _e === void 0 ? void 0 : _e.detailedStatusMsg}</div>\n        </div>\n        <div class=\"right\">\n          <div class=\"stats\">\n            Last update: ${(_f = this.info) === null || _f === void 0 ? void 0 : _f.lastUpdateTimestamp}\n          </div>\n          <div class=\"stats\">\n            Tests last ran: ${(_g = this.info) === null || _g === void 0 ? void 0 : _g.lastRunTimestamp}\n          </div>\n          <div class=\"stats\">\n            Last green run: ${(_h = this.info) === null || _h === void 0 ? void 0 : _h.latestGreenBuild}\n          </div>\n        </div>\n      </div>\n    `;\n    }\n}"
+          "default": "class TabSummary extends LitElement {\n    render() {\n        var _a, _b, _c, _d, _e, _f, _g, _h;\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <div class=\"tab\">\n        <div class=\"left\">\n          <div class=\"icon-wrapper\">\n            <i class=\"material-icons ${(_a = this.info) === null || _a === void 0 ? void 0 : _a.overallStatus}\"\n              >${(_b = this.info) === null || _b === void 0 ? void 0 : _b.icon}</i\n            >\n          </div>\n        </div>\n        <div class=\"mid\">\n          <div class=\"name\">\n            ${(_c = this.info) === null || _c === void 0 ? void 0 : _c.name}: ${(_d = this.info) === null || _d === void 0 ? void 0 : _d.overallStatus}\n          </div>\n          <div class=\"detailed-status\">${(_e = this.info) === null || _e === void 0 ? void 0 : _e.detailedStatusMsg}</div>\n        </div>\n        <div class=\"right\">\n          <div class=\"stats\">\n            Last update: ${(_f = this.info) === null || _f === void 0 ? void 0 : _f.lastUpdateTimestamp}\n          </div>\n          <div class=\"stats\">\n            Tests last ran: ${(_g = this.info) === null || _g === void 0 ? void 0 : _g.lastRunTimestamp}\n          </div>\n          <div class=\"stats\">\n            Last green run: ${(_h = this.info) === null || _h === void 0 ? void 0 : _h.latestGreenBuild}\n          </div>\n        </div>\n      </div>\n    `;\n    }\n}"
         }
       ],
       "exports": [
@@ -1762,7 +874,8 @@
         {
           "kind": "variable",
           "name": "TestgridApp",
-          "default": "class TestgridApp extends LitElement {\n    render() {\n        return html `<testgrid-router></testgrid-router>`;\n    }\n}"
+          "default": "class TestgridApp extends LitElement {\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `<testgrid-router></testgrid-router>`;\n    }\n}",
+          "description": "Class definition for the `testgrid-app` element.\nApplication root element."
         }
       ],
       "exports": [
@@ -1778,12 +891,79 @@
     },
     {
       "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-dashboard-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridDashboardSummary",
+          "default": "class TestgridDashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabSummariesInfo = [];\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchTabSummaries();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n  `;\n    }\n    // fetch the tab summaries and tab names to populate the tab bar\n    async fetchTabSummaries() {\n        try {\n            const response = await fetch(`http://${host}/api/v1/dashboards/${this.dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n            });\n            this.tabSummariesInfo = tabSummaries;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}",
+          "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs)."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDashboardSummary",
+          "declaration": {
+            "name": "TestgridDashboardSummary",
+            "module": "out-tsc/src/testgrid-dashboard-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-data-content.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridDataContent",
+          "default": "class TestgridDataContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.activeIndex = 0;\n        this.showTab = false;\n        this.dashboardName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onTabActivated(event) {\n        const tabIndex = event.detail.index;\n        if (tabIndex === this.activeIndex) {\n            return;\n        }\n        this.tabName = this.tabNames[tabIndex];\n        console.log(this.tabName);\n        if (this.activeIndex === 0 || tabIndex === 0) {\n            this.showTab = !this.showTab;\n        }\n        this.activeIndex = tabIndex;\n        navigateTab(this.dashboardName, this.tabName);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchTabNames();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.tabNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onTabActivated}\">\n          ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${!this.showTab ?\n            html `<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :\n            html `<testgrid-grid-display .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid-display>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchTabNames() {\n        try {\n            const response = await fetch(`http://${host}/api/v1/dashboards/${this.dashboardName}/tabs`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardTabsResponse.fromJson(await response.json());\n            var tabNames = ['Summary'];\n            data.dashboardTabs.forEach(tab => {\n                tabNames.push(tab.name);\n            });\n            this.tabNames = tabNames;\n            this.highlightIndex(this.tabName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(tabName) {\n        if (tabName === undefined) {\n            return;\n        }\n        var index = this.tabNames.indexOf(tabName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
+          "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDataContent",
+          "declaration": {
+            "name": "TestgridDataContent",
+            "module": "out-tsc/src/testgrid-data-content.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-grid-display.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridDisplay",
+          "default": "class TestgridGridDisplay extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabName = '';\n        this.tabGridRows = [];\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('tabName')) {\n            this.fetchTabGridRows();\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n      ${map(this.tabGridRows, (row) => html `<p>${row.name}</p>`)}\n    `;\n    }\n    // fetch the tab data\n    async fetchTabGridRows() {\n        this.tabGridRows = [];\n        try {\n            const response = await fetch(`http://${host}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/rows`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListRowsResponse.fromJson(await response.json());\n            var rows = [];\n            data.rows.forEach(row => rows.push(row));\n            this.tabGridRows = rows;\n        }\n        catch (error) {\n            console.error(`Could not get grid rows: ${error}`);\n        }\n    }\n}",
+          "description": "Class definition for `testgrid-grid-display` component.\nRenders the test results grid."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridDisplay",
+          "declaration": {
+            "name": "TestgridGridDisplay",
+            "module": "out-tsc/src/testgrid-grid-display.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "out-tsc/src/testgrid-index.js",
       "declarations": [
         {
           "kind": "variable",
           "name": "TestgridIndex",
-          "default": "class TestgridIndex extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboards = [];\n        this.dashboardGroups = [];\n        this.respectiveDashboards = [];\n        this.show = true;\n    }\n    // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later\n    render() {\n        return html `\n\n      <div class=\"flex-container\">\n        <!-- loading dashboard groups -->\n        <mwc-list style=\"min-width: 760px\">\n          ${map(this.dashboardGroups, (dash, index) => html `\n              <mwc-list-item\n                id=${index}\n                class=\"column card dashboard-group\"\n                raised\n                @click=\"${() => this.getRespectiveDashboards(dash)}\"\n              >\n                <div class=\"container\">\n                  <p>${dash}</p>\n                </div>\n              </mwc-list-item>\n            `)}\n        </mwc-list>\n\n        <!-- loading dashboards -->\n        ${this.show ? dashboardTemplate(this.dashboards) : ''}\n\n        <!-- loading respective dashboards -->\n        ${!this.show ? dashboardTemplate(this.respectiveDashboards) : ''}\n        ${!this.show\n            ? html `\n              <mwc-button\n                class=\"column\"\n                raised\n                @click=\"${() => {\n                this.show = !this.show;\n            }}\"\n                >X</mwc-button\n              >\n            `\n            : ''}\n      </div>\n    `;\n    }\n    // function to get dashboards\n    async getDashboards() {\n        try {\n            fetch(`http://${host}/api/v1/dashboards`).then(async (response) => {\n                const resp = ListDashboardResponse.fromJson(await response.json());\n                const dashboards = [];\n                resp.dashboards.forEach(db => {\n                    dashboards.push(db.name);\n                });\n                this.dashboards = dashboards;\n            });\n        }\n        catch (error) {\n            console.log(`failed to fetch: ${error}`);\n        }\n    }\n    // function to get dashboard groups\n    async getDashboardGroups() {\n        try {\n            fetch(`http://${host}/api/v1/dashboard-groups`).then(async (response) => {\n                const resp = ListDashboardGroupResponse.fromJson(await response.json());\n                const dashboardGroups = [];\n                resp.dashboardGroups.forEach(db => {\n                    dashboardGroups.push(db.name);\n                });\n                this.dashboardGroups = dashboardGroups;\n            });\n        }\n        catch (error) {\n            console.log(`failed to fetch: ${error}`);\n        }\n    }\n    // function to get respective dashboards of dashboard group\n    async getRespectiveDashboards(name) {\n        this.show = false;\n        try {\n            fetch(`http://${host}/api/v1/dashboard-groups/${name}`).then(async (response) => {\n                const resp = ListDashboardResponse.fromJson(await response.json());\n                const respectiveDashboards = [];\n                resp.dashboards.forEach(ts => {\n                    respectiveDashboards.push(ts.name);\n                });\n                this.respectiveDashboards = respectiveDashboards;\n            });\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // send the API request when the element is connected to DOM\n    connectedCallback() {\n        super.connectedCallback();\n        this.getDashboardGroups();\n        this.getDashboards();\n    }\n}"
+          "default": "class TestgridIndex extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboards = [];\n        this.dashboardGroups = [];\n        this.respectiveDashboards = [];\n        // toggles between the dashboards of a particular group or a dashboard without a group\n        this.show = true;\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchDashboardGroups();\n        this.fetchDashboards();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n      <div class=\"flex-container\">\n        <!-- loading dashboard groups -->\n        <mwc-list style=\"min-width: 760px\">\n          ${map(this.dashboardGroups, (dash, index) => html `\n              <mwc-list-item\n                id=${index}\n                class=\"column card dashboard-group\"\n                raised\n                @click=\"${() => this.getRespectiveDashboards(dash)}\"\n              >\n                <div class=\"container\">\n                  <p>${dash}</p>\n                </div>\n              </mwc-list-item>\n            `)}\n        </mwc-list>\n\n        <!-- loading dashboards -->\n        ${this.show ? dashboardTemplate(this.dashboards) : ''}\n\n        <!-- loading respective dashboards -->\n        ${!this.show ? dashboardTemplate(this.respectiveDashboards) : ''}\n        ${!this.show ? html `\n              <mwc-button class=\"column\" raised @click=\"${() => this.show = !this.show}\">X</mwc-button>\n            `\n            : ''}\n      </div>\n    `;\n    }\n    // fetch the the list of dashboards from the API\n    async fetchDashboards() {\n        try {\n            fetch(`http://${host}/api/v1/dashboards`).then(async (response) => {\n                const resp = ListDashboardResponse.fromJson(await response.json());\n                const dashboards = [];\n                resp.dashboards.forEach(db => {\n                    dashboards.push(db.name);\n                });\n                this.dashboards = dashboards;\n            });\n        }\n        catch (error) {\n            console.log(`failed to fetch: ${error}`);\n        }\n    }\n    // fetch the list of dashboard groups from API\n    async fetchDashboardGroups() {\n        try {\n            fetch(`http://${host}/api/v1/dashboard-groups`).then(async (response) => {\n                const resp = ListDashboardGroupResponse.fromJson(await response.json());\n                const dashboardGroups = [];\n                resp.dashboardGroups.forEach(db => {\n                    dashboardGroups.push(db.name);\n                });\n                this.dashboardGroups = dashboardGroups;\n            });\n        }\n        catch (error) {\n            console.log(`failed to fetch: ${error}`);\n        }\n    }\n    // fetch the list of respective dashboards for a group from API\n    async getRespectiveDashboards(name) {\n        this.show = false;\n        try {\n            fetch(`http://${host}/api/v1/dashboard-groups/${name}`).then(async (response) => {\n                const resp = ListDashboardResponse.fromJson(await response.json());\n                const respectiveDashboards = [];\n                resp.dashboards.forEach(ts => {\n                    respectiveDashboards.push(ts.name);\n                });\n                this.respectiveDashboards = respectiveDashboards;\n            });\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}",
+          "description": "Class definition for the `testgrid-index` element.\nRenders the list of dashboards and dashboard groups available."
         }
       ],
       "exports": [
@@ -1804,7 +984,8 @@
         {
           "kind": "variable",
           "name": "TestgridRouter",
-          "default": "class TestgridRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.router = new Router(this, [\n            {\n                path: '/:dashboard',\n                render: (params) => html `<dashboard-summary .name=${params.dashboard}></dashboard-summary>`,\n            },\n            {\n                path: '/',\n                render: () => html `<testgrid-index></testgrid-index>`,\n            },\n        ]);\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        window.addEventListener('location-changed', () => {\n            this.router.goto(location.pathname);\n        });\n    }\n    render() {\n        return html `${this.router.outlet()}`;\n    }\n}"
+          "default": "class TestgridRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.router = new Router(this, [\n            {\n                path: '/:dashboard/*',\n                render: (params) => html `<testgrid-data-content .dashboardName=${params.dashboard} .tabName=${params[0]} showTab></testgrid-data-content>`,\n            },\n            {\n                path: '/:dashboard',\n                render: (params) => html `<testgrid-data-content .dashboardName=${params.dashboard}></testgrid-data-content>`,\n            },\n            {\n                path: '/',\n                render: () => html `<testgrid-index></testgrid-index>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        window.addEventListener('location-changed', () => {\n            this.router.goto(location.pathname);\n        });\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.router.outlet()}`;\n    }\n}",
+          "description": "Class definition for the `testgrid-router` element.\nHandles the routing logic."
         }
       ],
       "exports": [
@@ -1997,6 +1178,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/utils/constants.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "host",
+          "type": {
+            "text": "string"
+          },
+          "default": "'testgrid-data.k8s.io'"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "host",
+          "declaration": {
+            "name": "host",
+            "module": "src/utils/constants.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/utils/navigation.ts",
       "declarations": [
         {
@@ -2017,6 +1222,25 @@
             }
           ],
           "description": "Navigates application to a specified page."
+        },
+        {
+          "kind": "function",
+          "name": "navigateTab",
+          "parameters": [
+            {
+              "name": "dashboard",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "tab",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Changes the URL without reloading"
         }
       ],
       "exports": [
@@ -2027,56 +1251,40 @@
             "name": "navigate",
             "module": "src/utils/navigation.ts"
           }
+        },
+        {
+          "kind": "js",
+          "name": "navigateTab",
+          "declaration": {
+            "name": "navigateTab",
+            "module": "src/utils/navigation.ts"
+          }
         }
       ]
     },
     {
       "kind": "javascript-module",
-      "path": "storybook-static/polyfills/core-js.28055faac7332b21c9e06460dae4b000.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/custom-elements-es5-adapter.79106fd9b808b3bbd70d54b934850301.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/fetch.f8c330d549b0d591bce5f245fe3351f9.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/intersection-observer.1dfab822bea56de541280683e0923ef2.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/regenerator-runtime.e2c951e2eae648aacbcac529428355da.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/resize-observer.467474095074c8a92dde0e006c40eb12.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/systemjs.dabf4e8006a3be11acd4b6981abd9943.js",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "storybook-static/polyfills/webcomponents.a551e00e9f31a5519876700c4ae6d987.js",
-      "declarations": [],
-      "exports": []
+      "path": "out-tsc/src/utils/constants.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "host",
+          "type": {
+            "text": "string"
+          },
+          "default": "'testgrid-data.k8s.io'"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "host",
+          "declaration": {
+            "name": "host",
+            "module": "out-tsc/src/utils/constants.js"
+          }
+        }
+      ]
     },
     {
       "kind": "javascript-module",
@@ -2097,6 +1305,25 @@
             }
           ],
           "description": "Navigates application to a specified page."
+        },
+        {
+          "kind": "function",
+          "name": "navigateTab",
+          "parameters": [
+            {
+              "name": "dashboard",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "tab",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Changes the URL without reloading"
         }
       ],
       "exports": [
@@ -2105,6 +1332,14 @@
           "name": "navigate",
           "declaration": {
             "name": "navigate",
+            "module": "out-tsc/src/utils/navigation.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "navigateTab",
+          "declaration": {
+            "name": "navigateTab",
             "module": "out-tsc/src/utils/navigation.js"
           }
         }

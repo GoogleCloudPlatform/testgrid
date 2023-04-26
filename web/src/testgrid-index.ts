@@ -2,16 +2,12 @@ import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import {
-  ListDashboardResponse,
-  ListDashboardGroupResponse,
-} from './gen/pb/api/v1/data.js';
+import { ListDashboardResponse, ListDashboardGroupResponse } from './gen/pb/api/v1/data.js';
+import { navigate } from './utils/navigation';
+import { host } from './utils/constants.js';
 import '@material/mwc-button';
 import '@material/mwc-list';
-import './dashboard-summary.js';
-import { navigate } from './utils/navigation';
 
-const host = 'testgrid-data.k8s.io';
 
 // dashboards template
 // clicking on any dashboard should navigate to the /dashboards view
@@ -33,28 +29,48 @@ const dashboardTemplate = (dashboards: Array<string>) => html`
   </div>
 `;
 
+/**
+ * Class definition for the `testgrid-index` element.
+ * Renders the list of dashboards and dashboard groups available.
+ */
 @customElement('testgrid-index')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TestgridIndex extends LitElement {
-  @property({ type: Array<string> }) dashboards: Array<string> = [];
 
-  @property({ type: Array<string> }) dashboardGroups: Array<string> = [];
+  @property({ type: Array<string> }) 
+  dashboards: Array<string> = [];
 
-  @property({ type: Array<string> }) respectiveDashboards: Array<string> = [];
+  @property({ type: Array<string> }) 
+  dashboardGroups: Array<string> = [];
 
-  @property({ type: Boolean }) show = true;
+  @property({ type: Array<string> }) 
+  respectiveDashboards: Array<string> = [];
 
-  // TODO(chases2): inject an APIClient object so we can inject it into tests/storybook later
+  // toggles between the dashboards of a particular group or a dashboard without a group
+  @property({ type: Boolean }) 
+  show = true;
 
+  /**
+   * Lit-element lifecycle method.
+   * Invoked when a component is added to the document's DOM.
+   */
+  connectedCallback() {
+    super.connectedCallback();
+    this.fetchDashboardGroups();
+    this.fetchDashboards();
+  }
+
+  /**
+   * Lit-element lifecycle method.
+   * Invoked on each update to perform rendering tasks.
+   */
   render() {
     return html`
-
       <div class="flex-container">
         <!-- loading dashboard groups -->
         <mwc-list style="min-width: 760px">
-          ${map(
-            this.dashboardGroups,
-            (dash: string, index: number) => html`
+          ${map(this.dashboardGroups, (dash: string, index: number) => 
+            html`
               <mwc-list-item
                 id=${index}
                 class="column card dashboard-group"
@@ -65,8 +81,7 @@ export class TestgridIndex extends LitElement {
                   <p>${dash}</p>
                 </div>
               </mwc-list-item>
-            `
-          )}
+            `)}
         </mwc-list>
 
         <!-- loading dashboards -->
@@ -74,24 +89,16 @@ export class TestgridIndex extends LitElement {
 
         <!-- loading respective dashboards -->
         ${!this.show ? dashboardTemplate(this.respectiveDashboards) : ''}
-        ${!this.show
-          ? html`
-              <mwc-button
-                class="column"
-                raised
-                @click="${() => {
-                  this.show = !this.show;
-                }}"
-                >X</mwc-button
-              >
+        ${!this.show ? html`
+              <mwc-button class="column" raised @click="${() => this.show = !this.show }">X</mwc-button>
             `
           : ''}
       </div>
     `;
   }
 
-  // function to get dashboards
-  async getDashboards() {
+  // fetch the the list of dashboards from the API
+  async fetchDashboards() {
     try{
       fetch(`http://${host}/api/v1/dashboards`).then(
         async response => {
@@ -110,13 +117,12 @@ export class TestgridIndex extends LitElement {
     }
   }
 
-  // function to get dashboard groups
-  async getDashboardGroups() {
+  // fetch the list of dashboard groups from API
+  async fetchDashboardGroups() {
     try{
       fetch(`http://${host}/api/v1/dashboard-groups`).then(
         async response => {
           const resp = ListDashboardGroupResponse.fromJson(await response.json());
-
           const dashboardGroups: string[] = [];
 
           resp.dashboardGroups.forEach(db => {
@@ -131,7 +137,7 @@ export class TestgridIndex extends LitElement {
     }
   }
 
-  // function to get respective dashboards of dashboard group
+  // fetch the list of respective dashboards for a group from API
   async getRespectiveDashboards(name: string) {
     this.show = false;
     try {
@@ -150,13 +156,6 @@ export class TestgridIndex extends LitElement {
     } catch (error) {
       console.error(`Could not get dashboard summaries: ${error}`);
     }
-  }
-
-  // send the API request when the element is connected to DOM
-  connectedCallback() {
-    super.connectedCallback();
-    this.getDashboardGroups();
-    this.getDashboards();
   }
 
   static styles = css`
