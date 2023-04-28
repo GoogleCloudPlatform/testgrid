@@ -184,21 +184,26 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 		Rows: make([]*apipb.ListRowsResponse_Row, 0, len(grid.Rows)),
 	}
 	for _, gRow := range grid.Rows {
-		cellsCount := len(gRow.CellIds)
+		gRowDecodedResults := decodeRLE(gRow.Results)
+		cellsCount := len(gRowDecodedResults)
 		row := apipb.ListRowsResponse_Row{
 			Name:   gRow.Name,
 			Issues: gRow.Issues,
 			Alert:  gRow.AlertInfo,
 			Cells:  make([]*apipb.ListRowsResponse_Cell, 0, cellsCount),
 		}
-		gRowDecodedResults := decodeRLE(gRow.Results)
+		var filledIdx int
 		// loop through CellIds, Messages, Icons slices and build cell struct objects
 		for cellIdx := 0; cellIdx < cellsCount; cellIdx++ {
+			// Cell IDs, messages, and icons are only listed for non-blank cells.
 			cell := apipb.ListRowsResponse_Cell{
-				Result:  gRowDecodedResults[cellIdx],
-				CellId:  gRow.CellIds[cellIdx],
-				Message: gRow.Messages[cellIdx],
-				Icon:    gRow.Icons[cellIdx],
+				Result: gRowDecodedResults[cellIdx],
+			}
+			if gRowDecodedResults[cellIdx] != 0 {
+				cell.CellId = gRow.CellIds[filledIdx]
+				cell.Message = gRow.Messages[filledIdx]
+				cell.Icon = gRow.Icons[filledIdx]
+				filledIdx++
 			}
 			row.Cells = append(row.Cells, &cell)
 		}

@@ -394,6 +394,77 @@ func TestListRows(t *testing.T) {
 			},
 		},
 		{
+			name: "Returns correct rows with blank cells",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*pb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*pb.DashboardTab{
+								{
+									Name:          "tab 1",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			grid: map[string]*statepb.Grid{
+				"gs://default/tabs/Dashboard1/tab%201": {
+					Rows: []*statepb.Row{
+						{
+							Name:     "tabrow1",
+							Id:       "tabrow1",
+							Results:  []int32{1, 2, 0, 2, 1, 1, 0, 3, 1, 1},
+							CellIds:  []string{"cell-1", "cell-2", "cell-5", "cell-9"},
+							Messages: []string{"", "", "hello", "no"},
+							Icons:    []string{"", "", "H", "N"},
+						},
+					},
+				},
+			},
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "dashboard1",
+				Tab:       "tab1",
+			},
+			want: &apipb.ListRowsResponse{
+				Rows: []*apipb.ListRowsResponse_Row{
+					{
+						Name: "tabrow1",
+						Cells: []*apipb.ListRowsResponse_Cell{
+							{
+								Result: 1,
+								CellId: "cell-1",
+							},
+							{
+								Result: 1,
+								CellId: "cell-2",
+							},
+							{},
+							{},
+							{
+								Result:  1,
+								CellId:  "cell-5",
+								Message: "hello",
+								Icon:    "H",
+							},
+							{},
+							{},
+							{},
+							{
+								Result:  1,
+								CellId:  "cell-9",
+								Message: "no",
+								Icon:    "N",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "Returns tab from tab state",
 			config: map[string]*pb.Configuration{
 				"gs://default/config": {
