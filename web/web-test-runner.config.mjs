@@ -1,5 +1,10 @@
 // import { playwrightLauncher } from '@web/test-runner-playwright';
 
+import { fromRollup } from '@web/dev-server-rollup';
+import rollupReplace from '@rollup/plugin-replace';
+
+const replace = fromRollup(rollupReplace);
+
 const filteredLogs = ['Running in dev mode', 'lit-html is in dev mode'];
 
 export default /** @type {import("@web/test-runner").TestRunnerConfig} */ ({
@@ -29,6 +34,12 @@ export default /** @type {import("@web/test-runner").TestRunnerConfig} */ ({
     },
   },
 
+  plugins: [
+    replace({
+      'process.env.API_HOST': '"testgrid-data.k8s.io"',
+      'process.env.API_PORT': '80',
+    }),
+  ],
   /** Compile JS for older browsers. Requires @web/dev-server-esbuild plugin */
   // esbuildTarget: 'auto',
 

@@ -2,7 +2,6 @@ import { LitElement, html } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import { host } from './utils/constants.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
 import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import './tab-summary.js';
@@ -80,7 +79,7 @@ export class TestgridDashboardSummary extends LitElement {
   private async fetchTabSummaries() {
     try {
       const response = await fetch(
-        `http://${host}/api/v1/dashboards/${this.dashboardName}/tab-summaries`
+        `http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tab-summaries`
       );
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
