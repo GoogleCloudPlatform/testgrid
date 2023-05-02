@@ -4,7 +4,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { when } from 'lit/directives/when.js';
 import { navigateTab } from './utils/navigation.js';
-import { host } from './utils/constants.js';
 import { ListDashboardTabsResponse } from './gen/pb/api/v1/data.js';
 import '@material/mwc-tab';
 import '@material/mwc-tab-bar';
@@ -87,7 +86,7 @@ export class TestgridDataContent extends LitElement {
   private async fetchTabNames() {
     try {
       const response = await fetch(
-        `http://${host}/api/v1/dashboards/${this.dashboardName}/tabs`
+        `http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs`
       );
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);

@@ -2,7 +2,6 @@ import { LitElement, html, PropertyValues } from "lit";
 import { map } from "lit/directives/map.js";
 import { customElement, property, state } from "lit/decorators.js";
 import { ListRowsResponse, ListRowsResponse_Row } from './gen/pb/api/v1/data.js';
-import { host } from "./utils/constants.js";
 
 /**
  * Class definition for `testgrid-grid-display` component.
@@ -47,7 +46,7 @@ export class TestgridGridDisplay extends LitElement{
     this.tabGridRows = [];
     try {
       const response = await fetch(
-        `http://${host}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/rows`
+        `http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/rows`
       );
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);

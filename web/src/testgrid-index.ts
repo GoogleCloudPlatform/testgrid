@@ -4,7 +4,6 @@ import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { ListDashboardResponse, ListDashboardGroupResponse } from './gen/pb/api/v1/data.js';
 import { navigate } from './utils/navigation';
-import { host } from './utils/constants.js';
 import '@material/mwc-button';
 import '@material/mwc-list';
 
@@ -100,7 +99,7 @@ export class TestgridIndex extends LitElement {
   // fetch the the list of dashboards from the API
   async fetchDashboards() {
     try{
-      fetch(`http://${host}/api/v1/dashboards`).then(
+      fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards`).then(
         async response => {
           const resp = ListDashboardResponse.fromJson(await response.json());
           const dashboards: string[] = [];
@@ -120,7 +119,7 @@ export class TestgridIndex extends LitElement {
   // fetch the list of dashboard groups from API
   async fetchDashboardGroups() {
     try{
-      fetch(`http://${host}/api/v1/dashboard-groups`).then(
+      fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups`).then(
         async response => {
           const resp = ListDashboardGroupResponse.fromJson(await response.json());
           const dashboardGroups: string[] = [];
@@ -141,7 +140,7 @@ export class TestgridIndex extends LitElement {
   async getRespectiveDashboards(name: string) {
     this.show = false;
     try {
-      fetch(`http://${host}/api/v1/dashboard-groups/${name}`).then(
+      fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${name}`).then(
         async response => {
           const resp = ListDashboardResponse.fromJson(await response.json());
           const respectiveDashboards: string[] = [];
