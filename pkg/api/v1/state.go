@@ -200,9 +200,16 @@ func (s *Server) ListRows(ctx context.Context, req *apipb.ListRowsRequest) (*api
 				Result: gRowDecodedResults[cellIdx],
 			}
 			if gRowDecodedResults[cellIdx] != 0 {
-				cell.CellId = gRow.CellIds[filledIdx]
-				cell.Message = gRow.Messages[filledIdx]
-				cell.Icon = gRow.Icons[filledIdx]
+				// Cell IDs may be omitted for subrows.
+				if len(gRow.CellIds) != 0 {
+					cell.CellId = gRow.CellIds[filledIdx]
+				}
+				if len(gRow.Messages) != 0 {
+					cell.Message = gRow.Messages[filledIdx]
+				}
+				if len(gRow.Icons) != 0 {
+					cell.Icon = gRow.Icons[filledIdx]
+				}
 				filledIdx++
 			}
 			row.Cells = append(row.Cells, &cell)

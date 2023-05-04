@@ -522,6 +522,76 @@ func TestListRows(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Returns tab from state with row info missing",
+			config: map[string]*pb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*pb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*pb.DashboardTab{
+								{
+									Name:          "tab 1",
+									TestGroupName: "testgroupname",
+								},
+							},
+						},
+					},
+				},
+			},
+			grid: map[string]*statepb.Grid{
+				"gs://default/look-ma-tabs/Dashboard1/tab%201": {
+					Rows: []*statepb.Row{
+						{
+							Name:     "tabrow1",
+							Id:       "tabrow1",
+							Results:  []int32{1, 2},
+							CellIds:  []string{"cell-1", "cell-2"},
+							Messages: []string{"tab soda", ""},
+							Icons:    []string{"", ""},
+						},
+						{
+							Name:    "tabrow1@TESTGRID@method-a",
+							Id:      "tabrow1",
+							Results: []int32{1, 2},
+						},
+					},
+				},
+			},
+			patch: func(s *Server) {
+				s.TabPathPrefix = "look-ma-tabs"
+			},
+			req: &apipb.ListRowsRequest{
+				Scope:     "gs://default",
+				Dashboard: "dashboard1",
+				Tab:       "tab1",
+			},
+			want: &apipb.ListRowsResponse{
+				Rows: []*apipb.ListRowsResponse_Row{
+					{
+						Name: "tabrow1",
+						Cells: []*apipb.ListRowsResponse_Cell{
+							{
+								Result:  1,
+								CellId:  "cell-1",
+								Message: "tab soda",
+							},
+							{
+								Result: 1,
+								CellId: "cell-2",
+							},
+						},
+					},
+					{
+						Name: "tabrow1@TESTGRID@method-a",
+						Cells: []*apipb.ListRowsResponse_Cell{
+							{Result: 1},
+							{Result: 1},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
