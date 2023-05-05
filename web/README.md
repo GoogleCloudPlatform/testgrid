@@ -1,6 +1,11 @@
-## TestGrid UI Demo
+## TestGrid UI
 
 [![Built with open-wc recommendations](https://img.shields.io/badge/built%20with-open--wc-blue.svg)](https://github.com/open-wc)
+
+## Development & testing
+Local development is done with the help of [Web Dev Server](https://modern-web.dev/docs/dev-server/overview/) with the configuration defined in `web-dev-server.config.mjs` file. Config can be changed to fetch data from different APIs (fake or production) by replacing `process.env.API_HOST` variable.
+
+Testing relies on [Web Test Runner](https://modern-web.dev/docs/test-runner/overview/) with the configuration defined in `web-test-runner.config.mjs`. API hostname can be configured there.
 
 ## Scripts
 
