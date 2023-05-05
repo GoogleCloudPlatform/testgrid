@@ -9,7 +9,6 @@ import {
 
 import { TestgridDataContent} from '../src/testgrid-data-content';
 import { Tab } from '@material/mwc-tab';
-import { TabBase } from '@material/mwc-tab/mwc-tab-base';
 
 describe('Testgrid Data Content page', () => {
   let element: TestgridDataContent;
@@ -18,9 +17,10 @@ describe('Testgrid Data Content page', () => {
     // See https://open-wc.org/docs/testing/helpers/#test-a-custom-class-with-properties
     const tagName = defineCE(class extends TestgridDataContent {});
     const tag = unsafeStatic(tagName);
-    element = await fixture(html`<${tag} .dashboardName=${'cert-manager-jetstack-testing-janitors'}></${tag}>`);
+    element = await fixture(html`<${tag} .dashboardName=${'fake-dashboard-1'}></${tag}>`);
   });
 
+  // TODO - add accessibility tests
   it('fetches the tab names and renders the tab bar', async () => {
     await waitUntil(
       () => element.shadowRoot!.querySelector('mwc-tab-bar'),
@@ -58,7 +58,6 @@ describe('Testgrid Data Content page', () => {
     );
 
     const tab: NodeListOf<Tab>| null = element.shadowRoot!.querySelectorAll('mwc-tab');
-    console.log(tab[1])
     tab[1]!.click();
 
     await waitUntil(

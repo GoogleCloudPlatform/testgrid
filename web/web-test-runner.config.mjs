@@ -36,8 +36,8 @@ export default /** @type {import("@web/test-runner").TestRunnerConfig} */ ({
 
   plugins: [
     replace({
-      'process.env.API_HOST': '"testgrid-data.k8s.io"',
-      'process.env.API_PORT': '80',
+      'process.env.API_HOST': '"localhost"',
+      'process.env.API_PORT': '3000',
     }),
   ],
   /** Compile JS for older browsers. Requires @web/dev-server-esbuild plugin */

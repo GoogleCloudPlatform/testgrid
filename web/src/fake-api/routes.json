@@ -1,0 +1,7 @@
+{
+  "/api/v1/dashboards/*/tabs/:tab/rows": "/:tab",
+  "/api/v1/dashboards/*/tabs": "/tabs",
+  "/api/v1/dashboards/*/tab-summaries": "/tab-summaries",
+  "/api/v1/dashboard-groups/:group": "/:group",
+  "/api/v1/dashboards/:dashboard": "/:dashboard"
+}
