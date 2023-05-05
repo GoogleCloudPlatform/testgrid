@@ -611,6 +611,7 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	if err != nil {
 		log.WithField("path", gridPath).WithError(err).Error("Failed to download existing grid")
 	}
+	inflateStart := time.Now()
 	if old != nil {
 		var cols []InflatedColumn
 		var err error
@@ -627,6 +628,8 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		SortStarted(cols) // Our processing requires descending start time.
 		oldCols = truncateRunning(cols, floor)
 	}
+	inflateDur := time.Since(inflateStart)
+	readColsStart := time.Now()
 	var cols []InflatedColumn
 	var unreadColumns bool
 	if attrs != nil && attrs.Size >= int64(byteCeiling) {
@@ -705,9 +708,11 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		cols = append(cols, oldCols...)
 		cols = groupColumns(tg, cols)
 	}
+	readColsDur := time.Since(readColsStart)
 
 	SortStarted(cols)
 
+	shrinkStart := time.Now()
 	cols = truncateGrid(cols, byteCeiling) // Assume each cell is at least 1 byte
 	var grid *statepb.Grid
 	var buf []byte
@@ -715,6 +720,8 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 	if err != nil {
 		return false, fmt.Errorf("shrink grid inline: %v", err)
 	}
+	shrinkDur := time.Since(shrinkStart)
+
 	grid.Config = tg
 
 	log = log.WithField("url", gridPath).WithField("bytes", len(buf))
@@ -731,8 +738,11 @@ func InflateDropAppend(ctx context.Context, alog logrus.FieldLogger, client gcs.
 		log = log.WithField("more", true)
 	}
 	log.WithFields(logrus.Fields{
-		"cols": len(grid.Columns),
-		"rows": len(grid.Rows),
+		"cols":     len(grid.Columns),
+		"rows":     len(grid.Rows),
+		"inflate":  inflateDur,
+		"readCols": readColsDur,
+		"shrink":   shrinkDur,
 	}).Info("Wrote grid")
 	return unreadColumns, nil
 }
