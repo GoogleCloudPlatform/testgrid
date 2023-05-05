@@ -59,6 +59,7 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, readResult *
 		log := parentLog.WithField("since", since)
 
 		log.Trace("Listing builds...")
+		listBuildsStart := time.Now()
 		builds, err := listBuilds(ctx, client, since, tgPaths...)
 		if errors.Is(err, storage.ErrBucketNotExist) {
 			log.WithError(err).Info("Bucket does not exist")
@@ -67,7 +68,7 @@ func gcsColumnReader(client gcs.Client, buildTimeout time.Duration, readResult *
 		if err != nil {
 			return fmt.Errorf("list builds: %w", err)
 		}
-		log.WithField("total", len(builds)).Debug("Listed builds")
+		log.WithField("listBuilds", time.Since(listBuildsStart)).WithField("total", len(builds)).Debug("Listed builds")
 
 		readColumns(ctx, client, log, tg, builds, stop, buildTimeout, receivers, readResult, enableIgnoreSkip)
 		return nil
