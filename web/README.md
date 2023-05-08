@@ -3,7 +3,7 @@
 [![Built with open-wc recommendations](https://img.shields.io/badge/built%20with-open--wc-blue.svg)](https://github.com/open-wc)
 
 ## Development & testing
-Local development is done with the help of [Web Dev Server](https://modern-web.dev/docs/dev-server/overview/) with the configuration defined in `web-dev-server.config.mjs` file. Config can be changed to fetch data from different APIs (fake or production) by replacing `process.env.API_HOST` variable.
+Local development is done with the help of [Web Dev Server](https://modern-web.dev/docs/dev-server/overview/) with the configuration defined in `web-dev-server-{env}.config.mjs` file. There are different configurations for different environment.
 
 Testing relies on [Web Test Runner](https://modern-web.dev/docs/test-runner/overview/) with the configuration defined in `web-test-runner.config.mjs`. API hostname can be configured there.
 
@@ -11,7 +11,8 @@ Testing relies on [Web Test Runner](https://modern-web.dev/docs/test-runner/over
 
 Most scripts are in `npm run` commands.
 
-- `start` runs your app for development, reloading on file changes
+- `start:local` runs your app for development, reloading on file changes. spins up local [`json-server`](https://github.com/typicode/json-server) and feeds data defined in `fake-api/data.json`.
+- `start:k8s` runs you app for development fetching the data from external prod Testgrid instance.
 - `start:build` runs your app after it has been built using the build command
 - `build` builds your app and outputs it in your `dist` directory
 - `test` runs your test suite with Web Test Runner
