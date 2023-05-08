@@ -17,7 +17,7 @@ describe('Testgrid Dashboard Summary page', () => {
     // See https://open-wc.org/docs/testing/helpers/#test-a-custom-class-with-properties
     const tagName = defineCE(class extends TestgridDashboardSummary {});
     const tag = unsafeStatic(tagName);
-    element = await fixture(html`<${tag} .dashboardName=${'cert-manager-jetstack-testing-janitors'}></${tag}>`);
+    element = await fixture(html`<${tag} .dashboardName=${'fake-dashboard-2'}></${tag}>`);
   });
 
   it('renders the tab summaries', async () => {

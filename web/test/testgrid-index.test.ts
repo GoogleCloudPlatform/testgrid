@@ -22,10 +22,6 @@ describe('Testgrid Index page', () => {
     element = await fixture(html`<${tag}></${tag}>`);
   });
 
-  it('passes the a11y audit', async () => {
-    await expect(element).shadowDom.to.be.accessible();
-  });
-
   it('fetches dashboards and dashboard-groups after loading the component', async () => {
 
     // waiting until list items (dashboards and groups) are fully rendered

@@ -42,7 +42,6 @@ export class TestgridDataContent extends LitElement {
     }
 
     this.tabName = this.tabNames[tabIndex];
-    console.log(this.tabName);
 
     if (this.activeIndex === 0 || tabIndex === 0){
       this.showTab = !this.showTab;
