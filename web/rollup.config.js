@@ -16,7 +16,13 @@ export default {
     dir: 'dist',
   },
   preserveEntrySignatures: false,
+  onwarn(warning, warn) {
+		// skip certain warnings
+		if (warning.code === 'THIS_IS_UNDEFINED') return;
 
+		// Use default for everything else
+		warn(warning);
+	},
   plugins: [
     /** Enable using HTML as rollup entrypoint */
     html({
