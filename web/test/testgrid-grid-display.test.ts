@@ -16,7 +16,7 @@ describe('Testgrid Grid Display page', () => {
     // See https://open-wc.org/docs/testing/helpers/#test-a-custom-class-with-properties
     const tagName = defineCE(class extends TestgridGridDisplay {});
     const tag = unsafeStatic(tagName);
-    element = await fixture(html`<${tag} .dashboardName=${'fake-dashboard-3'} .tabName=${'fake_tab_2'}></${tag}>`);
+    element = await fixture(html`<${tag} .dashboardName=${'fake-dashboard-3'} .tabName=${'fake_tab'}></${tag}>`);
   });
 
   it('renders the grid data', async () => {
