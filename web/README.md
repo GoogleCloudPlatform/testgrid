@@ -11,7 +11,7 @@ Testing relies on [Web Test Runner](https://modern-web.dev/docs/test-runner/over
 
 Most scripts are in `npm run` commands.
 
-- `start:local` runs your app for development, reloading on file changes. spins up local [`json-server`](https://github.com/typicode/json-server) and feeds data defined in `fake-api/data.json`.
+- `start:local` runs your app for development reloading on file changes. spins up local [`json-server`](https://github.com/typicode/json-server) and feeds data defined in `fake-api/data.json`.
 - `start:k8s` runs you app for development fetching the data from external prod Testgrid instance.
 - `start:build` runs your app after it has been built using the build command
 - `build` builds your app and outputs it in your `dist` directory
