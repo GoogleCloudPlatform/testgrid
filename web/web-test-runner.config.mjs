@@ -5,7 +5,7 @@ import rollupReplace from '@rollup/plugin-replace';
 
 const replace = fromRollup(rollupReplace);
 
-const filteredLogs = ['Running in dev mode', 'lit-html is in dev mode'];
+const filteredLogs = ['Running in dev mode', 'lit-html is in dev mode', 'hi', 'api'];
 
 export default /** @type {import("@web/test-runner").TestRunnerConfig} */ ({
   /** Test files to run */
