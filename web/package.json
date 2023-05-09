@@ -7,7 +7,7 @@
   "scripts": {
     "lint": "eslint --ext .ts,.html . && prettier \"**/*.ts\" --check",
     "format": "eslint --ext .ts,.html . --fix && prettier \"**/*.ts\" --write",
-    "test": "tsc && concurrently -k -r \"json-server src/fake-api/data.json --routes src/fake-api/routes.json >> /dev/null\" \"wtr --playwright --browsers chromium --coverage\"",
+    "test": "tsc && wtr --playwright --browsers chromium --coverage",
     "test:watch": "tsc && concurrently -k -r \"json-server src/fake-api/data.json --routes src/fake-api/routes.json\"  \"tsc --watch --preserveWatchOutput\" \"wtr --watch\"",
     "storybook": "tsc && npm run analyze -- --exclude dist && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wds -c .storybook/server.mjs\"",
     "storybook:build": "tsc && npm run analyze -- --exclude dist && build-storybook",

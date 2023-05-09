@@ -24,4 +24,5 @@ presubmits:
       - bash
       args:
       - -c
-      - cd web && npm install && npm run build && npm test || exit 0
+      - cd web && npm install -g json-server && npm install && npm run build &&
+      - json-server src/fake-api/data.json --routes src/fake-api/routes.json & && npm run test
