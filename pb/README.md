@@ -23,10 +23,11 @@ These components generally generate these types of protos:
 | Configurator or [Config Merger](/cmd/config_merger) | `Configuration` | [config.proto](./config/config.proto) |
 | [Summarizer](/cmd/summarizer) | `DashboardSummary` | [summary.proto](./summary/summary.proto) |
 | [Updater](/cmd/updater)  | `Grid` (see [Reading a Grid](#reading-a-grid))| [state.proto](./state/state.proto) |
+| [Tabulator](/cmd/tabulator) | `Grid` (see [Reading a Grid](#reading-a-grid)) | [state.proto](./state/state.proto) |
 
 ### Reading a Grid
 
-The Updater will compress its state as well as encoding it. To read it, you'll
+The Updater and Tabulator will compress its state as well as encoding it. To read it, you'll
 need to do one of the following:
 - In Go: Use [DownloadGrid()](/util/gcs/gcs.go) or `zlib.NewReader(reader)`
 - In shell: Use a script that will uncompress zlib, then pipe that result to `protoc`
