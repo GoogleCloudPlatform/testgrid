@@ -7,14 +7,15 @@
   "scripts": {
     "lint": "eslint --ext .ts,.html . && prettier \"**/*.ts\" --check",
     "format": "eslint --ext .ts,.html . --fix && prettier \"**/*.ts\" --write",
-    "test": "tsc && wtr --playwright --browsers chromium --coverage",
-    "test:watch": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wtr --watch\"",
+    "test": "tsc && concurrently -k -r -s first \"json-server src/fake-api/data.json --routes src/fake-api/routes.json\" \"wtr --playwright --browsers chromium --coverage\"",
+    "test:watch": "tsc && concurrently -k -r -s first \"tsc --watch --preserveWatchOutput\" \"json-server src/fake-api/data.json --routes src/fake-api/routes.json\" \"wtr --watch\"",
     "storybook": "tsc && npm run analyze -- --exclude dist && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wds -c .storybook/server.mjs\"",
     "storybook:build": "tsc && npm run analyze -- --exclude dist && build-storybook",
     "build": "rimraf dist && tsc && rollup -c rollup.config.js && npm run analyze -- --exclude dist",
-    "start:build": "web-dev-server --root-dir dist --app-index index.html --open",
+    "start:build": "web-dev-server --config web-dev-server-k8s.config.mjs --root-dir dist --app-index index.html --open",
     "analyze": "cem analyze --litelement",
-    "start": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wds\"",
+    "start:local": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"json-server src/fake-api/data.json --routes src/fake-api/routes.json\" \"wds --config web-dev-server-local.config.mjs\"",
+    "start:k8s": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wds --config web-dev-server-k8s.config.mjs\"",
     "reinstall": "npm ci"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@material/mwc-tab-bar": "^0.27.0",
     "@protobuf-ts/plugin": "^2.8.3",
     "@web/test-runner-playwright": "^0.9.0",
+    "json-server": "^0.17.3",
     "lit": "^2.7.0"
   },
   "devDependencies": {
