@@ -176,6 +176,15 @@
       }
     ]
   },
+  "fake_tab_3-headers": {
+    "headers": [
+      {"build": "567"},
+      {"build": "456"},
+      {"build": "345"},
+      {"build": "234"},
+      {"build": "123"}
+    ]
+  },
   "fake_tab_3": {
     "rows": [
       {

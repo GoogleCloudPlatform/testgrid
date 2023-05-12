@@ -8,7 +8,7 @@ import { ListDashboardTabsResponse } from './gen/pb/api/v1/data.js';
 import '@material/mwc-tab';
 import '@material/mwc-tab-bar';
 import './testgrid-dashboard-summary';
-import './testgrid-grid-display';
+import './testgrid-grid';
 
 /**
  * Class definition for the `testgrid-data-content` element.
