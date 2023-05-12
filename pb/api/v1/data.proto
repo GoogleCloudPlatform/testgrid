@@ -11,8 +11,8 @@ import "pb/summary/summary.proto";
 
 service TestGridData {
   // GET /dashboards
-  // Lists dashboard names
-  rpc ListDashboard(ListDashboardRequest) returns (ListDashboardResponse) {}
+  // Lists dashboard names and the dashboard group they belong to
+  rpc ListDashboard(ListDashboardRequest) returns (ListDashboardAndDashboardGroupResponse) {}
 
   // GET /dashboard-groups
   // Lists the dashboard group names
@@ -59,6 +59,8 @@ service TestGridData {
 message ListDashboardRequest { string scope = 1; }
 
 message ListDashboardResponse { repeated Resource dashboards = 1; }
+
+message ListDashboardAndDashboardGroupResponse { repeated DashboardResource dashboards = 1; }
 
 message ListDashboardGroupRequest { string scope = 1; }
 
@@ -167,6 +169,13 @@ message ListRowsResponse {
 message Resource {
   string name = 1;
   string link = 2;
+}
+
+// It includes the dashboard name, dashboard group and a link to the resource
+message DashboardResource {
+  string name = 1;
+  string dashboard_group = 2;
+  string link = 3;
 }
 
 message ListTabSummariesRequest {
