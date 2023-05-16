@@ -61,7 +61,7 @@ describe('Testgrid Data Content page', () => {
     tab[1]!.click();
 
     await waitUntil(
-      () => element.shadowRoot!.querySelector('testgrid-grid-display'),
+      () => element.shadowRoot!.querySelector('testgrid-grid'),
       'Data content did not render the grid data',
       {
         timeout: 4000,

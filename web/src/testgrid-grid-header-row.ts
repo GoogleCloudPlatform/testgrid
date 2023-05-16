@@ -2,6 +2,8 @@ import { LitElement, html, css } from "lit";
 import { map } from "lit/directives/map.js";
 import { customElement, property } from "lit/decorators.js";
 import { ListHeadersResponse } from './gen/pb/api/v1/data.js';
+import './testgrid-grid-row-id';
+import './testgrid-grid-column-header';
 
 @customElement('testgrid-grid-header-row')
 export class TestgridGridHeaderRow extends LitElement {
@@ -21,14 +23,14 @@ export class TestgridGridHeaderRow extends LitElement {
   render() {
     if (this.headers && this.headers.headers) {
       return html`
-        <testgrid-grid-row-header></testgrid-grid-row-header>
+        <testgrid-grid-row-id></testgrid-grid-row-id>
         ${map(this.headers.headers,
         (header) => html`<testgrid-grid-column-header .name="${header.build}"></testgrid-grid-column-header>`
       )}
         `;
     }
     return html`
-    <testgrid-grid-row-header></testgrid-grid-row-header>
+    <testgrid-grid-row-id></testgrid-grid-row-id>
     `;
   }
 }

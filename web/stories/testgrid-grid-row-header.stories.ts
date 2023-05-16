@@ -1,9 +1,9 @@
 import { html, TemplateResult } from 'lit';
-import '../src/testgrid-grid-row-header';
+import '../src/testgrid-grid-row-id';
 
 export default {
   title: 'Grid Row Header',
-  component: 'testgrid-grid-row-header',
+  component: 'testgrid-grid-row-id',
 };
 
 interface Story<T> {
@@ -18,7 +18,7 @@ interface Args {
 const Template: Story<Args> = ({
   name = '',
 }: Args) => {
-  return html`<testgrid-grid-row-header .name="${name}"></testgrid-grid-row-header>`;
+  return html`<testgrid-grid-row-id .name="${name}"></testgrid-grid-row-id>`;
 };
 
 export const Empty = Template.bind({});

@@ -77,7 +77,7 @@ export class TestgridDataContent extends LitElement {
       ${tabBar}
       ${!this.showTab ? 
         html`<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` : 
-        html`<testgrid-grid-display .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid-display>`}
+        html`<testgrid-grid .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid>`}
     `;
   }
 
