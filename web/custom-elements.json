@@ -527,12 +527,12 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/testgrid-grid-row-header.ts",
+      "path": "src/testgrid-grid-row-name.ts",
       "declarations": [
         {
           "kind": "class",
           "description": "",
-          "name": "TestgridGridRowHeader",
+          "name": "TestgridGridRowName",
           "members": [
             {
               "kind": "field",
@@ -556,25 +556,25 @@
             "name": "LitElement",
             "package": "lit"
           },
-          "tagName": "testgrid-grid-row-header",
+          "tagName": "testgrid-grid-row-name",
           "customElement": true
         }
       ],
       "exports": [
         {
           "kind": "js",
-          "name": "TestgridGridRowHeader",
+          "name": "TestgridGridRowName",
           "declaration": {
-            "name": "TestgridGridRowHeader",
-            "module": "src/testgrid-grid-row-header.ts"
+            "name": "TestgridGridRowName",
+            "module": "src/testgrid-grid-row-name.ts"
           }
         },
         {
           "kind": "custom-element-definition",
-          "name": "testgrid-grid-row-header",
+          "name": "testgrid-grid-row-name",
           "declaration": {
-            "name": "TestgridGridRowHeader",
-            "module": "src/testgrid-grid-row-header.ts"
+            "name": "TestgridGridRowName",
+            "module": "src/testgrid-grid-row-name.ts"
           }
         }
       ]
@@ -590,14 +590,6 @@
           "members": [
             {
               "kind": "field",
-              "name": "name",
-              "type": {
-                "text": "String"
-              },
-              "attribute": "name"
-            },
-            {
-              "kind": "field",
               "name": "rowData",
               "type": {
                 "text": "ListRowsResponse_Row"
@@ -606,13 +598,6 @@
             }
           ],
           "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "String"
-              },
-              "fieldName": "name"
-            },
             {
               "name": "rowData",
               "type": {
@@ -1447,65 +1432,21 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/utils/navigation.ts",
-      "declarations": [
-        {
-          "kind": "function",
-          "name": "navigate",
-          "parameters": [
-            {
-              "name": "name",
-              "type": {
-                "text": "string"
-              }
-            },
-            {
-              "name": "path",
-              "type": {
-                "text": "string"
-              }
-            }
-          ],
-          "description": "Navigates application to a specified page."
-        },
-        {
-          "kind": "function",
-          "name": "navigateTab",
-          "parameters": [
-            {
-              "name": "dashboard",
-              "type": {
-                "text": "string"
-              }
-            },
-            {
-              "name": "tab",
-              "type": {
-                "text": "string"
-              }
-            }
-          ],
-          "description": "Changes the URL without reloading"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "navigate",
-          "declaration": {
-            "name": "navigate",
-            "module": "src/utils/navigation.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "navigateTab",
-          "declaration": {
-            "name": "navigateTab",
-            "module": "src/utils/navigation.ts"
-          }
-        }
-      ]
+      "path": "coverage/lcov-report/block-navigation.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/prettify.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "coverage/lcov-report/sorter.js",
+      "declarations": [],
+      "exports": []
     },
     {
       "kind": "javascript-module",
@@ -1618,7 +1559,7 @@
         {
           "kind": "variable",
           "name": "TestgridDataContent",
-          "default": "class TestgridDataContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.activeIndex = 0;\n        this.showTab = false;\n        this.dashboardName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onTabActivated(event) {\n        const tabIndex = event.detail.index;\n        if (tabIndex === this.activeIndex) {\n            return;\n        }\n        this.tabName = this.tabNames[tabIndex];\n        if (this.activeIndex === 0 || tabIndex === 0) {\n            this.showTab = !this.showTab;\n        }\n        this.activeIndex = tabIndex;\n        navigateTab(this.dashboardName, this.tabName);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchTabNames();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.tabNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onTabActivated}\">\n          ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${!this.showTab ?\n            html `<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :\n            html `<testgrid-grid-display .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid-display>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchTabNames() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardTabsResponse.fromJson(await response.json());\n            var tabNames = ['Summary'];\n            data.dashboardTabs.forEach(tab => {\n                tabNames.push(tab.name);\n            });\n            this.tabNames = tabNames;\n            this.highlightIndex(this.tabName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(tabName) {\n        if (tabName === undefined) {\n            return;\n        }\n        var index = this.tabNames.indexOf(tabName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
+          "default": "class TestgridDataContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.activeIndex = 0;\n        this.showTab = false;\n        this.dashboardName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onTabActivated(event) {\n        const tabIndex = event.detail.index;\n        if (tabIndex === this.activeIndex) {\n            return;\n        }\n        this.tabName = this.tabNames[tabIndex];\n        if (this.activeIndex === 0 || tabIndex === 0) {\n            this.showTab = !this.showTab;\n        }\n        this.activeIndex = tabIndex;\n        navigateTab(this.dashboardName, this.tabName);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchTabNames();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.tabNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onTabActivated}\">\n          ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${!this.showTab ?\n            html `<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :\n            html `<testgrid-grid .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchTabNames() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardTabsResponse.fromJson(await response.json());\n            var tabNames = ['Summary'];\n            data.dashboardTabs.forEach(tab => {\n                tabNames.push(tab.name);\n            });\n            this.tabNames = tabNames;\n            this.highlightIndex(this.tabName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(tabName) {\n        if (tabName === undefined) {\n            return;\n        }\n        var index = this.tabNames.indexOf(tabName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
           "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data."
         }
       ],
@@ -1682,7 +1623,7 @@
         {
           "kind": "variable",
           "name": "TestgridGridHeaderRow",
-          "default": "class TestgridGridHeaderRow extends LitElement {\n    render() {\n        if (this.headers && this.headers.headers) {\n            return html `\n        <testgrid-grid-row-header></testgrid-grid-row-header>\n        ${map(this.headers.headers, (header) => html `<testgrid-grid-column-header .name=\"${header.build}\"></testgrid-grid-column-header>`)}\n        `;\n        }\n        return html `\n    <testgrid-grid-row-header></testgrid-grid-row-header>\n    `;\n    }\n}"
+          "default": "class TestgridGridHeaderRow extends LitElement {\n    render() {\n        var _a;\n        // TODO(michelle192837): Replace row name component with more appropriate one.\n        return html `\n      <testgrid-grid-row-name></testgrid-grid-row-name>\n      ${map((_a = this.headers) === null || _a === void 0 ? void 0 : _a.headers, header => html `<testgrid-grid-column-header\n            .name=\"${header.build}\"\n          ></testgrid-grid-column-header>`)}\n    `;\n    }\n}"
         }
       ],
       "exports": [
@@ -1698,21 +1639,21 @@
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid-row-header.js",
+      "path": "out-tsc/src/testgrid-grid-row-name.js",
       "declarations": [
         {
           "kind": "variable",
-          "name": "TestgridGridRowHeader",
-          "default": "class TestgridGridRowHeader extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
+          "name": "TestgridGridRowName",
+          "default": "class TestgridGridRowName extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
         }
       ],
       "exports": [
         {
           "kind": "js",
-          "name": "TestgridGridRowHeader",
+          "name": "TestgridGridRowName",
           "declaration": {
-            "name": "TestgridGridRowHeader",
-            "module": "out-tsc/src/testgrid-grid-row-header.js"
+            "name": "TestgridGridRowName",
+            "module": "out-tsc/src/testgrid-grid-row-name.js"
           }
         }
       ]
@@ -1724,7 +1665,7 @@
         {
           "kind": "variable",
           "name": "TestgridGridRow",
-          "default": "class TestgridGridRow extends LitElement {\n    render() {\n        if (this.rowData && this.rowData.cells) {\n            return html `<testgrid-grid-row-header .name=\"${this.name}\">\n        </testgrid-grid-row-header>\n        ${map(this.rowData.cells, (cell) => html `<testgrid-grid-cell .icon=\"${cell.icon}\" .status=\"${TestStatus[cell.result]}\"></testgrid-grid-cell>`)}\n        `;\n        }\n        return html `\n    <testgrid-grid-row-header .name=\"${this.name}\"></testgrid-grid-row-header>\n    `;\n    }\n}"
+          "default": "class TestgridGridRow extends LitElement {\n    render() {\n        var _a, _b;\n        return html `<testgrid-grid-row-name .name=\"${(_a = this.rowData) === null || _a === void 0 ? void 0 : _a.name}\">\n      </testgrid-grid-row-name>\n      ${map((_b = this.rowData) === null || _b === void 0 ? void 0 : _b.cells, cell => html `<testgrid-grid-cell\n            .icon=\"${cell.icon}\"\n            .status=\"${TestStatus[cell.result]}\"\n          ></testgrid-grid-cell>`)} `;\n    }\n}"
         }
       ],
       "exports": [
@@ -2214,6 +2155,57 @@
     },
     {
       "kind": "javascript-module",
+      "path": "out-tsc/stories/testgrid-grid-row-name.stories.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Empty"
+        },
+        {
+          "kind": "variable",
+          "name": "Short"
+        },
+        {
+          "kind": "variable",
+          "name": "Long"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "out-tsc/stories/testgrid-grid-row-name.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Empty",
+          "declaration": {
+            "name": "Empty",
+            "module": "out-tsc/stories/testgrid-grid-row-name.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Short",
+          "declaration": {
+            "name": "Short",
+            "module": "out-tsc/stories/testgrid-grid-row-name.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Long",
+          "declaration": {
+            "name": "Long",
+            "module": "out-tsc/stories/testgrid-grid-row-name.stories.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "out-tsc/stories/testgrid-grid.stories.js",
       "declarations": [
         {
@@ -2313,6 +2305,68 @@
           "declaration": {
             "name": "RespectiveDashboards",
             "module": "out-tsc/stories/testgrid-index.stories.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/utils/navigation.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "navigate",
+          "parameters": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "path",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Navigates application to a specified page."
+        },
+        {
+          "kind": "function",
+          "name": "navigateTab",
+          "parameters": [
+            {
+              "name": "dashboard",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "tab",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Changes the URL without reloading"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "navigate",
+          "declaration": {
+            "name": "navigate",
+            "module": "src/utils/navigation.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "navigateTab",
+          "declaration": {
+            "name": "navigateTab",
+            "module": "src/utils/navigation.ts"
           }
         }
       ]
@@ -3058,779 +3112,6 @@
       "path": "src/gen/pb/test_status/test_status.ts",
       "declarations": [],
       "exports": []
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/gen/pb/api/v1/data.client.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestGridDataClient",
-          "members": [
-            {
-              "kind": "field",
-              "name": "typeName"
-            },
-            {
-              "kind": "field",
-              "name": "methods"
-            },
-            {
-              "kind": "field",
-              "name": "options"
-            },
-            {
-              "kind": "method",
-              "name": "listDashboard",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListDashboardRequest, ListDashboardResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListDashboardRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards\nLists dashboard names"
-            },
-            {
-              "kind": "method",
-              "name": "listDashboardGroup",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListDashboardGroupRequest, ListDashboardGroupResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListDashboardGroupRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboard-groups\nLists the dashboard group names"
-            },
-            {
-              "kind": "method",
-              "name": "listDashboardTabs",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListDashboardTabsRequest, ListDashboardTabsResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListDashboardTabsRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}/tabs\nLists the dashboard tab names"
-            },
-            {
-              "kind": "method",
-              "name": "getDashboard",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<GetDashboardRequest, GetDashboardResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "GetDashboardRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}\nReturns a Dashboard config's metadata\nExcludes subtabs, accessed through the /tabs list method instead"
-            },
-            {
-              "kind": "method",
-              "name": "getDashboardGroup",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<GetDashboardGroupRequest, GetDashboardGroupResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "GetDashboardGroupRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboard-groups/{dashboard-group}\nLists the dashboard names in that group"
-            },
-            {
-              "kind": "method",
-              "name": "listHeaders",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListHeadersRequest, ListHeadersResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListHeadersRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}/tabs/{tab}/headers\nReturns the headers for grid results"
-            },
-            {
-              "kind": "method",
-              "name": "listRows",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListRowsRequest, ListRowsResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListRowsRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}/tabs/{tab}/rows\nReturns information on grid rows, and data within those rows"
-            },
-            {
-              "kind": "method",
-              "name": "listTabSummaries",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListTabSummariesRequest, ListTabSummariesResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListTabSummariesRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}/tab-summaries\nReturns the list of tab summaries for dashboard."
-            },
-            {
-              "kind": "method",
-              "name": "getTabSummary",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<GetTabSummaryRequest, GetTabSummaryResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "GetTabSummaryRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}/tab-summaries/{tab}"
-            },
-            {
-              "kind": "method",
-              "name": "listDashboardSummaries",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<ListDashboardSummariesRequest, ListDashboardSummariesResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "ListDashboardSummariesRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboard-groups/{dashboard-group}/dashboard-summaries"
-            },
-            {
-              "kind": "method",
-              "name": "getDashboardSummary",
-              "return": {
-                "type": {
-                  "text": "UnaryCall<GetDashboardSummaryRequest, GetDashboardSummaryResponse>"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "input",
-                  "type": {
-                    "text": "GetDashboardSummaryRequest"
-                  }
-                },
-                {
-                  "name": "options",
-                  "optional": true,
-                  "type": {
-                    "text": "RpcOptions"
-                  }
-                }
-              ],
-              "description": "GET /dashboards/{dashboard}/summary"
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestGridDataClient",
-          "declaration": {
-            "name": "TestGridDataClient",
-            "module": "src/gen/pb/api/v1/data.client.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/gen/pb/api/v1/data.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "ListDashboardRequest",
-          "default": "new ListDashboardRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardResponse",
-          "default": "new ListDashboardResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardGroupRequest",
-          "default": "new ListDashboardGroupRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardGroupResponse",
-          "default": "new ListDashboardGroupResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardTabsRequest",
-          "default": "new ListDashboardTabsRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardTabsResponse",
-          "default": "new ListDashboardTabsResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetDashboardRequest",
-          "default": "new GetDashboardRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetDashboardResponse",
-          "default": "new GetDashboardResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetDashboardGroupRequest",
-          "default": "new GetDashboardGroupRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetDashboardGroupResponse",
-          "default": "new GetDashboardGroupResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListHeadersRequest",
-          "default": "new ListHeadersRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListHeadersResponse",
-          "default": "new ListHeadersResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListHeadersResponse_Header",
-          "default": "new ListHeadersResponse_Header$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListRowsRequest",
-          "default": "new ListRowsRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListRowsResponse",
-          "default": "new ListRowsResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListRowsResponse_Row",
-          "default": "new ListRowsResponse_Row$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListRowsResponse_Cell",
-          "default": "new ListRowsResponse_Cell$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "Resource",
-          "default": "new Resource$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListTabSummariesRequest",
-          "default": "new ListTabSummariesRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListTabSummariesResponse",
-          "default": "new ListTabSummariesResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetTabSummaryRequest",
-          "default": "new GetTabSummaryRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetTabSummaryResponse",
-          "default": "new GetTabSummaryResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardSummariesRequest",
-          "default": "new ListDashboardSummariesRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "ListDashboardSummariesResponse",
-          "default": "new ListDashboardSummariesResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetDashboardSummaryRequest",
-          "default": "new GetDashboardSummaryRequest$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "GetDashboardSummaryResponse",
-          "default": "new GetDashboardSummaryResponse$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "TabSummary",
-          "default": "new TabSummary$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "FailuresSummary",
-          "default": "new FailuresSummary$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "FailingTestInfo",
-          "default": "new FailingTestInfo$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "FailureStats",
-          "default": "new FailureStats$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "HealthinessSummary",
-          "default": "new HealthinessSummary$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "FlakyTestInfo",
-          "default": "new FlakyTestInfo$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "HealthinessStats",
-          "default": "new HealthinessStats$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "DashboardSummary",
-          "default": "new DashboardSummary$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "TestGridData",
-          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n  {\n    name: 'ListDashboard',\n    options: {},\n    I: ListDashboardRequest,\n    O: ListDashboardResponse,\n  },\n  {\n    name: 'ListDashboardGroup',\n    options: {},\n    I: ListDashboardGroupRequest,\n    O: ListDashboardGroupResponse,\n  },\n  {\n    name: 'ListDashboardTabs',\n    options: {},\n    I: ListDashboardTabsRequest,\n    O: ListDashboardTabsResponse,\n  },\n  {\n    name: 'GetDashboard',\n    options: {},\n    I: GetDashboardRequest,\n    O: GetDashboardResponse,\n  },\n  {\n    name: 'GetDashboardGroup',\n    options: {},\n    I: GetDashboardGroupRequest,\n    O: GetDashboardGroupResponse,\n  },\n  {\n    name: 'ListHeaders',\n    options: {},\n    I: ListHeadersRequest,\n    O: ListHeadersResponse,\n  },\n  { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n  {\n    name: 'ListTabSummaries',\n    options: {},\n    I: ListTabSummariesRequest,\n    O: ListTabSummariesResponse,\n  },\n  {\n    name: 'GetTabSummary',\n    options: {},\n    I: GetTabSummaryRequest,\n    O: GetTabSummaryResponse,\n  },\n  {\n    name: 'ListDashboardSummaries',\n    options: {},\n    I: ListDashboardSummariesRequest,\n    O: ListDashboardSummariesResponse,\n  },\n  {\n    name: 'GetDashboardSummary',\n    options: {},\n    I: GetDashboardSummaryRequest,\n    O: GetDashboardSummaryResponse,\n  },\n])"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ListDashboardRequest",
-          "declaration": {
-            "name": "ListDashboardRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardResponse",
-          "declaration": {
-            "name": "ListDashboardResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardGroupRequest",
-          "declaration": {
-            "name": "ListDashboardGroupRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardGroupResponse",
-          "declaration": {
-            "name": "ListDashboardGroupResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardTabsRequest",
-          "declaration": {
-            "name": "ListDashboardTabsRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardTabsResponse",
-          "declaration": {
-            "name": "ListDashboardTabsResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetDashboardRequest",
-          "declaration": {
-            "name": "GetDashboardRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetDashboardResponse",
-          "declaration": {
-            "name": "GetDashboardResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetDashboardGroupRequest",
-          "declaration": {
-            "name": "GetDashboardGroupRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetDashboardGroupResponse",
-          "declaration": {
-            "name": "GetDashboardGroupResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListHeadersRequest",
-          "declaration": {
-            "name": "ListHeadersRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListHeadersResponse",
-          "declaration": {
-            "name": "ListHeadersResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListHeadersResponse_Header",
-          "declaration": {
-            "name": "ListHeadersResponse_Header",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListRowsRequest",
-          "declaration": {
-            "name": "ListRowsRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListRowsResponse",
-          "declaration": {
-            "name": "ListRowsResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListRowsResponse_Row",
-          "declaration": {
-            "name": "ListRowsResponse_Row",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListRowsResponse_Cell",
-          "declaration": {
-            "name": "ListRowsResponse_Cell",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Resource",
-          "declaration": {
-            "name": "Resource",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListTabSummariesRequest",
-          "declaration": {
-            "name": "ListTabSummariesRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListTabSummariesResponse",
-          "declaration": {
-            "name": "ListTabSummariesResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetTabSummaryRequest",
-          "declaration": {
-            "name": "GetTabSummaryRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetTabSummaryResponse",
-          "declaration": {
-            "name": "GetTabSummaryResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardSummariesRequest",
-          "declaration": {
-            "name": "ListDashboardSummariesRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ListDashboardSummariesResponse",
-          "declaration": {
-            "name": "ListDashboardSummariesResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetDashboardSummaryRequest",
-          "declaration": {
-            "name": "GetDashboardSummaryRequest",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "GetDashboardSummaryResponse",
-          "declaration": {
-            "name": "GetDashboardSummaryResponse",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TabSummary",
-          "declaration": {
-            "name": "TabSummary",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "FailuresSummary",
-          "declaration": {
-            "name": "FailuresSummary",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "FailingTestInfo",
-          "declaration": {
-            "name": "FailingTestInfo",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "FailureStats",
-          "declaration": {
-            "name": "FailureStats",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "HealthinessSummary",
-          "declaration": {
-            "name": "HealthinessSummary",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "FlakyTestInfo",
-          "declaration": {
-            "name": "FlakyTestInfo",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "HealthinessStats",
-          "declaration": {
-            "name": "HealthinessStats",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "DashboardSummary",
-          "declaration": {
-            "name": "DashboardSummary",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TestGridData",
-          "declaration": {
-            "name": "TestGridData",
-            "module": "src/gen/pb/api/v1/data.ts"
-          }
-        }
-      ]
     },
     {
       "kind": "javascript-module",
@@ -4623,6 +3904,779 @@
           "declaration": {
             "name": "TestStatus",
             "module": "out-tsc/src/gen/pb/test_status/test_status.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/gen/pb/api/v1/data.client.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestGridDataClient",
+          "members": [
+            {
+              "kind": "field",
+              "name": "typeName"
+            },
+            {
+              "kind": "field",
+              "name": "methods"
+            },
+            {
+              "kind": "field",
+              "name": "options"
+            },
+            {
+              "kind": "method",
+              "name": "listDashboard",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListDashboardRequest, ListDashboardResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListDashboardRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards\nLists dashboard names"
+            },
+            {
+              "kind": "method",
+              "name": "listDashboardGroup",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListDashboardGroupRequest, ListDashboardGroupResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListDashboardGroupRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboard-groups\nLists the dashboard group names"
+            },
+            {
+              "kind": "method",
+              "name": "listDashboardTabs",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListDashboardTabsRequest, ListDashboardTabsResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListDashboardTabsRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tabs\nLists the dashboard tab names"
+            },
+            {
+              "kind": "method",
+              "name": "getDashboard",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<GetDashboardRequest, GetDashboardResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "GetDashboardRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}\nReturns a Dashboard config's metadata\nExcludes subtabs, accessed through the /tabs list method instead"
+            },
+            {
+              "kind": "method",
+              "name": "getDashboardGroup",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<GetDashboardGroupRequest, GetDashboardGroupResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "GetDashboardGroupRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboard-groups/{dashboard-group}\nLists the dashboard names in that group"
+            },
+            {
+              "kind": "method",
+              "name": "listHeaders",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListHeadersRequest, ListHeadersResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListHeadersRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tabs/{tab}/headers\nReturns the headers for grid results"
+            },
+            {
+              "kind": "method",
+              "name": "listRows",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListRowsRequest, ListRowsResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListRowsRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tabs/{tab}/rows\nReturns information on grid rows, and data within those rows"
+            },
+            {
+              "kind": "method",
+              "name": "listTabSummaries",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListTabSummariesRequest, ListTabSummariesResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListTabSummariesRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tab-summaries\nReturns the list of tab summaries for dashboard."
+            },
+            {
+              "kind": "method",
+              "name": "getTabSummary",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<GetTabSummaryRequest, GetTabSummaryResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "GetTabSummaryRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/tab-summaries/{tab}"
+            },
+            {
+              "kind": "method",
+              "name": "listDashboardSummaries",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<ListDashboardSummariesRequest, ListDashboardSummariesResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "ListDashboardSummariesRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboard-groups/{dashboard-group}/dashboard-summaries"
+            },
+            {
+              "kind": "method",
+              "name": "getDashboardSummary",
+              "return": {
+                "type": {
+                  "text": "UnaryCall<GetDashboardSummaryRequest, GetDashboardSummaryResponse>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "input",
+                  "type": {
+                    "text": "GetDashboardSummaryRequest"
+                  }
+                },
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "RpcOptions"
+                  }
+                }
+              ],
+              "description": "GET /dashboards/{dashboard}/summary"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestGridDataClient",
+          "declaration": {
+            "name": "TestGridDataClient",
+            "module": "src/gen/pb/api/v1/data.client.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/gen/pb/api/v1/data.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "ListDashboardRequest",
+          "default": "new ListDashboardRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardResponse",
+          "default": "new ListDashboardResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardGroupRequest",
+          "default": "new ListDashboardGroupRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardGroupResponse",
+          "default": "new ListDashboardGroupResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardTabsRequest",
+          "default": "new ListDashboardTabsRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardTabsResponse",
+          "default": "new ListDashboardTabsResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardRequest",
+          "default": "new GetDashboardRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardResponse",
+          "default": "new GetDashboardResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardGroupRequest",
+          "default": "new GetDashboardGroupRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardGroupResponse",
+          "default": "new GetDashboardGroupResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListHeadersRequest",
+          "default": "new ListHeadersRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListHeadersResponse",
+          "default": "new ListHeadersResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListHeadersResponse_Header",
+          "default": "new ListHeadersResponse_Header$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListRowsRequest",
+          "default": "new ListRowsRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListRowsResponse",
+          "default": "new ListRowsResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListRowsResponse_Row",
+          "default": "new ListRowsResponse_Row$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListRowsResponse_Cell",
+          "default": "new ListRowsResponse_Cell$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "Resource",
+          "default": "new Resource$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListTabSummariesRequest",
+          "default": "new ListTabSummariesRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListTabSummariesResponse",
+          "default": "new ListTabSummariesResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetTabSummaryRequest",
+          "default": "new GetTabSummaryRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetTabSummaryResponse",
+          "default": "new GetTabSummaryResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardSummariesRequest",
+          "default": "new ListDashboardSummariesRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "ListDashboardSummariesResponse",
+          "default": "new ListDashboardSummariesResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardSummaryRequest",
+          "default": "new GetDashboardSummaryRequest$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "GetDashboardSummaryResponse",
+          "default": "new GetDashboardSummaryResponse$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TabSummary",
+          "default": "new TabSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailuresSummary",
+          "default": "new FailuresSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailingTestInfo",
+          "default": "new FailingTestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FailureStats",
+          "default": "new FailureStats$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessSummary",
+          "default": "new HealthinessSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "FlakyTestInfo",
+          "default": "new FlakyTestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessStats",
+          "default": "new HealthinessStats$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "new DashboardSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TestGridData",
+          "default": "new ServiceType('testgrid.api.v1.TestGridData', [\n  {\n    name: 'ListDashboard',\n    options: {},\n    I: ListDashboardRequest,\n    O: ListDashboardResponse,\n  },\n  {\n    name: 'ListDashboardGroup',\n    options: {},\n    I: ListDashboardGroupRequest,\n    O: ListDashboardGroupResponse,\n  },\n  {\n    name: 'ListDashboardTabs',\n    options: {},\n    I: ListDashboardTabsRequest,\n    O: ListDashboardTabsResponse,\n  },\n  {\n    name: 'GetDashboard',\n    options: {},\n    I: GetDashboardRequest,\n    O: GetDashboardResponse,\n  },\n  {\n    name: 'GetDashboardGroup',\n    options: {},\n    I: GetDashboardGroupRequest,\n    O: GetDashboardGroupResponse,\n  },\n  {\n    name: 'ListHeaders',\n    options: {},\n    I: ListHeadersRequest,\n    O: ListHeadersResponse,\n  },\n  { name: 'ListRows', options: {}, I: ListRowsRequest, O: ListRowsResponse },\n  {\n    name: 'ListTabSummaries',\n    options: {},\n    I: ListTabSummariesRequest,\n    O: ListTabSummariesResponse,\n  },\n  {\n    name: 'GetTabSummary',\n    options: {},\n    I: GetTabSummaryRequest,\n    O: GetTabSummaryResponse,\n  },\n  {\n    name: 'ListDashboardSummaries',\n    options: {},\n    I: ListDashboardSummariesRequest,\n    O: ListDashboardSummariesResponse,\n  },\n  {\n    name: 'GetDashboardSummary',\n    options: {},\n    I: GetDashboardSummaryRequest,\n    O: GetDashboardSummaryResponse,\n  },\n])"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ListDashboardRequest",
+          "declaration": {
+            "name": "ListDashboardRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardResponse",
+          "declaration": {
+            "name": "ListDashboardResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardGroupRequest",
+          "declaration": {
+            "name": "ListDashboardGroupRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardGroupResponse",
+          "declaration": {
+            "name": "ListDashboardGroupResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardTabsRequest",
+          "declaration": {
+            "name": "ListDashboardTabsRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardTabsResponse",
+          "declaration": {
+            "name": "ListDashboardTabsResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardRequest",
+          "declaration": {
+            "name": "GetDashboardRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardResponse",
+          "declaration": {
+            "name": "GetDashboardResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardGroupRequest",
+          "declaration": {
+            "name": "GetDashboardGroupRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardGroupResponse",
+          "declaration": {
+            "name": "GetDashboardGroupResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListHeadersRequest",
+          "declaration": {
+            "name": "ListHeadersRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListHeadersResponse",
+          "declaration": {
+            "name": "ListHeadersResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListHeadersResponse_Header",
+          "declaration": {
+            "name": "ListHeadersResponse_Header",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListRowsRequest",
+          "declaration": {
+            "name": "ListRowsRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListRowsResponse",
+          "declaration": {
+            "name": "ListRowsResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListRowsResponse_Row",
+          "declaration": {
+            "name": "ListRowsResponse_Row",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListRowsResponse_Cell",
+          "declaration": {
+            "name": "ListRowsResponse_Cell",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Resource",
+          "declaration": {
+            "name": "Resource",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListTabSummariesRequest",
+          "declaration": {
+            "name": "ListTabSummariesRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListTabSummariesResponse",
+          "declaration": {
+            "name": "ListTabSummariesResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetTabSummaryRequest",
+          "declaration": {
+            "name": "GetTabSummaryRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetTabSummaryResponse",
+          "declaration": {
+            "name": "GetTabSummaryResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardSummariesRequest",
+          "declaration": {
+            "name": "ListDashboardSummariesRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ListDashboardSummariesResponse",
+          "declaration": {
+            "name": "ListDashboardSummariesResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardSummaryRequest",
+          "declaration": {
+            "name": "GetDashboardSummaryRequest",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "GetDashboardSummaryResponse",
+          "declaration": {
+            "name": "GetDashboardSummaryResponse",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailuresSummary",
+          "declaration": {
+            "name": "FailuresSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailingTestInfo",
+          "declaration": {
+            "name": "FailingTestInfo",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailureStats",
+          "declaration": {
+            "name": "FailureStats",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessSummary",
+          "declaration": {
+            "name": "HealthinessSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FlakyTestInfo",
+          "declaration": {
+            "name": "FlakyTestInfo",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessStats",
+          "declaration": {
+            "name": "HealthinessStats",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "src/gen/pb/api/v1/data.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestGridData",
+          "declaration": {
+            "name": "TestGridData",
+            "module": "src/gen/pb/api/v1/data.ts"
           }
         }
       ]
