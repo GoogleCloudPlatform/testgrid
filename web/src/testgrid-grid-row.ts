@@ -3,11 +3,8 @@ import { map } from "lit/directives/map.js";
 import { customElement, property } from "lit/decorators.js";
 import { ListRowsResponse_Row } from './gen/pb/api/v1/data.js';
 import { TestStatus } from './gen/pb/test_status/test_status';
-
-interface Cell {
-  status: String;
-  icon: String;
-}
+import './testgrid-grid-row-id';
+import './testgrid-grid-cell';
 
 @customElement('testgrid-grid-row')
 export class TestgridGridRow extends LitElement {
@@ -27,15 +24,15 @@ export class TestgridGridRow extends LitElement {
 
   render() {
     if (this.rowData && this.rowData.cells) {
-      return html`<testgrid-grid-row-header .name="${this.name}">
-        </testgrid-grid-row-header>
+      return html`<testgrid-grid-row-id .name="${this.name}">
+        </testgrid-grid-row-id>
         ${map(this.rowData.cells,
         (cell) => html`<testgrid-grid-cell .icon="${cell.icon}" .status="${TestStatus[cell.result]}"></testgrid-grid-cell>`
       )}
         `;
     }
     return html`
-    <testgrid-grid-row-header .name="${this.name}"></testgrid-grid-row-header>
+    <testgrid-grid-row-id .name="${this.name}"></testgrid-grid-row-id>
     `;
   }
 }

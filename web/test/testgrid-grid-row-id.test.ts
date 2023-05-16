@@ -5,14 +5,14 @@ import {
     unsafeStatic,
     expect,
 } from '@open-wc/testing';
-import { TestgridGridRowHeader } from '../src/testgrid-grid-row-header';
+import { TestgridGridRowId } from '../src/testgrid-grid-row-id';
 
 describe('TestGrid grid row header', () => {
-    let element: TestgridGridRowHeader;
+    let element: TestgridGridRowId;
     beforeEach(async () => {
         // Need to wrap an element to apply its properties (ex. @customElement)
         // See https://open-wc.org/docs/testing/helpers/#test-a-custom-class-with-properties
-        const tagName = defineCE(class extends TestgridGridRowHeader { });
+        const tagName = defineCE(class extends TestgridGridRowId { });
         const tag = unsafeStatic(tagName);
         element = await fixture(html`<${tag}></${tag}>`);
     });
