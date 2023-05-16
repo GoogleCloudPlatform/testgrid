@@ -1,8 +1,8 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
-@customElement('testgrid-grid-row-id')
-export class TestgridGridRowId extends LitElement{
+@customElement('testgrid-grid-row-name')
+export class TestgridGridRowName extends LitElement{
     static styles = css`
     :host {
       text-align: left;
