@@ -44,6 +44,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetDashboardTabResponse_TestGroup_PrimaryGrouping int32
+
+const (
+	GetDashboardTabResponse_TestGroup_PRIMARY_GROUPING_NONE  GetDashboardTabResponse_TestGroup_PrimaryGrouping = 0
+	GetDashboardTabResponse_TestGroup_PRIMARY_GROUPING_BUILD GetDashboardTabResponse_TestGroup_PrimaryGrouping = 1
+)
+
+// Enum value maps for GetDashboardTabResponse_TestGroup_PrimaryGrouping.
+var (
+	GetDashboardTabResponse_TestGroup_PrimaryGrouping_name = map[int32]string{
+		0: "PRIMARY_GROUPING_NONE",
+		1: "PRIMARY_GROUPING_BUILD",
+	}
+	GetDashboardTabResponse_TestGroup_PrimaryGrouping_value = map[string]int32{
+		"PRIMARY_GROUPING_NONE":  0,
+		"PRIMARY_GROUPING_BUILD": 1,
+	}
+)
+
+func (x GetDashboardTabResponse_TestGroup_PrimaryGrouping) Enum() *GetDashboardTabResponse_TestGroup_PrimaryGrouping {
+	p := new(GetDashboardTabResponse_TestGroup_PrimaryGrouping)
+	*p = x
+	return p
+}
+
+func (x GetDashboardTabResponse_TestGroup_PrimaryGrouping) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GetDashboardTabResponse_TestGroup_PrimaryGrouping) Descriptor() protoreflect.EnumDescriptor {
+	return file_data_proto_enumTypes[0].Descriptor()
+}
+
+func (GetDashboardTabResponse_TestGroup_PrimaryGrouping) Type() protoreflect.EnumType {
+	return &file_data_proto_enumTypes[0]
+}
+
+func (x GetDashboardTabResponse_TestGroup_PrimaryGrouping) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse_TestGroup_PrimaryGrouping.Descriptor instead.
+func (GetDashboardTabResponse_TestGroup_PrimaryGrouping) EnumDescriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15, 2, 0}
+}
+
 type ListDashboardRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -789,6 +835,132 @@ func (x *ListRowsResponse) GetRows() []*ListRowsResponse_Row {
 	return nil
 }
 
+type GetDashboardTabRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Scope     string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Dashboard string `protobuf:"bytes,2,opt,name=dashboard,proto3" json:"dashboard,omitempty"`
+	Tab       string `protobuf:"bytes,3,opt,name=tab,proto3" json:"tab,omitempty"`
+}
+
+func (x *GetDashboardTabRequest) Reset() {
+	*x = GetDashboardTabRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabRequest) ProtoMessage() {}
+
+func (x *GetDashboardTabRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabRequest.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabRequest) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetDashboardTabRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *GetDashboardTabRequest) GetDashboard() string {
+	if x != nil {
+		return x.Dashboard
+	}
+	return ""
+}
+
+func (x *GetDashboardTabRequest) GetTab() string {
+	if x != nil {
+		return x.Tab
+	}
+	return ""
+}
+
+type GetDashboardTabResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// A default dashboard tab with default initialization data
+	//
+	// Deprecated: Do not use.
+	DefaultDashboardTab *GetDashboardTabResponse_DashboardTab `protobuf:"bytes,1,opt,name=default_dashboard_tab,json=defaultDashboardTab,proto3" json:"default_dashboard_tab,omitempty"`
+	// A default testgroup with default initialization data
+	//
+	// Deprecated: Do not use.
+	DefaultTestGroup *GetDashboardTabResponse_TestGroup `protobuf:"bytes,2,opt,name=default_test_group,json=defaultTestGroup,proto3" json:"default_test_group,omitempty"`
+}
+
+func (x *GetDashboardTabResponse) Reset() {
+	*x = GetDashboardTabResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabResponse) ProtoMessage() {}
+
+func (x *GetDashboardTabResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabResponse) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15}
+}
+
+// Deprecated: Do not use.
+func (x *GetDashboardTabResponse) GetDefaultDashboardTab() *GetDashboardTabResponse_DashboardTab {
+	if x != nil {
+		return x.DefaultDashboardTab
+	}
+	return nil
+}
+
+// Deprecated: Do not use.
+func (x *GetDashboardTabResponse) GetDefaultTestGroup() *GetDashboardTabResponse_TestGroup {
+	if x != nil {
+		return x.DefaultTestGroup
+	}
+	return nil
+}
+
 // A Resource is a REST resource, often returned by a LIST command
 // It includes the name of the resource and a link to the resource
 type Resource struct {
@@ -803,7 +975,7 @@ type Resource struct {
 func (x *Resource) Reset() {
 	*x = Resource{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[14]
+		mi := &file_data_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -816,7 +988,7 @@ func (x *Resource) String() string {
 func (*Resource) ProtoMessage() {}
 
 func (x *Resource) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[14]
+	mi := &file_data_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -829,7 +1001,7 @@ func (x *Resource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Resource.ProtoReflect.Descriptor instead.
 func (*Resource) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{14}
+	return file_data_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Resource) GetName() string {
@@ -860,7 +1032,7 @@ type ListTabSummariesRequest struct {
 func (x *ListTabSummariesRequest) Reset() {
 	*x = ListTabSummariesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[15]
+		mi := &file_data_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -873,7 +1045,7 @@ func (x *ListTabSummariesRequest) String() string {
 func (*ListTabSummariesRequest) ProtoMessage() {}
 
 func (x *ListTabSummariesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[15]
+	mi := &file_data_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +1058,7 @@ func (x *ListTabSummariesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTabSummariesRequest.ProtoReflect.Descriptor instead.
 func (*ListTabSummariesRequest) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{15}
+	return file_data_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListTabSummariesRequest) GetScope() string {
@@ -915,7 +1087,7 @@ type ListTabSummariesResponse struct {
 func (x *ListTabSummariesResponse) Reset() {
 	*x = ListTabSummariesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[16]
+		mi := &file_data_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -928,7 +1100,7 @@ func (x *ListTabSummariesResponse) String() string {
 func (*ListTabSummariesResponse) ProtoMessage() {}
 
 func (x *ListTabSummariesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[16]
+	mi := &file_data_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1113,7 @@ func (x *ListTabSummariesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTabSummariesResponse.ProtoReflect.Descriptor instead.
 func (*ListTabSummariesResponse) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{16}
+	return file_data_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListTabSummariesResponse) GetTabSummaries() []*TabSummary {
@@ -967,7 +1139,7 @@ type GetTabSummaryRequest struct {
 func (x *GetTabSummaryRequest) Reset() {
 	*x = GetTabSummaryRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[17]
+		mi := &file_data_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -980,7 +1152,7 @@ func (x *GetTabSummaryRequest) String() string {
 func (*GetTabSummaryRequest) ProtoMessage() {}
 
 func (x *GetTabSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[17]
+	mi := &file_data_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1165,7 @@ func (x *GetTabSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTabSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetTabSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{17}
+	return file_data_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetTabSummaryRequest) GetScope() string {
@@ -1029,7 +1201,7 @@ type GetTabSummaryResponse struct {
 func (x *GetTabSummaryResponse) Reset() {
 	*x = GetTabSummaryResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[18]
+		mi := &file_data_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1042,7 +1214,7 @@ func (x *GetTabSummaryResponse) String() string {
 func (*GetTabSummaryResponse) ProtoMessage() {}
 
 func (x *GetTabSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[18]
+	mi := &file_data_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1055,7 +1227,7 @@ func (x *GetTabSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTabSummaryResponse.ProtoReflect.Descriptor instead.
 func (*GetTabSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{18}
+	return file_data_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetTabSummaryResponse) GetTabSummary() *TabSummary {
@@ -1079,7 +1251,7 @@ type ListDashboardSummariesRequest struct {
 func (x *ListDashboardSummariesRequest) Reset() {
 	*x = ListDashboardSummariesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[19]
+		mi := &file_data_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1092,7 +1264,7 @@ func (x *ListDashboardSummariesRequest) String() string {
 func (*ListDashboardSummariesRequest) ProtoMessage() {}
 
 func (x *ListDashboardSummariesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[19]
+	mi := &file_data_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +1277,7 @@ func (x *ListDashboardSummariesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDashboardSummariesRequest.ProtoReflect.Descriptor instead.
 func (*ListDashboardSummariesRequest) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{19}
+	return file_data_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListDashboardSummariesRequest) GetScope() string {
@@ -1134,7 +1306,7 @@ type ListDashboardSummariesResponse struct {
 func (x *ListDashboardSummariesResponse) Reset() {
 	*x = ListDashboardSummariesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[20]
+		mi := &file_data_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1147,7 +1319,7 @@ func (x *ListDashboardSummariesResponse) String() string {
 func (*ListDashboardSummariesResponse) ProtoMessage() {}
 
 func (x *ListDashboardSummariesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[20]
+	mi := &file_data_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1332,7 @@ func (x *ListDashboardSummariesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDashboardSummariesResponse.ProtoReflect.Descriptor instead.
 func (*ListDashboardSummariesResponse) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{20}
+	return file_data_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListDashboardSummariesResponse) GetDashboardSummaries() []*DashboardSummary {
@@ -1184,7 +1356,7 @@ type GetDashboardSummaryRequest struct {
 func (x *GetDashboardSummaryRequest) Reset() {
 	*x = GetDashboardSummaryRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[21]
+		mi := &file_data_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1197,7 +1369,7 @@ func (x *GetDashboardSummaryRequest) String() string {
 func (*GetDashboardSummaryRequest) ProtoMessage() {}
 
 func (x *GetDashboardSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[21]
+	mi := &file_data_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1210,7 +1382,7 @@ func (x *GetDashboardSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetDashboardSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{21}
+	return file_data_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetDashboardSummaryRequest) GetScope() string {
@@ -1239,7 +1411,7 @@ type GetDashboardSummaryResponse struct {
 func (x *GetDashboardSummaryResponse) Reset() {
 	*x = GetDashboardSummaryResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[22]
+		mi := &file_data_proto_msgTypes[24]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1252,7 +1424,7 @@ func (x *GetDashboardSummaryResponse) String() string {
 func (*GetDashboardSummaryResponse) ProtoMessage() {}
 
 func (x *GetDashboardSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[22]
+	mi := &file_data_proto_msgTypes[24]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1265,7 +1437,7 @@ func (x *GetDashboardSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardSummaryResponse.ProtoReflect.Descriptor instead.
 func (*GetDashboardSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{22}
+	return file_data_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetDashboardSummaryResponse) GetDashboardSummary() *DashboardSummary {
@@ -1306,7 +1478,7 @@ type TabSummary struct {
 func (x *TabSummary) Reset() {
 	*x = TabSummary{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[23]
+		mi := &file_data_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1319,7 +1491,7 @@ func (x *TabSummary) String() string {
 func (*TabSummary) ProtoMessage() {}
 
 func (x *TabSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[23]
+	mi := &file_data_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1332,7 +1504,7 @@ func (x *TabSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TabSummary.ProtoReflect.Descriptor instead.
 func (*TabSummary) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{23}
+	return file_data_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *TabSummary) GetDashboardName() string {
@@ -1414,7 +1586,7 @@ type FailuresSummary struct {
 func (x *FailuresSummary) Reset() {
 	*x = FailuresSummary{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[24]
+		mi := &file_data_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1427,7 +1599,7 @@ func (x *FailuresSummary) String() string {
 func (*FailuresSummary) ProtoMessage() {}
 
 func (x *FailuresSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[24]
+	mi := &file_data_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1440,7 +1612,7 @@ func (x *FailuresSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailuresSummary.ProtoReflect.Descriptor instead.
 func (*FailuresSummary) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{24}
+	return file_data_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *FailuresSummary) GetTopFailingTests() []*FailingTestInfo {
@@ -1476,7 +1648,7 @@ type FailingTestInfo struct {
 func (x *FailingTestInfo) Reset() {
 	*x = FailingTestInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[25]
+		mi := &file_data_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1489,7 +1661,7 @@ func (x *FailingTestInfo) String() string {
 func (*FailingTestInfo) ProtoMessage() {}
 
 func (x *FailingTestInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[25]
+	mi := &file_data_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1502,7 +1674,7 @@ func (x *FailingTestInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailingTestInfo.ProtoReflect.Descriptor instead.
 func (*FailingTestInfo) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{25}
+	return file_data_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *FailingTestInfo) GetDisplayName() string {
@@ -1546,7 +1718,7 @@ type FailureStats struct {
 func (x *FailureStats) Reset() {
 	*x = FailureStats{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[26]
+		mi := &file_data_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1559,7 +1731,7 @@ func (x *FailureStats) String() string {
 func (*FailureStats) ProtoMessage() {}
 
 func (x *FailureStats) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[26]
+	mi := &file_data_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1572,7 +1744,7 @@ func (x *FailureStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailureStats.ProtoReflect.Descriptor instead.
 func (*FailureStats) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{26}
+	return file_data_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *FailureStats) GetNumFailingTests() int32 {
@@ -1598,7 +1770,7 @@ type HealthinessSummary struct {
 func (x *HealthinessSummary) Reset() {
 	*x = HealthinessSummary{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[27]
+		mi := &file_data_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1611,7 +1783,7 @@ func (x *HealthinessSummary) String() string {
 func (*HealthinessSummary) ProtoMessage() {}
 
 func (x *HealthinessSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[27]
+	mi := &file_data_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1624,7 +1796,7 @@ func (x *HealthinessSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthinessSummary.ProtoReflect.Descriptor instead.
 func (*HealthinessSummary) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{27}
+	return file_data_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *HealthinessSummary) GetTopFlakyTests() []*FlakyTestInfo {
@@ -1659,7 +1831,7 @@ type FlakyTestInfo struct {
 func (x *FlakyTestInfo) Reset() {
 	*x = FlakyTestInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[28]
+		mi := &file_data_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1672,7 +1844,7 @@ func (x *FlakyTestInfo) String() string {
 func (*FlakyTestInfo) ProtoMessage() {}
 
 func (x *FlakyTestInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[28]
+	mi := &file_data_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1685,7 +1857,7 @@ func (x *FlakyTestInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlakyTestInfo.ProtoReflect.Descriptor instead.
 func (*FlakyTestInfo) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{28}
+	return file_data_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *FlakyTestInfo) GetDisplayName() string {
@@ -1730,7 +1902,7 @@ type HealthinessStats struct {
 func (x *HealthinessStats) Reset() {
 	*x = HealthinessStats{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[29]
+		mi := &file_data_proto_msgTypes[31]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1743,7 +1915,7 @@ func (x *HealthinessStats) String() string {
 func (*HealthinessStats) ProtoMessage() {}
 
 func (x *HealthinessStats) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[29]
+	mi := &file_data_proto_msgTypes[31]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1756,7 +1928,7 @@ func (x *HealthinessStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthinessStats.ProtoReflect.Descriptor instead.
 func (*HealthinessStats) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{29}
+	return file_data_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *HealthinessStats) GetStart() *timestamppb.Timestamp {
@@ -1813,7 +1985,7 @@ type DashboardSummary struct {
 func (x *DashboardSummary) Reset() {
 	*x = DashboardSummary{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[30]
+		mi := &file_data_proto_msgTypes[32]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1826,7 +1998,7 @@ func (x *DashboardSummary) String() string {
 func (*DashboardSummary) ProtoMessage() {}
 
 func (x *DashboardSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[30]
+	mi := &file_data_proto_msgTypes[32]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1839,7 +2011,7 @@ func (x *DashboardSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DashboardSummary.ProtoReflect.Descriptor instead.
 func (*DashboardSummary) Descriptor() ([]byte, []int) {
-	return file_data_proto_rawDescGZIP(), []int{30}
+	return file_data_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *DashboardSummary) GetName() string {
@@ -1885,7 +2057,7 @@ type ListHeadersResponse_Header struct {
 func (x *ListHeadersResponse_Header) Reset() {
 	*x = ListHeadersResponse_Header{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[31]
+		mi := &file_data_proto_msgTypes[33]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1898,7 +2070,7 @@ func (x *ListHeadersResponse_Header) String() string {
 func (*ListHeadersResponse_Header) ProtoMessage() {}
 
 func (x *ListHeadersResponse_Header) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[31]
+	mi := &file_data_proto_msgTypes[33]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1967,7 +2139,7 @@ type ListRowsResponse_Row struct {
 func (x *ListRowsResponse_Row) Reset() {
 	*x = ListRowsResponse_Row{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[32]
+		mi := &file_data_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1980,7 +2152,7 @@ func (x *ListRowsResponse_Row) String() string {
 func (*ListRowsResponse_Row) ProtoMessage() {}
 
 func (x *ListRowsResponse_Row) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[32]
+	mi := &file_data_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2038,7 +2210,7 @@ type ListRowsResponse_Cell struct {
 func (x *ListRowsResponse_Cell) Reset() {
 	*x = ListRowsResponse_Cell{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_data_proto_msgTypes[33]
+		mi := &file_data_proto_msgTypes[35]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2051,7 +2223,7 @@ func (x *ListRowsResponse_Cell) String() string {
 func (*ListRowsResponse_Cell) ProtoMessage() {}
 
 func (x *ListRowsResponse_Cell) ProtoReflect() protoreflect.Message {
-	mi := &file_data_proto_msgTypes[33]
+	mi := &file_data_proto_msgTypes[35]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2093,6 +2265,352 @@ func (x *ListRowsResponse_Cell) GetIcon() string {
 		return x.Icon
 	}
 	return ""
+}
+
+// GCSConfig specifies results stored in GCS, typically created by prow.
+type GetDashboardTabResponse_GCSConfig struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Path to the test result stored in gcs (some-bucket/some/optional/path).
+	GcsPrefix string `protobuf:"bytes,1,opt,name=gcs_prefix,json=gcsPrefix,proto3" json:"gcs_prefix,omitempty"`
+	// The GCP project where GCS sends notifications for the above prefix.
+	PubsubProject string `protobuf:"bytes,2,opt,name=pubsub_project,json=pubsubProject,proto3" json:"pubsub_project,omitempty"`
+	// The pubsub subscription ID in the above topic
+	PubsubSubscription string `protobuf:"bytes,3,opt,name=pubsub_subscription,json=pubsubSubscription,proto3" json:"pubsub_subscription,omitempty"`
+}
+
+func (x *GetDashboardTabResponse_GCSConfig) Reset() {
+	*x = GetDashboardTabResponse_GCSConfig{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[36]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabResponse_GCSConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabResponse_GCSConfig) ProtoMessage() {}
+
+func (x *GetDashboardTabResponse_GCSConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[36]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse_GCSConfig.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabResponse_GCSConfig) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15, 0}
+}
+
+func (x *GetDashboardTabResponse_GCSConfig) GetGcsPrefix() string {
+	if x != nil {
+		return x.GcsPrefix
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_GCSConfig) GetPubsubProject() string {
+	if x != nil {
+		return x.PubsubProject
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_GCSConfig) GetPubsubSubscription() string {
+	if x != nil {
+		return x.PubsubSubscription
+	}
+	return ""
+}
+
+// A single tab on a dashboard.
+type GetDashboardTabResponse_DashboardTab struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The name of the dashboard tab to display in the client.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The name of the TestGroup specifying the test results for this tab.
+	TestGroupName string `protobuf:"bytes,2,opt,name=test_group_name,json=testGroupName,proto3" json:"test_group_name,omitempty"`
+	// Default code search path for searching regressions. This value overrides
+	// the default in the TestGroup config so that dashboards may be customized
+	// separately.
+	CodeSearchPath string `protobuf:"bytes,3,opt,name=code_search_path,json=codeSearchPath,proto3" json:"code_search_path,omitempty"`
+	// A description paragraph to be displayed.
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+}
+
+func (x *GetDashboardTabResponse_DashboardTab) Reset() {
+	*x = GetDashboardTabResponse_DashboardTab{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[37]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabResponse_DashboardTab) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabResponse_DashboardTab) ProtoMessage() {}
+
+func (x *GetDashboardTabResponse_DashboardTab) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[37]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse_DashboardTab.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabResponse_DashboardTab) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15, 1}
+}
+
+func (x *GetDashboardTabResponse_DashboardTab) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_DashboardTab) GetTestGroupName() string {
+	if x != nil {
+		return x.TestGroupName
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_DashboardTab) GetCodeSearchPath() string {
+	if x != nil {
+		return x.CodeSearchPath
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_DashboardTab) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type GetDashboardTabResponse_TestGroup struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Name of this TestGroup, for mapping dashboard tabs to tests.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Path to the test result stored in gcs (some-bucket/some/optional/path).
+	GcsPrefix    string                                            `protobuf:"bytes,2,opt,name=gcs_prefix,json=gcsPrefix,proto3" json:"gcs_prefix,omitempty"`
+	ColumnHeader []*GetDashboardTabResponse_TestGroup_ColumnHeader `protobuf:"bytes,3,rep,name=column_header,json=columnHeader,proto3" json:"column_header,omitempty"`
+	// A primary grouping strategy for grouping test results in columns.
+	// If a primary grouping is specified, the fallback grouping is ignored.
+	PrimaryGrouping GetDashboardTabResponse_TestGroup_PrimaryGrouping `protobuf:"varint,4,opt,name=primary_grouping,json=primaryGrouping,proto3,enum=testgrid.api.v1.GetDashboardTabResponse_TestGroup_PrimaryGrouping" json:"primary_grouping,omitempty"`
+	// Configuration type of the result source.
+	ResultSource *GetDashboardTabResponse_TestGroup_ResultSource `protobuf:"bytes,5,opt,name=result_source,json=resultSource,proto3" json:"result_source,omitempty"`
+}
+
+func (x *GetDashboardTabResponse_TestGroup) Reset() {
+	*x = GetDashboardTabResponse_TestGroup{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[38]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabResponse_TestGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabResponse_TestGroup) ProtoMessage() {}
+
+func (x *GetDashboardTabResponse_TestGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[38]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse_TestGroup.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabResponse_TestGroup) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15, 2}
+}
+
+func (x *GetDashboardTabResponse_TestGroup) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_TestGroup) GetGcsPrefix() string {
+	if x != nil {
+		return x.GcsPrefix
+	}
+	return ""
+}
+
+func (x *GetDashboardTabResponse_TestGroup) GetColumnHeader() []*GetDashboardTabResponse_TestGroup_ColumnHeader {
+	if x != nil {
+		return x.ColumnHeader
+	}
+	return nil
+}
+
+func (x *GetDashboardTabResponse_TestGroup) GetPrimaryGrouping() GetDashboardTabResponse_TestGroup_PrimaryGrouping {
+	if x != nil {
+		return x.PrimaryGrouping
+	}
+	return GetDashboardTabResponse_TestGroup_PRIMARY_GROUPING_NONE
+}
+
+func (x *GetDashboardTabResponse_TestGroup) GetResultSource() *GetDashboardTabResponse_TestGroup_ResultSource {
+	if x != nil {
+		return x.ResultSource
+	}
+	return nil
+}
+
+// Custom column headers for defining extra column-heading rows from values in
+// the test result.
+type GetDashboardTabResponse_TestGroup_ColumnHeader struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ConfigurationValue string `protobuf:"bytes,1,opt,name=configuration_value,json=configurationValue,proto3" json:"configuration_value,omitempty"`
+}
+
+func (x *GetDashboardTabResponse_TestGroup_ColumnHeader) Reset() {
+	*x = GetDashboardTabResponse_TestGroup_ColumnHeader{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[39]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabResponse_TestGroup_ColumnHeader) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabResponse_TestGroup_ColumnHeader) ProtoMessage() {}
+
+func (x *GetDashboardTabResponse_TestGroup_ColumnHeader) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[39]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse_TestGroup_ColumnHeader.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabResponse_TestGroup_ColumnHeader) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15, 2, 0}
+}
+
+func (x *GetDashboardTabResponse_TestGroup_ColumnHeader) GetConfigurationValue() string {
+	if x != nil {
+		return x.ConfigurationValue
+	}
+	return ""
+}
+
+type GetDashboardTabResponse_TestGroup_ResultSource struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to ResultSourceConfig:
+	//	*GetDashboardTabResponse_TestGroup_ResultSource_GcsConfig
+	ResultSourceConfig isGetDashboardTabResponse_TestGroup_ResultSource_ResultSourceConfig `protobuf_oneof:"result_source_config"`
+}
+
+func (x *GetDashboardTabResponse_TestGroup_ResultSource) Reset() {
+	*x = GetDashboardTabResponse_TestGroup_ResultSource{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_data_proto_msgTypes[40]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetDashboardTabResponse_TestGroup_ResultSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardTabResponse_TestGroup_ResultSource) ProtoMessage() {}
+
+func (x *GetDashboardTabResponse_TestGroup_ResultSource) ProtoReflect() protoreflect.Message {
+	mi := &file_data_proto_msgTypes[40]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardTabResponse_TestGroup_ResultSource.ProtoReflect.Descriptor instead.
+func (*GetDashboardTabResponse_TestGroup_ResultSource) Descriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{15, 2, 1}
+}
+
+func (m *GetDashboardTabResponse_TestGroup_ResultSource) GetResultSourceConfig() isGetDashboardTabResponse_TestGroup_ResultSource_ResultSourceConfig {
+	if m != nil {
+		return m.ResultSourceConfig
+	}
+	return nil
+}
+
+func (x *GetDashboardTabResponse_TestGroup_ResultSource) GetGcsConfig() *GetDashboardTabResponse_GCSConfig {
+	if x, ok := x.GetResultSourceConfig().(*GetDashboardTabResponse_TestGroup_ResultSource_GcsConfig); ok {
+		return x.GcsConfig
+	}
+	return nil
+}
+
+type isGetDashboardTabResponse_TestGroup_ResultSource_ResultSourceConfig interface {
+	isGetDashboardTabResponse_TestGroup_ResultSource_ResultSourceConfig()
+}
+
+type GetDashboardTabResponse_TestGroup_ResultSource_GcsConfig struct {
+	// GCS buckets holding junit and json results, typically created by prow.
+	GcsConfig *GetDashboardTabResponse_GCSConfig `protobuf:"bytes,2,opt,name=gcs_config,json=gcsConfig,proto3,oneof"`
+}
+
+func (*GetDashboardTabResponse_TestGroup_ResultSource_GcsConfig) isGetDashboardTabResponse_TestGroup_ResultSource_ResultSourceConfig() {
 }
 
 var File_data_proto protoreflect.FileDescriptor
@@ -2213,7 +2731,87 @@ var file_data_proto_rawDesc = []byte{
 	0x28, 0x09, 0x52, 0x06, 0x63, 0x65, 0x6c, 0x6c, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x65,
 	0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65, 0x73,
 	0x73, 0x61, 0x67, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x69, 0x63, 0x6f, 0x6e, 0x18, 0x04, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x04, 0x69, 0x63, 0x6f, 0x6e, 0x22, 0x32, 0x0a, 0x08, 0x52, 0x65, 0x73, 0x6f,
+	0x28, 0x09, 0x52, 0x04, 0x69, 0x63, 0x6f, 0x6e, 0x22, 0x5e, 0x0a, 0x16, 0x47, 0x65, 0x74, 0x44,
+	0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x63, 0x6f, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x05, 0x73, 0x63, 0x6f, 0x70, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x64, 0x61, 0x73, 0x68,
+	0x62, 0x6f, 0x61, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x64, 0x61, 0x73,
+	0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x74, 0x61, 0x62, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x03, 0x74, 0x61, 0x62, 0x22, 0x9d, 0x09, 0x0a, 0x17, 0x47, 0x65, 0x74,
+	0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6d, 0x0a, 0x15, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x5f,
+	0x64, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x5f, 0x74, 0x61, 0x62, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x35, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61,
+	0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61,
+	0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x44, 0x61,
+	0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x42, 0x02, 0x18, 0x01, 0x52, 0x13,
+	0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64,
+	0x54, 0x61, 0x62, 0x12, 0x64, 0x0a, 0x12, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x5f, 0x74,
+	0x65, 0x73, 0x74, 0x5f, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x32, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76,
+	0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61,
+	0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x54, 0x65, 0x73, 0x74, 0x47, 0x72,
+	0x6f, 0x75, 0x70, 0x42, 0x02, 0x18, 0x01, 0x52, 0x10, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74,
+	0x54, 0x65, 0x73, 0x74, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x1a, 0x82, 0x01, 0x0a, 0x09, 0x47, 0x43,
+	0x53, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x1d, 0x0a, 0x0a, 0x67, 0x63, 0x73, 0x5f, 0x70,
+	0x72, 0x65, 0x66, 0x69, 0x78, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x67, 0x63, 0x73,
+	0x50, 0x72, 0x65, 0x66, 0x69, 0x78, 0x12, 0x25, 0x0a, 0x0e, 0x70, 0x75, 0x62, 0x73, 0x75, 0x62,
+	0x5f, 0x70, 0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d,
+	0x70, 0x75, 0x62, 0x73, 0x75, 0x62, 0x50, 0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x12, 0x2f, 0x0a,
+	0x13, 0x70, 0x75, 0x62, 0x73, 0x75, 0x62, 0x5f, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70,
+	0x74, 0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x12, 0x70, 0x75, 0x62, 0x73,
+	0x75, 0x62, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x1a, 0x96,
+	0x01, 0x0a, 0x0c, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x12,
+	0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e,
+	0x61, 0x6d, 0x65, 0x12, 0x26, 0x0a, 0x0f, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x67, 0x72, 0x6f, 0x75,
+	0x70, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x74, 0x65,
+	0x73, 0x74, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x28, 0x0a, 0x10, 0x63,
+	0x6f, 0x64, 0x65, 0x5f, 0x73, 0x65, 0x61, 0x72, 0x63, 0x68, 0x5f, 0x70, 0x61, 0x74, 0x68, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x63, 0x6f, 0x64, 0x65, 0x53, 0x65, 0x61, 0x72, 0x63,
+	0x68, 0x50, 0x61, 0x74, 0x68, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70,
+	0x74, 0x69, 0x6f, 0x6e, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73, 0x63,
+	0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x1a, 0x8e, 0x05, 0x0a, 0x09, 0x54, 0x65, 0x73, 0x74,
+	0x47, 0x72, 0x6f, 0x75, 0x70, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1d, 0x0a, 0x0a, 0x67, 0x63, 0x73,
+	0x5f, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x67,
+	0x63, 0x73, 0x50, 0x72, 0x65, 0x66, 0x69, 0x78, 0x12, 0x64, 0x0a, 0x0d, 0x63, 0x6f, 0x6c, 0x75,
+	0x6d, 0x6e, 0x5f, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x3f, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76,
+	0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61,
+	0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x54, 0x65, 0x73, 0x74, 0x47, 0x72,
+	0x6f, 0x75, 0x70, 0x2e, 0x43, 0x6f, 0x6c, 0x75, 0x6d, 0x6e, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72,
+	0x52, 0x0c, 0x63, 0x6f, 0x6c, 0x75, 0x6d, 0x6e, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12, 0x6d,
+	0x0a, 0x10, 0x70, 0x72, 0x69, 0x6d, 0x61, 0x72, 0x79, 0x5f, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x69,
+	0x6e, 0x67, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x42, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67,
+	0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61,
+	0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x2e, 0x54, 0x65, 0x73, 0x74, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x2e, 0x50, 0x72, 0x69,
+	0x6d, 0x61, 0x72, 0x79, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x69, 0x6e, 0x67, 0x52, 0x0f, 0x70, 0x72,
+	0x69, 0x6d, 0x61, 0x72, 0x79, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x69, 0x6e, 0x67, 0x12, 0x64, 0x0a,
+	0x0d, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x5f, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x18, 0x05,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x3f, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e,
+	0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f,
+	0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x54,
+	0x65, 0x73, 0x74, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x2e, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x53,
+	0x6f, 0x75, 0x72, 0x63, 0x65, 0x52, 0x0c, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x53, 0x6f, 0x75,
+	0x72, 0x63, 0x65, 0x1a, 0x3f, 0x0a, 0x0c, 0x43, 0x6f, 0x6c, 0x75, 0x6d, 0x6e, 0x48, 0x65, 0x61,
+	0x64, 0x65, 0x72, 0x12, 0x2f, 0x0a, 0x13, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x75, 0x72, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x12, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x56,
+	0x61, 0x6c, 0x75, 0x65, 0x1a, 0x87, 0x01, 0x0a, 0x0c, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x53,
+	0x6f, 0x75, 0x72, 0x63, 0x65, 0x12, 0x53, 0x0a, 0x0a, 0x67, 0x63, 0x73, 0x5f, 0x63, 0x6f, 0x6e,
+	0x66, 0x69, 0x67, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x32, 0x2e, 0x74, 0x65, 0x73, 0x74,
+	0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44,
+	0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x2e, 0x47, 0x43, 0x53, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x48, 0x00, 0x52,
+	0x09, 0x67, 0x63, 0x73, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x42, 0x16, 0x0a, 0x14, 0x72, 0x65,
+	0x73, 0x75, 0x6c, 0x74, 0x5f, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x5f, 0x63, 0x6f, 0x6e, 0x66,
+	0x69, 0x67, 0x4a, 0x04, 0x08, 0x01, 0x10, 0x02, 0x4a, 0x04, 0x08, 0x03, 0x10, 0x04, 0x22, 0x48,
+	0x0a, 0x0f, 0x50, 0x72, 0x69, 0x6d, 0x61, 0x72, 0x79, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x69, 0x6e,
+	0x67, 0x12, 0x19, 0x0a, 0x15, 0x50, 0x52, 0x49, 0x4d, 0x41, 0x52, 0x59, 0x5f, 0x47, 0x52, 0x4f,
+	0x55, 0x50, 0x49, 0x4e, 0x47, 0x5f, 0x4e, 0x4f, 0x4e, 0x45, 0x10, 0x00, 0x12, 0x1a, 0x0a, 0x16,
+	0x50, 0x52, 0x49, 0x4d, 0x41, 0x52, 0x59, 0x5f, 0x47, 0x52, 0x4f, 0x55, 0x50, 0x49, 0x4e, 0x47,
+	0x5f, 0x42, 0x55, 0x49, 0x4c, 0x44, 0x10, 0x01, 0x22, 0x32, 0x0a, 0x08, 0x52, 0x65, 0x73, 0x6f,
 	0x75, 0x72, 0x63, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6c, 0x69, 0x6e, 0x6b,
 	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6c, 0x69, 0x6e, 0x6b, 0x22, 0x4d, 0x0a, 0x17,
@@ -2376,7 +2974,7 @@ var file_data_proto_rawDesc = []byte{
 	0x74, 0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12,
 	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
 	0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05,
-	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x32, 0x89, 0x09, 0x0a, 0x0c,
+	0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x32, 0xf1, 0x09, 0x0a, 0x0c,
 	0x54, 0x65, 0x73, 0x74, 0x47, 0x72, 0x69, 0x64, 0x44, 0x61, 0x74, 0x61, 0x12, 0x60, 0x0a, 0x0d,
 	0x4c, 0x69, 0x73, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x12, 0x25, 0x2e,
 	0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e,
@@ -2421,39 +3019,45 @@ var file_data_proto_rawDesc = []byte{
 	0x69, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x6f, 0x77, 0x73, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e,
 	0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x6f, 0x77, 0x73, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x69, 0x0a, 0x10, 0x4c, 0x69, 0x73,
-	0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73, 0x12, 0x28, 0x2e,
-	0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e,
-	0x4c, 0x69, 0x73, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72,
-	0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x54, 0x61,
-	0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x22, 0x00, 0x12, 0x60, 0x0a, 0x0d, 0x47, 0x65, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75,
-	0x6d, 0x6d, 0x61, 0x72, 0x79, 0x12, 0x25, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64,
-	0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75,
-	0x6d, 0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x74,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x66, 0x0a, 0x0f, 0x47, 0x65, 0x74,
+	0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x12, 0x27, 0x2e, 0x74,
 	0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47,
-	0x65, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x7b, 0x0a, 0x16, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x61,
-	0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73,
-	0x12, 0x2e, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e,
-	0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64,
-	0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x2f, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e,
-	0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64,
-	0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x00, 0x12, 0x72, 0x0a, 0x13, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f,
-	0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79, 0x12, 0x2b, 0x2e, 0x74, 0x65, 0x73,
-	0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74,
-	0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2c, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72,
-	0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73,
-	0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x33, 0x5a, 0x31, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75,
-	0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72,
-	0x69, 0x64, 0x2f, 0x70, 0x62, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64,
+	0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62,
+	0x6f, 0x61, 0x72, 0x64, 0x54, 0x61, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x00, 0x12, 0x69, 0x0a, 0x10, 0x4c, 0x69, 0x73, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d,
+	0x61, 0x72, 0x69, 0x65, 0x73, 0x12, 0x28, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64,
+	0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x54, 0x61, 0x62, 0x53,
+	0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x29, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76,
+	0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69,
+	0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x60, 0x0a, 0x0d,
+	0x47, 0x65, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79, 0x12, 0x25, 0x2e,
+	0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e,
+	0x47, 0x65, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e,
+	0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x61, 0x62, 0x53, 0x75, 0x6d,
+	0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x7b,
+	0x0a, 0x16, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53,
+	0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65, 0x73, 0x12, 0x2e, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67,
+	0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44,
+	0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65,
+	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2f, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67,
+	0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44,
+	0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x69, 0x65,
+	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x72, 0x0a, 0x13, 0x47,
+	0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61,
+	0x72, 0x79, 0x12, 0x2b, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70,
+	0x69, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72,
+	0x64, 0x53, 0x75, 0x6d, 0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x2c, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76,
+	0x31, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x61, 0x73, 0x68, 0x62, 0x6f, 0x61, 0x72, 0x64, 0x53, 0x75,
+	0x6d, 0x6d, 0x61, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42,
+	0x33, 0x5a, 0x31, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f,
+	0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72,
+	0x6d, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x67, 0x72, 0x69, 0x64, 0x2f, 0x70, 0x62, 0x2f, 0x61, 0x70,
+	0x69, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2468,104 +3072,121 @@ func file_data_proto_rawDescGZIP() []byte {
 	return file_data_proto_rawDescData
 }
 
-var file_data_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_data_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_data_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_data_proto_goTypes = []interface{}{
-	(*ListDashboardRequest)(nil),           // 0: testgrid.api.v1.ListDashboardRequest
-	(*ListDashboardResponse)(nil),          // 1: testgrid.api.v1.ListDashboardResponse
-	(*ListDashboardGroupRequest)(nil),      // 2: testgrid.api.v1.ListDashboardGroupRequest
-	(*ListDashboardGroupResponse)(nil),     // 3: testgrid.api.v1.ListDashboardGroupResponse
-	(*ListDashboardTabsRequest)(nil),       // 4: testgrid.api.v1.ListDashboardTabsRequest
-	(*ListDashboardTabsResponse)(nil),      // 5: testgrid.api.v1.ListDashboardTabsResponse
-	(*GetDashboardRequest)(nil),            // 6: testgrid.api.v1.GetDashboardRequest
-	(*GetDashboardResponse)(nil),           // 7: testgrid.api.v1.GetDashboardResponse
-	(*GetDashboardGroupRequest)(nil),       // 8: testgrid.api.v1.GetDashboardGroupRequest
-	(*GetDashboardGroupResponse)(nil),      // 9: testgrid.api.v1.GetDashboardGroupResponse
-	(*ListHeadersRequest)(nil),             // 10: testgrid.api.v1.ListHeadersRequest
-	(*ListHeadersResponse)(nil),            // 11: testgrid.api.v1.ListHeadersResponse
-	(*ListRowsRequest)(nil),                // 12: testgrid.api.v1.ListRowsRequest
-	(*ListRowsResponse)(nil),               // 13: testgrid.api.v1.ListRowsResponse
-	(*Resource)(nil),                       // 14: testgrid.api.v1.Resource
-	(*ListTabSummariesRequest)(nil),        // 15: testgrid.api.v1.ListTabSummariesRequest
-	(*ListTabSummariesResponse)(nil),       // 16: testgrid.api.v1.ListTabSummariesResponse
-	(*GetTabSummaryRequest)(nil),           // 17: testgrid.api.v1.GetTabSummaryRequest
-	(*GetTabSummaryResponse)(nil),          // 18: testgrid.api.v1.GetTabSummaryResponse
-	(*ListDashboardSummariesRequest)(nil),  // 19: testgrid.api.v1.ListDashboardSummariesRequest
-	(*ListDashboardSummariesResponse)(nil), // 20: testgrid.api.v1.ListDashboardSummariesResponse
-	(*GetDashboardSummaryRequest)(nil),     // 21: testgrid.api.v1.GetDashboardSummaryRequest
-	(*GetDashboardSummaryResponse)(nil),    // 22: testgrid.api.v1.GetDashboardSummaryResponse
-	(*TabSummary)(nil),                     // 23: testgrid.api.v1.TabSummary
-	(*FailuresSummary)(nil),                // 24: testgrid.api.v1.FailuresSummary
-	(*FailingTestInfo)(nil),                // 25: testgrid.api.v1.FailingTestInfo
-	(*FailureStats)(nil),                   // 26: testgrid.api.v1.FailureStats
-	(*HealthinessSummary)(nil),             // 27: testgrid.api.v1.HealthinessSummary
-	(*FlakyTestInfo)(nil),                  // 28: testgrid.api.v1.FlakyTestInfo
-	(*HealthinessStats)(nil),               // 29: testgrid.api.v1.HealthinessStats
-	(*DashboardSummary)(nil),               // 30: testgrid.api.v1.DashboardSummary
-	(*ListHeadersResponse_Header)(nil),     // 31: testgrid.api.v1.ListHeadersResponse.Header
-	(*ListRowsResponse_Row)(nil),           // 32: testgrid.api.v1.ListRowsResponse.Row
-	(*ListRowsResponse_Cell)(nil),          // 33: testgrid.api.v1.ListRowsResponse.Cell
-	nil,                                    // 34: testgrid.api.v1.DashboardSummary.TabStatusCountEntry
-	(*config.Notification)(nil),            // 35: testgrid.config.Notification
-	(*timestamppb.Timestamp)(nil),          // 36: google.protobuf.Timestamp
-	(summary.TestInfo_Trend)(0),            // 37: testgrid.summary.TestInfo.Trend
-	(*state.AlertInfo)(nil),                // 38: testgrid.state.AlertInfo
+	(GetDashboardTabResponse_TestGroup_PrimaryGrouping)(0), // 0: testgrid.api.v1.GetDashboardTabResponse.TestGroup.PrimaryGrouping
+	(*ListDashboardRequest)(nil),                           // 1: testgrid.api.v1.ListDashboardRequest
+	(*ListDashboardResponse)(nil),                          // 2: testgrid.api.v1.ListDashboardResponse
+	(*ListDashboardGroupRequest)(nil),                      // 3: testgrid.api.v1.ListDashboardGroupRequest
+	(*ListDashboardGroupResponse)(nil),                     // 4: testgrid.api.v1.ListDashboardGroupResponse
+	(*ListDashboardTabsRequest)(nil),                       // 5: testgrid.api.v1.ListDashboardTabsRequest
+	(*ListDashboardTabsResponse)(nil),                      // 6: testgrid.api.v1.ListDashboardTabsResponse
+	(*GetDashboardRequest)(nil),                            // 7: testgrid.api.v1.GetDashboardRequest
+	(*GetDashboardResponse)(nil),                           // 8: testgrid.api.v1.GetDashboardResponse
+	(*GetDashboardGroupRequest)(nil),                       // 9: testgrid.api.v1.GetDashboardGroupRequest
+	(*GetDashboardGroupResponse)(nil),                      // 10: testgrid.api.v1.GetDashboardGroupResponse
+	(*ListHeadersRequest)(nil),                             // 11: testgrid.api.v1.ListHeadersRequest
+	(*ListHeadersResponse)(nil),                            // 12: testgrid.api.v1.ListHeadersResponse
+	(*ListRowsRequest)(nil),                                // 13: testgrid.api.v1.ListRowsRequest
+	(*ListRowsResponse)(nil),                               // 14: testgrid.api.v1.ListRowsResponse
+	(*GetDashboardTabRequest)(nil),                         // 15: testgrid.api.v1.GetDashboardTabRequest
+	(*GetDashboardTabResponse)(nil),                        // 16: testgrid.api.v1.GetDashboardTabResponse
+	(*Resource)(nil),                                       // 17: testgrid.api.v1.Resource
+	(*ListTabSummariesRequest)(nil),                        // 18: testgrid.api.v1.ListTabSummariesRequest
+	(*ListTabSummariesResponse)(nil),                       // 19: testgrid.api.v1.ListTabSummariesResponse
+	(*GetTabSummaryRequest)(nil),                           // 20: testgrid.api.v1.GetTabSummaryRequest
+	(*GetTabSummaryResponse)(nil),                          // 21: testgrid.api.v1.GetTabSummaryResponse
+	(*ListDashboardSummariesRequest)(nil),                  // 22: testgrid.api.v1.ListDashboardSummariesRequest
+	(*ListDashboardSummariesResponse)(nil),                 // 23: testgrid.api.v1.ListDashboardSummariesResponse
+	(*GetDashboardSummaryRequest)(nil),                     // 24: testgrid.api.v1.GetDashboardSummaryRequest
+	(*GetDashboardSummaryResponse)(nil),                    // 25: testgrid.api.v1.GetDashboardSummaryResponse
+	(*TabSummary)(nil),                                     // 26: testgrid.api.v1.TabSummary
+	(*FailuresSummary)(nil),                                // 27: testgrid.api.v1.FailuresSummary
+	(*FailingTestInfo)(nil),                                // 28: testgrid.api.v1.FailingTestInfo
+	(*FailureStats)(nil),                                   // 29: testgrid.api.v1.FailureStats
+	(*HealthinessSummary)(nil),                             // 30: testgrid.api.v1.HealthinessSummary
+	(*FlakyTestInfo)(nil),                                  // 31: testgrid.api.v1.FlakyTestInfo
+	(*HealthinessStats)(nil),                               // 32: testgrid.api.v1.HealthinessStats
+	(*DashboardSummary)(nil),                               // 33: testgrid.api.v1.DashboardSummary
+	(*ListHeadersResponse_Header)(nil),                     // 34: testgrid.api.v1.ListHeadersResponse.Header
+	(*ListRowsResponse_Row)(nil),                           // 35: testgrid.api.v1.ListRowsResponse.Row
+	(*ListRowsResponse_Cell)(nil),                          // 36: testgrid.api.v1.ListRowsResponse.Cell
+	(*GetDashboardTabResponse_GCSConfig)(nil),              // 37: testgrid.api.v1.GetDashboardTabResponse.GCSConfig
+	(*GetDashboardTabResponse_DashboardTab)(nil),           // 38: testgrid.api.v1.GetDashboardTabResponse.DashboardTab
+	(*GetDashboardTabResponse_TestGroup)(nil),              // 39: testgrid.api.v1.GetDashboardTabResponse.TestGroup
+	(*GetDashboardTabResponse_TestGroup_ColumnHeader)(nil), // 40: testgrid.api.v1.GetDashboardTabResponse.TestGroup.ColumnHeader
+	(*GetDashboardTabResponse_TestGroup_ResultSource)(nil), // 41: testgrid.api.v1.GetDashboardTabResponse.TestGroup.ResultSource
+	nil,                           // 42: testgrid.api.v1.DashboardSummary.TabStatusCountEntry
+	(*config.Notification)(nil),   // 43: testgrid.config.Notification
+	(*timestamppb.Timestamp)(nil), // 44: google.protobuf.Timestamp
+	(summary.TestInfo_Trend)(0),   // 45: testgrid.summary.TestInfo.Trend
+	(*state.AlertInfo)(nil),       // 46: testgrid.state.AlertInfo
 }
 var file_data_proto_depIdxs = []int32{
-	14, // 0: testgrid.api.v1.ListDashboardResponse.dashboards:type_name -> testgrid.api.v1.Resource
-	14, // 1: testgrid.api.v1.ListDashboardGroupResponse.dashboard_groups:type_name -> testgrid.api.v1.Resource
-	14, // 2: testgrid.api.v1.ListDashboardTabsResponse.dashboard_tabs:type_name -> testgrid.api.v1.Resource
-	35, // 3: testgrid.api.v1.GetDashboardResponse.notifications:type_name -> testgrid.config.Notification
-	14, // 4: testgrid.api.v1.GetDashboardGroupResponse.dashboards:type_name -> testgrid.api.v1.Resource
-	31, // 5: testgrid.api.v1.ListHeadersResponse.headers:type_name -> testgrid.api.v1.ListHeadersResponse.Header
-	32, // 6: testgrid.api.v1.ListRowsResponse.rows:type_name -> testgrid.api.v1.ListRowsResponse.Row
-	23, // 7: testgrid.api.v1.ListTabSummariesResponse.tab_summaries:type_name -> testgrid.api.v1.TabSummary
-	23, // 8: testgrid.api.v1.GetTabSummaryResponse.tab_summary:type_name -> testgrid.api.v1.TabSummary
-	30, // 9: testgrid.api.v1.ListDashboardSummariesResponse.dashboard_summaries:type_name -> testgrid.api.v1.DashboardSummary
-	30, // 10: testgrid.api.v1.GetDashboardSummaryResponse.dashboard_summary:type_name -> testgrid.api.v1.DashboardSummary
-	36, // 11: testgrid.api.v1.TabSummary.last_run_timestamp:type_name -> google.protobuf.Timestamp
-	36, // 12: testgrid.api.v1.TabSummary.last_update_timestamp:type_name -> google.protobuf.Timestamp
-	24, // 13: testgrid.api.v1.TabSummary.failures_summary:type_name -> testgrid.api.v1.FailuresSummary
-	27, // 14: testgrid.api.v1.TabSummary.healthiness_summary:type_name -> testgrid.api.v1.HealthinessSummary
-	25, // 15: testgrid.api.v1.FailuresSummary.top_failing_tests:type_name -> testgrid.api.v1.FailingTestInfo
-	26, // 16: testgrid.api.v1.FailuresSummary.failure_stats:type_name -> testgrid.api.v1.FailureStats
-	36, // 17: testgrid.api.v1.FailingTestInfo.pass_timestamp:type_name -> google.protobuf.Timestamp
-	36, // 18: testgrid.api.v1.FailingTestInfo.fail_timestamp:type_name -> google.protobuf.Timestamp
-	28, // 19: testgrid.api.v1.HealthinessSummary.top_flaky_tests:type_name -> testgrid.api.v1.FlakyTestInfo
-	29, // 20: testgrid.api.v1.HealthinessSummary.healthiness_stats:type_name -> testgrid.api.v1.HealthinessStats
-	37, // 21: testgrid.api.v1.FlakyTestInfo.change:type_name -> testgrid.summary.TestInfo.Trend
-	36, // 22: testgrid.api.v1.HealthinessStats.start:type_name -> google.protobuf.Timestamp
-	36, // 23: testgrid.api.v1.HealthinessStats.end:type_name -> google.protobuf.Timestamp
-	34, // 24: testgrid.api.v1.DashboardSummary.tab_status_count:type_name -> testgrid.api.v1.DashboardSummary.TabStatusCountEntry
-	36, // 25: testgrid.api.v1.ListHeadersResponse.Header.started:type_name -> google.protobuf.Timestamp
-	33, // 26: testgrid.api.v1.ListRowsResponse.Row.cells:type_name -> testgrid.api.v1.ListRowsResponse.Cell
-	38, // 27: testgrid.api.v1.ListRowsResponse.Row.alert:type_name -> testgrid.state.AlertInfo
-	0,  // 28: testgrid.api.v1.TestGridData.ListDashboard:input_type -> testgrid.api.v1.ListDashboardRequest
-	2,  // 29: testgrid.api.v1.TestGridData.ListDashboardGroup:input_type -> testgrid.api.v1.ListDashboardGroupRequest
-	4,  // 30: testgrid.api.v1.TestGridData.ListDashboardTabs:input_type -> testgrid.api.v1.ListDashboardTabsRequest
-	6,  // 31: testgrid.api.v1.TestGridData.GetDashboard:input_type -> testgrid.api.v1.GetDashboardRequest
-	8,  // 32: testgrid.api.v1.TestGridData.GetDashboardGroup:input_type -> testgrid.api.v1.GetDashboardGroupRequest
-	10, // 33: testgrid.api.v1.TestGridData.ListHeaders:input_type -> testgrid.api.v1.ListHeadersRequest
-	12, // 34: testgrid.api.v1.TestGridData.ListRows:input_type -> testgrid.api.v1.ListRowsRequest
-	15, // 35: testgrid.api.v1.TestGridData.ListTabSummaries:input_type -> testgrid.api.v1.ListTabSummariesRequest
-	17, // 36: testgrid.api.v1.TestGridData.GetTabSummary:input_type -> testgrid.api.v1.GetTabSummaryRequest
-	19, // 37: testgrid.api.v1.TestGridData.ListDashboardSummaries:input_type -> testgrid.api.v1.ListDashboardSummariesRequest
-	21, // 38: testgrid.api.v1.TestGridData.GetDashboardSummary:input_type -> testgrid.api.v1.GetDashboardSummaryRequest
-	1,  // 39: testgrid.api.v1.TestGridData.ListDashboard:output_type -> testgrid.api.v1.ListDashboardResponse
-	3,  // 40: testgrid.api.v1.TestGridData.ListDashboardGroup:output_type -> testgrid.api.v1.ListDashboardGroupResponse
-	5,  // 41: testgrid.api.v1.TestGridData.ListDashboardTabs:output_type -> testgrid.api.v1.ListDashboardTabsResponse
-	7,  // 42: testgrid.api.v1.TestGridData.GetDashboard:output_type -> testgrid.api.v1.GetDashboardResponse
-	9,  // 43: testgrid.api.v1.TestGridData.GetDashboardGroup:output_type -> testgrid.api.v1.GetDashboardGroupResponse
-	11, // 44: testgrid.api.v1.TestGridData.ListHeaders:output_type -> testgrid.api.v1.ListHeadersResponse
-	13, // 45: testgrid.api.v1.TestGridData.ListRows:output_type -> testgrid.api.v1.ListRowsResponse
-	16, // 46: testgrid.api.v1.TestGridData.ListTabSummaries:output_type -> testgrid.api.v1.ListTabSummariesResponse
-	18, // 47: testgrid.api.v1.TestGridData.GetTabSummary:output_type -> testgrid.api.v1.GetTabSummaryResponse
-	20, // 48: testgrid.api.v1.TestGridData.ListDashboardSummaries:output_type -> testgrid.api.v1.ListDashboardSummariesResponse
-	22, // 49: testgrid.api.v1.TestGridData.GetDashboardSummary:output_type -> testgrid.api.v1.GetDashboardSummaryResponse
-	39, // [39:50] is the sub-list for method output_type
-	28, // [28:39] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	17, // 0: testgrid.api.v1.ListDashboardResponse.dashboards:type_name -> testgrid.api.v1.Resource
+	17, // 1: testgrid.api.v1.ListDashboardGroupResponse.dashboard_groups:type_name -> testgrid.api.v1.Resource
+	17, // 2: testgrid.api.v1.ListDashboardTabsResponse.dashboard_tabs:type_name -> testgrid.api.v1.Resource
+	43, // 3: testgrid.api.v1.GetDashboardResponse.notifications:type_name -> testgrid.config.Notification
+	17, // 4: testgrid.api.v1.GetDashboardGroupResponse.dashboards:type_name -> testgrid.api.v1.Resource
+	34, // 5: testgrid.api.v1.ListHeadersResponse.headers:type_name -> testgrid.api.v1.ListHeadersResponse.Header
+	35, // 6: testgrid.api.v1.ListRowsResponse.rows:type_name -> testgrid.api.v1.ListRowsResponse.Row
+	38, // 7: testgrid.api.v1.GetDashboardTabResponse.default_dashboard_tab:type_name -> testgrid.api.v1.GetDashboardTabResponse.DashboardTab
+	39, // 8: testgrid.api.v1.GetDashboardTabResponse.default_test_group:type_name -> testgrid.api.v1.GetDashboardTabResponse.TestGroup
+	26, // 9: testgrid.api.v1.ListTabSummariesResponse.tab_summaries:type_name -> testgrid.api.v1.TabSummary
+	26, // 10: testgrid.api.v1.GetTabSummaryResponse.tab_summary:type_name -> testgrid.api.v1.TabSummary
+	33, // 11: testgrid.api.v1.ListDashboardSummariesResponse.dashboard_summaries:type_name -> testgrid.api.v1.DashboardSummary
+	33, // 12: testgrid.api.v1.GetDashboardSummaryResponse.dashboard_summary:type_name -> testgrid.api.v1.DashboardSummary
+	44, // 13: testgrid.api.v1.TabSummary.last_run_timestamp:type_name -> google.protobuf.Timestamp
+	44, // 14: testgrid.api.v1.TabSummary.last_update_timestamp:type_name -> google.protobuf.Timestamp
+	27, // 15: testgrid.api.v1.TabSummary.failures_summary:type_name -> testgrid.api.v1.FailuresSummary
+	30, // 16: testgrid.api.v1.TabSummary.healthiness_summary:type_name -> testgrid.api.v1.HealthinessSummary
+	28, // 17: testgrid.api.v1.FailuresSummary.top_failing_tests:type_name -> testgrid.api.v1.FailingTestInfo
+	29, // 18: testgrid.api.v1.FailuresSummary.failure_stats:type_name -> testgrid.api.v1.FailureStats
+	44, // 19: testgrid.api.v1.FailingTestInfo.pass_timestamp:type_name -> google.protobuf.Timestamp
+	44, // 20: testgrid.api.v1.FailingTestInfo.fail_timestamp:type_name -> google.protobuf.Timestamp
+	31, // 21: testgrid.api.v1.HealthinessSummary.top_flaky_tests:type_name -> testgrid.api.v1.FlakyTestInfo
+	32, // 22: testgrid.api.v1.HealthinessSummary.healthiness_stats:type_name -> testgrid.api.v1.HealthinessStats
+	45, // 23: testgrid.api.v1.FlakyTestInfo.change:type_name -> testgrid.summary.TestInfo.Trend
+	44, // 24: testgrid.api.v1.HealthinessStats.start:type_name -> google.protobuf.Timestamp
+	44, // 25: testgrid.api.v1.HealthinessStats.end:type_name -> google.protobuf.Timestamp
+	42, // 26: testgrid.api.v1.DashboardSummary.tab_status_count:type_name -> testgrid.api.v1.DashboardSummary.TabStatusCountEntry
+	44, // 27: testgrid.api.v1.ListHeadersResponse.Header.started:type_name -> google.protobuf.Timestamp
+	36, // 28: testgrid.api.v1.ListRowsResponse.Row.cells:type_name -> testgrid.api.v1.ListRowsResponse.Cell
+	46, // 29: testgrid.api.v1.ListRowsResponse.Row.alert:type_name -> testgrid.state.AlertInfo
+	40, // 30: testgrid.api.v1.GetDashboardTabResponse.TestGroup.column_header:type_name -> testgrid.api.v1.GetDashboardTabResponse.TestGroup.ColumnHeader
+	0,  // 31: testgrid.api.v1.GetDashboardTabResponse.TestGroup.primary_grouping:type_name -> testgrid.api.v1.GetDashboardTabResponse.TestGroup.PrimaryGrouping
+	41, // 32: testgrid.api.v1.GetDashboardTabResponse.TestGroup.result_source:type_name -> testgrid.api.v1.GetDashboardTabResponse.TestGroup.ResultSource
+	37, // 33: testgrid.api.v1.GetDashboardTabResponse.TestGroup.ResultSource.gcs_config:type_name -> testgrid.api.v1.GetDashboardTabResponse.GCSConfig
+	1,  // 34: testgrid.api.v1.TestGridData.ListDashboard:input_type -> testgrid.api.v1.ListDashboardRequest
+	3,  // 35: testgrid.api.v1.TestGridData.ListDashboardGroup:input_type -> testgrid.api.v1.ListDashboardGroupRequest
+	5,  // 36: testgrid.api.v1.TestGridData.ListDashboardTabs:input_type -> testgrid.api.v1.ListDashboardTabsRequest
+	7,  // 37: testgrid.api.v1.TestGridData.GetDashboard:input_type -> testgrid.api.v1.GetDashboardRequest
+	9,  // 38: testgrid.api.v1.TestGridData.GetDashboardGroup:input_type -> testgrid.api.v1.GetDashboardGroupRequest
+	11, // 39: testgrid.api.v1.TestGridData.ListHeaders:input_type -> testgrid.api.v1.ListHeadersRequest
+	13, // 40: testgrid.api.v1.TestGridData.ListRows:input_type -> testgrid.api.v1.ListRowsRequest
+	15, // 41: testgrid.api.v1.TestGridData.GetDashboardTab:input_type -> testgrid.api.v1.GetDashboardTabRequest
+	18, // 42: testgrid.api.v1.TestGridData.ListTabSummaries:input_type -> testgrid.api.v1.ListTabSummariesRequest
+	20, // 43: testgrid.api.v1.TestGridData.GetTabSummary:input_type -> testgrid.api.v1.GetTabSummaryRequest
+	22, // 44: testgrid.api.v1.TestGridData.ListDashboardSummaries:input_type -> testgrid.api.v1.ListDashboardSummariesRequest
+	24, // 45: testgrid.api.v1.TestGridData.GetDashboardSummary:input_type -> testgrid.api.v1.GetDashboardSummaryRequest
+	2,  // 46: testgrid.api.v1.TestGridData.ListDashboard:output_type -> testgrid.api.v1.ListDashboardResponse
+	4,  // 47: testgrid.api.v1.TestGridData.ListDashboardGroup:output_type -> testgrid.api.v1.ListDashboardGroupResponse
+	6,  // 48: testgrid.api.v1.TestGridData.ListDashboardTabs:output_type -> testgrid.api.v1.ListDashboardTabsResponse
+	8,  // 49: testgrid.api.v1.TestGridData.GetDashboard:output_type -> testgrid.api.v1.GetDashboardResponse
+	10, // 50: testgrid.api.v1.TestGridData.GetDashboardGroup:output_type -> testgrid.api.v1.GetDashboardGroupResponse
+	12, // 51: testgrid.api.v1.TestGridData.ListHeaders:output_type -> testgrid.api.v1.ListHeadersResponse
+	14, // 52: testgrid.api.v1.TestGridData.ListRows:output_type -> testgrid.api.v1.ListRowsResponse
+	16, // 53: testgrid.api.v1.TestGridData.GetDashboardTab:output_type -> testgrid.api.v1.GetDashboardTabResponse
+	19, // 54: testgrid.api.v1.TestGridData.ListTabSummaries:output_type -> testgrid.api.v1.ListTabSummariesResponse
+	21, // 55: testgrid.api.v1.TestGridData.GetTabSummary:output_type -> testgrid.api.v1.GetTabSummaryResponse
+	23, // 56: testgrid.api.v1.TestGridData.ListDashboardSummaries:output_type -> testgrid.api.v1.ListDashboardSummariesResponse
+	25, // 57: testgrid.api.v1.TestGridData.GetDashboardSummary:output_type -> testgrid.api.v1.GetDashboardSummaryResponse
+	46, // [46:58] is the sub-list for method output_type
+	34, // [34:46] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_data_proto_init() }
@@ -2743,7 +3364,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Resource); i {
+			switch v := v.(*GetDashboardTabRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2755,7 +3376,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListTabSummariesRequest); i {
+			switch v := v.(*GetDashboardTabResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2767,7 +3388,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListTabSummariesResponse); i {
+			switch v := v.(*Resource); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2779,7 +3400,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTabSummaryRequest); i {
+			switch v := v.(*ListTabSummariesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2791,7 +3412,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTabSummaryResponse); i {
+			switch v := v.(*ListTabSummariesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2803,7 +3424,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListDashboardSummariesRequest); i {
+			switch v := v.(*GetTabSummaryRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2815,7 +3436,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListDashboardSummariesResponse); i {
+			switch v := v.(*GetTabSummaryResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2827,7 +3448,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetDashboardSummaryRequest); i {
+			switch v := v.(*ListDashboardSummariesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2839,7 +3460,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetDashboardSummaryResponse); i {
+			switch v := v.(*ListDashboardSummariesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2851,7 +3472,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TabSummary); i {
+			switch v := v.(*GetDashboardSummaryRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2863,7 +3484,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FailuresSummary); i {
+			switch v := v.(*GetDashboardSummaryResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2875,7 +3496,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FailingTestInfo); i {
+			switch v := v.(*TabSummary); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2887,7 +3508,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FailureStats); i {
+			switch v := v.(*FailuresSummary); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2899,7 +3520,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HealthinessSummary); i {
+			switch v := v.(*FailingTestInfo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2911,7 +3532,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FlakyTestInfo); i {
+			switch v := v.(*FailureStats); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2923,7 +3544,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HealthinessStats); i {
+			switch v := v.(*HealthinessSummary); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2935,7 +3556,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DashboardSummary); i {
+			switch v := v.(*FlakyTestInfo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2947,7 +3568,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListHeadersResponse_Header); i {
+			switch v := v.(*HealthinessStats); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2959,7 +3580,7 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListRowsResponse_Row); i {
+			switch v := v.(*DashboardSummary); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2971,6 +3592,30 @@ func file_data_proto_init() {
 			}
 		}
 		file_data_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ListHeadersResponse_Header); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_data_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ListRowsResponse_Row); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_data_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListRowsResponse_Cell); i {
 			case 0:
 				return &v.state
@@ -2982,19 +3627,83 @@ func file_data_proto_init() {
 				return nil
 			}
 		}
+		file_data_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDashboardTabResponse_GCSConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_data_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDashboardTabResponse_DashboardTab); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_data_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDashboardTabResponse_TestGroup); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_data_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDashboardTabResponse_TestGroup_ColumnHeader); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_data_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDashboardTabResponse_TestGroup_ResultSource); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+	}
+	file_data_proto_msgTypes[40].OneofWrappers = []interface{}{
+		(*GetDashboardTabResponse_TestGroup_ResultSource_GcsConfig)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_data_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   35,
+			NumEnums:      1,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_data_proto_goTypes,
 		DependencyIndexes: file_data_proto_depIdxs,
+		EnumInfos:         file_data_proto_enumTypes,
 		MessageInfos:      file_data_proto_msgTypes,
 	}.Build()
 	File_data_proto = out.File
@@ -3037,6 +3746,9 @@ type TestGridDataClient interface {
 	// GET /dashboards/{dashboard}/tabs/{tab}/rows
 	// Returns information on grid rows, and data within those rows
 	ListRows(ctx context.Context, in *ListRowsRequest, opts ...grpc.CallOption) (*ListRowsResponse, error)
+	// GET /dashboards/{dashboard}/tabs/{tab}
+	// Returns the tab config's metadata
+	GetDashboardTab(ctx context.Context, in *GetDashboardTabRequest, opts ...grpc.CallOption) (*GetDashboardTabResponse, error)
 	// GET /dashboards/{dashboard}/tab-summaries
 	// Returns the list of tab summaries for dashboard.
 	ListTabSummaries(ctx context.Context, in *ListTabSummariesRequest, opts ...grpc.CallOption) (*ListTabSummariesResponse, error)
@@ -3119,6 +3831,15 @@ func (c *testGridDataClient) ListRows(ctx context.Context, in *ListRowsRequest, 
 	return out, nil
 }
 
+func (c *testGridDataClient) GetDashboardTab(ctx context.Context, in *GetDashboardTabRequest, opts ...grpc.CallOption) (*GetDashboardTabResponse, error) {
+	out := new(GetDashboardTabResponse)
+	err := c.cc.Invoke(ctx, "/testgrid.api.v1.TestGridData/GetDashboardTab", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *testGridDataClient) ListTabSummaries(ctx context.Context, in *ListTabSummariesRequest, opts ...grpc.CallOption) (*ListTabSummariesResponse, error) {
 	out := new(ListTabSummariesResponse)
 	err := c.cc.Invoke(ctx, "/testgrid.api.v1.TestGridData/ListTabSummaries", in, out, opts...)
@@ -3179,6 +3900,9 @@ type TestGridDataServer interface {
 	// GET /dashboards/{dashboard}/tabs/{tab}/rows
 	// Returns information on grid rows, and data within those rows
 	ListRows(context.Context, *ListRowsRequest) (*ListRowsResponse, error)
+	// GET /dashboards/{dashboard}/tabs/{tab}
+	// Returns the tab config's metadata
+	GetDashboardTab(context.Context, *GetDashboardTabRequest) (*GetDashboardTabResponse, error)
 	// GET /dashboards/{dashboard}/tab-summaries
 	// Returns the list of tab summaries for dashboard.
 	ListTabSummaries(context.Context, *ListTabSummariesRequest) (*ListTabSummariesResponse, error)
@@ -3214,6 +3938,9 @@ func (*UnimplementedTestGridDataServer) ListHeaders(context.Context, *ListHeader
 }
 func (*UnimplementedTestGridDataServer) ListRows(context.Context, *ListRowsRequest) (*ListRowsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRows not implemented")
+}
+func (*UnimplementedTestGridDataServer) GetDashboardTab(context.Context, *GetDashboardTabRequest) (*GetDashboardTabResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDashboardTab not implemented")
 }
 func (*UnimplementedTestGridDataServer) ListTabSummaries(context.Context, *ListTabSummariesRequest) (*ListTabSummariesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTabSummaries not implemented")
@@ -3358,6 +4085,24 @@ func _TestGridData_ListRows_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TestGridData_GetDashboardTab_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDashboardTabRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TestGridDataServer).GetDashboardTab(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/testgrid.api.v1.TestGridData/GetDashboardTab",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TestGridDataServer).GetDashboardTab(ctx, req.(*GetDashboardTabRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TestGridData_ListTabSummaries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListTabSummariesRequest)
 	if err := dec(in); err != nil {
@@ -3461,6 +4206,10 @@ var _TestGridData_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRows",
 			Handler:    _TestGridData_ListRows_Handler,
+		},
+		{
+			MethodName: "GetDashboardTab",
+			Handler:    _TestGridData_GetDashboardTab_Handler,
 		},
 		{
 			MethodName: "ListTabSummaries",
