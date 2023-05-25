@@ -30,6 +30,28 @@
       {"name":"fake-dashboard-3", "link":"dashboards/fake-dashboard-1"}
     ]
   },
+  "fake-dashboard-group-1-dashboard-summaries": {
+    "dashboard_summaries": [
+      {
+        "name":"fake-dashboard-1", 
+        "overall_status":"FAILING",
+        "tab_status_count": {
+          "PASSING":2,
+          "FLAKY":4,
+          "FAILING":1
+        }
+      },
+      {
+        "name":"fake-dashboard-2", 
+        "overall_status":"FLAKY",
+        "tab_status_count": {
+          "PASSING": 3,
+          "ACCEPTABLE": 1,
+          "FLAKY": 5
+        }
+      }
+    ]
+  },
   "tabs": {
     "dashboard_tabs":[
       {"name":"fake_tab_1","link":"/dashboards/any/tabs/fake_tab_1"},

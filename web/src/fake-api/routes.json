@@ -4,5 +4,6 @@
   "/api/v1/dashboards/*/tabs": "/tabs",
   "/api/v1/dashboards/*/tab-summaries": "/tab-summaries",
   "/api/v1/dashboard-groups/:group": "/:group",
+  "/api/v1/dashboard-groups/:group/dashboard-summaries": "/:group-dashboard-summaries",
   "/api/v1/dashboards/:dashboard": "/:dashboard"
 }
