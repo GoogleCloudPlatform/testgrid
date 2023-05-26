@@ -12,11 +12,11 @@ import "pb/summary/summary.proto";
 service TestGridData {
   // GET /dashboards
   // Lists dashboard names
-  rpc ListDashboard(ListDashboardRequest) returns (ListDashboardResponse) {}
+  rpc ListDashboards(ListDashboardRequest) returns (ListDashboardResponse) {}
 
   // GET /dashboard-groups
   // Lists the dashboard group names
-  rpc ListDashboardGroup(ListDashboardGroupRequest)
+  rpc ListDashboardGroups(ListDashboardGroupRequest)
       returns (ListDashboardGroupResponse) {}
 
   // GET /dashboards/{dashboard}/tabs
@@ -58,7 +58,7 @@ service TestGridData {
 
 message ListDashboardRequest { string scope = 1; }
 
-message ListDashboardResponse { repeated Resource dashboards = 1; }
+message ListDashboardResponse { repeated DashboardResource dashboards = 1; }
 
 message ListDashboardGroupRequest { string scope = 1; }
 
@@ -167,6 +167,16 @@ message ListRowsResponse {
 message Resource {
   string name = 1;
   string link = 2;
+}
+
+// A DashboardResource is a REST resource for a dashboard
+// It includes the name of the resource, a link, and a dashboard group to which it belongs
+message DashboardResource {
+  string name = 1;
+  string link = 2;
+  // Dashboard group to which the dashboard belongs to.
+  // Empty if dashboard doesn't belong to any group.
+  string dashboard_group_name = 3;
 }
 
 message ListTabSummariesRequest {

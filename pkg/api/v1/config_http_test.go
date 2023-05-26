@@ -270,7 +270,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 			expectedCode:     http.StatusOK,
 		},
 		{
-			name: "Returns a Dashboard",
+			name: "Returns a Dashboard which doesn't belong to a grop",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -281,7 +281,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 				},
 			},
 			expectedResponse: &apipb.ListDashboardResponse{
-				Dashboards: []*apipb.Resource{
+				Dashboards: []*apipb.DashboardResource{
 					{
 						Name: "Dashboard1",
 						Link: "/dashboards/dashboard1",
@@ -291,7 +291,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
-			name: "Returns multiple Dashboards",
+			name: "Returns multiple Dashboards which belong to different groups",
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {
 					Dashboards: []*configpb.Dashboard{
@@ -302,17 +302,29 @@ func TestListDashboardsHTTP(t *testing.T) {
 							Name: "Dashboard2",
 						},
 					},
+					DashboardGroups: []*configpb.DashboardGroup{
+						{
+							Name:           "DashboardGroup1",
+							DashboardNames: []string{"Dashboard1"},
+						},
+						{
+							Name:           "DashboardGroup2",
+							DashboardNames: []string{"Dashboard2"},
+						},
+					},
 				},
 			},
 			expectedResponse: &apipb.ListDashboardResponse{
-				Dashboards: []*apipb.Resource{
+				Dashboards: []*apipb.DashboardResource{
 					{
-						Name: "Dashboard1",
-						Link: "/dashboards/dashboard1",
+						Name:               "Dashboard1",
+						Link:               "/dashboards/dashboard1",
+						DashboardGroupName: "DashboardGroup1",
 					},
 					{
-						Name: "Dashboard2",
-						Link: "/dashboards/dashboard2",
+						Name:               "Dashboard2",
+						Link:               "/dashboards/dashboard2",
+						DashboardGroupName: "DashboardGroup2",
 					},
 				},
 			},
@@ -331,7 +343,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 			},
 			params: "?scope=gs://example",
 			expectedResponse: &apipb.ListDashboardResponse{
-				Dashboards: []*apipb.Resource{
+				Dashboards: []*apipb.DashboardResource{
 					{
 						Name: "Dashboard1",
 						Link: "/dashboards/dashboard1?scope=gs://example",

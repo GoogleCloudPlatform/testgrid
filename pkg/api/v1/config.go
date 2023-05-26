@@ -40,7 +40,7 @@ func queryParams(scope string) string {
 }
 
 // ListDashboardGroup returns every dashboard group in TestGrid
-func (s *Server) ListDashboardGroup(ctx context.Context, req *apipb.ListDashboardGroupRequest) (*apipb.ListDashboardGroupResponse, error) {
+func (s *Server) ListDashboardGroups(ctx context.Context, req *apipb.ListDashboardGroupRequest) (*apipb.ListDashboardGroupResponse, error) {
 	c, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (s Server) ListDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 		Scope: r.URL.Query().Get(scopeParam),
 	}
 
-	groups, err := s.ListDashboardGroup(r.Context(), &req)
+	groups, err := s.ListDashboardGroups(r.Context(), &req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -126,7 +126,7 @@ func (s Server) GetDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListDashboard returns every dashboard in TestGrid
-func (s *Server) ListDashboard(ctx context.Context, req *apipb.ListDashboardRequest) (*apipb.ListDashboardResponse, error) {
+func (s *Server) ListDashboards(ctx context.Context, req *apipb.ListDashboardRequest) (*apipb.ListDashboardResponse, error) {
 	c, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
@@ -134,11 +134,19 @@ func (s *Server) ListDashboard(ctx context.Context, req *apipb.ListDashboardRequ
 	c.Mutex.RLock()
 	defer c.Mutex.RUnlock()
 
+	dashboardsToGroups := make(map[string]string)
+	for _, groupConfig := range c.Config.DashboardGroups {
+		for _, dashboardName := range groupConfig.DashboardNames {
+			dashboardsToGroups[dashboardName] = groupConfig.Name
+		}
+	}
+
 	var resp apipb.ListDashboardResponse
 	for name := range c.Config.Dashboards {
-		rsc := apipb.Resource{
-			Name: name,
-			Link: fmt.Sprintf("/dashboards/%s%s", config.Normalize(name), queryParams(req.GetScope())),
+		rsc := apipb.DashboardResource{
+			Name:               name,
+			Link:               fmt.Sprintf("/dashboards/%s%s", config.Normalize(name), queryParams(req.GetScope())),
+			DashboardGroupName: dashboardsToGroups[name],
 		}
 		resp.Dashboards = append(resp.Dashboards, &rsc)
 	}
@@ -156,7 +164,7 @@ func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
 		Scope: r.URL.Query().Get(scopeParam),
 	}
 
-	dashboards, err := s.ListDashboard(r.Context(), &req)
+	dashboards, err := s.ListDashboards(r.Context(), &req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
