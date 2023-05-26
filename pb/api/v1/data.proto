@@ -175,19 +175,6 @@ message GetDashboardTabRequest {
 
 message GetDashboardTabResponse {
 
-  // GCSConfig specifies results stored in GCS, typically created by prow.
-  message GCSConfig {
-    // Path to the test result stored in gcs (some-bucket/some/optional/path).
-    string gcs_prefix = 1;
-  
-    // The GCP project where GCS sends notifications for the above prefix.
-    string pubsub_project = 2;
-    // The pubsub subscription ID in the above topic
-    string pubsub_subscription = 3;
-  }
-
-  // A single tab on a dashboard.
-  message DashboardTab {
     // The name of the dashboard tab to display in the client.
     string name = 1;
 
@@ -201,49 +188,18 @@ message GetDashboardTabResponse {
 
     // A description paragraph to be displayed.
     string description = 4;
-  }
-
-  message TestGroup {
-    // Name of this TestGroup, for mapping dashboard tabs to tests.
-    string name = 1;
 
     // Path to the test result stored in gcs (some-bucket/some/optional/path).
-    string gcs_prefix = 2;
-
-    // Custom column headers for defining extra column-heading rows from values in
-    // the test result.
-    message ColumnHeader {
-      string configuration_value = 1;
-    }
-    repeated ColumnHeader column_header = 3;
-
+    string gcs_prefix = 5;
+  
     enum PrimaryGrouping {
       PRIMARY_GROUPING_NONE = 0;
       PRIMARY_GROUPING_BUILD = 1;
     }
-  
+
     // A primary grouping strategy for grouping test results in columns.
     // If a primary grouping is specified, the fallback grouping is ignored.
-    PrimaryGrouping primary_grouping = 4;
-
-    message ResultSource {
-      reserved 1, 3; // Legacy sources
-  
-      oneof result_source_config {
-        // GCS buckets holding junit and json results, typically created by prow.
-        GCSConfig gcs_config = 2;
-      }
-    }
-  
-    // Configuration type of the result source.
-    ResultSource result_source = 5;
-  }
-  
-  // A default dashboard tab with default initialization data
-  DashboardTab default_dashboard_tab = 1 [deprecated = true];
-
-  // A default testgroup with default initialization data
-  TestGroup default_test_group = 2 [deprecated = true];
+    PrimaryGrouping primary_grouping = 6;
 }
 
 // A Resource is a REST resource, often returned by a LIST command
