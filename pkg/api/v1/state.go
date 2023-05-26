@@ -235,3 +235,54 @@ func (s Server) ListRowsHTTP(w http.ResponseWriter, r *http.Request) {
 
 	s.writeJSON(w, resp)
 }
+
+// GetDashboardTab returns config of a given dashboard tab
+func (s *Server) GetDashboardTab(ctx context.Context, req *apipb.GetDashboardTabRequest) (*apipb.GetDashboardTabResponse, error) {
+
+	// this should be factored out of this function
+	c, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
+
+	if err != nil {
+		return nil, err
+	}
+	c.Mutex.RLock()
+	defer c.Mutex.RUnlock()
+
+	dashboardName, tabName, testGroupName, err := findDashboardTab(c, req.GetDashboard(), req.GetTab())
+	if err != nil {
+		return nil, err
+	}
+
+	grid, err := s.Grid(ctx, req.GetScope(), dashboardName, tabName, testGroupName)
+	if err != nil {
+		return nil, fmt.Errorf("dashboard {%q} or tab {%q} not found", req.GetDashboard(), req.GetTab())
+	}
+	if grid == nil {
+		return nil, errors.New("grid not found")
+	}
+
+	dashboardTabResponse := apipb.GetDashboardTabResponse{
+		Name:           dashboardName,
+		TestGroupName:  testGroupName,
+		CodeSearchPath: "lorem ipsum",
+		Description:    "Description",
+		GcsPrefix:      "gs://",
+	}
+	return &dashboardTabResponse, nil
+}
+
+// GetDashboardTabHTTP returns config of a given dashboard tab
+// Response json: GetDashboardTabResponse
+func (s Server) GetDashboardTabHTTP(w http.ResponseWriter, r *http.Request) {
+	req := apipb.GetDashboardTabRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: chi.URLParam(r, "dashboard"),
+		Tab:       chi.URLParam(r, "tab"),
+	}
+	resp, err := s.GetDashboardTab(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	s.writeJSON(w, resp)
+}
