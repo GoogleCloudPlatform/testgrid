@@ -4,6 +4,555 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "stories/tab-summary.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Passing"
+        },
+        {
+          "kind": "variable",
+          "name": "Flaky"
+        },
+        {
+          "kind": "variable",
+          "name": "Failing"
+        },
+        {
+          "kind": "variable",
+          "name": "Stale"
+        },
+        {
+          "kind": "variable",
+          "name": "Broken"
+        },
+        {
+          "kind": "variable",
+          "name": "Pending"
+        },
+        {
+          "kind": "variable",
+          "name": "Acceptable"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Passing",
+          "declaration": {
+            "name": "Passing",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Flaky",
+          "declaration": {
+            "name": "Flaky",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Failing",
+          "declaration": {
+            "name": "Failing",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Stale",
+          "declaration": {
+            "name": "Stale",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Broken",
+          "declaration": {
+            "name": "Broken",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Pending",
+          "declaration": {
+            "name": "Pending",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Acceptable",
+          "declaration": {
+            "name": "Acceptable",
+            "module": "stories/tab-summary.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-grid-cell.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "NoResult"
+        },
+        {
+          "kind": "variable",
+          "name": "Pass"
+        },
+        {
+          "kind": "variable",
+          "name": "PassWithErrors"
+        },
+        {
+          "kind": "variable",
+          "name": "PassWithSkips"
+        },
+        {
+          "kind": "variable",
+          "name": "Running"
+        },
+        {
+          "kind": "variable",
+          "name": "CategorizedAbort"
+        },
+        {
+          "kind": "variable",
+          "name": "Unknown"
+        },
+        {
+          "kind": "variable",
+          "name": "Cancel"
+        },
+        {
+          "kind": "variable",
+          "name": "Blocked"
+        },
+        {
+          "kind": "variable",
+          "name": "TimedOut"
+        },
+        {
+          "kind": "variable",
+          "name": "CategorizedFail"
+        },
+        {
+          "kind": "variable",
+          "name": "BuildFail"
+        },
+        {
+          "kind": "variable",
+          "name": "Fail"
+        },
+        {
+          "kind": "variable",
+          "name": "Flaky"
+        },
+        {
+          "kind": "variable",
+          "name": "ToolFail"
+        },
+        {
+          "kind": "variable",
+          "name": "BuildPassed"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "NoResult",
+          "declaration": {
+            "name": "NoResult",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Pass",
+          "declaration": {
+            "name": "Pass",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "PassWithErrors",
+          "declaration": {
+            "name": "PassWithErrors",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "PassWithSkips",
+          "declaration": {
+            "name": "PassWithSkips",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Running",
+          "declaration": {
+            "name": "Running",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "CategorizedAbort",
+          "declaration": {
+            "name": "CategorizedAbort",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Unknown",
+          "declaration": {
+            "name": "Unknown",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Cancel",
+          "declaration": {
+            "name": "Cancel",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Blocked",
+          "declaration": {
+            "name": "Blocked",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TimedOut",
+          "declaration": {
+            "name": "TimedOut",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "CategorizedFail",
+          "declaration": {
+            "name": "CategorizedFail",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "BuildFail",
+          "declaration": {
+            "name": "BuildFail",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Fail",
+          "declaration": {
+            "name": "Fail",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Flaky",
+          "declaration": {
+            "name": "Flaky",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ToolFail",
+          "declaration": {
+            "name": "ToolFail",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "BuildPassed",
+          "declaration": {
+            "name": "BuildPassed",
+            "module": "stories/testgrid-grid-cell.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-grid-column-header.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Empty"
+        },
+        {
+          "kind": "variable",
+          "name": "Short"
+        },
+        {
+          "kind": "variable",
+          "name": "Long"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-grid-column-header.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Empty",
+          "declaration": {
+            "name": "Empty",
+            "module": "stories/testgrid-grid-column-header.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Short",
+          "declaration": {
+            "name": "Short",
+            "module": "stories/testgrid-grid-column-header.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Long",
+          "declaration": {
+            "name": "Long",
+            "module": "stories/testgrid-grid-column-header.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-grid-row-name.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Empty"
+        },
+        {
+          "kind": "variable",
+          "name": "Short"
+        },
+        {
+          "kind": "variable",
+          "name": "Long"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-grid-row-name.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Empty",
+          "declaration": {
+            "name": "Empty",
+            "module": "stories/testgrid-grid-row-name.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Short",
+          "declaration": {
+            "name": "Short",
+            "module": "stories/testgrid-grid-row-name.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Long",
+          "declaration": {
+            "name": "Long",
+            "module": "stories/testgrid-grid-row-name.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-grid.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Grid"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-grid.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Grid",
+          "declaration": {
+            "name": "Grid",
+            "module": "stories/testgrid-grid.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-group-summary.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "DashboardGroup"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-group-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardGroup",
+          "declaration": {
+            "name": "DashboardGroup",
+            "module": "stories/testgrid-group-summary.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-index.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "App"
+        },
+        {
+          "kind": "function",
+          "name": "Dashboards",
+          "parameters": [
+            {
+              "name": "{\n  backgroundColor = 'white',\n}",
+              "type": {
+                "text": "ArgTypes"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "DashboardGroups",
+          "parameters": [
+            {
+              "name": "{\n  backgroundColor = 'white',\n}",
+              "type": {
+                "text": "ArgTypes"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "RespectiveDashboards",
+          "parameters": [
+            {
+              "name": "{\n  backgroundColor = 'white',\n}",
+              "type": {
+                "text": "ArgTypes"
+              }
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "App",
+          "declaration": {
+            "name": "App",
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Dashboards",
+          "declaration": {
+            "name": "Dashboards",
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardGroups",
+          "declaration": {
+            "name": "DashboardGroups",
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "RespectiveDashboards",
+          "declaration": {
+            "name": "RespectiveDashboards",
+            "module": "stories/testgrid-index.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/APIClient.ts",
       "declarations": [
         {
@@ -148,6 +697,11 @@
       "path": "src/testgrid-dashboard-summary.ts",
       "declarations": [
         {
+          "kind": "variable",
+          "name": "TabStatusIcon",
+          "default": "new Map<string, string>([\n  ['PASSING', 'done'],\n  ['FAILING', 'warning'],\n  ['FLAKY', 'remove_circle_outline'],\n  ['STALE', 'error_outline'],\n  ['BROKEN', 'broken_image'],\n  ['PENDING', 'schedule'],\n  ['ACCEPTABLE', 'add_circle_outline'],\n])"
+        },
+        {
           "kind": "class",
           "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs).",
           "name": "TestgridDashboardSummary",
@@ -194,6 +748,14 @@
         }
       ],
       "exports": [
+        {
+          "kind": "js",
+          "name": "TabStatusIcon",
+          "declaration": {
+            "name": "TabStatusIcon",
+            "module": "src/testgrid-dashboard-summary.ts"
+          }
+        },
         {
           "kind": "js",
           "name": "TestgridDashboardSummary",
@@ -740,6 +1302,88 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/testgrid-group-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGroupSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "groupName"
+            },
+            {
+              "kind": "field",
+              "name": "dashboardSummaries",
+              "type": {
+                "text": "RenderedDashboardSummary[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "method",
+              "name": "fetchDashboardSummaries",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "convertResponse",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "summary",
+                  "type": {
+                    "text": "DashboardSummary"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "groupName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-group-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGroupSummary",
+          "declaration": {
+            "name": "TestgridGroupSummary",
+            "module": "src/testgrid-group-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-group-summary",
+          "declaration": {
+            "name": "TestgridGroupSummary",
+            "module": "src/testgrid-group-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/testgrid-index.ts",
       "declarations": [
         {
@@ -910,528 +1554,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "stories/tab-summary.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "Passing"
-        },
-        {
-          "kind": "variable",
-          "name": "Flaky"
-        },
-        {
-          "kind": "variable",
-          "name": "Failing"
-        },
-        {
-          "kind": "variable",
-          "name": "Stale"
-        },
-        {
-          "kind": "variable",
-          "name": "Broken"
-        },
-        {
-          "kind": "variable",
-          "name": "Pending"
-        },
-        {
-          "kind": "variable",
-          "name": "Acceptable"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Passing",
-          "declaration": {
-            "name": "Passing",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Flaky",
-          "declaration": {
-            "name": "Flaky",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Failing",
-          "declaration": {
-            "name": "Failing",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Stale",
-          "declaration": {
-            "name": "Stale",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Broken",
-          "declaration": {
-            "name": "Broken",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Pending",
-          "declaration": {
-            "name": "Pending",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Acceptable",
-          "declaration": {
-            "name": "Acceptable",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/testgrid-grid-cell.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "NoResult"
-        },
-        {
-          "kind": "variable",
-          "name": "Pass"
-        },
-        {
-          "kind": "variable",
-          "name": "PassWithErrors"
-        },
-        {
-          "kind": "variable",
-          "name": "PassWithSkips"
-        },
-        {
-          "kind": "variable",
-          "name": "Running"
-        },
-        {
-          "kind": "variable",
-          "name": "CategorizedAbort"
-        },
-        {
-          "kind": "variable",
-          "name": "Unknown"
-        },
-        {
-          "kind": "variable",
-          "name": "Cancel"
-        },
-        {
-          "kind": "variable",
-          "name": "Blocked"
-        },
-        {
-          "kind": "variable",
-          "name": "TimedOut"
-        },
-        {
-          "kind": "variable",
-          "name": "CategorizedFail"
-        },
-        {
-          "kind": "variable",
-          "name": "BuildFail"
-        },
-        {
-          "kind": "variable",
-          "name": "Fail"
-        },
-        {
-          "kind": "variable",
-          "name": "Flaky"
-        },
-        {
-          "kind": "variable",
-          "name": "ToolFail"
-        },
-        {
-          "kind": "variable",
-          "name": "BuildPassed"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "NoResult",
-          "declaration": {
-            "name": "NoResult",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Pass",
-          "declaration": {
-            "name": "Pass",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "PassWithErrors",
-          "declaration": {
-            "name": "PassWithErrors",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "PassWithSkips",
-          "declaration": {
-            "name": "PassWithSkips",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Running",
-          "declaration": {
-            "name": "Running",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CategorizedAbort",
-          "declaration": {
-            "name": "CategorizedAbort",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Unknown",
-          "declaration": {
-            "name": "Unknown",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Cancel",
-          "declaration": {
-            "name": "Cancel",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Blocked",
-          "declaration": {
-            "name": "Blocked",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TimedOut",
-          "declaration": {
-            "name": "TimedOut",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CategorizedFail",
-          "declaration": {
-            "name": "CategorizedFail",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "BuildFail",
-          "declaration": {
-            "name": "BuildFail",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Fail",
-          "declaration": {
-            "name": "Fail",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Flaky",
-          "declaration": {
-            "name": "Flaky",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ToolFail",
-          "declaration": {
-            "name": "ToolFail",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "BuildPassed",
-          "declaration": {
-            "name": "BuildPassed",
-            "module": "stories/testgrid-grid-cell.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/testgrid-grid-column-header.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "Empty"
-        },
-        {
-          "kind": "variable",
-          "name": "Short"
-        },
-        {
-          "kind": "variable",
-          "name": "Long"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/testgrid-grid-column-header.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Empty",
-          "declaration": {
-            "name": "Empty",
-            "module": "stories/testgrid-grid-column-header.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Short",
-          "declaration": {
-            "name": "Short",
-            "module": "stories/testgrid-grid-column-header.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Long",
-          "declaration": {
-            "name": "Long",
-            "module": "stories/testgrid-grid-column-header.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/testgrid-grid-row-header.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "Empty"
-        },
-        {
-          "kind": "variable",
-          "name": "Short"
-        },
-        {
-          "kind": "variable",
-          "name": "Long"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/testgrid-grid-row-header.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Empty",
-          "declaration": {
-            "name": "Empty",
-            "module": "stories/testgrid-grid-row-header.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Short",
-          "declaration": {
-            "name": "Short",
-            "module": "stories/testgrid-grid-row-header.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Long",
-          "declaration": {
-            "name": "Long",
-            "module": "stories/testgrid-grid-row-header.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/testgrid-grid.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "Grid"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/testgrid-grid.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Grid",
-          "declaration": {
-            "name": "Grid",
-            "module": "stories/testgrid-grid.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/testgrid-index.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "App"
-        },
-        {
-          "kind": "function",
-          "name": "Dashboards",
-          "parameters": [
-            {
-              "name": "{\n  backgroundColor = 'white',\n}",
-              "type": {
-                "text": "ArgTypes"
-              }
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "DashboardGroups",
-          "parameters": [
-            {
-              "name": "{\n  backgroundColor = 'white',\n}",
-              "type": {
-                "text": "ArgTypes"
-              }
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "RespectiveDashboards",
-          "parameters": [
-            {
-              "name": "{\n  backgroundColor = 'white',\n}",
-              "type": {
-                "text": "ArgTypes"
-              }
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/testgrid-index.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "App",
-          "declaration": {
-            "name": "App",
-            "module": "stories/testgrid-index.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Dashboards",
-          "declaration": {
-            "name": "Dashboards",
-            "module": "stories/testgrid-index.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "DashboardGroups",
-          "declaration": {
-            "name": "DashboardGroups",
-            "module": "stories/testgrid-index.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "RespectiveDashboards",
-          "declaration": {
-            "name": "RespectiveDashboards",
-            "module": "stories/testgrid-index.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "coverage/lcov-report/block-navigation.js",
       "declarations": [],
       "exports": []
@@ -1536,12 +1658,25 @@
       "declarations": [
         {
           "kind": "variable",
+          "name": "TabStatusIcon",
+          "default": "new Map([\n    ['PASSING', 'done'],\n    ['FAILING', 'warning'],\n    ['FLAKY', 'remove_circle_outline'],\n    ['STALE', 'error_outline'],\n    ['BROKEN', 'broken_image'],\n    ['PENDING', 'schedule'],\n    ['ACCEPTABLE', 'add_circle_outline'],\n])"
+        },
+        {
+          "kind": "variable",
           "name": "TestgridDashboardSummary",
           "default": "class TestgridDashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabSummariesInfo = [];\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchTabSummaries();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n  `;\n    }\n    // fetch the tab summaries and tab names to populate the tab bar\n    async fetchTabSummaries() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n            });\n            this.tabSummariesInfo = tabSummaries;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}",
           "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs)."
         }
       ],
       "exports": [
+        {
+          "kind": "js",
+          "name": "TabStatusIcon",
+          "declaration": {
+            "name": "TabStatusIcon",
+            "module": "out-tsc/src/testgrid-dashboard-summary.js"
+          }
+        },
         {
           "kind": "js",
           "name": "TestgridDashboardSummary",
@@ -1639,6 +1774,27 @@
     },
     {
       "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-grid-row-id.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridRowId",
+          "default": "class TestgridGridRowId extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridRowId",
+          "declaration": {
+            "name": "TestgridGridRowId",
+            "module": "out-tsc/src/testgrid-grid-row-id.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "out-tsc/src/testgrid-grid-row-name.js",
       "declarations": [
         {
@@ -1697,6 +1853,27 @@
           "declaration": {
             "name": "TestgridGrid",
             "module": "out-tsc/src/testgrid-grid.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/testgrid-group-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGroupSummary",
+          "default": "class TestgridGroupSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.groupName = '';\n        this.dashboardSummaries = [];\n    }\n    render() {\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <table>\n        <thead>\n          <tr>\n            <th>Status</th>\n            <th>Dashboard</th>\n            <th>Health</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${map(this.dashboardSummaries, (ds) => html `\n              <tr>\n                <td><i class=\"material-icons ${ds.overallStatus}\">${ds.icon}</i></td>\n                <td>${ds.name}</td>\n                <td>${ds.tabDescription}</td>\n              </tr>\n            `)}\n        </tbody>\n      </table>\n    `;\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchDashboardSummaries();\n    }\n    async fetchDashboardSummaries() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${this.groupName}/dashboard-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardSummariesResponse.fromJson(await response.json());\n            var summaries = [];\n            data.dashboardSummaries.forEach(summary => summaries.push(this.convertResponse(summary)));\n            this.dashboardSummaries = summaries;\n        }\n        catch (error) {\n            console.error(`Could not get grid rows: ${error}`);\n        }\n    }\n    convertResponse(summary) {\n        const sortedStatuses = [\n            \"PASSING\",\n            \"ACCEPTABLE\",\n            \"FLAKY\",\n            \"FAILING\",\n            \"STALE\",\n            \"BROKEN\",\n            \"PENDING\"\n        ];\n        var numPassing = 0;\n        var total = 0;\n        for (const key in summary.tabStatusCount) {\n            if (key === \"PASSING\") {\n                numPassing = summary.tabStatusCount[key];\n            }\n            total += summary.tabStatusCount[key];\n        }\n        var prefix = `${numPassing} / ${total} PASSING`;\n        var descriptions = [];\n        sortedStatuses.forEach(status => {\n            if (summary.tabStatusCount[status] > 0) {\n                descriptions.push(`${summary.tabStatusCount[status]} ${status}`);\n            }\n        });\n        if (descriptions.length > 0) {\n            prefix += \" (\" + descriptions.join(\", \") + \")\";\n        }\n        const rds = {\n            name: summary.name,\n            overallStatus: summary.overallStatus,\n            icon: TabStatusIcon.get(summary.overallStatus),\n            tabDescription: prefix\n        };\n        return rds;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGroupSummary",
+          "declaration": {
+            "name": "TestgridGroupSummary",
+            "module": "out-tsc/src/testgrid-group-summary.js"
           }
         }
       ]
@@ -2227,6 +2404,33 @@
           "declaration": {
             "name": "Grid",
             "module": "out-tsc/stories/testgrid-grid.stories.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/stories/testgrid-group-summary.stories.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "DashboardGroup"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "out-tsc/stories/testgrid-group-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardGroup",
+          "declaration": {
+            "name": "DashboardGroup",
+            "module": "out-tsc/stories/testgrid-group-summary.stories.js"
           }
         }
       ]
@@ -3603,6 +3807,129 @@
     },
     {
       "kind": "javascript-module",
+      "path": "out-tsc/src/gen/pb/summary/summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestInfo_Trend"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummary_TabStatus"
+        },
+        {
+          "kind": "variable",
+          "name": "FailingTestSummary",
+          "default": "new FailingTestSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "TestInfo",
+          "default": "new TestInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "HealthinessInfo",
+          "default": "new HealthinessInfo$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "AlertingData",
+          "default": "new AlertingData$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummary",
+          "default": "new DashboardTabSummary$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardTabSummaryMetrics",
+          "default": "new DashboardTabSummaryMetrics$Type()"
+        },
+        {
+          "kind": "variable",
+          "name": "DashboardSummary",
+          "default": "new DashboardSummary$Type()"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestInfo_Trend",
+          "declaration": {
+            "name": "TestInfo_Trend",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummary_TabStatus",
+          "declaration": {
+            "name": "DashboardTabSummary_TabStatus",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FailingTestSummary",
+          "declaration": {
+            "name": "FailingTestSummary",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestInfo",
+          "declaration": {
+            "name": "TestInfo",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "HealthinessInfo",
+          "declaration": {
+            "name": "HealthinessInfo",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "AlertingData",
+          "declaration": {
+            "name": "AlertingData",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummary",
+          "declaration": {
+            "name": "DashboardTabSummary",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardTabSummaryMetrics",
+          "declaration": {
+            "name": "DashboardTabSummaryMetrics",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DashboardSummary",
+          "declaration": {
+            "name": "DashboardSummary",
+            "module": "out-tsc/src/gen/pb/summary/summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "out-tsc/src/gen/pb/state/state.js",
       "declarations": [
         {
@@ -3761,129 +4088,6 @@
           "declaration": {
             "name": "ClusterRow",
             "module": "out-tsc/src/gen/pb/state/state.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/gen/pb/summary/summary.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestInfo_Trend"
-        },
-        {
-          "kind": "variable",
-          "name": "DashboardTabSummary_TabStatus"
-        },
-        {
-          "kind": "variable",
-          "name": "FailingTestSummary",
-          "default": "new FailingTestSummary$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "TestInfo",
-          "default": "new TestInfo$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "HealthinessInfo",
-          "default": "new HealthinessInfo$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "AlertingData",
-          "default": "new AlertingData$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "DashboardTabSummary",
-          "default": "new DashboardTabSummary$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "DashboardTabSummaryMetrics",
-          "default": "new DashboardTabSummaryMetrics$Type()"
-        },
-        {
-          "kind": "variable",
-          "name": "DashboardSummary",
-          "default": "new DashboardSummary$Type()"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestInfo_Trend",
-          "declaration": {
-            "name": "TestInfo_Trend",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "DashboardTabSummary_TabStatus",
-          "declaration": {
-            "name": "DashboardTabSummary_TabStatus",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "FailingTestSummary",
-          "declaration": {
-            "name": "FailingTestSummary",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TestInfo",
-          "declaration": {
-            "name": "TestInfo",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "HealthinessInfo",
-          "declaration": {
-            "name": "HealthinessInfo",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "AlertingData",
-          "declaration": {
-            "name": "AlertingData",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "DashboardTabSummary",
-          "declaration": {
-            "name": "DashboardTabSummary",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "DashboardTabSummaryMetrics",
-          "declaration": {
-            "name": "DashboardTabSummaryMetrics",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "DashboardSummary",
-          "declaration": {
-            "name": "DashboardSummary",
-            "module": "out-tsc/src/gen/pb/summary/summary.js"
           }
         }
       ]

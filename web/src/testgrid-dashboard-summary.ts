@@ -17,7 +17,7 @@ export interface TabSummaryInfo {
 }
 
 // TODO: define in a shared file (dashboard group also uses this)
-const tabStatusIcon = new Map<string, string>([
+export const TabStatusIcon = new Map<string, string>([
   ['PASSING', 'done'],
   ['FAILING', 'warning'],
   ['FLAKY', 'remove_circle_outline'],
@@ -30,7 +30,7 @@ const tabStatusIcon = new Map<string, string>([
 // TODO: generate the correct time representation
 function convertResponse(ts: TabSummary) {
   const tsi: TabSummaryInfo = {
-    icon: tabStatusIcon.get(ts.overallStatus)!,
+    icon: TabStatusIcon.get(ts.overallStatus)!,
     name: ts.tabName,
     overallStatus: ts.overallStatus,
     detailedStatusMsg: ts.detailedStatusMessage,
