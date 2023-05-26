@@ -47,7 +47,7 @@ export class TestgridDataContent extends LitElement {
       this.showTab = !this.showTab;
     }
     this.activeIndex = tabIndex;
-    navigateTab(this.dashboardName, this.tabName)
+    navigateTab(this.dashboardName, this.tabName, true)
   }
 
   /**
@@ -75,8 +75,8 @@ export class TestgridDataContent extends LitElement {
     }`;
     return html`
       ${tabBar}
-      ${!this.showTab ? 
-        html`<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` : 
+      ${!this.showTab ?
+        html`<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :
         html`<testgrid-grid .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid>`}
     `;
   }

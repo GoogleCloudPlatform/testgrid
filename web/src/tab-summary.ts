@@ -23,7 +23,7 @@ export class TabSummary extends LitElement {
           </div>
         </div>
         <div class="mid">
-          <div @click=${() => navigateTab(this.info?.dashboardName!, this.info?.name!)} class="tab-name">
+          <div @click=${() => navigateTab(this.info?.dashboardName!, this.info?.name!, false)} class="tab-name">
             ${this.info?.name}: ${this.info?.overallStatus}
           </div>
           <div class="detailed-status">${this.info?.detailedStatusMsg}</div>

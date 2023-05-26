@@ -29,7 +29,7 @@ const tabStatusIcon = new Map<string, string>([
 ]);
 
 // TODO: generate the correct time representation
-function convertResponse(ts: TabSummary) {
+function convertResponse(ts: TabSummary, dbName: string) {
   const tsi: TabSummaryInfo = {
     icon: tabStatusIcon.get(ts.overallStatus)!,
     name: ts.tabName,
@@ -40,7 +40,7 @@ function convertResponse(ts: TabSummary) {
     ).toISOString(),
     lastRunTimestamp: Timestamp.toDate(ts.lastRunTimestamp!).toISOString(),
     latestGreenBuild: ts.latestPassingBuild,
-    dashboardName: ts.dashboardName,
+    dashboardName: dbName,
   };
   return tsi;
 }
@@ -89,8 +89,7 @@ export class TestgridDashboardSummary extends LitElement {
       const data = ListTabSummariesResponse.fromJson(await response.json());
       var tabSummaries: Array<TabSummaryInfo> = [];
       data.tabSummaries.forEach(ts => {
-        const si = convertResponse(ts);
-        si.dashboardName = this.dashboardName
+        const si = convertResponse(ts, this.dashboardName);
         tabSummaries.push(si);
       });
       this.tabSummariesInfo = tabSummaries;
