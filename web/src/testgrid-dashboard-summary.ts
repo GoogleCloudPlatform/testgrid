@@ -14,6 +14,7 @@ export interface TabSummaryInfo {
   lastUpdateTimestamp: string;
   lastRunTimestamp: string;
   latestGreenBuild: string;
+  dashboardName: string;
 }
 
 // TODO: define in a shared file (dashboard group also uses this)
@@ -39,6 +40,7 @@ function convertResponse(ts: TabSummary) {
     ).toISOString(),
     lastRunTimestamp: Timestamp.toDate(ts.lastRunTimestamp!).toISOString(),
     latestGreenBuild: ts.latestPassingBuild,
+    dashboardName: ts.dashboardName,
   };
   return tsi;
 }
@@ -88,6 +90,7 @@ export class TestgridDashboardSummary extends LitElement {
       var tabSummaries: Array<TabSummaryInfo> = [];
       data.tabSummaries.forEach(ts => {
         const si = convertResponse(ts);
+        si.dashboardName = this.dashboardName
         tabSummaries.push(si);
       });
       this.tabSummariesInfo = tabSummaries;

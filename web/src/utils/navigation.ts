@@ -4,10 +4,10 @@
  * @param {string} path
  */
 export function navigate(name: string){
-    const url = new URL(location.href);
-    url.pathname = name;
-    history.pushState(null, '', url);
-    window.dispatchEvent(new CustomEvent('location-changed'));
+  const url = new URL(location.href);
+  url.pathname = name;
+  history.pushState(null, '', url);
+  window.dispatchEvent(new CustomEvent('location-changed'));
 }
 
 /**
@@ -23,4 +23,5 @@ export function navigateTab(dashboard: string, tab: string){
     url.pathname = `${dashboard}/${tab}`
   }
   history.pushState(null, '', url);
+  window.dispatchEvent(new CustomEvent('location-changed'));
 }
