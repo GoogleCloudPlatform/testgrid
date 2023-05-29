@@ -83,7 +83,7 @@ func TestListDashboardGroupHTTP(t *testing.T) {
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			expectedResponse: &apipb.ListDashboardGroupResponse{},
+			expectedResponse: &apipb.ListDashboardGroupsResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -97,7 +97,7 @@ func TestListDashboardGroupHTTP(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: &apipb.ListDashboardGroupResponse{
+			expectedResponse: &apipb.ListDashboardGroupsResponse{
 				DashboardGroups: []*apipb.Resource{
 					{
 						Name: "Group1",
@@ -121,7 +121,7 @@ func TestListDashboardGroupHTTP(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: &apipb.ListDashboardGroupResponse{
+			expectedResponse: &apipb.ListDashboardGroupsResponse{
 				DashboardGroups: []*apipb.Resource{
 					{
 						Name: "Group1",
@@ -147,7 +147,7 @@ func TestListDashboardGroupHTTP(t *testing.T) {
 				},
 			},
 			params: "?scope=gs://example",
-			expectedResponse: &apipb.ListDashboardGroupResponse{
+			expectedResponse: &apipb.ListDashboardGroupsResponse{
 				DashboardGroups: []*apipb.Resource{
 					{
 						Name: "Group1",
@@ -163,7 +163,7 @@ func TestListDashboardGroupHTTP(t *testing.T) {
 			expectedCode: http.StatusNotFound,
 		},
 	}
-	var resp apipb.ListDashboardGroupResponse
+	var resp apipb.ListDashboardGroupsResponse
 	RunTestsAgainstEndpoint(t, "/dashboard-groups", tests, &resp)
 }
 
@@ -266,7 +266,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 			config: map[string]*configpb.Configuration{
 				"gs://default/config": {},
 			},
-			expectedResponse: &apipb.ListDashboardResponse{},
+			expectedResponse: &apipb.ListDashboardsResponse{},
 			expectedCode:     http.StatusOK,
 		},
 		{
@@ -280,7 +280,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: &apipb.ListDashboardResponse{
+			expectedResponse: &apipb.ListDashboardsResponse{
 				Dashboards: []*apipb.DashboardResource{
 					{
 						Name: "Dashboard1",
@@ -314,7 +314,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 					},
 				},
 			},
-			expectedResponse: &apipb.ListDashboardResponse{
+			expectedResponse: &apipb.ListDashboardsResponse{
 				Dashboards: []*apipb.DashboardResource{
 					{
 						Name:               "Dashboard1",
@@ -342,7 +342,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 				},
 			},
 			params: "?scope=gs://example",
-			expectedResponse: &apipb.ListDashboardResponse{
+			expectedResponse: &apipb.ListDashboardsResponse{
 				Dashboards: []*apipb.DashboardResource{
 					{
 						Name: "Dashboard1",
@@ -358,7 +358,7 @@ func TestListDashboardsHTTP(t *testing.T) {
 			expectedCode: http.StatusNotFound,
 		},
 	}
-	var resp apipb.ListDashboardResponse
+	var resp apipb.ListDashboardsResponse
 	RunTestsAgainstEndpoint(t, "/dashboards", tests, &resp)
 }
 

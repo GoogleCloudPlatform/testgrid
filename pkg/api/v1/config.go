@@ -40,7 +40,7 @@ func queryParams(scope string) string {
 }
 
 // ListDashboardGroup returns every dashboard group in TestGrid
-func (s *Server) ListDashboardGroups(ctx context.Context, req *apipb.ListDashboardGroupRequest) (*apipb.ListDashboardGroupResponse, error) {
+func (s *Server) ListDashboardGroups(ctx context.Context, req *apipb.ListDashboardGroupsRequest) (*apipb.ListDashboardGroupsResponse, error) {
 	c, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (s *Server) ListDashboardGroups(ctx context.Context, req *apipb.ListDashboa
 	c.Mutex.RLock()
 	defer c.Mutex.RUnlock()
 
-	var resp apipb.ListDashboardGroupResponse
+	var resp apipb.ListDashboardGroupsResponse
 	for name := range c.Config.DashboardGroups {
 		rsc := apipb.Resource{
 			Name: name,
@@ -67,7 +67,7 @@ func (s *Server) ListDashboardGroups(ctx context.Context, req *apipb.ListDashboa
 // ListDashboardGroupHTTP returns every dashboard group in TestGrid
 // Response json: ListDashboardGroupResponse
 func (s Server) ListDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
-	req := apipb.ListDashboardGroupRequest{
+	req := apipb.ListDashboardGroupsRequest{
 		Scope: r.URL.Query().Get(scopeParam),
 	}
 
@@ -126,7 +126,7 @@ func (s Server) GetDashboardGroupHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListDashboard returns every dashboard in TestGrid
-func (s *Server) ListDashboards(ctx context.Context, req *apipb.ListDashboardRequest) (*apipb.ListDashboardResponse, error) {
+func (s *Server) ListDashboards(ctx context.Context, req *apipb.ListDashboardsRequest) (*apipb.ListDashboardsResponse, error) {
 	c, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (s *Server) ListDashboards(ctx context.Context, req *apipb.ListDashboardReq
 		}
 	}
 
-	var resp apipb.ListDashboardResponse
+	var resp apipb.ListDashboardsResponse
 	for name := range c.Config.Dashboards {
 		rsc := apipb.DashboardResource{
 			Name:               name,
@@ -160,7 +160,7 @@ func (s *Server) ListDashboards(ctx context.Context, req *apipb.ListDashboardReq
 // ListDashboardsHTTP returns every dashboard in TestGrid
 // Response json: ListDashboardResponse
 func (s Server) ListDashboardsHTTP(w http.ResponseWriter, r *http.Request) {
-	req := apipb.ListDashboardRequest{
+	req := apipb.ListDashboardsRequest{
 		Scope: r.URL.Query().Get(scopeParam),
 	}
 
