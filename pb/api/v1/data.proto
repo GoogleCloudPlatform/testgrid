@@ -12,12 +12,12 @@ import "pb/summary/summary.proto";
 service TestGridData {
   // GET /dashboards
   // Lists dashboard names
-  rpc ListDashboards(ListDashboardRequest) returns (ListDashboardResponse) {}
+  rpc ListDashboards(ListDashboardsRequest) returns (ListDashboardsResponse) {}
 
   // GET /dashboard-groups
   // Lists the dashboard group names
-  rpc ListDashboardGroups(ListDashboardGroupRequest)
-      returns (ListDashboardGroupResponse) {}
+  rpc ListDashboardGroups(ListDashboardGroupsRequest)
+      returns (ListDashboardGroupsResponse) {}
 
   // GET /dashboards/{dashboard}/tabs
   // Lists the dashboard tab names
@@ -56,13 +56,13 @@ service TestGridData {
   rpc GetDashboardSummary(GetDashboardSummaryRequest) returns (GetDashboardSummaryResponse){}
 }
 
-message ListDashboardRequest { string scope = 1; }
+message ListDashboardsRequest { string scope = 1; }
 
-message ListDashboardResponse { repeated DashboardResource dashboards = 1; }
+message ListDashboardsResponse { repeated DashboardResource dashboards = 1; }
 
-message ListDashboardGroupRequest { string scope = 1; }
+message ListDashboardGroupsRequest { string scope = 1; }
 
-message ListDashboardGroupResponse { repeated Resource dashboard_groups = 1; }
+message ListDashboardGroupsResponse { repeated Resource dashboard_groups = 1; }
 
 message ListDashboardTabsRequest {
   string scope = 1;
