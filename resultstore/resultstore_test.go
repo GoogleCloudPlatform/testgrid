@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	resultstore "google.golang.org/genproto/googleapis/devtools/resultstore/v2"
+	"google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 )
 
 func deepEqual(have, want interface{}) bool {

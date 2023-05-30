@@ -24,7 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	resultstore "google.golang.org/genproto/googleapis/devtools/resultstore/v2"
+	"google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 )
 
 // Invocation represents a flatted ResultStore invocation
