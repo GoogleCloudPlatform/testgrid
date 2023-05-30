@@ -29,6 +29,7 @@ const Template: Story<Args> = ({
     lastRunTimestamp: 'yesterday',
     lastUpdateTimestamp: 'today',
     latestGreenBuild: 'HULK!',
+    dashboardName: 'TEST1',
   };
 
   return html`<link

@@ -4,10 +4,10 @@
  * @param {string} path
  */
 export function navigate(name: string){
-    const url = new URL(location.href);
-    url.pathname = name;
-    history.pushState(null, '', url);
-    window.dispatchEvent(new CustomEvent('location-changed'));
+  const url = new URL(location.href);
+  url.pathname = name;
+  history.pushState(null, '', url);
+  window.dispatchEvent(new CustomEvent('location-changed'));
 }
 
 /**
@@ -15,7 +15,7 @@ export function navigate(name: string){
  * @param {string} dashboard
  * @param {string} tab
  */
-export function navigateTab(dashboard: string, tab: string){
+export function navigateTab(dashboard: string, tab: string, isTabBar: boolean){
   const url = new URL(location.href)
   if (tab === 'Summary'){
     url.pathname = `${dashboard}`
@@ -23,4 +23,7 @@ export function navigateTab(dashboard: string, tab: string){
     url.pathname = `${dashboard}/${tab}`
   }
   history.pushState(null, '', url);
+  if (!isTabBar){
+    window.dispatchEvent(new CustomEvent('location-changed'));
+  }
 }

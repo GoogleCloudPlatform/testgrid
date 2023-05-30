@@ -2,13 +2,12 @@ import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
-
+import { navigateTab } from './utils/navigation.js';
 @customElement('tab-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
   @property({ type: Object })
   info?: TabSummaryInfo;
-
   render() {
     return html`
       <link
@@ -24,7 +23,7 @@ export class TabSummary extends LitElement {
           </div>
         </div>
         <div class="mid">
-          <div class="name">
+          <div @click=${() => navigateTab(this.info?.dashboardName!, this.info?.name!, false)} class="tab-name">
             ${this.info?.name}: ${this.info?.overallStatus}
           </div>
           <div class="detailed-status">${this.info?.detailedStatusMsg}</div>
@@ -54,6 +53,14 @@ export class TabSummary extends LitElement {
       margin: 5px;
       overflow: hidden;
       align-items: center;
+    }
+
+    .tab-name { // title/link in each Summary card
+      cursor: pointer;
+      position: relative;
+      padding: 4px 8px;
+      color: #00c;
+      text-decoration: underline;
     }
 
     .stats {
