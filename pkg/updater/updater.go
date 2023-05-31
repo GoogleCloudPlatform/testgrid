@@ -844,6 +844,9 @@ func truncateLastColumn(grid []InflatedColumn, orig, max int, entity string) {
 			delete(grid[last].Cells, truncatedRowName)
 			continue
 		}
+		if cell.Result == statuspb.TestStatus_NO_RESULT {
+			continue
+		}
 		cell.Result = statuspb.TestStatus_UNKNOWN
 		cell.Message = fmt.Sprintf("%d %s grid exceeds maximum size of %d %ss", orig, entity, max, entity)
 		cell.Icon = "..." // Overwritten by the UI

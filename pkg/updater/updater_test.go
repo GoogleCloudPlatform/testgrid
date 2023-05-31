@@ -2429,6 +2429,87 @@ func Test_ShrinkGridInline(t *testing.T) {
 			},
 		},
 		{
+			name: "truncate sparse column data",
+			tg:   &configpb.TestGroup{},
+			cols: []InflatedColumn{
+				{
+					Column: &statepb.Column{
+						Name:  "one",
+						Build: "one",
+					},
+					Cells: map[string]Cell{
+						"row-0": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"row-1": {
+							Result: statuspb.TestStatus_NO_RESULT,
+						},
+						"row-2": {
+							Result: statuspb.TestStatus_NO_RESULT,
+						},
+					},
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "two",
+						Build: "two",
+					},
+					Cells: func() map[string]Cell {
+						cells := map[string]Cell{}
+
+						for i := 0; i < 100; i++ {
+							cells[fmt.Sprintf("row-%d", i)] = Cell{
+								Result: statuspb.TestStatus_FAIL,
+							}
+						}
+						return cells
+					}(),
+				},
+				{
+					Column: &statepb.Column{
+						Name:  "three",
+						Build: "three",
+					},
+					Cells: map[string]Cell{
+						"row-0": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"row-1": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+						"row-2": {
+							Result: statuspb.TestStatus_FAIL,
+						},
+					},
+				},
+			},
+			ceiling: 200,
+			want: func(tg *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
+				expect := []InflatedColumn{
+					// Drop the rows that are empty after trimming (e.g. row-1 and row-2).
+					{
+						Column: &statepb.Column{
+							Name:  "one",
+							Build: "one",
+						},
+						Cells: map[string]Cell{
+							"row-0": {
+								Result: statuspb.TestStatus_FAIL,
+							},
+						},
+					},
+				}
+				logger := logrus.New()
+				grid := constructGridFromGroupConfig(logger, tg, cols, issues)
+				buf, _ := gcs.MarshalGrid(grid)
+				orig := len(buf)
+
+				truncateLastColumn(expect, orig, 200, "byte")
+
+				return constructGridFromGroupConfig(logger, tg, expect, issues)
+			},
+		},
+		{
 			name: "delete most column data",
 			tg:   &configpb.TestGroup{},
 			cols: []InflatedColumn{
