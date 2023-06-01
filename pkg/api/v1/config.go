@@ -134,6 +134,7 @@ func (s *Server) ListDashboards(ctx context.Context, req *apipb.ListDashboardsRe
 	c.Mutex.RLock()
 	defer c.Mutex.RUnlock()
 
+	// TODO(sultan-duisenbay): consider moving this to config snapshot or cached config
 	dashboardsToGroups := make(map[string]string)
 	for _, groupConfig := range c.Config.DashboardGroups {
 		for _, dashboardName := range groupConfig.DashboardNames {
