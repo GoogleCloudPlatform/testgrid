@@ -42,6 +42,11 @@ service TestGridData {
   // Returns information on grid rows, and data within those rows
   rpc ListRows(ListRowsRequest) returns (ListRowsResponse) {}
 
+  // GET /dashboards/{dashboard}/tabs/{tab}
+  // Returns the tab config's metadata
+  rpc GetDashboardTab(GetDashboardTabRequest)
+      returns (GetDashboardTabResponse) {}
+
   // GET /dashboards/{dashboard}/tab-summaries
   // Returns the list of tab summaries for dashboard.
   rpc ListTabSummaries(ListTabSummariesRequest) returns (ListTabSummariesResponse){}
@@ -160,6 +165,41 @@ message ListRowsResponse {
     string message = 3;
     string icon = 4;
   }
+}
+
+message GetDashboardTabRequest {
+  string scope = 1;
+  string dashboard = 2;
+  string tab = 3;
+}
+
+message GetDashboardTabResponse {
+
+    // The name of the dashboard tab to display in the client.
+    string name = 1;
+
+    // The name of the TestGroup specifying the test results for this tab.
+    string test_group_name = 2;
+
+    // Default code search path for searching regressions. This value overrides
+    // the default in the TestGroup config so that dashboards may be customized
+    // separately.
+    string code_search_path = 3;
+
+    // A description paragraph to be displayed.
+    string description = 4;
+
+    // Path to the test result stored in gcs (some-bucket/some/optional/path).
+    string gcs_prefix = 5;
+  
+    enum PrimaryGrouping {
+      PRIMARY_GROUPING_NONE = 0;
+      PRIMARY_GROUPING_BUILD = 1;
+    }
+
+    // A primary grouping strategy for grouping test results in columns.
+    // If a primary grouping is specified, the fallback grouping is ignored.
+    PrimaryGrouping primary_grouping = 6;
 }
 
 // A Resource is a REST resource, often returned by a LIST command
