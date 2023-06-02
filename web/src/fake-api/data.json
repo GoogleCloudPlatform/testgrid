@@ -1,10 +1,16 @@
 {
   "dashboards": {
     "dashboards": [
-      {"name":"fake-dashboard-1", "link":"dashboards/fake-dashboard-1"},
-      {"name":"fake-dashboard-2", "link":"dashboards/fake-dashboard-2"},
-      {"name":"fake-dashboard-3", "link":"dashboards/fake-dashboard-3"},
-      {"name":"fake-dashboard-4", "link":"dashboards/fake-dashboard-4"}
+      {"name":"fake-dashboard-1", "link":"dashboards/fake-dashboard-1", "dashboard_group_name":"fake-dashboard-group-1"},
+      {"name":"fake-dashboard-2", "link":"dashboards/fake-dashboard-2", "dashboard_group_name":"fake-dashboard-group-1"},
+      {"name":"fake-dashboard-3", "link":"dashboards/fake-dashboard-3", "dashboard_group_name":"fake-dashboard-group-1"},
+      {"name":"fake-dashboard-4", "link":"dashboards/fake-dashboard-4", "dashboard_group_name":"fake-dashboard-group-2"},
+      {"name":"fake-dashboard-5", "link":"dashboards/fake-dashboard-5", "dashboard_group_name":"fake-dashboard-group-2"},
+      {"name":"fake-dashboard-6", "link":"dashboards/fake-dashboard-6", "dashboard_group_name":"fake-dashboard-group-3"},
+      {"name":"fake-dashboard-7", "link":"dashboards/fake-dashboard-7", "dashboard_group_name":"fake-dashboard-group-3"},
+      {"name":"fake-dashboard-8", "link":"dashboards/fake-dashboard-8"},
+      {"name":"fake-dashboard-9", "link":"dashboards/fake-dashboard-9"},
+      {"name":"fake-dashboard-10", "link":"dashboards/fake-dashboard-10"}
     ]
   },
   "dashboard-groups": {
@@ -14,20 +20,23 @@
       {"name":"fake-dashboard-group-3", "link":"dashboard-groups/fake-dashboard-group-3"}
     ]
   },
-  "fake-dashboard-group-1": {
+  "fake-dashboard-group-1-dashboards": {
     "dashboards": [
       {"name":"fake-dashboard-1", "link":"dashboards/fake-dashboard-1"},
-      {"name":"fake-dashboard-4", "link":"dashboards/fake-dashboard-4"}
+      {"name":"fake-dashboard-2", "link":"dashboards/fake-dashboard-2"},
+      {"name":"fake-dashboard-3", "link":"dashboards/fake-dashboard-3"}
     ]
   },
-  "fake-dashboard-group-2": {
+  "fake-dashboard-group-2-dashboards": {
     "dashboards": [
-      {"name":"fake-dashboard-2", "link":"dashboards/fake-dashboard-1"}
+      {"name":"fake-dashboard-4", "link":"dashboards/fake-dashboard-4"},
+      {"name":"fake-dashboard-5", "link":"dashboards/fake-dashboard-5"}
     ]
   },
-  "fake-dashboard-group-3": {
+  "fake-dashboard-group-3-dashboards": {
     "dashboards": [
-      {"name":"fake-dashboard-3", "link":"dashboards/fake-dashboard-1"}
+      {"name":"fake-dashboard-6", "link":"dashboards/fake-dashboard-6"},
+      {"name":"fake-dashboard-7", "link":"dashboards/fake-dashboard-7"}
     ]
   },
   "fake-dashboard-group-1-dashboard-summaries": {
@@ -37,7 +46,7 @@
         "overall_status":"FAILING",
         "tab_status_count": {
           "PASSING":2,
-          "FLAKY":4,
+          "FLAKY":1,
           "FAILING":1
         }
       },
@@ -45,136 +54,501 @@
         "name":"fake-dashboard-2", 
         "overall_status":"FLAKY",
         "tab_status_count": {
-          "PASSING": 3,
+          "PASSING": 1,
           "ACCEPTABLE": 1,
-          "FLAKY": 5
+          "FLAKY": 1
+        }
+      },
+      {
+        "name":"fake-dashboard-3", 
+        "overall_status":"PASSING",
+        "tab_status_count": {
+          "PASSING": 2
         }
       }
     ]
   },
-  "tabs": {
-    "dashboard_tabs":[
-      {"name":"fake_tab_1","link":"/dashboards/any/tabs/fake_tab_1"},
-      {"name":"fake_tab_2","link":"/dashboards/any/tabs/fake_tab_2"},
-      {"name":"fake_tab_3","link":"/dashboards/any/tabs/fake_tab_3"},
-      {"name":"fake_tab_4","link":"/dashboards/any/tabs/fake_tab_4"},
-      {"name":"fake_tab_5","link":"/dashboards/any/tabs/fake_tab_5"},
-      {"name":"fake_tab_6","link":"/dashboards/any/tabs/fake_tab_6"},
-      {"name":"fake_tab_7","link":"/dashboards/any/tabs/fake_tab_7"},
-      {"name":"fake_tab_8","link":"/dashboards/any/tabs/fake_tab_8"},
-      {"name":"fake_tab_9","link":"/dashboards/any/tabs/fake_tab_9"}
+  "fake-dashboard-group-2-dashboard-summaries": {
+    "dashboard_summaries": [
+      {
+        "name":"fake-dashboard-4", 
+        "overall_status":"ACCEPTABLE",
+        "tab_status_count": {
+          "PASSING": 1,
+          "ACCEPTABLE": 2
+        }
+      },
+      {
+        "name":"fake-dashboard-5", 
+        "overall_status":"PENDING",
+        "tab_status_count": {
+          "PASSING": 2,
+          "PENDING": 1
+        }
+      }
     ]
   },
-  "tab-summaries": {
+  "fake-dashboard-group-3-dashboard-summaries": {
+    "dashboard_summaries": [
+      {
+        "name":"fake-dashboard-6", 
+        "overall_status":"BROKEN",
+        "tab_status_count": {
+          "PASSING": 1,
+          "BROKEN": 2
+        }
+      },
+      {
+        "name":"fake-dashboard-7", 
+        "overall_status":"PENDING",
+        "tab_status_count": {
+          "PASSING": 2,
+          "STALE": 1
+        }
+      }
+    ]
+  },
+  "fake-dashboard-1-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-1",
+        "link": "/dashboards/fake-dashboard-1/fake-tab-1"
+      },
+      {
+        "name": "fake-tab-2",
+        "link": "/dashboards/fake-dashboard-1/fake-tab-2"
+      },
+      {
+        "name": "fake-tab-3",
+        "link": "/dashboards/fake-dashboard-1/fake-tab-3"
+      },
+      {
+        "name": "fake-tab-4",
+        "link": "/dashboards/fake-dashboard-1/fake-tab-4"
+      }
+    ]
+  },
+  "fake-dashboard-2-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-5",
+        "link": "/dashboards/fake-dashboard-2/fake-tab-5"
+      },
+      {
+        "name": "fake-tab-6",
+        "link": "/dashboards/fake-dashboard-2/fake-tab-6"
+      },
+      {
+        "name": "fake-tab-7",
+        "link": "/dashboards/fake-dashboard-2/fake-tab-7"
+      }
+    ]
+  },
+  "fake-dashboard-3-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-8",
+        "link": "/dashboards/fake-dashboard-3/fake-tab-8"
+      },
+      {
+        "name": "fake-tab-9",
+        "link": "/dashboards/fake-dashboard-3/fake-tab-9"
+      }
+    ]
+  },
+  "fake-dashboard-4-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-10",
+        "link": "/dashboards/fake-dashboard-4/fake-tab-10"
+      },
+      {
+        "name": "fake-tab-11",
+        "link": "/dashboards/fake-dashboard-4/fake-tab-11"
+      },
+      {
+        "name": "fake-tab-12",
+        "link": "/dashboards/fake-dashboard-4/fake-tab-12"
+      }
+    ]
+  },
+  "fake-dashboard-5-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-13",
+        "link": "/dashboards/fake-dashboard-5/fake-tab-13"
+      },
+      {
+        "name": "fake-tab-14",
+        "link": "/dashboards/fake-dashboard-5/fake-tab-14"
+      },
+      {
+        "name": "fake-tab-15",
+        "link": "/dashboards/fake-dashboard-5/fake-tab-16"
+      }
+    ]
+  },
+  "fake-dashboard-6-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-16",
+        "link": "/dashboards/fake-dashboard-6/fake-tab-16"
+      },
+      {
+        "name": "fake-tab-17",
+        "link": "/dashboards/fake-dashboard-6/fake-tab-17"
+      },
+      {
+        "name": "fake-tab-18",
+        "link": "/dashboards/fake-dashboard-6/fake-tab-18"
+      }
+    ]
+  },
+  "fake-dashboard-7-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-19",
+        "link": "/dashboards/fake-dashboard-7/fake-tab-19"
+      },
+      {
+        "name": "fake-tab-20",
+        "link": "/dashboards/fake-dashboard-7/fake-tab-20"
+      },
+      {
+        "name": "fake-tab-21",
+        "link": "/dashboards/fake-dashboard-7/fake-tab-21"
+      }
+    ]
+  },
+  "fake-dashboard-8-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-22",
+        "link": "/dashboards/fake-dashboard-8/fake-tab-22"
+      }
+    ]
+  },
+  "fake-dashboard-9-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-23",
+        "link": "/dashboards/fake-dashboard-9/fake-tab-23"
+      }
+    ]
+  },
+  "fake-dashboard-10-tabs": {
+    "dashboard_tabs": [
+      {
+        "name": "fake-tab-24",
+        "link": "/dashboards/fake-dashboard-10/fake-tab-24"
+      }
+    ]
+  },
+  "fake-dashboard-1-tab-summaries":{
     "tab_summaries": [
       {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_1", 
-        "overall_status":"PASSING", 
-        "detailed_status_message":"Tab stats: 5 of 5 (100.0%) recent columns passed (7 of 7 or 100.0% cells)",
-        "last_run_timestamp": "2023-05-08T09:10:28Z",
-        "last_update_timestamp": "2023-05-08T09:12:28Z",
-        "latest_passing_build": "1254637721"
+        "dashboard_name": "fake-dashboard-1",
+        "tab_name": "fake-tab-1",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "1234567"
       },
       {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_2", 
-        "overall_status":"FAILING", 
-        "detailed_status_message":"Tab stats: 1 of 5 (20.0%) recent columns passed (2 of 7 or 28.7% cells)",
-        "last_run_timestamp": "2023-05-07T11:10:28Z",
-        "last_update_timestamp": "2023-05-07T11:10:28Z",
-        "latest_passing_build": "12546123347"
+        "dashboard_name": "fake-dashboard-1",
+        "tab_name": "fake-tab-2",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 4 of 5 (80 %) recent columns passed (6 of 7 or 85.71 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "8765432"
       },
       {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_3", 
-        "overall_status":"FLAKY", 
-        "detailed_status_message":"Tab stats: 3 of 5 (60.0%) recent columns passed (5 of 7 or 71.4% cells)",
-        "last_run_timestamp": "2023-05-06T15:10:22Z",
-        "last_update_timestamp": "2023-05-06T14:59:59Z",
-        "latest_passing_build": "1259993347"
+        "dashboard_name": "fake-dashboard-1",
+        "tab_name": "fake-tab-3",
+        "overall_status": "FLAKY",
+        "detailed_status_message": "Tab stats: 3 of 5 (60 %) recent columns passed (5 of 7 or 71.43 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "0987654"
       },
       {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_4", 
-        "overall_status":"STALE", 
-        "detailed_status_message":"Tab stats: 1 of 5 (20.0%) recent columns passed (2 of 7 or 28.7% cells)",
-        "last_run_timestamp": "2023-05-08T04:04:17Z",
-        "last_update_timestamp": "2023-05-08T04:10:28Z",
-        "latest_passing_build": "12578923347"
-      },
-      {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_5", 
-        "overall_status":"BROKEN", 
-        "detailed_status_message":"Tab stats: 0 of 5 (0.0%) recent columns passed (0 of 7 or 0.0% cells)",
-        "last_run_timestamp": "2023-05-08T09:10:28Z",
-        "last_update_timestamp": "2023-05-08T09:10:28Z",
-        "latest_passing_build": "44555111"
-      },
-      {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_6", 
-        "overall_status":"PENDING", 
-        "detailed_status_message":"Tab stats: 2 of 2 (100.0%) recent columns passed (7 of 7 or 100.0% cells)",
-        "last_run_timestamp": "2023-05-08T09:10:28Z",
-        "last_update_timestamp": "2023-05-08T09:10:28Z",
-        "latest_passing_build": "1254699723347"
-      },
-      {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_7", 
-        "overall_status":"ACCEPTABLE", 
-        "detailed_status_message":"Tab stats: 4 of 5 (80.0%) recent columns passed (6 of 7 or 85.7% cells)",
-        "last_run_timestamp": "2023-05-08T09:10:28Z",
-        "last_update_timestamp": "2023-05-08T09:10:28Z",
-        "latest_passing_build": "12523333347"
-      },
-      {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_8", 
-        "overall_status":"PASSING", 
-        "detailed_status_message":"Tab stats: 5 of 5 (100.0%) recent columns passed (7 of 7 or 100.0% cells)",
-        "last_run_timestamp": "2023-05-08T09:10:28Z",
-        "last_update_timestamp": "2023-05-08T09:10:28Z",
-        "latest_passing_build": "12546663347"
-      },
-      {
-        "dashboard_name":"any", 
-        "tab_name": "fake_tab_9", 
-        "overall_status":"FAILING", 
-        "detailed_status_message":"Tab stats: 0 of 5 (0.0%) recent columns passed (0 of 7 or 0.0% cells)",
-        "last_run_timestamp": "2023-05-08T09:10:28Z",
-        "last_update_timestamp": "2023-05-08T09:10:28Z",
-        "latest_passing_build": "12588847"
+        "dashboard_name": "fake-dashboard-1",
+        "tab_name": "fake-tab-4",
+        "overall_status": "FAILING",
+        "detailed_status_message": "Tab stats: 2 of 5 (40 %) recent columns passed (4 of 7 or 57.14 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "3210987"
       }
     ]
   },
-  "fake_tab_1": {
+  "fake-dashboard-2-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-2",
+        "tab_name": "fake-tab-5",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "12345678"
+      },
+      {
+        "dashboard_name": "fake-dashboard-2",
+        "tab_name": "fake-tab-6",
+        "overall_status": "FLAKY",
+        "detailed_status_message": "Tab stats: 3 of 5 (60 %) recent columns passed (5 of 7 or 71.43 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "98765432"
+      },
+      {
+        "dashboard_name": "fake-dashboard-2",
+        "tab_name": "fake-tab-7",
+        "overall_status": "ACCEPTABLE",
+        "detailed_status_message": "Tab stats: 4 of 5 (80 %) recent columns passed (6 of 7 or 85.71 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "87654321"
+      }
+    ]
+  },
+  "fake-dashboard-3-tab-summaries":{
+    "tab_summaries": [
+        {
+        "dashboard_name": "fake-dashboard-3",
+        "tab_name": "fake-tab-8",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "1234567"
+      },
+      {
+        "dashboard_name": "fake-dashboard-3",
+        "tab_name": "fake-tab-9",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 4 of 5 (80 %) recent columns passed (6 of 7 or 85.71 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "8765432"
+      }
+    ]
+  },
+  "fake-dashboard-4-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-4",
+        "tab_name": "fake-tab-10",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "1234567"
+      },
+      {
+        "dashboard_name": "fake-dashboard-4",
+        "tab_name": "fake-tab-11",
+        "overall_status": "ACCEPTABLE",
+        "detailed_status_message": "Tab stats: 4 of 5 (80 %) recent columns passed (6 of 7 or 85.71 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "8765432"
+      },
+      {
+        "dashboard_name": "fake-dashboard-4",
+        "tab_name": "fake-tab-12",
+        "overall_status": "ACCEPTABLE",
+        "detailed_status_message": "Tab stats: 3 of 5 (60 %) recent columns passed (5 of 7 or 71.43 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "0987654"
+      }
+    ]
+  },
+  "fake-dashboard-5-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-5",
+        "tab_name": "fake-tab-13",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "1234567"
+      },
+      {
+        "dashboard_name": "fake-dashboard-5",
+        "tab_name": "fake-tab-14",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 4 of 5 (80 %) recent columns passed (6 of 7 or 85.71 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "8765432"
+      },
+      {
+        "dashboard_name": "fake-dashboard-5",
+        "tab_name": "fake-tab-15",
+        "overall_status": "PENDING",
+        "detailed_status_message": "Tab stats: 3 of 5 (60 %) recent columns passed (5 of 7 or 71.43 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "0987654"
+      }
+    ]
+  },
+  "fake-dashboard-6-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-6",
+        "tab_name": "fake-tab-16",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "1234567"
+      },
+      {
+        "dashboard_name": "fake-dashboard-6",
+        "tab_name": "fake-tab-17",
+        "overall_status": "BROKEN",
+        "detailed_status_message": "Tab stats: 0 of 5 (0 %) recent columns passed (0 of 7 or 0 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "8765432"
+      },
+      {
+        "dashboard_name": "fake-dashboard-6",
+        "tab_name": "fake-tab-18",
+        "overall_status": "BROKEN",
+        "detailed_status_message": "Tab stats: 0 of 5 (0 %) recent columns passed (0 of 7 or 0 % cells)",
+        "last_run_timestamp": "2023-05-29T11:25:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:25:20.000Z",
+        "latest_passing_build": "0987654"
+      }
+    ]
+  },
+  "fake-dashboard-7-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-7",
+        "tab_name": "fake-tab-19",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:35:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:35:20.000Z",
+        "latest_passing_build": "123456"
+      },
+      {
+        "dashboard_name": "fake-dashboard-7",
+        "tab_name": "fake-tab-20",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 4 of 5 (80 %) recent columns passed (6 of 7 or 85.71 % cells)",
+        "last_run_timestamp": "2023-05-29T11:35:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:35:20.000Z",
+        "latest_passing_build": "876543"
+      },
+      {
+        "dashboard_name": "fake-dashboard-7",
+        "tab_name": "fake-tab-21",
+        "overall_status": "STALE",
+        "detailed_status_message": "Tab stats: 3 of 5 (60 %) recent columns passed (5 of 7 or 71.43 % cells)",
+        "last_run_timestamp": "2023-05-29T11:35:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:35:20.000Z",
+        "latest_passing_build": "098765"
+      }
+    ]
+  },
+  "fake-dashboard-8-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-8",
+        "tab_name": "fake-tab-22",
+        "overall_status": "FAILING",
+        "detailed_status_message": "Tab stats: 0 of 5 (0 %) recent columns passed (0 of 7 or 0 % cells)",
+        "last_run_timestamp": "2023-05-29T11:35:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:35:20.000Z",
+        "latest_passing_build": "123456"
+      }
+    ]
+  },
+  "fake-dashboard-9-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-9",
+        "tab_name": "fake-tab-23",
+        "overall_status": "PASSING",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:35:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:35:20.000Z",
+        "latest_passing_build": "123456"
+      }
+    ]
+  },
+  "fake-dashboard-10-tab-summaries":{
+    "tab_summaries": [
+      {
+        "dashboard_name": "fake-dashboard-10",
+        "tab_name": "fake-tab-24",
+        "overall_status": "STALE",
+        "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
+        "last_run_timestamp": "2023-05-29T11:35:20.000Z",
+        "last_update_timestamp": "2023-05-29T11:35:20.000Z",
+        "latest_passing_build": "123456"
+      }
+    ]
+  },
+  "fake-tab-1-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1", 
+        "name": "//pythontests/test_file.py:unit_12",
         "cells": [
-          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
-          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
-          {"result": 1, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
-          {"result": 1, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
-          {"result": 1, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+          {
+            "result": 1,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440000"
+          },
+          {
+            "result": 1,
+            "cell_id": "a1234567-e89b-12d3-a456-426655440001"
+          },
+          {
+            "result": 1,
+            "cell_id": "b1234567-e89b-12d3-a456-426655440002"
+          },
+          {
+            "result": 2,
+            "cell_id": "c1234567-e89b-12d3-a456-426655440003"
+          },
+          {
+            "result": 3,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440004"
+          }
         ]
       },
       {
-        "name":"//gotests:unit_33",
+        "name": "//javatests/test_file.java:unit_17",
         "cells": [
+          {
+            "result": 9,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440005"
+          },
           {},
           {},
-          {"result":1, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
-          {"result":1, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
-          {}
+          {
+            "result": 5,
+            "cell_id": "c1234567-e89b-12d3-a456-426655440008"
+          },
+          {
+            "result": 8,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440009"
+          }
         ]
       }
     ]
   },
-  "fake_tab_2": {
+  "fake-tab-2-rows": {
     "rows": [
       {
         "name":"//javatests:unit_2", 
@@ -198,16 +572,8 @@
       }
     ]
   },
-  "fake_tab_3-headers": {
-    "headers": [
-      {"build": "567"},
-      {"build": "456"},
-      {"build": "345"},
-      {"build": "234"},
-      {"build": "123"}
-    ]
-  },
-  "fake_tab_3": {
+
+  "fake-tab-3-rows": {
     "rows": [
       {
         "name":"//javatests:unit_44", 
@@ -231,7 +597,7 @@
       }
     ]
   },
-  "fake_tab_4": {
+  "fake-tab-4-rows": {
     "rows": [
       {
         "name":"//javatests:unit_331", 
@@ -255,7 +621,7 @@
       }
     ]
   },
-  "fake_tab_5": {
+  "fake-tab-5-rows": {
     "rows": [
       {
         "name":"//javatests:unit_1111", 
@@ -279,7 +645,7 @@
       }
     ]
   },
-  "fake_tab_6": {
+  "fake-tab-6-rows": {
     "rows": [
       {
         "name":"//javatests:unit_patch", 
@@ -311,7 +677,7 @@
       }
     ]
   },
-  "fake_tab_7": {
+  "fake-tab-7-rows": {
     "rows": [
       {
         "name":"//javatests/somepath:test", 
@@ -335,7 +701,7 @@
       }
     ]
   },
-  "fake_tab_8": {
+  "fake-tab-8-rows": {
     "rows": [
       {
         "name":"//javatests/path/to/yeah:unit_1111", 
@@ -359,7 +725,7 @@
       }
     ]
   },
-  "fake_tab_9": {
+  "fake-tab-9-rows": {
     "rows": [
       {
         "name":"//javatests:unit_1111", 
@@ -381,6 +747,408 @@
           {}
         ]
       }
+    ]
+  },
+  "fake-tab-10-rows": {
+    "rows": [
+      {
+        "name": "//pythontests/test_file.py:unit_12",
+        "cells": [
+          {
+            "result": 1,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440000"
+          },
+          {
+            "result": 1,
+            "cell_id": "a1234567-e89b-12d3-a456-426655440001"
+          },
+          {
+            "result": 1,
+            "cell_id": "b1234567-e89b-12d3-a456-426655440002"
+          },
+          {
+            "result": 2,
+            "cell_id": "c1234567-e89b-12d3-a456-426655440003"
+          },
+          {
+            "result": 3,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440004"
+          }
+        ]
+      },
+      {
+        "name": "//javatests/test_file.java:unit_17",
+        "cells": [
+          {
+            "result": 9,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440005"
+          },
+          {},
+          {},
+          {
+            "result": 5,
+            "cell_id": "c1234567-e89b-12d3-a456-426655440008"
+          },
+          {
+            "result": 8,
+            "cell_id": "d1234567-e89b-12d3-a456-426655440009"
+          }
+        ]
+      }
+    ]
+  },
+  "fake-tab-11-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_2", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 12, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_35",
+        "cells": [
+          {},
+          {},
+          {"result":1, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {}
+        ]
+      }
+    ]
+  },
+
+  "fake-tab-12-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_44", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 1, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 1, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 12, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_77",
+        "cells": [
+          {},
+          {},
+          {"result":1, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-13-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_331", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 1, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 10, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_or_integration",
+        "cells": [
+          {},
+          {},
+          {"result":1, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-14-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 11, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 11, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {},
+          {"result":11, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":11, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-15-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_patch", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
+        ]
+      },
+      {
+        "name":"//pythontests:unit_patch", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
+        ]
+      },
+      {
+        "name":"//haskelltests:unit_patch", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_hash",
+        "cells": [
+          {},
+          {"result":1, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"}
+        ]
+      }
+    ]
+  },
+  "fake-tab-16-rows": {
+    "rows": [
+      {
+        "name":"//javatests/somepath:test", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 1, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 1, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 1, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests/somepath:unit_5324",
+        "cells": [
+          {},
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":1, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-17-rows": {
+    "rows": [
+      {
+        "name":"//javatests/path/to/yeah:unit_1111", 
+        "cells": [
+          {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 1, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 1, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 1, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests/some/path/again:unit_5324",
+        "cells": [
+          {"result":1, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":1, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-18-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-19-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-20-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-21-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-22-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-23-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-24-rows": {
+    "rows": [
+      {
+        "name":"//javatests:unit_1111", 
+        "cells": [
+          {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
+          {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
+          {"result": 11, "cell_id": "3a0a62d3-d4d3-4ea2-8f11-0546fcc60fb9"},
+          {"result": 12, "cell_id": "d80006c0-cc5b-43ed-94e2-bd449b8295c3"},
+          {"result": 11, "cell_id": "77a98e66-9778-4f2b-91a3-21ee4124e230"}
+        ]
+      },
+      {
+        "name":"//gotests:unit_5324",
+        "cells": [
+          {},
+          {"result":12, "cell_id": "1b0b578b-5467-40c6-a3c4-0a35e24b01d4"},
+          {"result":12, "cell_id": "a4c384fd-bc5e-4b12-8b36-3a5d231fc58a"},
+          {},
+          {}
+        ]
+      }
+    ]
+  },
+  "fake-tab-3-headers": {
+    "headers": [
+      {"build": "567"},
+      {"build": "456"},
+      {"build": "345"},
+      {"build": "234"},
+      {"build": "123"}
     ]
   }
 }
