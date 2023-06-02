@@ -16,7 +16,7 @@ describe('Testgrid Grid page', () => {
     // See https://open-wc.org/docs/testing/helpers/#test-a-custom-class-with-properties
     const tagName = defineCE(class extends TestgridGrid {});
     const tag = unsafeStatic(tagName);
-    element = await fixture(html`<${tag} .dashboardName=${'fake-dashboard-1'} .tabName=${'fake_tab_3'}></${tag}>`);
+    element = await fixture(html`<${tag} .dashboardName=${'fake-dashboard-1'} .tabName=${'fake-tab-3'}></${tag}>`);
   });
 
   // TODO - add accessibility tests

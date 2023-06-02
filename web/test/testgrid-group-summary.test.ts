@@ -31,11 +31,13 @@ describe('Testgrid Group Summary page', () => {
       },
     );
 
-    expect(element.dashboardSummaries.length).to.be.equal(2);
+    expect(element.dashboardSummaries.length).to.be.equal(3);
     // verify the summary health description
-    expect(element.dashboardSummaries[0].tabDescription).to.have.string('2 / 7 PASSING');
-    expect(element.dashboardSummaries[0].tabDescription).to.have.string('(2 PASSING, 4 FLAKY, 1 FAILING)');
-    expect(element.dashboardSummaries[1].tabDescription).to.have.string('3 / 9 PASSING');
-    expect(element.dashboardSummaries[1].tabDescription).to.have.string('(3 PASSING, 1 ACCEPTABLE, 5 FLAKY)');
+    expect(element.dashboardSummaries[0].tabDescription).to.have.string('2 / 4 PASSING');
+    expect(element.dashboardSummaries[0].tabDescription).to.have.string('(2 PASSING, 1 FLAKY, 1 FAILING)');
+    expect(element.dashboardSummaries[1].tabDescription).to.have.string('1 / 3 PASSING');
+    expect(element.dashboardSummaries[1].tabDescription).to.have.string('(1 PASSING, 1 ACCEPTABLE, 1 FLAKY)');
+    expect(element.dashboardSummaries[2].tabDescription).to.have.string('2 / 2 PASSING');
+    expect(element.dashboardSummaries[2].tabDescription).to.have.string('(2 PASSING)');
   });
 });

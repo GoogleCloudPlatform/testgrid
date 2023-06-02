@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import { ListDashboardResponse, ListDashboardGroupResponse } from './gen/pb/api/v1/data.js';
+import { ListDashboardsResponse, ListDashboardGroupsResponse } from './gen/pb/api/v1/data.js';
 import { navigate } from './utils/navigation';
 import '@material/mwc-button';
 import '@material/mwc-list';
@@ -74,7 +74,7 @@ export class TestgridIndex extends LitElement {
                 id=${index}
                 class="column card dashboard-group"
                 raised
-                @click="${() => this.getRespectiveDashboards(dash)}"
+                @click="${() => this.fetchRespectiveDashboards(dash)}"
               >
                 <div class="container">
                   <p>${dash}</p>
@@ -101,13 +101,14 @@ export class TestgridIndex extends LitElement {
     try{
       fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards`).then(
         async response => {
-          const resp = ListDashboardResponse.fromJson(await response.json());
+          const resp = ListDashboardsResponse.fromJson(await response.json());
           const dashboards: string[] = [];
 
           resp.dashboards.forEach(db => {
-            dashboards.push(db.name);
+            if (db.dashboardGroupName === ""){
+              dashboards.push(db.name);
+            }
           });
-
           this.dashboards = dashboards;
         }
       );
@@ -121,7 +122,7 @@ export class TestgridIndex extends LitElement {
     try{
       fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups`).then(
         async response => {
-          const resp = ListDashboardGroupResponse.fromJson(await response.json());
+          const resp = ListDashboardGroupsResponse.fromJson(await response.json());
           const dashboardGroups: string[] = [];
 
           resp.dashboardGroups.forEach(db => {
@@ -137,12 +138,12 @@ export class TestgridIndex extends LitElement {
   }
 
   // fetch the list of respective dashboards for a group from API
-  async getRespectiveDashboards(name: string) {
+  async fetchRespectiveDashboards(name: string) {
     this.show = false;
     try {
       fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${name}`).then(
         async response => {
-          const resp = ListDashboardResponse.fromJson(await response.json());
+          const resp = ListDashboardsResponse.fromJson(await response.json());
           const respectiveDashboards: string[] = [];
 
           resp.dashboards.forEach(ts => {
