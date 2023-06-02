@@ -32,6 +32,6 @@ describe('Testgrid Dashboard Summary page', () => {
       },
     );
 
-    expect(element.tabSummariesInfo).to.not.be.empty;
+    expect(element.tabSummariesInfo.length).to.equal(4);
   });
 });

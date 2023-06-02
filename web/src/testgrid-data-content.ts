@@ -47,7 +47,7 @@ export class TestgridDataContent extends LitElement {
       this.showTab = !this.showTab;
     }
     this.activeIndex = tabIndex;
-    navigateTab(this.dashboardName, this.tabName, true)
+    navigateTab(this.dashboardName, this.tabName)
   }
 
   /**
@@ -57,6 +57,22 @@ export class TestgridDataContent extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.fetchTabNames();
+    window.addEventListener('tab-changed', (evt: Event) => {
+      this.tabName = (<CustomEvent>evt).detail.tabName;
+      this.showTab = !this.showTab;
+      this.highlightIndex(this.tabName);
+      navigateTab(this.dashboardName, this.tabName!);
+    });
+    window.addEventListener('popstate', () => {
+      console.log(location.pathname);
+      console.log(location.pathname.split('/'));
+      if (location.pathname.split('/').length === 2){
+        this.showTab = false;
+        this.tabName = undefined;
+        this.highlightIndex(this.tabName);
+        navigateTab(this.dashboardName, this.tabName!);
+      }
+    })
   }
 
   /**
@@ -105,6 +121,7 @@ export class TestgridDataContent extends LitElement {
   // identify which tab to highlight on the tab bar
   private highlightIndex(tabName: string | undefined) {
     if (tabName === undefined){
+      this.activeIndex = 0;
       return
     }
     var index = this.tabNames.indexOf(tabName);

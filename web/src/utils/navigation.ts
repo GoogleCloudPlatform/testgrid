@@ -15,15 +15,12 @@ export function navigate(name: string){
  * @param {string} dashboard
  * @param {string} tab
  */
-export function navigateTab(dashboard: string, tab: string, isTabBar: boolean){
+export function navigateTab(dashboard: string, tab: string){
   const url = new URL(location.href)
-  if (tab === 'Summary'){
+  if (tab === 'Summary' || tab === undefined){
     url.pathname = `${dashboard}`
   } else {
     url.pathname = `${dashboard}/${tab}`
   }
   history.pushState(null, '', url);
-  if (!isTabBar){
-    window.dispatchEvent(new CustomEvent('location-changed'));
-  }
 }

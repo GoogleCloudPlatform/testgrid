@@ -21,6 +21,7 @@ describe('Testgrid Data Content page', () => {
   });
 
   // TODO - add accessibility tests
+  // TODO - add tests for tab switching behaviour
   it('fetches the tab names and renders the tab bar', async () => {
     await waitUntil(
       () => element.shadowRoot!.querySelector('mwc-tab-bar'),
