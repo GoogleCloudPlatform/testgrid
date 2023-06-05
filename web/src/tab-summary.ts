@@ -2,7 +2,6 @@ import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
-import { navigateTab } from './utils/navigation.js';
 @customElement('tab-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
@@ -23,7 +22,7 @@ export class TabSummary extends LitElement {
           </div>
         </div>
         <div class="mid">
-          <div @click=${() => navigateTab(this.info?.dashboardName!, this.info?.name!, false)} class="tab-name">
+          <div @click=${() => this.changeTab()} class="tab-name">
             ${this.info?.name}: ${this.info?.overallStatus}
           </div>
           <div class="detailed-status">${this.info?.detailedStatusMsg}</div>
@@ -42,8 +41,30 @@ export class TabSummary extends LitElement {
       </div>
     `;
   }
+  /**
+   * Lets the data content element know that the tab changed
+   * 
+   * @fires tab-changed
+   * @param tabName string
+   */
+  private changeTab(){
+    window.dispatchEvent(new CustomEvent('tab-changed',{
+      detail: {
+        tabName: this.info?.name!
+      },
+    }))
+  }
 
   static styles = css`
+
+    .tab-name { // title/link in each Summary card
+      cursor: pointer;
+      position: relative;
+      padding: 4px 8px;
+      color: #00c;
+      text-decoration: underline;
+    }
+
     .tab {
       border: 1px solid #6b90da;
       border-radius: 6px;
