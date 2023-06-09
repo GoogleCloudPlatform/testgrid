@@ -41,7 +41,7 @@ export class TabSummary extends LitElement {
           </div>
         </div>
       </div>
-      <div class="dropdown-container">
+      ${this.info?.failuresSummary !== undefined ? html `<div class="dropdown-container">
         <button @click="${(e: Event) => this.dropdownTable()}" class="btn">
           ${this.visible ? html`- Hide Alerts -`: html `- Show Alerts -`}
         </button>
@@ -54,7 +54,7 @@ export class TabSummary extends LitElement {
               <th style="text-align:left">Last Passed</th>
             </tr>
             ${map(
-              this.info?.failuresSummary?.topFailingTests,
+              this.info?.failuresSummary!.topFailingTests,
               (test: any) => html`
                 <tr>
                   <td>${test.displayName}</td>
@@ -66,6 +66,7 @@ export class TabSummary extends LitElement {
           </table>`
           : ''}
       </div>
+      `:''}
     `;
   }
   /**
