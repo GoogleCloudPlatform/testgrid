@@ -3,7 +3,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
-import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
+import { FailuresSummary, ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import './tab-summary.js';
 
 export interface TabSummaryInfo {
@@ -15,8 +15,24 @@ export interface TabSummaryInfo {
   lastRunTimestamp: string;
   latestGreenBuild: string;
   dashboardName: string;
+  failuresSummary?: FailuresSummaryInfo;
 }
 
+interface FailuresSummaryInfo {
+  topFailingTests: FailingTestInfo[];
+  failureStats: FailureStats;
+}
+
+interface FailingTestInfo {
+  displayName: string;
+  failCount: number;
+  passTimestamp: string;
+  failTimestamp: string;
+}
+
+interface FailureStats {
+  numFailingTests: number;
+}
 // TODO: define in a shared file (dashboard group also uses this)
 export const TabStatusIcon = new Map<string, string>([
   ['PASSING', 'done'],
@@ -42,6 +58,27 @@ function convertResponse(ts: TabSummary) {
     latestGreenBuild: ts.latestPassingBuild,
     dashboardName: ts.dashboardName,
   };
+  if (ts.failuresSummary !== undefined) {
+    tsi.failuresSummary = {} as FailuresSummaryInfo
+  }
+  if (ts.failuresSummary?.failureStats !== undefined) {
+    var failureStats: FailureStats = {
+      numFailingTests: ts.failuresSummary.failureStats.numFailingTests,
+    }
+    tsi.failuresSummary!.failureStats = failureStats
+  }
+  if (ts.failuresSummary?.topFailingTests !== undefined) {
+    tsi.failuresSummary!.topFailingTests = [];
+    ts.failuresSummary?.topFailingTests.forEach( (element, i) => {
+    const obj: FailingTestInfo = {
+      displayName: element.displayName,
+      failCount: element.failCount,
+      passTimestamp: Timestamp.toDate(element.passTimestamp!).toISOString(),
+      failTimestamp: Timestamp.toDate(element.failTimestamp!).toISOString(),
+    }
+    tsi.failuresSummary!.topFailingTests.push(obj)
+    });
+  }
   return tsi;
 }
 

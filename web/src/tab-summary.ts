@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { map } from 'lit/directives/map.js';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
@@ -6,6 +7,7 @@ import { TabSummaryInfo } from './testgrid-dashboard-summary';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
   @property({ type: Object })
+  @property() visible = false;
   info?: TabSummaryInfo;
   render() {
     return html`
@@ -39,11 +41,36 @@ export class TabSummary extends LitElement {
           </div>
         </div>
       </div>
+      <div class="dropdown-container">
+        <button @click="${(e: Event) => this.dropdownTable()}" class="btn">
+          ${this.visible ? html`- Hide Alerts -`: html `- Show Alerts -`}
+        </button>
+      ${this.visible ? html`
+          <table class="dropdown-menu">
+            <tr>
+              <th style="text-align:left">Test Name</th>
+              <th style="text-align:left"># Fails</th>
+              <th style="text-align:left">First Failed</th>
+              <th style="text-align:left">Last Passed</th>
+            </tr>
+            ${map(
+              this.info?.failuresSummary?.topFailingTests,
+              (test: any) => html`
+                <tr>
+                  <td>${test.displayName}</td>
+                  <td>${test.failCount}</td>
+                  <td>${test.passTimestamp}</td>
+                  <td>${test.failTimestamp}</td>
+                </tr>
+              `)}
+          </table>`
+          : ''}
+      </div>
     `;
   }
   /**
    * Lets the data content element know that the tab changed
-   * 
+   *
    * @fires tab-changed
    * @param tabName string
    */
@@ -55,8 +82,35 @@ export class TabSummary extends LitElement {
     }))
   }
 
-  static styles = css`
+  private dropdownTable(){
+    this.visible = !this.visible;
+    this.dispatchEvent(new CustomEvent('visibleChange', { detail: this.visible }));
+  }
 
+  static styles = css`
+  .dropdown-container {
+    border-left: 1px solid #6b90da;
+    border-right: 1px solid #6b90da;
+    border-bottom: 1px solid #6b90da;
+    border-radius: 0 0 6px 6px;
+    color: #000;
+    display: block;
+    position: relative;
+  }
+
+  .dropdown-menu {
+    position: relative;
+    width: 100%;
+  }
+
+  .btn {
+    display: grid;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    position: relative;
+    width: 100%;
+  }
     .tab-name { // title/link in each Summary card
       cursor: pointer;
       position: relative;
@@ -67,11 +121,11 @@ export class TabSummary extends LitElement {
 
     .tab {
       border: 1px solid #6b90da;
-      border-radius: 6px;
+      border-radius: 6px 6px 0 0;
       color: #000;
       display: grid;
       grid-template-columns: 1fr 17fr 6fr;
-      margin: 5px;
+      margin-top: 5px;
       overflow: hidden;
       align-items: center;
     }
@@ -126,4 +180,5 @@ export class TabSummary extends LitElement {
       background-color: #000;
     }
   `;
+
 }
