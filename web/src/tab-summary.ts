@@ -7,7 +7,7 @@ import { TabSummaryInfo } from './testgrid-dashboard-summary';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
   @property({ type: Object })
-  @property() visible = false;
+  @property() showFailureSummary = false;
   info?: TabSummaryInfo;
   render() {
     return html`
@@ -43,9 +43,9 @@ export class TabSummary extends LitElement {
       </div>
       ${this.info?.failuresSummary !== undefined ? html `<div class="dropdown-container">
         <button @click="${(e: Event) => this.dropdownTable()}" class="btn">
-          ${this.visible ? html`- Hide Alerts -`: html `- Show Alerts -`}
+          ${this.showFailureSummary ? html`- Hide Alerts -`: html `- Show Alerts -`}
         </button>
-      ${this.visible ? html`
+      ${this.showFailureSummary ? html`
           <table class="dropdown-menu">
             <tr>
               <th style="text-align:left">Test Name</th>
@@ -84,8 +84,8 @@ export class TabSummary extends LitElement {
   }
 
   private dropdownTable(){
-    this.visible = !this.visible;
-    this.dispatchEvent(new CustomEvent('visibleChange', { detail: this.visible }));
+    this.showFailureSummary = !this.showFailureSummary;
+    this.dispatchEvent(new CustomEvent('visibleChange', { detail: this.showFailureSummary }));
   }
 
   static styles = css`

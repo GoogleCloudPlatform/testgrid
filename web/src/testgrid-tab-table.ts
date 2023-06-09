@@ -5,14 +5,13 @@ import {TabSummaryInfo} from './testgrid-dashboard-summary';
 
 @customElement('testgrid-tab-table')
 export class TestgridTabTable extends LitElement {
-  @property() clicked = '';
   @property() visible = false;
   info?: TabSummaryInfo;
 
   render() {
     return html`
     <div class="dropdown-container">
-        <button @click="${(e: Event) => this.dropdownTable()}" class="btn">
+        <button @click="${() => this.dropdownTable()}" class="btn">
           ${this.visible ? html`- Hide Alerts -`: html `- Show Alerts -`}
         </button>
       ${this.visible ? html`
@@ -30,7 +29,6 @@ export class TestgridTabTable extends LitElement {
   }
   private dropdownTable(){
     this.visible = !this.visible;
-    this.dispatchEvent(new CustomEvent('visibleChange', { detail: this.visible }));
   }
 
   static styles = css`

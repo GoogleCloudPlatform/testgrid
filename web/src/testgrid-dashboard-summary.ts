@@ -60,14 +60,11 @@ function convertResponse(ts: TabSummary) {
   };
   if (ts.failuresSummary !== undefined) {
     tsi.failuresSummary = {} as FailuresSummaryInfo
-  }
-  if (ts.failuresSummary?.failureStats !== undefined) {
-    var failureStats: FailureStats = {
-      numFailingTests: ts.failuresSummary.failureStats.numFailingTests,
+    const failureStats: FailureStats = {
+      numFailingTests: ts.failuresSummary!.failureStats!.numFailingTests,
     }
     tsi.failuresSummary!.failureStats = failureStats
-  }
-  if (ts.failuresSummary?.topFailingTests !== undefined) {
+
     tsi.failuresSummary!.topFailingTests = [];
     ts.failuresSummary?.topFailingTests.forEach( (element, i) => {
     const obj: FailingTestInfo = {
