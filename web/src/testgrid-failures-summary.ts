@@ -1,20 +1,21 @@
 import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { customElement, property } from 'lit/decorators.js';
-import {TabSummaryInfo} from './testgrid-dashboard-summary';
+import { customElement, property, state } from 'lit/decorators.js';
+import { TabSummaryInfo } from './testgrid-dashboard-summary';
+import { map } from 'lit/directives/map.js';
 
 @customElement('testgrid-failures-summary')
 export class TestgridTabTable extends LitElement {
-  @property() visible = false;
-  info?: TabSummaryInfo;
+  @state() showFailureSummary = false;
+  @property() info?: TabSummaryInfo;
 
   render() {
     return html`
     <div class="dropdown-container">
         <button @click="${() => this.dropdownTable()}" class="btn">
-          ${this.visible ? html`- Hide Alerts -`: html `- Show Alerts -`}
+          ${this.showFailureSummary ? html`- Hide Alerts -`: html `- Show Alerts -`}
         </button>
-      ${this.visible ? html`
+      ${this.showFailureSummary ? html`
           <table class="dropdown-menu">
             <tr>
               <th>Test Name</th>
@@ -22,13 +23,23 @@ export class TestgridTabTable extends LitElement {
               <th>First Failed</th>
               <th>Last Passed</th>
             </tr>
+            ${map(
+              this.info?.failuresSummary!.topFailingTests,
+              (test: any) => html`
+                <tr>
+                  <td>${test.displayName}</td>
+                  <td>${test.failCount}</td>
+                  <td>${test.passTimestamp}</td>
+                  <td>${test.failTimestamp}</td>
+                </tr>
+              `)}
           </table>`
           : ''}
       </div>
     `
   }
   private dropdownTable(){
-    this.visible = !this.visible;
+    this.showFailureSummary = !this.showFailureSummary;
   }
 
   static styles = css`
@@ -54,6 +65,10 @@ export class TestgridTabTable extends LitElement {
       cursor: pointer;
       position: relative;
       width: 100%;
+    }
+
+    th {
+      text-align: left;
     }
   `
 }

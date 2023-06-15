@@ -3,12 +3,13 @@ import { map } from 'lit/directives/map.js';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
+import './testgrid-failures-summary';
 @customElement('tab-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
   @property({ type: Object })
-  @property() showFailureSummary = false;
   info?: TabSummaryInfo;
+
   render() {
     return html`
       <link
@@ -41,32 +42,9 @@ export class TabSummary extends LitElement {
           </div>
         </div>
       </div>
-      ${this.info?.failuresSummary !== undefined ? html `<div class="dropdown-container">
-        <button @click="${(e: Event) => this.dropdownTable()}" class="btn">
-          ${this.showFailureSummary ? html`- Hide Alerts -`: html `- Show Alerts -`}
-        </button>
-      ${this.showFailureSummary ? html`
-          <table class="dropdown-menu">
-            <tr>
-              <th style="text-align:left">Test Name</th>
-              <th style="text-align:left"># Fails</th>
-              <th style="text-align:left">First Failed</th>
-              <th style="text-align:left">Last Passed</th>
-            </tr>
-            ${map(
-              this.info?.failuresSummary!.topFailingTests,
-              (test: any) => html`
-                <tr>
-                  <td>${test.displayName}</td>
-                  <td>${test.failCount}</td>
-                  <td>${test.passTimestamp}</td>
-                  <td>${test.failTimestamp}</td>
-                </tr>
-              `)}
-          </table>`
-          : ''}
-      </div>
-      `:''}
+      ${this.info?.failuresSummary !== undefined ?
+        html `<testgrid-failures-summary .info=${this.info}>
+        </testgrid-failures-summary>`:''}
     `;
   }
   /**
@@ -83,35 +61,7 @@ export class TabSummary extends LitElement {
     }))
   }
 
-  private dropdownTable(){
-    this.showFailureSummary = !this.showFailureSummary;
-    this.dispatchEvent(new CustomEvent('visibleChange', { detail: this.showFailureSummary }));
-  }
-
   static styles = css`
-  .dropdown-container {
-    border-left: 1px solid #6b90da;
-    border-right: 1px solid #6b90da;
-    border-bottom: 1px solid #6b90da;
-    border-radius: 0 0 6px 6px;
-    color: #000;
-    display: block;
-    position: relative;
-  }
-
-  .dropdown-menu {
-    position: relative;
-    width: 100%;
-  }
-
-  .btn {
-    display: grid;
-    border-radius: var(--radius);
-    border: none;
-    cursor: pointer;
-    position: relative;
-    width: 100%;
-  }
     .tab-name { // title/link in each Summary card
       cursor: pointer;
       position: relative;
