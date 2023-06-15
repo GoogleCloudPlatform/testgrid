@@ -3,7 +3,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import {TabSummaryInfo} from './testgrid-dashboard-summary';
 
-@customElement('testgrid-tab-table')
+@customElement('testgrid-failures-summary')
 export class TestgridTabTable extends LitElement {
   @property() visible = false;
   info?: TabSummaryInfo;
