@@ -15,6 +15,25 @@ export interface TabSummaryInfo {
   lastRunTimestamp: string;
   latestGreenBuild: string;
   dashboardName: string;
+  healthinessSummary?: HealthinessSummaryInfo;
+}
+
+interface HealthinessSummaryInfo {
+  topFlakyTests: FlakyTestInfo[];
+  healthinessStats: HealthinessStats;
+}
+
+interface FlakyTestInfo {
+  displayName: string;
+  flakiness: number;
+}
+
+interface HealthinessStats {
+  startTimestamp: string;
+  endTimestamp: string;
+  numFlakyTests: number;
+  averageFlakiness: number;
+  previousFlakiness: number;
 }
 
 // TODO: define in a shared file (dashboard group also uses this)
@@ -42,6 +61,27 @@ function convertResponse(ts: TabSummary) {
     latestGreenBuild: ts.latestPassingBuild,
     dashboardName: ts.dashboardName,
   };
+
+  if (ts.healthinessSummary !== undefined) {
+    tsi.healthinessSummary = {} as HealthinessSummaryInfo
+    const healthinessStats: HealthinessStats = {
+      startTimestamp: Timestamp.toDate(ts.healthinessSummary!.healthinessStats!.start!).toISOString(),
+      endTimestamp: Timestamp.toDate(ts.healthinessSummary!.healthinessStats!.end!).toISOString(),
+      numFlakyTests: ts.healthinessSummary!.healthinessStats!.numFlakyTests,
+      averageFlakiness: ts.healthinessSummary!.healthinessStats!.averageFlakiness,
+      previousFlakiness: ts.healthinessSummary!.healthinessStats!.previousFlakiness,
+    }
+    tsi.healthinessSummary!.healthinessStats = healthinessStats
+
+    tsi.healthinessSummary!.topFlakyTests = [];
+    ts.healthinessSummary?.topFlakyTests.forEach( test => {
+      const flakyTest: FlakyTestInfo = {
+        displayName: test.displayName,
+        flakiness: test.flakiness,
+      }
+      tsi.healthinessSummary!.topFlakyTests.push(flakyTest)
+    })
+  }
   return tsi;
 }
 

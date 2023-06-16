@@ -2,6 +2,8 @@ import { LitElement, html, css } from 'lit';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
+import './testgrid-healthiness-summary';
+
 @customElement('tab-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
@@ -39,11 +41,14 @@ export class TabSummary extends LitElement {
           </div>
         </div>
       </div>
+      ${this.info?.healthinessSummary !== undefined ?
+        html `<testgrid-healthiness-summary .info=${this.info}>
+        </testgrid-healthiness-summary>`:''}
     `;
   }
   /**
    * Lets the data content element know that the tab changed
-   * 
+   *
    * @fires tab-changed
    * @param tabName string
    */
