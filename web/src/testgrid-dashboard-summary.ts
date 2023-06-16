@@ -3,7 +3,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
-import { FailuresSummary, ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
+import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import './tab-summary.js';
 
 export interface TabSummaryInfo {
@@ -16,6 +16,7 @@ export interface TabSummaryInfo {
   latestGreenBuild: string;
   dashboardName: string;
   failuresSummary?: FailuresSummaryInfo;
+  healthinessSummary?: HealthinessSummaryInfo;
 }
 
 interface FailuresSummaryInfo {
@@ -33,6 +34,25 @@ interface FailingTestInfo {
 interface FailureStats {
   numFailingTests: number;
 }
+
+interface HealthinessSummaryInfo {
+  topFlakyTests: FlakyTestInfo[];
+  healthinessStats: HealthinessStats;
+}
+
+interface FlakyTestInfo {
+  displayName: string;
+  flakiness: number;
+}
+
+interface HealthinessStats {
+  startTimestamp: string;
+  endTimestamp: string;
+  numFlakyTests: number;
+  averageFlakiness: number;
+  previousFlakiness: number;
+}
+
 // TODO: define in a shared file (dashboard group also uses this)
 export const TabStatusIcon = new Map<string, string>([
   ['PASSING', 'done'],
@@ -75,6 +95,27 @@ function convertResponse(ts: TabSummary) {
     }
     tsi.failuresSummary!.topFailingTests.push(obj)
     });
+  }
+
+  if (ts.healthinessSummary !== undefined) {
+    tsi.healthinessSummary = {} as HealthinessSummaryInfo
+    const healthinessStats: HealthinessStats = {
+      startTimestamp: Timestamp.toDate(ts.healthinessSummary!.healthinessStats!.start!).toISOString(),
+      endTimestamp: Timestamp.toDate(ts.healthinessSummary!.healthinessStats!.end!).toISOString(),
+      numFlakyTests: ts.healthinessSummary!.healthinessStats!.numFlakyTests,
+      averageFlakiness: ts.healthinessSummary!.healthinessStats!.averageFlakiness,
+      previousFlakiness: ts.healthinessSummary!.healthinessStats!.previousFlakiness,
+    }
+    tsi.healthinessSummary!.healthinessStats = healthinessStats
+
+    tsi.healthinessSummary!.topFlakyTests = [];
+    ts.healthinessSummary?.topFlakyTests.forEach( test => {
+      const flakyTest: FlakyTestInfo = {
+        displayName: test.displayName,
+        flakiness: test.flakiness,
+      }
+      tsi.healthinessSummary!.topFlakyTests.push(flakyTest)
+    })
   }
   return tsi;
 }

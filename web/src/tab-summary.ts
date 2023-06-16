@@ -4,6 +4,7 @@ import { map } from 'lit/directives/map.js';
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
 import './testgrid-failures-summary';
+import './testgrid-healthiness-summary';
 @customElement('tab-summary')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TabSummary extends LitElement {
@@ -45,6 +46,9 @@ export class TabSummary extends LitElement {
       ${this.info?.failuresSummary !== undefined ?
         html `<testgrid-failures-summary .info=${this.info}>
         </testgrid-failures-summary>`:''}
+      ${this.info?.healthinessSummary !== undefined ?
+        html `<testgrid-healthiness-summary .info=${this.info}>
+        </testgrid-healthiness-summary>`:''}
     `;
   }
   /**
