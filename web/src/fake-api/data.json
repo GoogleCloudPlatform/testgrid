@@ -42,7 +42,7 @@
   "fake-dashboard-group-1-dashboard-summaries": {
     "dashboard_summaries": [
       {
-        "name":"fake-dashboard-1", 
+        "name":"fake-dashboard-1",
         "overall_status":"FAILING",
         "tab_status_count": {
           "PASSING":2,
@@ -51,7 +51,7 @@
         }
       },
       {
-        "name":"fake-dashboard-2", 
+        "name":"fake-dashboard-2",
         "overall_status":"FLAKY",
         "tab_status_count": {
           "PASSING": 1,
@@ -60,7 +60,7 @@
         }
       },
       {
-        "name":"fake-dashboard-3", 
+        "name":"fake-dashboard-3",
         "overall_status":"PASSING",
         "tab_status_count": {
           "PASSING": 2
@@ -71,7 +71,7 @@
   "fake-dashboard-group-2-dashboard-summaries": {
     "dashboard_summaries": [
       {
-        "name":"fake-dashboard-4", 
+        "name":"fake-dashboard-4",
         "overall_status":"ACCEPTABLE",
         "tab_status_count": {
           "PASSING": 1,
@@ -79,7 +79,7 @@
         }
       },
       {
-        "name":"fake-dashboard-5", 
+        "name":"fake-dashboard-5",
         "overall_status":"PENDING",
         "tab_status_count": {
           "PASSING": 2,
@@ -91,7 +91,7 @@
   "fake-dashboard-group-3-dashboard-summaries": {
     "dashboard_summaries": [
       {
-        "name":"fake-dashboard-6", 
+        "name":"fake-dashboard-6",
         "overall_status":"BROKEN",
         "tab_status_count": {
           "PASSING": 1,
@@ -99,7 +99,7 @@
         }
       },
       {
-        "name":"fake-dashboard-7", 
+        "name":"fake-dashboard-7",
         "overall_status":"PENDING",
         "tab_status_count": {
           "PASSING": 2,
@@ -253,7 +253,20 @@
         "detailed_status_message": "Tab stats: 5 of 5 (100 %) recent columns passed (7 of 7 or 100 % cells)",
         "last_run_timestamp": "2023-05-29T11:25:20.000Z",
         "last_update_timestamp": "2023-05-29T11:25:20.000Z",
-        "latest_passing_build": "1234567"
+        "latest_passing_build": "1234567",
+        "failures_summary": {
+          "top_failing_tests": [
+            {
+              "display_name": "fake-test-1",
+              "fail_count": 1,
+              "pass_timestamp":"2023-05-29T11:25:20.000Z",
+              "fail_timestamp":"2023-05-29T11:25:20.000Z"
+            }
+          ],
+          "failure_stats": {
+            "num_failing_tests":1
+          }
+        }
       },
       {
         "dashboard_name": "fake-dashboard-1",
@@ -551,7 +564,7 @@
   "fake-tab-2-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_2", 
+        "name":"//javatests:unit_2",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -576,7 +589,7 @@
   "fake-tab-3-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_44", 
+        "name":"//javatests:unit_44",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -600,7 +613,7 @@
   "fake-tab-4-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_331", 
+        "name":"//javatests:unit_331",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -624,7 +637,7 @@
   "fake-tab-5-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 11, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -648,21 +661,21 @@
   "fake-tab-6-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_patch", 
+        "name":"//javatests:unit_patch",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
         ]
       },
       {
-        "name":"//pythontests:unit_patch", 
+        "name":"//pythontests:unit_patch",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
         ]
       },
       {
-        "name":"//haskelltests:unit_patch", 
+        "name":"//haskelltests:unit_patch",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
@@ -680,7 +693,7 @@
   "fake-tab-7-rows": {
     "rows": [
       {
-        "name":"//javatests/somepath:test", 
+        "name":"//javatests/somepath:test",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -704,7 +717,7 @@
   "fake-tab-8-rows": {
     "rows": [
       {
-        "name":"//javatests/path/to/yeah:unit_1111", 
+        "name":"//javatests/path/to/yeah:unit_1111",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -728,7 +741,7 @@
   "fake-tab-9-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -800,7 +813,7 @@
   "fake-tab-11-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_2", 
+        "name":"//javatests:unit_2",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -825,7 +838,7 @@
   "fake-tab-12-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_44", 
+        "name":"//javatests:unit_44",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -849,7 +862,7 @@
   "fake-tab-13-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_331", 
+        "name":"//javatests:unit_331",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -873,7 +886,7 @@
   "fake-tab-14-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 11, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -897,21 +910,21 @@
   "fake-tab-15-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_patch", 
+        "name":"//javatests:unit_patch",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
         ]
       },
       {
-        "name":"//pythontests:unit_patch", 
+        "name":"//pythontests:unit_patch",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
         ]
       },
       {
-        "name":"//haskelltests:unit_patch", 
+        "name":"//haskelltests:unit_patch",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"}
@@ -929,7 +942,7 @@
   "fake-tab-16-rows": {
     "rows": [
       {
-        "name":"//javatests/somepath:test", 
+        "name":"//javatests/somepath:test",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -953,7 +966,7 @@
   "fake-tab-17-rows": {
     "rows": [
       {
-        "name":"//javatests/path/to/yeah:unit_1111", 
+        "name":"//javatests/path/to/yeah:unit_1111",
         "cells": [
           {"result": 1, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 1, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -977,7 +990,7 @@
   "fake-tab-18-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -1001,7 +1014,7 @@
   "fake-tab-19-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -1025,7 +1038,7 @@
   "fake-tab-20-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -1049,7 +1062,7 @@
   "fake-tab-21-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -1073,7 +1086,7 @@
   "fake-tab-22-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -1097,7 +1110,7 @@
   "fake-tab-23-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
@@ -1121,7 +1134,7 @@
   "fake-tab-24-rows": {
     "rows": [
       {
-        "name":"//javatests:unit_1111", 
+        "name":"//javatests:unit_1111",
         "cells": [
           {"result": 11, "cell_id": "083a0e96-da83-4e77-aa25-045144fd80aa"},
           {"result": 12, "cell_id": "36b1c179-e370-43c3-a05e-b3da51a9753a"},
