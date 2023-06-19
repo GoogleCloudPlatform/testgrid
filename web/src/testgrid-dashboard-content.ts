@@ -1,9 +1,8 @@
-import { LitElement, html, css } from 'lit';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { when } from 'lit/directives/when.js';
-import { navigateTab } from './utils/navigation.js';
+import { navigateDashboardWithoutReload, navigateTabWithoutReload } from './utils/navigation.js';
 import { ListDashboardTabsResponse } from './gen/pb/api/v1/data.js';
 import '@material/mwc-tab';
 import '@material/mwc-tab-bar';
@@ -13,10 +12,10 @@ import './testgrid-grid';
 /**
  * Class definition for the `testgrid-data-content` element.
  * Acts as a container for dashboard summary or grid data.
+ * Renders the tab bar with tab names irrespective of the view.
  */
-@customElement('testgrid-data-content')
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export class TestgridDataContent extends LitElement {
+@customElement('testgrid-dashboard-content')
+export class TestgridDashboardContent extends LitElement {
 
   @state()
   tabNames: string[] = [];
@@ -24,8 +23,8 @@ export class TestgridDataContent extends LitElement {
   @state()
   activeIndex = 0;
 
-  @property({ type: Boolean })
-  showTab = false;
+  @property({ type: String})
+  groupName = '';
 
   @property({ type: String })
   dashboardName = '';
@@ -36,18 +35,22 @@ export class TestgridDataContent extends LitElement {
   // set the functionality when any tab is clicked on
   private onTabActivated(event: CustomEvent<{index: number}>) {
     const tabIndex = event.detail.index;
-
     if (tabIndex === this.activeIndex){
       return
     }
 
-    this.tabName = this.tabNames[tabIndex];
-
-    if (this.activeIndex === 0 || tabIndex === 0){
-      this.showTab = !this.showTab;
+    // change from dashboard view to grid view or between grid views
+    if ((this.activeIndex === 0) || (this.activeIndex !== 0 && tabIndex !== 0)){
+      this.tabName = this.tabNames[tabIndex];
+      navigateTabWithoutReload(this.groupName, this.dashboardName, this.tabName!)
     }
+    // change from dashboard view to group view
+    else {
+      this.tabName = undefined;
+      navigateDashboardWithoutReload(this.groupName, this.dashboardName);
+    }
+
     this.activeIndex = tabIndex;
-    navigateTab(this.dashboardName, this.tabName)
   }
 
   /**
@@ -56,23 +59,28 @@ export class TestgridDataContent extends LitElement {
    */
   connectedCallback() {
     super.connectedCallback();
-    this.fetchTabNames();
     window.addEventListener('tab-changed', (evt: Event) => {
       this.tabName = (<CustomEvent>evt).detail.tabName;
-      this.showTab = !this.showTab;
       this.highlightIndex(this.tabName);
-      navigateTab(this.dashboardName, this.tabName!);
+      navigateTabWithoutReload(this.groupName, this.dashboardName, this.tabName!);
     });
-    window.addEventListener('popstate', () => {
-      console.log(location.pathname);
-      console.log(location.pathname.split('/'));
-      if (location.pathname.split('/').length === 2){
-        this.showTab = false;
-        this.tabName = undefined;
-        this.highlightIndex(this.tabName);
-        navigateTab(this.dashboardName, this.tabName!);
-      }
-    })
+  }
+
+  /**
+   * Lit-element lifecycle method.
+   * Invoked when element properties are changed.
+   */
+  willUpdate(changedProperties: PropertyValues<this>) {
+    if (changedProperties.has('dashboardName') && changedProperties.has('tabName')) {
+      this.fetchTabNames();
+    }
+    else if (changedProperties.has('dashboardName')){
+      this.tabName = undefined;
+      this.fetchTabNames();
+    }
+    else if (changedProperties.has('tabName')){
+      this.highlightIndex(this.tabName);
+    }
   }
 
   /**
@@ -91,7 +99,7 @@ export class TestgridDataContent extends LitElement {
     }`;
     return html`
       ${tabBar}
-      ${!this.showTab ?
+      ${!this.tabName ?
         html`<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :
         html`<testgrid-grid .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid>`}
     `;

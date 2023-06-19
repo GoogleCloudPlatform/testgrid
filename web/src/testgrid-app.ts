@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
-import './testgrid-router'
+import './testgrid-root-router'
 
 /**
  * Class definition for the `testgrid-app` element.
@@ -13,6 +13,6 @@ export class TestgridApp extends LitElement{
    * Invoked on each update to perform rendering tasks.
    */
   render(){
-    return html`<testgrid-router></testgrid-router>`;
+    return html`<testgrid-root-router></testgrid-root-router>`;
   }
 }

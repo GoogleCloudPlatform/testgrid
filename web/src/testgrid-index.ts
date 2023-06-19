@@ -1,10 +1,8 @@
 import { LitElement, html, css } from 'lit';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { ListDashboardsResponse, ListDashboardGroupsResponse } from './gen/pb/api/v1/data.js';
-import { navigate } from './utils/navigation';
-import '@material/mwc-button';
+import { navigateGroup } from './utils/navigation';
 import '@material/mwc-list';
 
 
@@ -16,7 +14,7 @@ const dashboardTemplate = (dashboards: Array<string>) => html`
       ${map(
         dashboards,
         (dash: string, index: number) => html`
-          <mwc-list-item id=${index} @click=${() => navigate(dash)} class="column card dashboard">
+          <mwc-list-item id=${index} class="column card dashboard">
               <div class="container">
                 <p>${dash}</p>
               </div>
@@ -33,7 +31,6 @@ const dashboardTemplate = (dashboards: Array<string>) => html`
  * Renders the list of dashboards and dashboard groups available.
  */
 @customElement('testgrid-index')
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TestgridIndex extends LitElement {
 
   @property({ type: Array<string> }) 
@@ -41,13 +38,6 @@ export class TestgridIndex extends LitElement {
 
   @property({ type: Array<string> }) 
   dashboardGroups: Array<string> = [];
-
-  @property({ type: Array<string> }) 
-  respectiveDashboards: Array<string> = [];
-
-  // toggles between the dashboards of a particular group or a dashboard without a group
-  @property({ type: Boolean }) 
-  show = true;
 
   /**
    * Lit-element lifecycle method.
@@ -68,30 +58,24 @@ export class TestgridIndex extends LitElement {
       <div class="flex-container">
         <!-- loading dashboard groups -->
         <mwc-list style="min-width: 760px">
-          ${map(this.dashboardGroups, (dash: string, index: number) => 
+          ${map(this.dashboardGroups, (group: string, index: number) => 
             html`
               <mwc-list-item
                 id=${index}
                 class="column card dashboard-group"
                 raised
-                @click="${() => this.fetchRespectiveDashboards(dash)}"
+                @click="${() => navigateGroup(group, true)}"
               >
                 <div class="container">
-                  <p>${dash}</p>
+                  <p>${group}</p>
                 </div>
               </mwc-list-item>
             `)}
         </mwc-list>
 
         <!-- loading dashboards -->
-        ${this.show ? dashboardTemplate(this.dashboards) : ''}
+        ${dashboardTemplate(this.dashboards)}
 
-        <!-- loading respective dashboards -->
-        ${!this.show ? dashboardTemplate(this.respectiveDashboards) : ''}
-        ${!this.show ? html`
-              <mwc-button class="column" raised @click="${() => this.show = !this.show }">X</mwc-button>
-            `
-          : ''}
       </div>
     `;
   }
@@ -134,27 +118,6 @@ export class TestgridIndex extends LitElement {
       );
     } catch(error){
       console.log(`failed to fetch: ${error}`);
-    }
-  }
-
-  // fetch the list of respective dashboards for a group from API
-  async fetchRespectiveDashboards(name: string) {
-    this.show = false;
-    try {
-      fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${name}`).then(
-        async response => {
-          const resp = ListDashboardsResponse.fromJson(await response.json());
-          const respectiveDashboards: string[] = [];
-
-          resp.dashboards.forEach(ts => {
-            respectiveDashboards.push(ts.name);
-          });
-
-          this.respectiveDashboards = respectiveDashboards;
-        }
-      );
-    } catch (error) {
-      console.error(`Could not get dashboard summaries: ${error}`);
     }
   }
 

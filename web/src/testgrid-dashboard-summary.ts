@@ -1,10 +1,9 @@
-import { LitElement, html } from 'lit';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { LitElement, html, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
-import { FailuresSummary, ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
-import './tab-summary.js';
+import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
+import './tab-summary';
 
 export interface TabSummaryInfo {
   icon: string;
@@ -84,7 +83,6 @@ function convertResponse(ts: TabSummary) {
  * Renders the dashboard summary (summary of dashboard tabs).
  */
 @customElement('testgrid-dashboard-summary')
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class TestgridDashboardSummary extends LitElement {
 
   @property()
@@ -93,9 +91,14 @@ export class TestgridDashboardSummary extends LitElement {
   @state()
   tabSummariesInfo: Array<TabSummaryInfo> = [];
 
-  connectedCallback(){
-    super.connectedCallback();
-    this.fetchTabSummaries();
+  /**
+   * Lit-element lifecycle method.
+   * Invoked when element properties are changed.
+   */
+  willUpdate(changedProperties: PropertyValues<this>) {
+    if (changedProperties.has('dashboardName')) {
+      this.fetchTabSummaries();
+    }
   }
 
   /**

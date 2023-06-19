@@ -15,12 +15,33 @@ export function navigate(name: string){
  * @param {string} dashboard
  * @param {string} tab
  */
-export function navigateTab(dashboard: string, tab: string){
+export function navigateTabWithoutReload(group: string, dashboard: string, tab: string){
   const url = new URL(location.href)
-  if (tab === 'Summary' || tab === undefined){
-    url.pathname = `${dashboard}`
-  } else {
-    url.pathname = `${dashboard}/${tab}`
-  }
+  url.pathname = `groups/${group}/dashboards/${dashboard}/tabs/${tab}`;
   history.pushState(null, '', url);
+}
+
+/**
+ * Navigates to the dashboard URL without reload
+ * @param group {string}
+ * @param dashboard {string}
+ */
+export function navigateDashboardWithoutReload(group: string, dashboard: string){
+  const url = new URL(location.href);
+  url.pathname = `groups/${group}/dashboards/${dashboard}`;
+  history.pushState(null, '', url);
+}
+
+/**
+ * Navigates to the group URL
+ * @param group {string}
+ * @fires location-changed based on reload flag
+ */
+export function navigateGroup(group: string, reload: boolean){
+  const url = new URL(location.href);
+  url.pathname = `groups/${group}`;
+  history.pushState(null, '', url);
+  if (reload){
+    window.dispatchEvent(new CustomEvent('location-changed'));
+  }
 }
