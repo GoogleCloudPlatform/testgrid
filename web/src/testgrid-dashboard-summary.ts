@@ -3,7 +3,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { Timestamp } from './gen/google/protobuf/timestamp.js';
-import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
+import { FailuresSummary, ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
 import './tab-summary.js';
 
 export interface TabSummaryInfo {
@@ -15,6 +15,20 @@ export interface TabSummaryInfo {
   lastRunTimestamp: string;
   latestGreenBuild: string;
   dashboardName: string;
+  failuresSummary?: FailuresSummaryInfo;
+  healthinessSummary?: HealthinessSummaryInfo;
+}
+
+interface FailuresSummaryInfo {
+  topFailingTests: FailingTestInfo[];
+  failureStats: FailureStats;
+}
+
+interface FailingTestInfo {
+  displayName: string;
+  failCount: number;
+  passTimestamp: string;
+  failTimestamp: string;
   healthinessSummary?: HealthinessSummaryInfo;
 }
 
@@ -36,6 +50,9 @@ interface HealthinessStats {
   previousFlakiness: number;
 }
 
+interface FailureStats {
+  numFailingTests: number;
+}
 // TODO: define in a shared file (dashboard group also uses this)
 export const TabStatusIcon = new Map<string, string>([
   ['PASSING', 'done'],
@@ -61,6 +78,24 @@ function convertResponse(ts: TabSummary) {
     latestGreenBuild: ts.latestPassingBuild,
     dashboardName: ts.dashboardName,
   };
+  if (ts.failuresSummary !== undefined) {
+    tsi.failuresSummary = {} as FailuresSummaryInfo
+    const failureStats: FailureStats = {
+      numFailingTests: ts.failuresSummary!.failureStats!.numFailingTests,
+    }
+    tsi.failuresSummary!.failureStats = failureStats
+
+    tsi.failuresSummary!.topFailingTests = [];
+    ts.failuresSummary?.topFailingTests.forEach( (test, i) => {
+    const failingTest: FailingTestInfo = {
+      displayName: test.displayName,
+      failCount: test.failCount,
+      passTimestamp: Timestamp.toDate(test.passTimestamp!).toISOString(),
+      failTimestamp: Timestamp.toDate(test.failTimestamp!).toISOString(),
+    }
+    tsi.failuresSummary!.topFailingTests.push(failingTest)
+    });
+  }
 
   if (ts.healthinessSummary !== undefined) {
     tsi.healthinessSummary = {} as HealthinessSummaryInfo

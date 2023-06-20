@@ -1,7 +1,9 @@
 import { LitElement, html, css } from 'lit';
+import { map } from 'lit/directives/map.js';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { customElement, property } from 'lit/decorators.js';
 import { TabSummaryInfo } from './testgrid-dashboard-summary';
+import './testgrid-failures-summary';
 import './testgrid-healthiness-summary';
 
 @customElement('tab-summary')
@@ -9,6 +11,7 @@ import './testgrid-healthiness-summary';
 export class TabSummary extends LitElement {
   @property({ type: Object })
   info?: TabSummaryInfo;
+
   render() {
     return html`
       <link
@@ -41,6 +44,9 @@ export class TabSummary extends LitElement {
           </div>
         </div>
       </div>
+      ${this.info?.failuresSummary !== undefined ?
+        html `<testgrid-failures-summary .info=${this.info}>
+        </testgrid-failures-summary>`:''}
       ${this.info?.healthinessSummary !== undefined ?
         html `<testgrid-healthiness-summary .info=${this.info}>
         </testgrid-healthiness-summary>`:''}
@@ -61,7 +67,6 @@ export class TabSummary extends LitElement {
   }
 
   static styles = css`
-
     .tab-name { // title/link in each Summary card
       cursor: pointer;
       position: relative;
@@ -72,11 +77,11 @@ export class TabSummary extends LitElement {
 
     .tab {
       border: 1px solid #6b90da;
-      border-radius: 6px;
+      border-radius: 6px 6px 0 0;
       color: #000;
       display: grid;
       grid-template-columns: 1fr 17fr 6fr;
-      margin: 5px;
+      margin-top: 5px;
       overflow: hidden;
       align-items: center;
     }
@@ -131,4 +136,5 @@ export class TabSummary extends LitElement {
       background-color: #000;
     }
   `;
+
 }
