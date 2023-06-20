@@ -298,7 +298,21 @@
         "detailed_status_message": "Tab stats: 3 of 5 (60 %) recent columns passed (5 of 7 or 71.43 % cells)",
         "last_run_timestamp": "2023-05-29T11:25:20.000Z",
         "last_update_timestamp": "2023-05-29T11:25:20.000Z",
-        "latest_passing_build": "0987654"
+        "latest_passing_build": "0987654",
+        "healthiness_summary": {
+          "top_flaky_tests": [
+            {
+              "display_name": "fake-test-2",
+              "flakiness": "2"
+            }
+          ],
+          "healthiness_stats": {
+            "start": "2023-05-29T11:25:20.000Z",
+            "end": "2023-05-29T11:25:20.000Z",
+            "num_flaky_tests": 2,
+            "average_flakiness": 2.2
+          }
+        }
       },
       {
         "dashboard_name": "fake-dashboard-1",
