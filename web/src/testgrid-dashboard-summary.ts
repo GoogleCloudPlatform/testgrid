@@ -16,6 +16,7 @@ export interface TabSummaryInfo {
   latestGreenBuild: string;
   dashboardName: string;
   failuresSummary?: FailuresSummaryInfo;
+  healthinessSummary?: HealthinessSummaryInfo;
 }
 
 interface FailuresSummaryInfo {
@@ -28,6 +29,25 @@ interface FailingTestInfo {
   failCount: number;
   passTimestamp: string;
   failTimestamp: string;
+  healthinessSummary?: HealthinessSummaryInfo;
+}
+
+interface HealthinessSummaryInfo {
+  topFlakyTests: FlakyTestInfo[];
+  healthinessStats: HealthinessStats;
+}
+
+interface FlakyTestInfo {
+  displayName: string;
+  flakiness: number;
+}
+
+interface HealthinessStats {
+  startTimestamp: string;
+  endTimestamp: string;
+  numFlakyTests: number;
+  averageFlakiness: number;
+  previousFlakiness: number;
 }
 
 interface FailureStats {
@@ -75,6 +95,27 @@ function convertResponse(ts: TabSummary) {
     }
     tsi.failuresSummary!.topFailingTests.push(failingTest)
     });
+  }
+
+  if (ts.healthinessSummary !== undefined) {
+    tsi.healthinessSummary = {} as HealthinessSummaryInfo
+    const healthinessStats: HealthinessStats = {
+      startTimestamp: Timestamp.toDate(ts.healthinessSummary!.healthinessStats!.start!).toISOString(),
+      endTimestamp: Timestamp.toDate(ts.healthinessSummary!.healthinessStats!.end!).toISOString(),
+      numFlakyTests: ts.healthinessSummary!.healthinessStats!.numFlakyTests,
+      averageFlakiness: ts.healthinessSummary!.healthinessStats!.averageFlakiness,
+      previousFlakiness: ts.healthinessSummary!.healthinessStats!.previousFlakiness,
+    }
+    tsi.healthinessSummary!.healthinessStats = healthinessStats
+
+    tsi.healthinessSummary!.topFlakyTests = [];
+    ts.healthinessSummary?.topFlakyTests.forEach( test => {
+      const flakyTest: FlakyTestInfo = {
+        displayName: test.displayName,
+        flakiness: test.flakiness,
+      }
+      tsi.healthinessSummary!.topFlakyTests.push(flakyTest)
+    })
   }
   return tsi;
 }
