@@ -33,5 +33,13 @@ describe('Testgrid Dashboard Summary page', () => {
     );
 
     expect(element.tabSummariesInfo.length).to.equal(4);
+    expect(element.tabSummariesInfo[0].name).to.equal("fake-tab-1");
+    expect(element.tabSummariesInfo[0].overallStatus).to.equal("PASSING");
+    expect(element.tabSummariesInfo[0].failuresSummary?.failureStats.numFailingTests).to.equal(1);
+    expect(element.tabSummariesInfo[0].failuresSummary?.topFailingTests[0].failCount).to.equal(1);
+    expect(element.tabSummariesInfo[0].failuresSummary?.topFailingTests[0].displayName).to.equal("fake-test-1");
+    expect(element.tabSummariesInfo[0].healthinessSummary?.topFlakyTests[0].displayName).to.equal("fake-test-2");
+    expect(element.tabSummariesInfo[0].healthinessSummary?.topFlakyTests[0].flakiness).to.equal(2);
+    expect(element.tabSummariesInfo[0].healthinessSummary?.healthinessStats.numFlakyTests).to.equal(2);
   });
 });
