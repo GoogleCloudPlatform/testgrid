@@ -19,30 +19,33 @@ export interface TabSummaryInfo {
   healthinessSummary?: HealthinessSummaryInfo;
 }
 
-interface FailuresSummaryInfo {
+export interface FailuresSummaryInfo {
   topFailingTests: FailingTestInfo[];
   failureStats: FailureStats;
 }
 
-interface FailingTestInfo {
+export interface FailingTestInfo {
   displayName: string;
   failCount: number;
   passTimestamp: string;
   failTimestamp: string;
-  healthinessSummary?: HealthinessSummaryInfo;
 }
 
-interface HealthinessSummaryInfo {
+export interface FailureStats {
+  numFailingTests: number;
+}
+
+export interface HealthinessSummaryInfo {
   topFlakyTests: FlakyTestInfo[];
   healthinessStats: HealthinessStats;
 }
 
-interface FlakyTestInfo {
+export interface FlakyTestInfo {
   displayName: string;
   flakiness: number;
 }
 
-interface HealthinessStats {
+export interface HealthinessStats {
   startTimestamp: string;
   endTimestamp: string;
   numFlakyTests: number;
@@ -50,9 +53,6 @@ interface HealthinessStats {
   previousFlakiness: number;
 }
 
-interface FailureStats {
-  numFailingTests: number;
-}
 // TODO: define in a shared file (dashboard group also uses this)
 export const TabStatusIcon = new Map<string, string>([
   ['PASSING', 'done'],
