@@ -1,5 +1,5 @@
 import { html, TemplateResult } from 'lit';
-import '../src/testgrid-group-summary';
+import '../src/group/testgrid-group-summary';
 
 export default {
   title: 'Dashboard Group View',

@@ -80,14 +80,3 @@ export const DashboardGroups: Story<ArgTypes> = ({
     .dashboardGroups=${dashboardGroups}
   ></testgrid-index>
 `;
-
-export const RespectiveDashboards: Story<ArgTypes> = ({
-  backgroundColor = 'white',
-}: ArgTypes) => html`
-  <testgrid-index
-    style="--example-app-background-color: ${backgroundColor}"
-    .show=${false}
-    .dashboardGroups=${[dashboardGroups[0]]}
-    .respectiveDashboards=${respectiveDashboards[dashboardGroups[0]]}
-  ></testgrid-index>
-`;

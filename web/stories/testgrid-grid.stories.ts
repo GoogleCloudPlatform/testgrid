@@ -1,5 +1,5 @@
 import { html, TemplateResult } from 'lit';
-import '../src/testgrid-grid';
+import '../src/grid/testgrid-grid';
 
 export default {
   title: 'Grid',
@@ -23,4 +23,4 @@ const Template: Story<Args> = ({
 };
 
 export const Grid = Template.bind({});
-Grid.args = {dashboardName: 'fake-dashboard-1', tabName: 'fake_tab_3'}
+Grid.args = {dashboardName: 'fake-dashboard-1', tabName: 'fake-tab-3'}

@@ -5,7 +5,7 @@ import {
     unsafeStatic,
     expect,
 } from '@open-wc/testing';
-import { TestgridGridColumnHeader } from '../src/testgrid-grid-column-header';
+import { TestgridGridColumnHeader } from '../src/grid/testgrid-grid-column-header';
 
 describe('TestGrid grid column header', () => {
     let element: TestgridGridColumnHeader;

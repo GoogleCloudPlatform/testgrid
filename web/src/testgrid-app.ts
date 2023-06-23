@@ -1,6 +1,6 @@
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
-import './testgrid-root-router'
+import './navigation/testgrid-root-router'
 
 /**
  * Class definition for the `testgrid-app` element.

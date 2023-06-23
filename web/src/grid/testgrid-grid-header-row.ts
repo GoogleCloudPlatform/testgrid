@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { map } from 'lit/directives/map.js';
 import { customElement, property } from 'lit/decorators.js';
-import { ListHeadersResponse } from './gen/pb/api/v1/data.js';
+import { ListHeadersResponse } from '../gen/pb/api/v1/data.js';
 import './testgrid-grid-row-name';
 import './testgrid-grid-column-header';
 

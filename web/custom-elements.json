@@ -55,72 +55,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "src/tab-summary.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TabSummary",
-          "members": [
-            {
-              "kind": "field",
-              "name": "info",
-              "type": {
-                "text": "TabSummaryInfo | undefined"
-              },
-              "attribute": "info"
-            },
-            {
-              "kind": "method",
-              "name": "changeTab",
-              "privacy": "private",
-              "description": "Lets the data content element know that the tab changed",
-              "parameters": [
-                {
-                  "description": "string",
-                  "name": "tabName"
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "info",
-              "type": {
-                "text": "TabSummaryInfo | undefined"
-              },
-              "fieldName": "info"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "tab-summary",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TabSummary",
-          "declaration": {
-            "name": "TabSummary",
-            "module": "src/tab-summary.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "tab-summary",
-          "declaration": {
-            "name": "TabSummary",
-            "module": "src/tab-summary.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "src/testgrid-app.ts",
       "declarations": [
         {
@@ -151,891 +85,6 @@
           "declaration": {
             "name": "TestgridApp",
             "module": "src/testgrid-app.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-dashboard-content.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data.\nRenders the tab bar with tab names irrespective of the view.",
-          "name": "TestgridDashboardContent",
-          "members": [
-            {
-              "kind": "field",
-              "name": "tabNames",
-              "type": {
-                "text": "string[]"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "field",
-              "name": "activeIndex",
-              "type": {
-                "text": "number"
-              },
-              "default": "0"
-            },
-            {
-              "kind": "field",
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "groupName"
-            },
-            {
-              "kind": "field",
-              "name": "dashboardName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "dashboardName"
-            },
-            {
-              "kind": "field",
-              "name": "tabName",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "tabName"
-            },
-            {
-              "kind": "method",
-              "name": "onTabActivated",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "event",
-                  "type": {
-                    "text": "CustomEvent<{index: number}>"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "fetchTabNames",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "highlightIndex",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "tabName",
-                  "type": {
-                    "text": "string | undefined"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "groupName"
-            },
-            {
-              "name": "dashboardName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "dashboardName"
-            },
-            {
-              "name": "tabName",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "tabName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-dashboard-content",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridDashboardContent",
-          "declaration": {
-            "name": "TestgridDashboardContent",
-            "module": "src/testgrid-dashboard-content.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-dashboard-content",
-          "declaration": {
-            "name": "TestgridDashboardContent",
-            "module": "src/testgrid-dashboard-content.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-dashboard-router.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "Class definition for the `testgrid-dashboard-router` element.\nHandles the dashboard level routing logic.\nRenders the dashboard summary view within group-content element or continues\nwith the next level router.",
-          "name": "TestgridDashboardRouter",
-          "members": [
-            {
-              "kind": "field",
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "groupName"
-            },
-            {
-              "kind": "field",
-              "name": "routes",
-              "privacy": "private",
-              "default": "new Routes(this, [\n    {\n      path: 'dashboards/:dashboard', \n      render: (params: RouteParameter) => html`<testgrid-group-content .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-group-content>`,\n    },\n    {\n      path: 'dashboards/:dashboard/*', \n      render: (params: RouteParameter) => html`<testgrid-tab-router .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-tab-router>`,\n    },\n  ])"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "groupName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-dashboard-router",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridDashboardRouter",
-          "declaration": {
-            "name": "TestgridDashboardRouter",
-            "module": "src/testgrid-dashboard-router.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-dashboard-router",
-          "declaration": {
-            "name": "TestgridDashboardRouter",
-            "module": "src/testgrid-dashboard-router.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-dashboard-summary.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TabStatusIcon",
-          "default": "new Map<string, string>([\n  ['PASSING', 'done'],\n  ['FAILING', 'warning'],\n  ['FLAKY', 'remove_circle_outline'],\n  ['STALE', 'error_outline'],\n  ['BROKEN', 'broken_image'],\n  ['PENDING', 'schedule'],\n  ['ACCEPTABLE', 'add_circle_outline'],\n])"
-        },
-        {
-          "kind": "class",
-          "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs).",
-          "name": "TestgridDashboardSummary",
-          "members": [
-            {
-              "kind": "field",
-              "name": "dashboardName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "dashboardName"
-            },
-            {
-              "kind": "field",
-              "name": "tabSummariesInfo",
-              "type": {
-                "text": "Array<TabSummaryInfo>"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "method",
-              "name": "fetchTabSummaries",
-              "privacy": "private"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "dashboardName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "dashboardName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-dashboard-summary",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TabStatusIcon",
-          "declaration": {
-            "name": "TabStatusIcon",
-            "module": "src/testgrid-dashboard-summary.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TestgridDashboardSummary",
-          "declaration": {
-            "name": "TestgridDashboardSummary",
-            "module": "src/testgrid-dashboard-summary.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-dashboard-summary",
-          "declaration": {
-            "name": "TestgridDashboardSummary",
-            "module": "src/testgrid-dashboard-summary.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-grid-cell.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestgridGridCell",
-          "members": [
-            {
-              "kind": "field",
-              "name": "status",
-              "type": {
-                "text": "String"
-              },
-              "attribute": "status",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "icon",
-              "type": {
-                "text": "String"
-              },
-              "attribute": "icon"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "status",
-              "type": {
-                "text": "String"
-              },
-              "fieldName": "status"
-            },
-            {
-              "name": "icon",
-              "type": {
-                "text": "String"
-              },
-              "fieldName": "icon"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-grid-cell",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridCell",
-          "declaration": {
-            "name": "TestgridGridCell",
-            "module": "src/testgrid-grid-cell.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-grid-cell",
-          "declaration": {
-            "name": "TestgridGridCell",
-            "module": "src/testgrid-grid-cell.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-grid-column-header.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestgridGridColumnHeader",
-          "members": [
-            {
-              "kind": "field",
-              "name": "name",
-              "type": {
-                "text": "String"
-              },
-              "attribute": "name"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "String"
-              },
-              "fieldName": "name"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-grid-column-header",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridColumnHeader",
-          "declaration": {
-            "name": "TestgridGridColumnHeader",
-            "module": "src/testgrid-grid-column-header.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-grid-column-header",
-          "declaration": {
-            "name": "TestgridGridColumnHeader",
-            "module": "src/testgrid-grid-column-header.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-grid-header-row.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestgridGridHeaderRow",
-          "members": [
-            {
-              "kind": "field",
-              "name": "headers",
-              "type": {
-                "text": "ListHeadersResponse"
-              },
-              "attribute": "headers"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "headers",
-              "type": {
-                "text": "ListHeadersResponse"
-              },
-              "fieldName": "headers"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-grid-header-row",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridHeaderRow",
-          "declaration": {
-            "name": "TestgridGridHeaderRow",
-            "module": "src/testgrid-grid-header-row.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-grid-header-row",
-          "declaration": {
-            "name": "TestgridGridHeaderRow",
-            "module": "src/testgrid-grid-header-row.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-grid-row-name.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestgridGridRowName",
-          "members": [
-            {
-              "kind": "field",
-              "name": "name",
-              "type": {
-                "text": "String"
-              },
-              "attribute": "name"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "String"
-              },
-              "fieldName": "name"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-grid-row-name",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridRowName",
-          "declaration": {
-            "name": "TestgridGridRowName",
-            "module": "src/testgrid-grid-row-name.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-grid-row-name",
-          "declaration": {
-            "name": "TestgridGridRowName",
-            "module": "src/testgrid-grid-row-name.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-grid-row.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestgridGridRow",
-          "members": [
-            {
-              "kind": "field",
-              "name": "rowData",
-              "type": {
-                "text": "ListRowsResponse_Row"
-              },
-              "attribute": "rowData"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "rowData",
-              "type": {
-                "text": "ListRowsResponse_Row"
-              },
-              "fieldName": "rowData"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-grid-row",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridRow",
-          "declaration": {
-            "name": "TestgridGridRow",
-            "module": "src/testgrid-grid-row.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-grid-row",
-          "declaration": {
-            "name": "TestgridGridRow",
-            "module": "src/testgrid-grid-row.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-grid.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "Class definition for `testgrid-grid` component.\nRenders the test results grid.",
-          "name": "TestgridGrid",
-          "members": [
-            {
-              "kind": "field",
-              "name": "dashboardName",
-              "type": {
-                "text": "String"
-              },
-              "default": "''",
-              "attribute": "dashboardName",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "tabName",
-              "type": {
-                "text": "String"
-              },
-              "default": "''",
-              "attribute": "tabName",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "tabGridRows",
-              "type": {
-                "text": "Array<ListRowsResponse_Row>"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "field",
-              "name": "tabGridHeaders",
-              "type": {
-                "text": "ListHeadersResponse"
-              }
-            },
-            {
-              "kind": "method",
-              "name": "fetchTabGrid",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "fetchTabGridRows",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "fetchTabGridHeaders",
-              "privacy": "private"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "dashboardName",
-              "type": {
-                "text": "String"
-              },
-              "default": "''",
-              "fieldName": "dashboardName"
-            },
-            {
-              "name": "tabName",
-              "type": {
-                "text": "String"
-              },
-              "default": "''",
-              "fieldName": "tabName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-grid",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGrid",
-          "declaration": {
-            "name": "TestgridGrid",
-            "module": "src/testgrid-grid.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-grid",
-          "declaration": {
-            "name": "TestgridGrid",
-            "module": "src/testgrid-grid.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-group-content.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "Class definition for the `testgrid-group-content` element.\nActs as a container which can toggle between group summary view or dashboard-content element.\nRenders the tab bar with dashboard names irrespective of the view.",
-          "name": "TestgridGroupContent",
-          "members": [
-            {
-              "kind": "field",
-              "name": "dashboardNames",
-              "type": {
-                "text": "string[]"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "field",
-              "name": "activeIndex",
-              "type": {
-                "text": "number"
-              },
-              "default": "0"
-            },
-            {
-              "kind": "field",
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "groupName"
-            },
-            {
-              "kind": "field",
-              "name": "dashboardName",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "dashboardName"
-            },
-            {
-              "kind": "field",
-              "name": "tabName",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "tabName"
-            },
-            {
-              "kind": "method",
-              "name": "onDashboardActivated",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "event",
-                  "type": {
-                    "text": "CustomEvent<{index: number}>"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "fetchDashboardNames",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "highlightIndex",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "dashboardName",
-                  "type": {
-                    "text": "string | undefined"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "groupName"
-            },
-            {
-              "name": "dashboardName",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "dashboardName"
-            },
-            {
-              "name": "tabName",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "tabName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-group-content",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGroupContent",
-          "declaration": {
-            "name": "TestgridGroupContent",
-            "module": "src/testgrid-group-content.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-group-content",
-          "declaration": {
-            "name": "TestgridGroupContent",
-            "module": "src/testgrid-group-content.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-group-summary.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "TestgridGroupSummary",
-          "members": [
-            {
-              "kind": "field",
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "groupName"
-            },
-            {
-              "kind": "field",
-              "name": "dashboardSummaries",
-              "type": {
-                "text": "RenderedDashboardSummary[]"
-              },
-              "default": "[]"
-            },
-            {
-              "kind": "method",
-              "name": "fetchDashboardSummaries",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "convertResponse",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "summary",
-                  "type": {
-                    "text": "DashboardSummary"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "groupName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-group-summary",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGroupSummary",
-          "declaration": {
-            "name": "TestgridGroupSummary",
-            "module": "src/testgrid-group-summary.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-group-summary",
-          "declaration": {
-            "name": "TestgridGroupSummary",
-            "module": "src/testgrid-group-summary.ts"
           }
         }
       ]
@@ -1117,227 +166,6 @@
           "declaration": {
             "name": "TestgridIndex",
             "module": "src/testgrid-index.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-root-router.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "Class definition for the `testgrid-root-router` element.\nHandles the top-level routing logic.\nRenders the index page, main container component or passes down the data to dashboard level router.",
-          "name": "TestgridRootRouter",
-          "members": [
-            {
-              "kind": "field",
-              "name": "router",
-              "privacy": "private",
-              "default": "new Router(this, [\n    {\n      path: '/groups/:group/*', \n      render: (params: RouteParameter) => html`<testgrid-dashboard-router .groupName=${params.group}></testgrid-dashboard-router>`,\n    },\n    {\n      path: '/groups/:group', \n      render: (params: RouteParameter) => html`<testgrid-group-content .groupName=${params.group}></testgrid-group-content>`,\n    },\n    {\n      path: '/',\n      render: () => html`<testgrid-index></testgrid-index>`,\n    },\n  ])"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-root-router",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridRootRouter",
-          "declaration": {
-            "name": "TestgridRootRouter",
-            "module": "src/testgrid-root-router.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-root-router",
-          "declaration": {
-            "name": "TestgridRootRouter",
-            "module": "src/testgrid-root-router.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/testgrid-tab-router.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "Class definition for the `testgrid-tab-router` element.\nHandles the tab level routing logic.\nRenders the grid view within dashboard-content within group-content",
-          "name": "TestgridTabRouter",
-          "members": [
-            {
-              "kind": "field",
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "groupName"
-            },
-            {
-              "kind": "field",
-              "name": "dashboardName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "dashboardName"
-            },
-            {
-              "kind": "field",
-              "name": "routes",
-              "privacy": "private",
-              "default": "new Routes(this, [\n    {\n      path: 'tabs/:tab', \n      render: (params: RouteParameter) => html`<testgrid-group-content .groupName=${this.groupName} .dashboardName=${this.dashboardName} .tabName=${params.tab}></testgrid-group-content>`,\n    },\n  ])"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "groupName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "groupName"
-            },
-            {
-              "name": "dashboardName",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "dashboardName"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "testgrid-tab-router",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridTabRouter",
-          "declaration": {
-            "name": "TestgridTabRouter",
-            "module": "src/testgrid-tab-router.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "testgrid-tab-router",
-          "declaration": {
-            "name": "TestgridTabRouter",
-            "module": "src/testgrid-tab-router.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/tab-summary.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "Passing"
-        },
-        {
-          "kind": "variable",
-          "name": "Flaky"
-        },
-        {
-          "kind": "variable",
-          "name": "Failing"
-        },
-        {
-          "kind": "variable",
-          "name": "Stale"
-        },
-        {
-          "kind": "variable",
-          "name": "Broken"
-        },
-        {
-          "kind": "variable",
-          "name": "Pending"
-        },
-        {
-          "kind": "variable",
-          "name": "Acceptable"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Passing",
-          "declaration": {
-            "name": "Passing",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Flaky",
-          "declaration": {
-            "name": "Flaky",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Failing",
-          "declaration": {
-            "name": "Failing",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Stale",
-          "declaration": {
-            "name": "Stale",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Broken",
-          "declaration": {
-            "name": "Broken",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Pending",
-          "declaration": {
-            "name": "Pending",
-            "module": "stories/tab-summary.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Acceptable",
-          "declaration": {
-            "name": "Acceptable",
-            "module": "stories/tab-summary.stories.ts"
           }
         }
       ]
@@ -1736,18 +564,6 @@
               }
             }
           ]
-        },
-        {
-          "kind": "function",
-          "name": "RespectiveDashboards",
-          "parameters": [
-            {
-              "name": "{\n  backgroundColor = 'white',\n}",
-              "type": {
-                "text": "ArgTypes"
-              }
-            }
-          ]
         }
       ],
       "exports": [
@@ -1781,16 +597,651 @@
             "name": "DashboardGroups",
             "module": "stories/testgrid-index.stories.ts"
           }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/testgrid-tab-summary.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Passing"
+        },
+        {
+          "kind": "variable",
+          "name": "Flaky"
+        },
+        {
+          "kind": "variable",
+          "name": "Failing"
+        },
+        {
+          "kind": "variable",
+          "name": "Stale"
+        },
+        {
+          "kind": "variable",
+          "name": "Broken"
+        },
+        {
+          "kind": "variable",
+          "name": "Pending"
+        },
+        {
+          "kind": "variable",
+          "name": "Acceptable"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
         },
         {
           "kind": "js",
-          "name": "RespectiveDashboards",
+          "name": "Passing",
           "declaration": {
-            "name": "RespectiveDashboards",
-            "module": "stories/testgrid-index.stories.ts"
+            "name": "Passing",
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Flaky",
+          "declaration": {
+            "name": "Flaky",
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Failing",
+          "declaration": {
+            "name": "Failing",
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Stale",
+          "declaration": {
+            "name": "Stale",
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Broken",
+          "declaration": {
+            "name": "Broken",
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Pending",
+          "declaration": {
+            "name": "Pending",
+            "module": "stories/testgrid-tab-summary.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Acceptable",
+          "declaration": {
+            "name": "Acceptable",
+            "module": "stories/testgrid-tab-summary.stories.ts"
           }
         }
       ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/0c811e6a.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/16180165.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/1d1f8f99.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/4b568637.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/530d819e.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/58d4886d.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/5afc66be.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/6b1a4776.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/7edd2e3f.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/86f541c3.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/a948c7df.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/c2c1b651.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/c82602a5.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "e",
+          "type": {
+            "text": "object"
+          },
+          "default": "{}"
+        },
+        {
+          "kind": "variable",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "u"
+            },
+            {
+              "name": "l"
+            },
+            {
+              "name": "p"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            },
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "a"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "e"
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "a"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            },
+            {
+              "name": "a"
+            },
+            {
+              "name": "o"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            },
+            {
+              "name": "r"
+            },
+            {
+              "name": "n"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "e"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "t",
+          "parameters": [
+            {
+              "name": "r"
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "e",
+          "parameters": [
+            {
+              "name": "t"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/c82602a5.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "e",
+          "declaration": {
+            "name": "t",
+            "module": "storybook-static/c82602a5.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/e8facca6.js",
+      "declarations": [],
+      "exports": []
     },
     {
       "kind": "javascript-module",
@@ -1851,27 +1302,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/tab-summary.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TabSummary",
-          "default": "class TabSummary extends LitElement {\n    render() {\n        var _a, _b, _c, _d, _e, _f, _g, _h;\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <div class=\"tab\">\n        <div class=\"left\">\n          <div class=\"icon-wrapper\">\n            <i class=\"material-icons ${(_a = this.info) === null || _a === void 0 ? void 0 : _a.overallStatus}\"\n              >${(_b = this.info) === null || _b === void 0 ? void 0 : _b.icon}</i\n            >\n          </div>\n        </div>\n        <div class=\"mid\">\n          <div @click=${() => this.changeTab()} class=\"tab-name\">\n            ${(_c = this.info) === null || _c === void 0 ? void 0 : _c.name}: ${(_d = this.info) === null || _d === void 0 ? void 0 : _d.overallStatus}\n          </div>\n          <div class=\"detailed-status\">${(_e = this.info) === null || _e === void 0 ? void 0 : _e.detailedStatusMsg}</div>\n        </div>\n        <div class=\"right\">\n          <div class=\"stats\">\n            Last update: ${(_f = this.info) === null || _f === void 0 ? void 0 : _f.lastUpdateTimestamp}\n          </div>\n          <div class=\"stats\">\n            Tests last ran: ${(_g = this.info) === null || _g === void 0 ? void 0 : _g.lastRunTimestamp}\n          </div>\n          <div class=\"stats\">\n            Last green run: ${(_h = this.info) === null || _h === void 0 ? void 0 : _h.latestGreenBuild}\n          </div>\n        </div>\n      </div>\n    `;\n    }\n    /**\n     * Lets the data content element know that the tab changed\n     *\n     * @fires tab-changed\n     * @param tabName string\n     */\n    changeTab() {\n        var _a;\n        window.dispatchEvent(new CustomEvent('tab-changed', {\n            detail: {\n                tabName: (_a = this.info) === null || _a === void 0 ? void 0 : _a.name\n            },\n        }));\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TabSummary",
-          "declaration": {
-            "name": "TabSummary",
-            "module": "out-tsc/src/tab-summary.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "out-tsc/src/testgrid-app.js",
       "declarations": [
         {
@@ -1894,255 +1324,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-dashboard-content.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridDashboardContent",
-          "default": "class TestgridDashboardContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.activeIndex = 0;\n        this.groupName = '';\n        this.dashboardName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onTabActivated(event) {\n        const tabIndex = event.detail.index;\n        if (tabIndex === this.activeIndex) {\n            return;\n        }\n        // change from dashboard view to grid view or between grid views\n        if ((this.activeIndex === 0) || (this.activeIndex !== 0 && tabIndex !== 0)) {\n            this.tabName = this.tabNames[tabIndex];\n            navigateTabWithoutReload(this.groupName, this.dashboardName, this.tabName);\n        }\n        // change from dashboard view to group view\n        else {\n            this.tabName = undefined;\n            navigateDashboardWithoutReload(this.groupName, this.dashboardName);\n        }\n        this.activeIndex = tabIndex;\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        window.addEventListener('tab-changed', (evt) => {\n            this.tabName = evt.detail.tabName;\n            this.highlightIndex(this.tabName);\n            navigateTabWithoutReload(this.groupName, this.dashboardName, this.tabName);\n        });\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('dashboardName') && changedProperties.has('tabName')) {\n            this.fetchTabNames();\n        }\n        else if (changedProperties.has('dashboardName')) {\n            this.tabName = undefined;\n            this.fetchTabNames();\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.tabNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onTabActivated}\">\n          ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${!this.tabName ?\n            html `<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :\n            html `<testgrid-grid .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchTabNames() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardTabsResponse.fromJson(await response.json());\n            var tabNames = ['Summary'];\n            data.dashboardTabs.forEach(tab => {\n                tabNames.push(tab.name);\n            });\n            this.tabNames = tabNames;\n            this.highlightIndex(this.tabName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(tabName) {\n        if (tabName === undefined) {\n            this.activeIndex = 0;\n            return;\n        }\n        var index = this.tabNames.indexOf(tabName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
-          "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data.\nRenders the tab bar with tab names irrespective of the view."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridDashboardContent",
-          "declaration": {
-            "name": "TestgridDashboardContent",
-            "module": "out-tsc/src/testgrid-dashboard-content.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-dashboard-router.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridDashboardRouter",
-          "default": "class TestgridDashboardRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        // passed down from root router to perform correct navigation\n        this.groupName = '';\n        this.routes = new Routes(this, [\n            {\n                path: 'dashboards/:dashboard',\n                render: (params) => html `<testgrid-group-content .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-group-content>`,\n            },\n            {\n                path: 'dashboards/:dashboard/*',\n                render: (params) => html `<testgrid-tab-router .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-tab-router>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.routes.outlet()}`;\n    }\n}",
-          "description": "Class definition for the `testgrid-dashboard-router` element.\nHandles the dashboard level routing logic.\nRenders the dashboard summary view within group-content element or continues\nwith the next level router."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridDashboardRouter",
-          "declaration": {
-            "name": "TestgridDashboardRouter",
-            "module": "out-tsc/src/testgrid-dashboard-router.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-dashboard-summary.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TabStatusIcon",
-          "default": "new Map([\n    ['PASSING', 'done'],\n    ['FAILING', 'warning'],\n    ['FLAKY', 'remove_circle_outline'],\n    ['STALE', 'error_outline'],\n    ['BROKEN', 'broken_image'],\n    ['PENDING', 'schedule'],\n    ['ACCEPTABLE', 'add_circle_outline'],\n])"
-        },
-        {
-          "kind": "variable",
-          "name": "TestgridDashboardSummary",
-          "default": "class TestgridDashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabSummariesInfo = [];\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('dashboardName')) {\n            this.fetchTabSummaries();\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n  `;\n    }\n    // fetch the tab summaries and tab names to populate the tab bar\n    async fetchTabSummaries() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n            });\n            this.tabSummariesInfo = tabSummaries;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}",
-          "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs)."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TabStatusIcon",
-          "declaration": {
-            "name": "TabStatusIcon",
-            "module": "out-tsc/src/testgrid-dashboard-summary.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "TestgridDashboardSummary",
-          "declaration": {
-            "name": "TestgridDashboardSummary",
-            "module": "out-tsc/src/testgrid-dashboard-summary.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid-cell.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGridCell",
-          "default": "class TestgridGridCell extends LitElement {\n    render() {\n        return html `${this.icon}`;\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridCell",
-          "declaration": {
-            "name": "TestgridGridCell",
-            "module": "out-tsc/src/testgrid-grid-cell.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid-column-header.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGridColumnHeader",
-          "default": "class TestgridGridColumnHeader extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridColumnHeader",
-          "declaration": {
-            "name": "TestgridGridColumnHeader",
-            "module": "out-tsc/src/testgrid-grid-column-header.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid-header-row.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGridHeaderRow",
-          "default": "class TestgridGridHeaderRow extends LitElement {\n    render() {\n        var _a;\n        // TODO(michelle192837): Replace row name component with more appropriate one.\n        return html `\n      <testgrid-grid-row-name></testgrid-grid-row-name>\n      ${map((_a = this.headers) === null || _a === void 0 ? void 0 : _a.headers, header => html `<testgrid-grid-column-header\n            .name=\"${header.build}\"\n          ></testgrid-grid-column-header>`)}\n    `;\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridHeaderRow",
-          "declaration": {
-            "name": "TestgridGridHeaderRow",
-            "module": "out-tsc/src/testgrid-grid-header-row.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid-row-name.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGridRowName",
-          "default": "class TestgridGridRowName extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridRowName",
-          "declaration": {
-            "name": "TestgridGridRowName",
-            "module": "out-tsc/src/testgrid-grid-row-name.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid-row.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGridRow",
-          "default": "class TestgridGridRow extends LitElement {\n    render() {\n        var _a, _b;\n        return html `<testgrid-grid-row-name .name=\"${(_a = this.rowData) === null || _a === void 0 ? void 0 : _a.name}\">\n      </testgrid-grid-row-name>\n      ${map((_b = this.rowData) === null || _b === void 0 ? void 0 : _b.cells, cell => html `<testgrid-grid-cell\n            .icon=\"${cell.icon}\"\n            .status=\"${TestStatus[cell.result]}\"\n          ></testgrid-grid-cell>`)} `;\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGridRow",
-          "declaration": {
-            "name": "TestgridGridRow",
-            "module": "out-tsc/src/testgrid-grid-row.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-grid.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGrid",
-          "default": "class TestgridGrid extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabName = '';\n        this.tabGridRows = [];\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('tabName')) {\n            this.fetchTabGrid();\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n    <testgrid-grid-header-row .headers=\"${this.tabGridHeaders}\"></testgrid-grid-header-row>\n    ${map(this.tabGridRows, (row) => html `<testgrid-grid-row .name=\"${row.name}\" .rowData=\"${row}\"></testgrid-grid-row>`)}\n    `;\n    }\n    async fetchTabGrid() {\n        this.fetchTabGridRows();\n        this.fetchTabGridHeaders();\n    }\n    async fetchTabGridRows() {\n        this.tabGridRows = [];\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/rows`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListRowsResponse.fromJson(await response.json());\n            var rows = [];\n            data.rows.forEach(row => rows.push(row));\n            this.tabGridRows = rows;\n        }\n        catch (error) {\n            console.error(`Could not get grid rows: ${error}`);\n        }\n    }\n    async fetchTabGridHeaders() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/headers`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListHeadersResponse.fromJson(await response.json());\n            this.tabGridHeaders = data;\n        }\n        catch (error) {\n            console.error(`Could not get grid headers: ${error}`);\n        }\n    }\n}",
-          "description": "Class definition for `testgrid-grid` component.\nRenders the test results grid."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGrid",
-          "declaration": {
-            "name": "TestgridGrid",
-            "module": "out-tsc/src/testgrid-grid.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-group-content.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGroupContent",
-          "default": "class TestgridGroupContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardNames = [];\n        this.activeIndex = 0;\n        this.groupName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onDashboardActivated(event) {\n        const dashboardIndex = event.detail.index;\n        if (dashboardIndex === this.activeIndex) {\n            return;\n        }\n        this.tabName = undefined;\n        // change from group view to dashboard view or between dashboard views\n        if ((this.activeIndex === 0) || (this.activeIndex !== 0 && dashboardIndex !== 0)) {\n            this.dashboardName = this.dashboardNames[dashboardIndex];\n            navigateDashboardWithoutReload(this.groupName, this.dashboardName);\n        }\n        // change from dashboard view to group view\n        else {\n            this.dashboardName = undefined;\n            navigateGroup(this.groupName, false);\n        }\n        this.activeIndex = dashboardIndex;\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchDashboardNames();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.dashboardNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onDashboardActivated}\">\n          ${map(this.dashboardNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${html `<md-divider></md-divider>`}\n      ${!this.dashboardName ?\n            html `<testgrid-group-summary .groupName=${this.groupName}></testgrid-group-summary>` :\n            html `<testgrid-dashboard-content .groupName=${this.groupName} .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-dashboard-content>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchDashboardNames() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${this.groupName}`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = GetDashboardGroupResponse.fromJson(await response.json());\n            var dashboardNames = [`${this.groupName}`];\n            data.dashboards.forEach(dashboard => {\n                dashboardNames.push(dashboard.name);\n            });\n            this.dashboardNames = dashboardNames;\n            this.highlightIndex(this.dashboardName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboards for the group: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(dashboardName) {\n        if (dashboardName === undefined) {\n            this.activeIndex = 0;\n            return;\n        }\n        var index = this.dashboardNames.indexOf(dashboardName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
-          "description": "Class definition for the `testgrid-group-content` element.\nActs as a container which can toggle between group summary view or dashboard-content element.\nRenders the tab bar with dashboard names irrespective of the view."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGroupContent",
-          "declaration": {
-            "name": "TestgridGroupContent",
-            "module": "out-tsc/src/testgrid-group-content.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-group-summary.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridGroupSummary",
-          "default": "class TestgridGroupSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.groupName = '';\n        this.dashboardSummaries = [];\n    }\n    render() {\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <table>\n        <thead>\n          <tr>\n            <th>Status</th>\n            <th>Dashboard</th>\n            <th>Health</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${map(this.dashboardSummaries, (ds) => html `\n              <tr>\n                <td><i class=\"material-icons ${ds.overallStatus}\">${ds.icon}</i></td>\n                <td>${ds.name}</td>\n                <td>${ds.tabDescription}</td>\n              </tr>\n            `)}\n        </tbody>\n      </table>\n    `;\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchDashboardSummaries();\n    }\n    async fetchDashboardSummaries() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${this.groupName}/dashboard-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardSummariesResponse.fromJson(await response.json());\n            var summaries = [];\n            data.dashboardSummaries.forEach(summary => summaries.push(this.convertResponse(summary)));\n            this.dashboardSummaries = summaries;\n        }\n        catch (error) {\n            console.error(`Could not get grid rows: ${error}`);\n        }\n    }\n    convertResponse(summary) {\n        const sortedStatuses = [\n            \"PASSING\",\n            \"ACCEPTABLE\",\n            \"FLAKY\",\n            \"FAILING\",\n            \"STALE\",\n            \"BROKEN\",\n            \"PENDING\"\n        ];\n        var numPassing = 0;\n        var total = 0;\n        for (const key in summary.tabStatusCount) {\n            if (key === \"PASSING\") {\n                numPassing = summary.tabStatusCount[key];\n            }\n            total += summary.tabStatusCount[key];\n        }\n        var prefix = `${numPassing} / ${total} PASSING`;\n        var descriptions = [];\n        sortedStatuses.forEach(status => {\n            if (summary.tabStatusCount[status] > 0) {\n                descriptions.push(`${summary.tabStatusCount[status]} ${status}`);\n            }\n        });\n        if (descriptions.length > 0) {\n            prefix += \" (\" + descriptions.join(\", \") + \")\";\n        }\n        const rds = {\n            name: summary.name,\n            overallStatus: summary.overallStatus,\n            icon: TabStatusIcon.get(summary.overallStatus),\n            tabDescription: prefix\n        };\n        return rds;\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridGroupSummary",
-          "declaration": {
-            "name": "TestgridGroupSummary",
-            "module": "out-tsc/src/testgrid-group-summary.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "out-tsc/src/testgrid-index.js",
       "declarations": [
         {
@@ -2159,149 +1340,6 @@
           "declaration": {
             "name": "TestgridIndex",
             "module": "out-tsc/src/testgrid-index.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-root-router.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridRootRouter",
-          "default": "class TestgridRootRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.router = new Router(this, [\n            {\n                path: '/groups/:group/*',\n                render: (params) => html `<testgrid-dashboard-router .groupName=${params.group}></testgrid-dashboard-router>`,\n            },\n            {\n                path: '/groups/:group',\n                render: (params) => html `<testgrid-group-content .groupName=${params.group}></testgrid-group-content>`,\n            },\n            {\n                path: '/',\n                render: () => html `<testgrid-index></testgrid-index>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        window.addEventListener('location-changed', () => {\n            this.router.goto(location.pathname);\n        });\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.router.outlet()}`;\n    }\n}",
-          "description": "Class definition for the `testgrid-root-router` element.\nHandles the top-level routing logic.\nRenders the index page, main container component or passes down the data to dashboard level router."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridRootRouter",
-          "declaration": {
-            "name": "TestgridRootRouter",
-            "module": "out-tsc/src/testgrid-root-router.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/src/testgrid-tab-router.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "TestgridTabRouter",
-          "default": "class TestgridTabRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.groupName = '';\n        this.dashboardName = '';\n        this.routes = new Routes(this, [\n            {\n                path: 'tabs/:tab',\n                render: (params) => html `<testgrid-group-content .groupName=${this.groupName} .dashboardName=${this.dashboardName} .tabName=${params.tab}></testgrid-group-content>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.routes.outlet()}`;\n    }\n}",
-          "description": "Class definition for the `testgrid-tab-router` element.\nHandles the tab level routing logic.\nRenders the grid view within dashboard-content within group-content"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "TestgridTabRouter",
-          "declaration": {
-            "name": "TestgridTabRouter",
-            "module": "out-tsc/src/testgrid-tab-router.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "out-tsc/stories/tab-summary.stories.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "Passing"
-        },
-        {
-          "kind": "variable",
-          "name": "Flaky"
-        },
-        {
-          "kind": "variable",
-          "name": "Failing"
-        },
-        {
-          "kind": "variable",
-          "name": "Stale"
-        },
-        {
-          "kind": "variable",
-          "name": "Broken"
-        },
-        {
-          "kind": "variable",
-          "name": "Pending"
-        },
-        {
-          "kind": "variable",
-          "name": "Acceptable"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Passing",
-          "declaration": {
-            "name": "Passing",
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Flaky",
-          "declaration": {
-            "name": "Flaky",
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Failing",
-          "declaration": {
-            "name": "Failing",
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Stale",
-          "declaration": {
-            "name": "Stale",
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Broken",
-          "declaration": {
-            "name": "Broken",
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Pending",
-          "declaration": {
-            "name": "Pending",
-            "module": "out-tsc/stories/tab-summary.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Acceptable",
-          "declaration": {
-            "name": "Acceptable",
-            "module": "out-tsc/stories/tab-summary.stories.js"
           }
         }
       ]
@@ -2694,15 +1732,6 @@
               "name": "{ backgroundColor = 'white', }"
             }
           ]
-        },
-        {
-          "kind": "function",
-          "name": "RespectiveDashboards",
-          "parameters": [
-            {
-              "name": "{ backgroundColor = 'white', }"
-            }
-          ]
         }
       ],
       "exports": [
@@ -2736,13 +1765,1244 @@
             "name": "DashboardGroups",
             "module": "out-tsc/stories/testgrid-index.stories.js"
           }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/stories/testgrid-tab-summary.stories.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "Passing"
+        },
+        {
+          "kind": "variable",
+          "name": "Flaky"
+        },
+        {
+          "kind": "variable",
+          "name": "Failing"
+        },
+        {
+          "kind": "variable",
+          "name": "Stale"
+        },
+        {
+          "kind": "variable",
+          "name": "Broken"
+        },
+        {
+          "kind": "variable",
+          "name": "Pending"
+        },
+        {
+          "kind": "variable",
+          "name": "Acceptable"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
         },
         {
           "kind": "js",
-          "name": "RespectiveDashboards",
+          "name": "Passing",
           "declaration": {
-            "name": "RespectiveDashboards",
-            "module": "out-tsc/stories/testgrid-index.stories.js"
+            "name": "Passing",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Flaky",
+          "declaration": {
+            "name": "Flaky",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Failing",
+          "declaration": {
+            "name": "Failing",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Stale",
+          "declaration": {
+            "name": "Stale",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Broken",
+          "declaration": {
+            "name": "Broken",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Pending",
+          "declaration": {
+            "name": "Pending",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "Acceptable",
+          "declaration": {
+            "name": "Acceptable",
+            "module": "out-tsc/stories/testgrid-tab-summary.stories.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/dashboard/testgrid-dashboard-content.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data.\nRenders the tab bar with tab names irrespective of the view.",
+          "name": "TestgridDashboardContent",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tabNames",
+              "type": {
+                "text": "string[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "activeIndex",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "groupName"
+            },
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "tabName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "tabName"
+            },
+            {
+              "kind": "method",
+              "name": "onTabActivated",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "CustomEvent<{index: number}>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabNames",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "highlightIndex",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "tabName",
+                  "type": {
+                    "text": "string | undefined"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "groupName"
+            },
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            },
+            {
+              "name": "tabName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "tabName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-dashboard-content",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDashboardContent",
+          "declaration": {
+            "name": "TestgridDashboardContent",
+            "module": "src/dashboard/testgrid-dashboard-content.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-dashboard-content",
+          "declaration": {
+            "name": "TestgridDashboardContent",
+            "module": "src/dashboard/testgrid-dashboard-content.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/dashboard/testgrid-dashboard-summary.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TabStatusIcon",
+          "default": "new Map<string, string>([\n  ['PASSING', 'done'],\n  ['FAILING', 'warning'],\n  ['FLAKY', 'remove_circle_outline'],\n  ['STALE', 'error_outline'],\n  ['BROKEN', 'broken_image'],\n  ['PENDING', 'schedule'],\n  ['ACCEPTABLE', 'add_circle_outline'],\n])"
+        },
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs).",
+          "name": "TestgridDashboardSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "tabSummariesInfo",
+              "type": {
+                "text": "Array<TabSummaryInfo>"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabSummaries",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-dashboard-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabStatusIcon",
+          "declaration": {
+            "name": "TabStatusIcon",
+            "module": "src/dashboard/testgrid-dashboard-summary.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestgridDashboardSummary",
+          "declaration": {
+            "name": "TestgridDashboardSummary",
+            "module": "src/dashboard/testgrid-dashboard-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-dashboard-summary",
+          "declaration": {
+            "name": "TestgridDashboardSummary",
+            "module": "src/dashboard/testgrid-dashboard-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/dashboard/testgrid-failures-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridFailuresSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "showFailureSummary",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "info",
+              "type": {
+                "text": "TabSummaryInfo | undefined"
+              },
+              "attribute": "info"
+            },
+            {
+              "kind": "method",
+              "name": "dropdownTable",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "info",
+              "type": {
+                "text": "TabSummaryInfo | undefined"
+              },
+              "fieldName": "info"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-failures-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridFailuresSummary",
+          "declaration": {
+            "name": "TestgridFailuresSummary",
+            "module": "src/dashboard/testgrid-failures-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-failures-summary",
+          "declaration": {
+            "name": "TestgridFailuresSummary",
+            "module": "src/dashboard/testgrid-failures-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/dashboard/testgrid-tab-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TabSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "info",
+              "type": {
+                "text": "TabSummaryInfo | undefined"
+              },
+              "attribute": "info"
+            },
+            {
+              "kind": "method",
+              "name": "changeTab",
+              "privacy": "private",
+              "description": "Lets the data content element know that the tab changed",
+              "parameters": [
+                {
+                  "description": "string",
+                  "name": "tabName"
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "info",
+              "type": {
+                "text": "TabSummaryInfo | undefined"
+              },
+              "fieldName": "info"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "tab-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "src/dashboard/testgrid-tab-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "tab-summary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "src/dashboard/testgrid-tab-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/grid/testgrid-grid-cell.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGridCell",
+          "members": [
+            {
+              "kind": "field",
+              "name": "status",
+              "type": {
+                "text": "String"
+              },
+              "attribute": "status",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "type": {
+                "text": "String"
+              },
+              "attribute": "icon"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "status",
+              "type": {
+                "text": "String"
+              },
+              "fieldName": "status"
+            },
+            {
+              "name": "icon",
+              "type": {
+                "text": "String"
+              },
+              "fieldName": "icon"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid-cell",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridCell",
+          "declaration": {
+            "name": "TestgridGridCell",
+            "module": "src/grid/testgrid-grid-cell.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid-cell",
+          "declaration": {
+            "name": "TestgridGridCell",
+            "module": "src/grid/testgrid-grid-cell.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/grid/testgrid-grid-column-header.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGridColumnHeader",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "String"
+              },
+              "attribute": "name"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "String"
+              },
+              "fieldName": "name"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid-column-header",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridColumnHeader",
+          "declaration": {
+            "name": "TestgridGridColumnHeader",
+            "module": "src/grid/testgrid-grid-column-header.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid-column-header",
+          "declaration": {
+            "name": "TestgridGridColumnHeader",
+            "module": "src/grid/testgrid-grid-column-header.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/grid/testgrid-grid-header-row.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGridHeaderRow",
+          "members": [
+            {
+              "kind": "field",
+              "name": "headers",
+              "type": {
+                "text": "ListHeadersResponse"
+              },
+              "attribute": "headers"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "headers",
+              "type": {
+                "text": "ListHeadersResponse"
+              },
+              "fieldName": "headers"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid-header-row",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridHeaderRow",
+          "declaration": {
+            "name": "TestgridGridHeaderRow",
+            "module": "src/grid/testgrid-grid-header-row.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid-header-row",
+          "declaration": {
+            "name": "TestgridGridHeaderRow",
+            "module": "src/grid/testgrid-grid-header-row.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/grid/testgrid-grid-row-name.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGridRowName",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "String"
+              },
+              "attribute": "name"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "String"
+              },
+              "fieldName": "name"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid-row-name",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridRowName",
+          "declaration": {
+            "name": "TestgridGridRowName",
+            "module": "src/grid/testgrid-grid-row-name.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid-row-name",
+          "declaration": {
+            "name": "TestgridGridRowName",
+            "module": "src/grid/testgrid-grid-row-name.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/grid/testgrid-grid-row.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGridRow",
+          "members": [
+            {
+              "kind": "field",
+              "name": "rowData",
+              "type": {
+                "text": "ListRowsResponse_Row"
+              },
+              "attribute": "rowData"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "rowData",
+              "type": {
+                "text": "ListRowsResponse_Row"
+              },
+              "fieldName": "rowData"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid-row",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridRow",
+          "declaration": {
+            "name": "TestgridGridRow",
+            "module": "src/grid/testgrid-grid-row.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid-row",
+          "declaration": {
+            "name": "TestgridGridRow",
+            "module": "src/grid/testgrid-grid-row.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/grid/testgrid-grid.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for `testgrid-grid` component.\nRenders the test results grid.",
+          "name": "TestgridGrid",
+          "members": [
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "attribute": "dashboardName",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tabName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "attribute": "tabName",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tabGridRows",
+              "type": {
+                "text": "Array<ListRowsResponse_Row>"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "tabGridHeaders",
+              "type": {
+                "text": "ListHeadersResponse"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabGrid",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabGridRows",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "fetchTabGridHeaders",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            },
+            {
+              "name": "tabName",
+              "type": {
+                "text": "String"
+              },
+              "default": "''",
+              "fieldName": "tabName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-grid",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGrid",
+          "declaration": {
+            "name": "TestgridGrid",
+            "module": "src/grid/testgrid-grid.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-grid",
+          "declaration": {
+            "name": "TestgridGrid",
+            "module": "src/grid/testgrid-grid.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/group/testgrid-group-content.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-group-content` element.\nActs as a container which can toggle between group summary view or dashboard-content element.\nRenders the tab bar with dashboard names irrespective of the view.",
+          "name": "TestgridGroupContent",
+          "members": [
+            {
+              "kind": "field",
+              "name": "dashboardNames",
+              "type": {
+                "text": "string[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "activeIndex",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "groupName"
+            },
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "tabName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "tabName"
+            },
+            {
+              "kind": "method",
+              "name": "onDashboardActivated",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "CustomEvent<{index: number}>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "fetchDashboardNames",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "highlightIndex",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "dashboardName",
+                  "type": {
+                    "text": "string | undefined"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "groupName"
+            },
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "dashboardName"
+            },
+            {
+              "name": "tabName",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "tabName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-group-content",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGroupContent",
+          "declaration": {
+            "name": "TestgridGroupContent",
+            "module": "src/group/testgrid-group-content.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-group-content",
+          "declaration": {
+            "name": "TestgridGroupContent",
+            "module": "src/group/testgrid-group-content.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/group/testgrid-group-summary.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TestgridGroupSummary",
+          "members": [
+            {
+              "kind": "field",
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "groupName"
+            },
+            {
+              "kind": "field",
+              "name": "dashboardSummaries",
+              "type": {
+                "text": "RenderedDashboardSummary[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "method",
+              "name": "fetchDashboardSummaries",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "convertResponse",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "summary",
+                  "type": {
+                    "text": "DashboardSummary"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "groupName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-group-summary",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGroupSummary",
+          "declaration": {
+            "name": "TestgridGroupSummary",
+            "module": "src/group/testgrid-group-summary.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-group-summary",
+          "declaration": {
+            "name": "TestgridGroupSummary",
+            "module": "src/group/testgrid-group-summary.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/navigation/testgrid-dashboard-router.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-dashboard-router` element.\nHandles the dashboard level routing logic.\nRenders the dashboard summary view within group-content element or continues\nwith the next level router.",
+          "name": "TestgridDashboardRouter",
+          "members": [
+            {
+              "kind": "field",
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "groupName"
+            },
+            {
+              "kind": "field",
+              "name": "routes",
+              "privacy": "private",
+              "default": "new Routes(this, [\n    {\n      path: 'dashboards/:dashboard', \n      render: (params: RouteParameter) => html`<testgrid-group-content .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-group-content>`,\n    },\n    {\n      path: 'dashboards/:dashboard/*', \n      render: (params: RouteParameter) => html`<testgrid-tab-router .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-tab-router>`,\n    },\n  ])"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "groupName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-dashboard-router",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDashboardRouter",
+          "declaration": {
+            "name": "TestgridDashboardRouter",
+            "module": "src/navigation/testgrid-dashboard-router.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-dashboard-router",
+          "declaration": {
+            "name": "TestgridDashboardRouter",
+            "module": "src/navigation/testgrid-dashboard-router.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/navigation/testgrid-root-router.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-root-router` element.\nHandles the top-level routing logic.\nRenders the index page, main container component or passes down the data to dashboard level router.",
+          "name": "TestgridRootRouter",
+          "members": [
+            {
+              "kind": "field",
+              "name": "router",
+              "privacy": "private",
+              "default": "new Router(this, [\n    {\n      path: '/groups/:group/*', \n      render: (params: RouteParameter) => html`<testgrid-dashboard-router .groupName=${params.group}></testgrid-dashboard-router>`,\n    },\n    {\n      path: '/groups/:group', \n      render: (params: RouteParameter) => html`<testgrid-group-content .groupName=${params.group}></testgrid-group-content>`,\n    },\n    {\n      path: '/',\n      render: () => html`<testgrid-index></testgrid-index>`,\n    },\n  ])"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-root-router",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridRootRouter",
+          "declaration": {
+            "name": "TestgridRootRouter",
+            "module": "src/navigation/testgrid-root-router.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-root-router",
+          "declaration": {
+            "name": "TestgridRootRouter",
+            "module": "src/navigation/testgrid-root-router.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/navigation/testgrid-tab-router.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Class definition for the `testgrid-tab-router` element.\nHandles the tab level routing logic.\nRenders the grid view within dashboard-content within group-content",
+          "name": "TestgridTabRouter",
+          "members": [
+            {
+              "kind": "field",
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "groupName"
+            },
+            {
+              "kind": "field",
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "dashboardName"
+            },
+            {
+              "kind": "field",
+              "name": "routes",
+              "privacy": "private",
+              "default": "new Routes(this, [\n    {\n      path: 'tabs/:tab', \n      render: (params: RouteParameter) => html`<testgrid-group-content .groupName=${this.groupName} .dashboardName=${this.dashboardName} .tabName=${params.tab}></testgrid-group-content>`,\n    },\n  ])"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "groupName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "groupName"
+            },
+            {
+              "name": "dashboardName",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "dashboardName"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "testgrid-tab-router",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridTabRouter",
+          "declaration": {
+            "name": "TestgridTabRouter",
+            "module": "src/navigation/testgrid-tab-router.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "testgrid-tab-router",
+          "declaration": {
+            "name": "TestgridTabRouter",
+            "module": "src/navigation/testgrid-tab-router.ts"
           }
         }
       ]
@@ -2865,6 +3125,389 @@
           "declaration": {
             "name": "navigateGroup",
             "module": "src/utils/navigation.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/core-js.28055faac7332b21c9e06460dae4b000.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/custom-elements-es5-adapter.79106fd9b808b3bbd70d54b934850301.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/fetch.f8c330d549b0d591bce5f245fe3351f9.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/intersection-observer.1dfab822bea56de541280683e0923ef2.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/regenerator-runtime.e2c951e2eae648aacbcac529428355da.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/resize-observer.467474095074c8a92dde0e006c40eb12.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/systemjs.dabf4e8006a3be11acd4b6981abd9943.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "storybook-static/polyfills/webcomponents.a551e00e9f31a5519876700c4ae6d987.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/dashboard/testgrid-dashboard-content.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridDashboardContent",
+          "default": "class TestgridDashboardContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.tabNames = [];\n        this.activeIndex = 0;\n        this.groupName = '';\n        this.dashboardName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onTabActivated(event) {\n        const tabIndex = event.detail.index;\n        if (tabIndex === this.activeIndex) {\n            return;\n        }\n        // change from dashboard view to grid view or between grid views\n        if ((this.activeIndex === 0) || (this.activeIndex !== 0 && tabIndex !== 0)) {\n            this.tabName = this.tabNames[tabIndex];\n            navigateTabWithoutReload(this.groupName, this.dashboardName, this.tabName);\n        }\n        // change from dashboard view to group view\n        else {\n            this.tabName = undefined;\n            navigateDashboardWithoutReload(this.groupName, this.dashboardName);\n        }\n        this.activeIndex = tabIndex;\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        window.addEventListener('tab-changed', (evt) => {\n            this.tabName = evt.detail.tabName;\n            this.highlightIndex(this.tabName);\n            navigateTabWithoutReload(this.groupName, this.dashboardName, this.tabName);\n        });\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('dashboardName') && changedProperties.has('tabName')) {\n            this.fetchTabNames();\n        }\n        else if (changedProperties.has('dashboardName')) {\n            this.tabName = undefined;\n            this.fetchTabNames();\n        }\n        else if (changedProperties.has('tabName')) {\n            this.highlightIndex(this.tabName);\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.tabNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onTabActivated}\">\n          ${map(this.tabNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${!this.tabName ?\n            html `<testgrid-dashboard-summary .dashboardName=${this.dashboardName}></testgrid-dashboard-summary>` :\n            html `<testgrid-grid .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-grid>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchTabNames() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardTabsResponse.fromJson(await response.json());\n            var tabNames = ['Summary'];\n            data.dashboardTabs.forEach(tab => {\n                tabNames.push(tab.name);\n            });\n            this.tabNames = tabNames;\n            this.highlightIndex(this.tabName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(tabName) {\n        if (tabName === undefined) {\n            this.activeIndex = 0;\n            return;\n        }\n        var index = this.tabNames.indexOf(tabName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
+          "description": "Class definition for the `testgrid-data-content` element.\nActs as a container for dashboard summary or grid data.\nRenders the tab bar with tab names irrespective of the view."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDashboardContent",
+          "declaration": {
+            "name": "TestgridDashboardContent",
+            "module": "out-tsc/src/dashboard/testgrid-dashboard-content.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/dashboard/testgrid-dashboard-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TabStatusIcon",
+          "default": "new Map([\n    ['PASSING', 'done'],\n    ['FAILING', 'warning'],\n    ['FLAKY', 'remove_circle_outline'],\n    ['STALE', 'error_outline'],\n    ['BROKEN', 'broken_image'],\n    ['PENDING', 'schedule'],\n    ['ACCEPTABLE', 'add_circle_outline'],\n])"
+        },
+        {
+          "kind": "variable",
+          "name": "TestgridDashboardSummary",
+          "default": "class TestgridDashboardSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabSummariesInfo = [];\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('dashboardName')) {\n            this.fetchTabSummaries();\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n      ${map(this.tabSummariesInfo, (ts) => html `<tab-summary .info=${ts}></tab-summary>`)}\n  `;\n    }\n    // fetch the tab summaries and tab names to populate the tab bar\n    async fetchTabSummaries() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tab-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListTabSummariesResponse.fromJson(await response.json());\n            var tabSummaries = [];\n            data.tabSummaries.forEach(ts => {\n                const si = convertResponse(ts);\n                tabSummaries.push(si);\n            });\n            this.tabSummariesInfo = tabSummaries;\n        }\n        catch (error) {\n            console.error(`Could not get dashboard summaries: ${error}`);\n        }\n    }\n}",
+          "description": "Class definition for the `testgrid-dashboard-summary` element.\nRenders the dashboard summary (summary of dashboard tabs)."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabStatusIcon",
+          "declaration": {
+            "name": "TabStatusIcon",
+            "module": "out-tsc/src/dashboard/testgrid-dashboard-summary.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "TestgridDashboardSummary",
+          "declaration": {
+            "name": "TestgridDashboardSummary",
+            "module": "out-tsc/src/dashboard/testgrid-dashboard-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/dashboard/testgrid-failures-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridFailuresSummary",
+          "default": "class TestgridFailuresSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.showFailureSummary = false;\n    }\n    render() {\n        var _a;\n        return html `\n    <div class=\"dropdown-container\">\n        <button @click=\"${() => this.dropdownTable()}\" class=\"btn\">\n          ${this.showFailureSummary ? html `- Hide Alerts -` : html `- Show Alerts -`}\n        </button>\n      ${this.showFailureSummary ? html `\n          <table class=\"dropdown-menu\">\n            <tr>\n              <th>Test Name</th>\n              <th># Fails</th>\n              <th>First Failed</th>\n              <th>Last Passed</th>\n            </tr>\n            ${map((_a = this.info) === null || _a === void 0 ? void 0 : _a.failuresSummary.topFailingTests, (test) => html `\n                <tr>\n                  <td>${test.displayName}</td>\n                  <td>${test.failCount}</td>\n                  <td>${test.passTimestamp}</td>\n                  <td>${test.failTimestamp}</td>\n                </tr>\n              `)}\n          </table>`\n            : ''}\n      </div>\n    `;\n    }\n    dropdownTable() {\n        this.showFailureSummary = !this.showFailureSummary;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridFailuresSummary",
+          "declaration": {
+            "name": "TestgridFailuresSummary",
+            "module": "out-tsc/src/dashboard/testgrid-failures-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/dashboard/testgrid-tab-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TabSummary",
+          "default": "class TabSummary extends LitElement {\n    render() {\n        var _a, _b, _c, _d, _e, _f, _g, _h, _j;\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <div class=\"tab\">\n        <div class=\"left\">\n          <div class=\"icon-wrapper\">\n            <i class=\"material-icons ${(_a = this.info) === null || _a === void 0 ? void 0 : _a.overallStatus}\"\n              >${(_b = this.info) === null || _b === void 0 ? void 0 : _b.icon}</i\n            >\n          </div>\n        </div>\n        <div class=\"mid\">\n          <div @click=${() => this.changeTab()} class=\"tab-name\">\n            ${(_c = this.info) === null || _c === void 0 ? void 0 : _c.name}: ${(_d = this.info) === null || _d === void 0 ? void 0 : _d.overallStatus}\n          </div>\n          <div class=\"detailed-status\">${(_e = this.info) === null || _e === void 0 ? void 0 : _e.detailedStatusMsg}</div>\n        </div>\n        <div class=\"right\">\n          <div class=\"stats\">\n            Last update: ${(_f = this.info) === null || _f === void 0 ? void 0 : _f.lastUpdateTimestamp}\n          </div>\n          <div class=\"stats\">\n            Tests last ran: ${(_g = this.info) === null || _g === void 0 ? void 0 : _g.lastRunTimestamp}\n          </div>\n          <div class=\"stats\">\n            Last green run: ${(_h = this.info) === null || _h === void 0 ? void 0 : _h.latestGreenBuild}\n          </div>\n        </div>\n      </div>\n      ${((_j = this.info) === null || _j === void 0 ? void 0 : _j.failuresSummary) !== undefined ?\n            html `<testgrid-failures-summary .info=${this.info}>\n        </testgrid-failures-summary>` : ''}\n    `;\n    }\n    /**\n     * Lets the data content element know that the tab changed\n     *\n     * @fires tab-changed\n     * @param tabName string\n     */\n    changeTab() {\n        var _a;\n        window.dispatchEvent(new CustomEvent('tab-changed', {\n            detail: {\n                tabName: (_a = this.info) === null || _a === void 0 ? void 0 : _a.name\n            },\n        }));\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TabSummary",
+          "declaration": {
+            "name": "TabSummary",
+            "module": "out-tsc/src/dashboard/testgrid-tab-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/grid/testgrid-grid-cell.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridCell",
+          "default": "class TestgridGridCell extends LitElement {\n    render() {\n        return html `${this.icon}`;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridCell",
+          "declaration": {
+            "name": "TestgridGridCell",
+            "module": "out-tsc/src/grid/testgrid-grid-cell.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/grid/testgrid-grid-column-header.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridColumnHeader",
+          "default": "class TestgridGridColumnHeader extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridColumnHeader",
+          "declaration": {
+            "name": "TestgridGridColumnHeader",
+            "module": "out-tsc/src/grid/testgrid-grid-column-header.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/grid/testgrid-grid-header-row.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridHeaderRow",
+          "default": "class TestgridGridHeaderRow extends LitElement {\n    render() {\n        var _a;\n        // TODO(michelle192837): Replace row name component with more appropriate one.\n        return html `\n      <testgrid-grid-row-name></testgrid-grid-row-name>\n      ${map((_a = this.headers) === null || _a === void 0 ? void 0 : _a.headers, header => html `<testgrid-grid-column-header\n            .name=\"${header.build}\"\n          ></testgrid-grid-column-header>`)}\n    `;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridHeaderRow",
+          "declaration": {
+            "name": "TestgridGridHeaderRow",
+            "module": "out-tsc/src/grid/testgrid-grid-header-row.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/grid/testgrid-grid-row-name.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridRowName",
+          "default": "class TestgridGridRowName extends LitElement {\n    render() {\n        return html `${this.name}`;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridRowName",
+          "declaration": {
+            "name": "TestgridGridRowName",
+            "module": "out-tsc/src/grid/testgrid-grid-row-name.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/grid/testgrid-grid-row.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGridRow",
+          "default": "class TestgridGridRow extends LitElement {\n    render() {\n        var _a, _b;\n        return html `<testgrid-grid-row-name .name=\"${(_a = this.rowData) === null || _a === void 0 ? void 0 : _a.name}\">\n      </testgrid-grid-row-name>\n      ${map((_b = this.rowData) === null || _b === void 0 ? void 0 : _b.cells, cell => html `<testgrid-grid-cell\n            .icon=\"${cell.icon}\"\n            .status=\"${TestStatus[cell.result]}\"\n          ></testgrid-grid-cell>`)} `;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGridRow",
+          "declaration": {
+            "name": "TestgridGridRow",
+            "module": "out-tsc/src/grid/testgrid-grid-row.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/grid/testgrid-grid.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGrid",
+          "default": "class TestgridGrid extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardName = '';\n        this.tabName = '';\n        this.tabGridRows = [];\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('tabName')) {\n            this.fetchTabGrid();\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `\n    <testgrid-grid-header-row .headers=\"${this.tabGridHeaders}\"></testgrid-grid-header-row>\n    ${map(this.tabGridRows, (row) => html `<testgrid-grid-row .name=\"${row.name}\" .rowData=\"${row}\"></testgrid-grid-row>`)}\n    `;\n    }\n    async fetchTabGrid() {\n        this.fetchTabGridRows();\n        this.fetchTabGridHeaders();\n    }\n    async fetchTabGridRows() {\n        this.tabGridRows = [];\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/rows`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListRowsResponse.fromJson(await response.json());\n            var rows = [];\n            data.rows.forEach(row => rows.push(row));\n            this.tabGridRows = rows;\n        }\n        catch (error) {\n            console.error(`Could not get grid rows: ${error}`);\n        }\n    }\n    async fetchTabGridHeaders() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboards/${this.dashboardName}/tabs/${this.tabName}/headers`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListHeadersResponse.fromJson(await response.json());\n            this.tabGridHeaders = data;\n        }\n        catch (error) {\n            console.error(`Could not get grid headers: ${error}`);\n        }\n    }\n}",
+          "description": "Class definition for `testgrid-grid` component.\nRenders the test results grid."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGrid",
+          "declaration": {
+            "name": "TestgridGrid",
+            "module": "out-tsc/src/grid/testgrid-grid.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/group/testgrid-group-content.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGroupContent",
+          "default": "class TestgridGroupContent extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.dashboardNames = [];\n        this.activeIndex = 0;\n        this.groupName = '';\n    }\n    // set the functionality when any tab is clicked on\n    onDashboardActivated(event) {\n        const dashboardIndex = event.detail.index;\n        if (dashboardIndex === this.activeIndex) {\n            return;\n        }\n        this.tabName = undefined;\n        // change from group view to dashboard view or between dashboard views\n        if ((this.activeIndex === 0) || (this.activeIndex !== 0 && dashboardIndex !== 0)) {\n            this.dashboardName = this.dashboardNames[dashboardIndex];\n            navigateDashboardWithoutReload(this.groupName, this.dashboardName);\n        }\n        // change from dashboard view to group view\n        else {\n            this.dashboardName = undefined;\n            navigateGroup(this.groupName, false);\n        }\n        this.activeIndex = dashboardIndex;\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchDashboardNames();\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when element properties are changed.\n     */\n    willUpdate(changedProperties) {\n        if (changedProperties.has('dashboardName')) {\n            this.highlightIndex(this.dashboardName);\n        }\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        var tabBar = html `${\n        // make sure we only render the tabs when there are tabs\n        when(this.dashboardNames.length > 0, () => html `\n        <mwc-tab-bar .activeIndex=${this.activeIndex} @MDCTabBar:activated=\"${this.onDashboardActivated}\">\n          ${map(this.dashboardNames, (name) => html `<mwc-tab label=${name}></mwc-tab>`)}\n        </mwc-tab-bar>`)}`;\n        return html `\n      ${tabBar}\n      ${!this.dashboardName ?\n            html `<testgrid-group-summary .groupName=${this.groupName}></testgrid-group-summary>` :\n            html `<testgrid-dashboard-content .groupName=${this.groupName} .dashboardName=${this.dashboardName} .tabName=${this.tabName}></testgrid-dashboard-content>`}\n    `;\n    }\n    // fetch the tab names to populate the tab bar\n    async fetchDashboardNames() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${this.groupName}`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = GetDashboardGroupResponse.fromJson(await response.json());\n            var dashboardNames = [`${this.groupName}`];\n            data.dashboards.forEach(dashboard => {\n                dashboardNames.push(dashboard.name);\n            });\n            this.dashboardNames = dashboardNames;\n            this.highlightIndex(this.dashboardName);\n        }\n        catch (error) {\n            console.error(`Could not get dashboards for the group: ${error}`);\n        }\n    }\n    // identify which tab to highlight on the tab bar\n    highlightIndex(dashboardName) {\n        if (dashboardName === undefined) {\n            this.activeIndex = 0;\n            return;\n        }\n        var index = this.dashboardNames.indexOf(dashboardName);\n        if (index > -1) {\n            this.activeIndex = index;\n        }\n    }\n}",
+          "description": "Class definition for the `testgrid-group-content` element.\nActs as a container which can toggle between group summary view or dashboard-content element.\nRenders the tab bar with dashboard names irrespective of the view."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGroupContent",
+          "declaration": {
+            "name": "TestgridGroupContent",
+            "module": "out-tsc/src/group/testgrid-group-content.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/group/testgrid-group-summary.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridGroupSummary",
+          "default": "class TestgridGroupSummary extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.groupName = '';\n        this.dashboardSummaries = [];\n    }\n    render() {\n        return html `\n      <link\n        rel=\"stylesheet\"\n        href=\"https://fonts.googleapis.com/icon?family=Material+Icons\"\n      />\n      <table>\n        <thead>\n          <tr>\n            <th>Status</th>\n            <th>Dashboard</th>\n            <th>Health</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${map(this.dashboardSummaries, (ds) => html `\n              <tr>\n                <td><i class=\"material-icons ${ds.overallStatus}\">${ds.icon}</i></td>\n                <td>${ds.name}</td>\n                <td>${ds.tabDescription}</td>\n              </tr>\n            `)}\n        </tbody>\n      </table>\n    `;\n    }\n    connectedCallback() {\n        super.connectedCallback();\n        this.fetchDashboardSummaries();\n    }\n    async fetchDashboardSummaries() {\n        try {\n            const response = await fetch(`http://${process.env.API_HOST}:${process.env.API_PORT}/api/v1/dashboard-groups/${this.groupName}/dashboard-summaries`);\n            if (!response.ok) {\n                throw new Error(`HTTP error: ${response.status}`);\n            }\n            const data = ListDashboardSummariesResponse.fromJson(await response.json());\n            var summaries = [];\n            data.dashboardSummaries.forEach(summary => summaries.push(this.convertResponse(summary)));\n            this.dashboardSummaries = summaries;\n        }\n        catch (error) {\n            console.error(`Could not get grid rows: ${error}`);\n        }\n    }\n    convertResponse(summary) {\n        const sortedStatuses = [\n            \"PASSING\",\n            \"ACCEPTABLE\",\n            \"FLAKY\",\n            \"FAILING\",\n            \"STALE\",\n            \"BROKEN\",\n            \"PENDING\"\n        ];\n        var numPassing = 0;\n        var total = 0;\n        for (const key in summary.tabStatusCount) {\n            if (key === \"PASSING\") {\n                numPassing = summary.tabStatusCount[key];\n            }\n            total += summary.tabStatusCount[key];\n        }\n        var prefix = `${numPassing} / ${total} PASSING`;\n        var descriptions = [];\n        sortedStatuses.forEach(status => {\n            if (summary.tabStatusCount[status] > 0) {\n                descriptions.push(`${summary.tabStatusCount[status]} ${status}`);\n            }\n        });\n        if (descriptions.length > 0) {\n            prefix += \" (\" + descriptions.join(\", \") + \")\";\n        }\n        const rds = {\n            name: summary.name,\n            overallStatus: summary.overallStatus,\n            icon: TabStatusIcon.get(summary.overallStatus),\n            tabDescription: prefix\n        };\n        return rds;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridGroupSummary",
+          "declaration": {
+            "name": "TestgridGroupSummary",
+            "module": "out-tsc/src/group/testgrid-group-summary.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/navigation/testgrid-dashboard-router.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridDashboardRouter",
+          "default": "class TestgridDashboardRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        // passed down from root router to perform correct navigation\n        this.groupName = '';\n        this.routes = new Routes(this, [\n            {\n                path: 'dashboards/:dashboard',\n                render: (params) => html `<testgrid-group-content .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-group-content>`,\n            },\n            {\n                path: 'dashboards/:dashboard/*',\n                render: (params) => html `<testgrid-tab-router .groupName=${this.groupName} .dashboardName=${params.dashboard}></testgrid-tab-router>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.routes.outlet()}`;\n    }\n}",
+          "description": "Class definition for the `testgrid-dashboard-router` element.\nHandles the dashboard level routing logic.\nRenders the dashboard summary view within group-content element or continues\nwith the next level router."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridDashboardRouter",
+          "declaration": {
+            "name": "TestgridDashboardRouter",
+            "module": "out-tsc/src/navigation/testgrid-dashboard-router.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/navigation/testgrid-root-router.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridRootRouter",
+          "default": "class TestgridRootRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.router = new Router(this, [\n            {\n                path: '/groups/:group/*',\n                render: (params) => html `<testgrid-dashboard-router .groupName=${params.group}></testgrid-dashboard-router>`,\n            },\n            {\n                path: '/groups/:group',\n                render: (params) => html `<testgrid-group-content .groupName=${params.group}></testgrid-group-content>`,\n            },\n            {\n                path: '/',\n                render: () => html `<testgrid-index></testgrid-index>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked when a component is added to the document's DOM.\n     */\n    connectedCallback() {\n        super.connectedCallback();\n        window.addEventListener('location-changed', () => {\n            this.router.goto(location.pathname);\n        });\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.router.outlet()}`;\n    }\n}",
+          "description": "Class definition for the `testgrid-root-router` element.\nHandles the top-level routing logic.\nRenders the index page, main container component or passes down the data to dashboard level router."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridRootRouter",
+          "declaration": {
+            "name": "TestgridRootRouter",
+            "module": "out-tsc/src/navigation/testgrid-root-router.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/navigation/testgrid-tab-router.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TestgridTabRouter",
+          "default": "class TestgridTabRouter extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.groupName = '';\n        this.dashboardName = '';\n        this.routes = new Routes(this, [\n            {\n                path: 'tabs/:tab',\n                render: (params) => html `<testgrid-group-content .groupName=${this.groupName} .dashboardName=${this.dashboardName} .tabName=${params.tab}></testgrid-group-content>`,\n            },\n        ]);\n    }\n    /**\n     * Lit-element lifecycle method.\n     * Invoked on each update to perform rendering tasks.\n     */\n    render() {\n        return html `${this.routes.outlet()}`;\n    }\n}",
+          "description": "Class definition for the `testgrid-tab-router` element.\nHandles the tab level routing logic.\nRenders the grid view within dashboard-content within group-content"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "TestgridTabRouter",
+          "declaration": {
+            "name": "TestgridTabRouter",
+            "module": "out-tsc/src/navigation/testgrid-tab-router.js"
           }
         }
       ]

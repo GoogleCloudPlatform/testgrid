@@ -2,12 +2,12 @@ import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
 import { when } from 'lit/directives/when.js';
-import { GetDashboardGroupResponse } from './gen/pb/api/v1/data.js';
-import { navigateDashboardWithoutReload, navigateGroup } from './utils/navigation.js';
+import { GetDashboardGroupResponse } from '../gen/pb/api/v1/data.js';
+import { navigateDashboardWithoutReload, navigateGroup } from '../utils/navigation.js';
 import '@material/mwc-tab';
 import '@material/mwc-tab-bar';
 import './testgrid-group-summary';
-import './testgrid-dashboard-content';
+import '../dashboard/testgrid-dashboard-content.js';
 
 /**
  * Class definition for the `testgrid-group-content` element.

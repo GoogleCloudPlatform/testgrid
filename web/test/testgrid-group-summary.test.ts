@@ -7,7 +7,7 @@ import {
   waitUntil,
 } from '@open-wc/testing';
 
-import { TestgridGroupSummary } from '../src/testgrid-group-summary.js';
+import { TestgridGroupSummary } from '../src/group/testgrid-group-summary.js';
 
 describe('Testgrid Group Summary page', () => {
   let element: TestgridGroupSummary;

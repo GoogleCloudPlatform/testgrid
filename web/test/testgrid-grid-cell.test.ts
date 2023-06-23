@@ -5,7 +5,7 @@ import {
     unsafeStatic,
     expect,
 } from '@open-wc/testing';
-import { TestgridGridCell } from '../src/testgrid-grid-cell';
+import { TestgridGridCell } from '../src/grid/testgrid-grid-cell';
 import { TestStatus } from '../src/gen/pb/test_status/test_status';
 
 describe('TestGrid grid cell', () => {

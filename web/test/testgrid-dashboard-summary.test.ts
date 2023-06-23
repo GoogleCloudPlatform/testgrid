@@ -8,7 +8,7 @@ import {
   aTimeout,
 } from '@open-wc/testing';
 
-import { TestgridDashboardSummary } from '../src/testgrid-dashboard-summary.js';
+import { TestgridDashboardSummary } from '../src/dashboard/testgrid-dashboard-summary.js';
 
 describe('Testgrid Dashboard Summary page', () => {
   let element: TestgridDashboardSummary;

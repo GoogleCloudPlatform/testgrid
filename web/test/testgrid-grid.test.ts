@@ -7,7 +7,7 @@ import {
   waitUntil,
 } from '@open-wc/testing';
 
-import { TestgridGrid } from '../src/testgrid-grid';
+import { TestgridGrid } from '../src/grid/testgrid-grid';
 
 describe('Testgrid Grid page', () => {
   let element: TestgridGrid;

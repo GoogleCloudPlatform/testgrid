@@ -1,7 +1,7 @@
 import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { Routes } from "@lit-labs/router";
-import './testgrid-group-content';
+import '../group/testgrid-group-content';
 import './testgrid-tab-router';
 
 // Defines the type of params used for rendering components under different paths

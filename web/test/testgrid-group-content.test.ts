@@ -5,8 +5,8 @@ import {
   waitUntil,
 } from '@open-wc/testing';
 
-import { TestgridGroupContent} from '../src/testgrid-group-content';
-import '../src/testgrid-group-content';
+import { TestgridGroupContent} from '../src/group/testgrid-group-content';
+import '../src/group/testgrid-group-content';
 import { Tab } from '@material/mwc-tab';
 
 describe('Testgrid Dashboard Content page', () => {

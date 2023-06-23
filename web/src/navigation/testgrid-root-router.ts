@@ -2,8 +2,8 @@ import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { Router } from "@lit-labs/router";
 import './testgrid-dashboard-router';
-import './testgrid-group-content';
-import './testgrid-index';
+import '../group/testgrid-group-content';
+import '../testgrid-index';
 
 // Defines the type of params used for rendering components under different paths
 interface RouteParameter {

@@ -1,9 +1,8 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { ListDashboardSummariesResponse } from './gen/pb/api/v1/data';
-import { DashboardSummary } from './gen/pb/api/v1/data';
+import { ListDashboardSummariesResponse, DashboardSummary } from '../gen/pb/api/v1/data';
 import { map } from 'lit/directives/map.js';
-import { TabStatusIcon } from './testgrid-dashboard-summary';
+import { TabStatusIcon } from '../dashboard/testgrid-dashboard-summary';
 
 /**
  * RenderedDashboardSummary defines the dashboard summary representation required for rendering

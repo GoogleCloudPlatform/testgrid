@@ -1,9 +1,9 @@
 import { LitElement, html, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { map } from 'lit/directives/map.js';
-import { Timestamp } from './gen/google/protobuf/timestamp.js';
-import { ListTabSummariesResponse, TabSummary } from './gen/pb/api/v1/data.js';
-import './tab-summary';
+import { Timestamp } from '../gen/google/protobuf/timestamp.js';
+import { ListTabSummariesResponse, TabSummary } from '../gen/pb/api/v1/data.js';
+import './testgrid-tab-summary.js';
 
 export interface TabSummaryInfo {
   icon: string;
