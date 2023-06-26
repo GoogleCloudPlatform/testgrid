@@ -95,7 +95,7 @@ func TestGCS(t *testing.T) {
 					}
 				}
 			}()
-			updater := GCS(tc.ctx, nil, 0, 0, 0, false, false)
+			updater := GCS(tc.ctx, nil, nil, 0, 0, 0, false, false)
 			_, err := updater(ctx, logrus.WithField("case", tc.name), nil, tc.group, gcs.Path{})
 			switch {
 			case err != nil:
@@ -425,7 +425,7 @@ func TestUpdate(t *testing.T) {
 			if tc.groupUpdater == nil {
 				poolCtx, poolCancel := context.WithCancel(context.Background())
 				defer poolCancel()
-				tc.groupUpdater = GCS(poolCtx, client, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, !tc.skipConfirm, false)
+				tc.groupUpdater = GCS(poolCtx, client, nil, *tc.groupTimeout, *tc.buildTimeout, tc.buildConcurrency, false, !tc.skipConfirm)
 			}
 			opts := &UpdateOptions{
 				ConfigPath:       configPath,
@@ -2059,6 +2059,7 @@ func TestInflateDropAppend(t *testing.T) {
 				!tc.skipWrite,
 				colReader,
 				tc.reprocess,
+				nil, //metric
 			)
 			switch {
 			case err != nil:
