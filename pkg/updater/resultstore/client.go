@@ -35,15 +35,15 @@ type resultStoreClient interface {
 	ExportInvocation(context.Context, *resultstore.ExportInvocationRequest, ...grpc.CallOption) (*resultstore.ExportInvocationResponse, error)
 }
 
-// downloadClient provides a client to download ResultStore results from.
-type downloadClient struct {
+// DownloadClient provides a client to download ResultStore results from.
+type DownloadClient struct {
 	client resultStoreClient
 	token  string
 }
 
 // NewClient uses the specified gRPC connection to connect to ResultStore.
-func NewClient(conn *grpc.ClientConn) *downloadClient {
-	return &downloadClient{
+func NewClient(conn *grpc.ClientConn) *DownloadClient {
+	return &DownloadClient{
 		client: resultstore.NewResultStoreDownloadClient(conn),
 	}
 }
@@ -80,7 +80,7 @@ func Connect(ctx context.Context, serviceAccountPath string) (*grpc.ClientConn, 
 }
 
 // Search finds all the invocations that satisfies the query condition within a project.
-func (c *downloadClient) Search(ctx context.Context, log logrus.FieldLogger, query, projectID string, fields ...string) ([]string, error) {
+func (c *DownloadClient) Search(ctx context.Context, log logrus.FieldLogger, query, projectID string, fields ...string) ([]string, error) {
 	var ids []string
 	nextPageToken := ""
 	fieldMaskCtx := fieldMask(
@@ -124,7 +124,7 @@ func fieldMask(ctx context.Context, fields ...string) context.Context {
 }
 
 // FetchInvocation returns all details for a given invocation.
-func (c *downloadClient) FetchInvocation(ctx context.Context, log logrus.FieldLogger, invocationID string) (*fetchResult, error) {
+func (c *DownloadClient) FetchInvocation(ctx context.Context, log logrus.FieldLogger, invocationID string) (*fetchResult, error) {
 	name := fmt.Sprintf("invocations/%s", invocationID)
 	nextPageToken := ""
 	result := &fetchResult{}

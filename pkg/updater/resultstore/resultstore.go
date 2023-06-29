@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
+	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/sirupsen/logrus"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
@@ -33,11 +34,30 @@ import (
 	resultstorepb "google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 )
 
+// Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
+func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeout time.Duration, write bool) updater.GroupUpdater {
+	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
+		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
+			log.Debug("Skipping non-kubernetes client group")
+			return false, nil
+		}
+		if resultStoreClient == nil {
+			log.WithField("name", tg.GetName()).Warn("ResultStore update requested, but no client found.")
+			return false, nil
+		}
+		ctx, cancel := context.WithTimeout(parent, groupTimeout)
+		defer cancel()
+		rsColumnReader := ResultStoreColumnReader(resultStoreClient, 0)
+		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
+		return updater.InflateDropAppend(ctx, log, gcsClient, tg, gridPath, write, rsColumnReader, reprocess)
+	}
+}
+
 // ResultStoreColumnReader fetches results since last update from ResultStore and translates them into columns.
-func ResultStoreColumnReader(client *downloadClient, reprocess time.Duration) updater.ColumnReader {
+func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) updater.ColumnReader {
 	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []updater.InflatedColumn, defaultStop time.Time, receivers chan<- updater.InflatedColumn) error {
 		stop := updateStop(log, tg, time.Now(), oldCols, defaultStop, reprocess)
-		ids, err := search(ctx, log, client, stop)
+		ids, err := search(ctx, log, client, tg.GetResultSource().GetResultstoreConfig().GetProject(), stop)
 		if err != nil {
 			return fmt.Errorf("error searching invocations: %v", err)
 		}
@@ -59,7 +79,7 @@ func ResultStoreColumnReader(client *downloadClient, reprocess time.Duration) up
 		for _, result := range results {
 			// TODO: Make group ID something other than start time.
 			inflatedCol := processGroup(result)
-			receivers <- inflatedCol
+			receivers <- *inflatedCol
 		}
 		return nil
 	}
@@ -86,9 +106,9 @@ var convertStatus = map[resultstorepb.Status]statuspb.TestStatus{
 	resultstorepb.Status_SKIPPED:            statuspb.TestStatus_PASS_WITH_SKIPS,
 }
 
-func processGroup(result *fetchResult) updater.InflatedColumn {
-	if result == nil {
-		return updater.InflatedColumn{}
+func processGroup(result *fetchResult) *updater.InflatedColumn {
+	if result == nil || result.Invocation == nil {
+		return nil
 	}
 	started := result.Invocation.GetTiming().GetStartTime()
 	groupID := fmt.Sprintf("%d", started.GetSeconds())
@@ -114,7 +134,16 @@ func processGroup(result *fetchResult) updater.InflatedColumn {
 			CellID: result.Invocation.GetId().GetInvocationId(),
 		}
 	}
-	return updater.InflatedColumn{
+	invStatus, ok := convertStatus[result.Invocation.GetStatusAttributes().GetStatus()]
+	if !ok {
+		invStatus = statuspb.TestStatus_UNKNOWN
+	}
+	cells["Overall"] = updater.Cell{
+		Result: invStatus,
+		ID:     "Overall",
+		CellID: result.Invocation.GetId().GetInvocationId(),
+	}
+	return &updater.InflatedColumn{
 		Column: col,
 		Cells:  cells,
 	}
@@ -129,21 +158,19 @@ func queryAfter(query string, when time.Time) string {
 
 // TODO: Replace these hardcoded values with adjustable ones.
 const (
-	testProjectID = "k8s-testgrid"
-	testQuery     = "invocation_attributes.labels:\"prow\""
-	testToken     = "fake-token-1234"
+	queryProw = "invocation_attributes.labels:\"prow\""
 )
 
-func search(ctx context.Context, log logrus.FieldLogger, client *downloadClient, stop time.Time) ([]string, error) {
+func search(ctx context.Context, log logrus.FieldLogger, client *DownloadClient, projectID string, stop time.Time) ([]string, error) {
 	if client == nil {
 		return nil, fmt.Errorf("no ResultStore client provided")
 	}
-	query := queryAfter(testQuery, stop)
+	query := queryAfter(queryProw, stop)
 	log.WithField("query", query).Debug("Searching ResultStore.")
 	// Quit if search goes over 5 minutes.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	ids, err := client.Search(ctx, log, query, testProjectID)
+	ids, err := client.Search(ctx, log, query, projectID)
 	log.WithField("ids", len(ids)).WithError(err).Debug("Searched ResultStore.")
 	return ids, err
 }

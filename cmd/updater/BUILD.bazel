@@ -21,8 +21,10 @@ go_library(
     importpath = "github.com/GoogleCloudPlatform/testgrid/cmd/updater",
     visibility = ["//visibility:private"],
     deps = [
+        "//pb/config:go_default_library",
         "//pkg/pubsub:go_default_library",
         "//pkg/updater:go_default_library",
+        "//pkg/updater/resultstore:go_default_library",
         "//util:go_default_library",
         "//util/gcs:go_default_library",
         "//util/metrics/prometheus:go_default_library",
@@ -51,6 +53,7 @@ go_test(
     srcs = ["main_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//pb/config:go_default_library",
         "//util:go_default_library",
         "//util/gcs:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
