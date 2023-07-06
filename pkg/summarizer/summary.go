@@ -719,7 +719,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 	grid.Rows = filterMethods(grid.Rows)
 
 	latest, latestSeconds := latestRun(grid.Columns)
-	alert := staleAlert(mod, latest, staleHours(tab))
+	alert := staleAlert(mod, latest, staleHours(tab), len(grid.Rows))
 	failures := failingTestSummaries(grid.Rows)
 	colsCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold, features, tab.GetStatusCustomizationOptions())
 	metrics := tabMetrics(colsCells)
@@ -820,14 +820,14 @@ func latestRun(columns []*statepb.Column) (time.Time, int64) {
 const noRuns = "no completed results"
 
 // staleAlert returns an explanatory message if the latest results are stale.
-func staleAlert(mod, ran time.Time, stale time.Duration) string {
+func staleAlert(mod, ran time.Time, stale time.Duration, rows int) string {
 	if mod.IsZero() {
 		return "no stored results"
 	}
 	if stale == 0 {
 		return ""
 	}
-	if ran.IsZero() {
+	if ran.IsZero() || rows == 0 { // Has no columns and/or no rows.
 		return noRuns
 	}
 	now := time.Now()

@@ -1521,6 +1521,7 @@ func TestStaleAlert(t *testing.T) {
 		mod   time.Time
 		ran   time.Time
 		dur   time.Duration
+		rows  int
 		alert bool
 	}{
 		{
@@ -1528,12 +1529,14 @@ func TestStaleAlert(t *testing.T) {
 			mod:  time.Now().Add(-5 * time.Minute),
 			ran:  time.Now().Add(-10 * time.Minute),
 			dur:  time.Hour,
+			rows: 10,
 		},
 		{
 			name:  "unmodified alerts",
 			mod:   time.Now().Add(-5 * time.Hour),
 			ran:   time.Now(),
 			dur:   time.Hour,
+			rows:  10,
 			alert: true,
 		},
 		{
@@ -1541,12 +1544,22 @@ func TestStaleAlert(t *testing.T) {
 			mod:   time.Now(),
 			ran:   time.Now().Add(-5 * time.Hour),
 			dur:   time.Hour,
+			rows:  10,
 			alert: true,
 		},
 		{
 			name:  "no runs alerts",
 			mod:   time.Now(),
 			dur:   time.Hour,
+			rows:  10,
+			alert: true,
+		},
+		{
+			name:  "no rows alerts",
+			mod:   time.Now().Add(-5 * time.Minute),
+			ran:   time.Now().Add(-10 * time.Minute),
+			dur:   time.Hour,
+			rows:  0,
 			alert: true,
 		},
 		{
@@ -1561,7 +1574,7 @@ func TestStaleAlert(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := staleAlert(tc.mod, tc.ran, tc.dur)
+			actual := staleAlert(tc.mod, tc.ran, tc.dur, tc.rows)
 			if actual != "" && !tc.alert {
 				t.Errorf("unexpected stale alert: %s", actual)
 			}
