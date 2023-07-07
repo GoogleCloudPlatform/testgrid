@@ -26,6 +26,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 )
 
 func newPathOrDie(s string) *gcs.Path {
@@ -38,10 +40,10 @@ func newPathOrDie(s string) *gcs.Path {
 
 func TestGatherFlagOptions(t *testing.T) {
 	cases := []struct {
-		name     string
-		args     []string
-		expected func(*options)
-		err      bool
+		name string
+		args []string
+		want func(*options)
+		err  bool
 	}{
 		{
 			name: "config is required",
@@ -50,7 +52,7 @@ func TestGatherFlagOptions(t *testing.T) {
 		{
 			name: "basically works",
 			args: []string{"--config=gs://bucket/whatever"},
-			expected: func(o *options) {
+			want: func(o *options) {
 				o.config = *newPathOrDie("gs://bucket/whatever")
 			},
 		},
@@ -60,7 +62,7 @@ func TestGatherFlagOptions(t *testing.T) {
 				"--config=gs://k8s-testgrid/config",
 				"--confirm",
 			},
-			expected: func(o *options) {
+			want: func(o *options) {
 				o.config = *newPathOrDie("gs://k8s-testgrid/config")
 				o.confirm = true
 			},
@@ -71,7 +73,7 @@ func TestGatherFlagOptions(t *testing.T) {
 				"--config=gs://k8s-testgrid/config",
 				"--grid-prefix=",
 			},
-			expected: func(o *options) {
+			want: func(o *options) {
 				o.config = *newPathOrDie("gs://k8s-testgrid/config")
 				o.gridPrefix = ""
 			},
@@ -83,7 +85,7 @@ func TestGatherFlagOptions(t *testing.T) {
 				"--grid-prefix=random",
 				"--confirm",
 			},
-			expected: func(o *options) {
+			want: func(o *options) {
 				o.config = *newPathOrDie("gs://k8s-testgrid/config")
 				o.gridPrefix = "random"
 				o.confirm = true
@@ -105,7 +107,7 @@ func TestGatherFlagOptions(t *testing.T) {
 				"--grid-prefix=",
 				"--confirm",
 			},
-			expected: func(o *options) {
+			want: func(o *options) {
 				o.config = *newPathOrDie("gs://random/location")
 				o.gridPrefix = ""
 				o.confirm = true
@@ -116,18 +118,18 @@ func TestGatherFlagOptions(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			cores := runtime.NumCPU()
-			expected := options{
+			want := options{
 				buildTimeout:     3 * time.Minute,
 				buildConcurrency: cores * 4,
 				groupConcurrency: cores,
 				groupTimeout:     10 * time.Minute,
 				gridPrefix:       "grid",
 			}
-			if tc.expected != nil {
-				tc.expected(&expected)
+			if tc.want != nil {
+				tc.want(&want)
 			}
-			actual := gatherFlagOptions(flag.NewFlagSet(tc.name, flag.ContinueOnError), tc.args...)
-			switch err := actual.validate(); {
+			got := gatherFlagOptions(flag.NewFlagSet(tc.name, flag.ContinueOnError), tc.args...)
+			switch err := got.validate(); {
 			case err != nil:
 				if !tc.err {
 					t.Errorf("validate() got an unexpected error: %v", err)
@@ -135,10 +137,88 @@ func TestGatherFlagOptions(t *testing.T) {
 			case tc.err:
 				t.Error("validate() failed to return an error")
 			default:
-				if diff := cmp.Diff(expected, actual, cmp.AllowUnexported(options{}, gcs.Path{}), cmp.AllowUnexported(options{}, util.Strings{})); diff != "" {
+				if diff := cmp.Diff(want, got, cmp.AllowUnexported(options{}, gcs.Path{}), cmp.AllowUnexported(options{}, util.Strings{})); diff != "" {
 					t.Fatalf("gatherFlagOptions() got unexpected diff (-want +got):\n%s", diff)
 				}
 
+			}
+		})
+	}
+}
+
+func TestSource(t *testing.T) {
+	cases := []struct {
+		name string
+		tg   *configpb.TestGroup
+		want resultSource
+	}{
+		{
+			name: "nil",
+			want: unknownSource,
+		},
+		{
+			name: "empty",
+			tg:   &configpb.TestGroup{},
+			want: unknownSource,
+		},
+		{
+			name: "use_kubernetes_client",
+			tg: &configpb.TestGroup{
+				UseKubernetesClient: true,
+			},
+			want: gcsSource,
+		},
+		{
+			name: "GCS source",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_GcsConfig{
+						GcsConfig: &configpb.GCSConfig{},
+					},
+				},
+			},
+			want: gcsSource,
+		},
+		{
+			name: "ResultStore source",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+						ResultstoreConfig: &configpb.ResultStoreConfig{},
+					},
+				},
+			},
+			want: resultStoreSource,
+		},
+		{
+			name: "use_kubernetes_client and GCS source",
+			tg: &configpb.TestGroup{
+				UseKubernetesClient: true,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_GcsConfig{
+						GcsConfig: &configpb.GCSConfig{},
+					},
+				},
+			},
+			want: gcsSource,
+		},
+		{
+			name: "use_kubernetes_client and ResultStore source",
+			tg: &configpb.TestGroup{
+				UseKubernetesClient: true,
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+						ResultstoreConfig: &configpb.ResultStoreConfig{},
+					},
+				},
+			},
+			want: gcsSource,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := source(tc.tg); tc.want != got {
+				t.Errorf("Result source not as expected: want %v, got %v", tc.want, got)
 			}
 		})
 	}

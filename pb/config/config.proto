@@ -296,11 +296,13 @@ message TestGroup {
   string fallback_grouping_configuration_value = 49;
 
   message ResultSource {
-    reserved 1, 3; // Legacy sources
+    reserved 1, 3 to 5; // Legacy sources
 
     oneof result_source_config {
       // GCS buckets holding junit and json results, typically created by prow.
       GCSConfig gcs_config = 2;
+      // Invocations stored in ResultStore.
+      ResultStoreConfig resultstore_config = 6;
     }
   }
 
@@ -356,6 +358,12 @@ message GCSConfig {
   string pubsub_project = 2;
   // The pubsub subscription ID in the above topic
   string pubsub_subscription = 3;
+}
+
+// ResultStoreConfig specifies results stored in ResultStore.
+message ResultStoreConfig {
+  // Google Cloud Platform project ID where ResultStore results are stored.
+  string project = 1;
 }
 
 // Options for where to gather linked issues from.

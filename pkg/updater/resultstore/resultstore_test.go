@@ -105,7 +105,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 	twoDaysAgo := now.AddDate(0, 0, -2)
 	threeDaysAgo := now.AddDate(0, 0, -3)
 	oneMonthAgo := now.AddDate(0, 0, -30)
-	testQueryAfter := queryAfter(testQuery, oneMonthAgo)
+	testQueryAfter := queryAfter(queryProw, oneMonthAgo)
 	cases := []struct {
 		name    string
 		client  *fakeClient
@@ -172,7 +172,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(oneDayAgo.Unix() * 1000),
 						Hint:    timeMustText(oneDayAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{},
+					Cells: map[string]updater.Cell{
+						"Overall": {ID: "Overall", CellID: "id-1"},
+					},
 				},
 				{
 					Column: &statepb.Column{
@@ -181,7 +183,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(twoDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(twoDaysAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{},
+					Cells: map[string]updater.Cell{
+						"Overall": {ID: "Overall", CellID: "id-2"},
+					},
 				},
 				{
 					Column: &statepb.Column{
@@ -190,7 +194,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(threeDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(threeDaysAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{},
+					Cells: map[string]updater.Cell{
+						"Overall": {ID: "Overall", CellID: "id-3"},
+					},
 				},
 			},
 		},
@@ -308,7 +314,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(oneDayAgo.Unix() * 1000),
 						Hint:    timeMustText(oneDayAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{},
+					Cells: map[string]updater.Cell{
+						"Overall": {ID: "Overall", CellID: "id-1"},
+					},
 				},
 				{
 					Column: &statepb.Column{
@@ -317,7 +325,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(twoDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(twoDaysAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{},
+					Cells: map[string]updater.Cell{
+						"Overall": {ID: "Overall", CellID: "id-2"},
+					},
 				},
 				{
 					Column: &statepb.Column{
@@ -326,16 +336,18 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(threeDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(threeDaysAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{},
+					Cells: map[string]updater.Cell{
+						"Overall": {ID: "Overall", CellID: "id-3"},
+					},
 				},
 			},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var dlClient *downloadClient
+			var dlClient *DownloadClient
 			if tc.client != nil {
-				dlClient = &downloadClient{client: tc.client}
+				dlClient = &DownloadClient{client: tc.client}
 			}
 			columnReader := ResultStoreColumnReader(dlClient, 0)
 			var got []updater.InflatedColumn
@@ -407,23 +419,16 @@ func TestProcessGroup(t *testing.T) {
 	cases := []struct {
 		name   string
 		result *fetchResult
-		want   updater.InflatedColumn
+		want   *updater.InflatedColumn
 	}{
 		{
 			name: "nil",
-			want: updater.InflatedColumn{},
+			want: nil,
 		},
 		{
 			name:   "empty",
 			result: &fetchResult{},
-			want: updater.InflatedColumn{
-				Column: &statepb.Column{
-					Name:  "0",
-					Build: "0",
-					Hint:  "1970-01-01T00:00:00Z",
-				},
-				Cells: map[string]updater.Cell{},
-			},
+			want:   nil,
 		},
 		{
 			name: "basic",
@@ -460,7 +465,7 @@ func TestProcessGroup(t *testing.T) {
 					},
 				},
 			},
-			want: updater.InflatedColumn{
+			want: &updater.InflatedColumn{
 				Column: &statepb.Column{
 					Name:    "1234",
 					Build:   "1234",
@@ -468,6 +473,10 @@ func TestProcessGroup(t *testing.T) {
 					Hint:    "1970-01-01T00:20:34Z",
 				},
 				Cells: map[string]updater.Cell{
+					"Overall": {
+						ID:     "Overall",
+						CellID: "id-1",
+					},
 					"target-pass": {
 						ID:     "target-pass",
 						CellID: "id-1",
@@ -494,16 +503,25 @@ func TestProcessGroup(t *testing.T) {
 							Seconds: 1234,
 						},
 					},
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_PASSED,
+					},
 				},
 			},
-			want: updater.InflatedColumn{
+			want: &updater.InflatedColumn{
 				Column: &statepb.Column{
 					Name:    "1234",
 					Build:   "1234",
 					Started: 1234000,
 					Hint:    "1970-01-01T00:20:34Z",
 				},
-				Cells: map[string]updater.Cell{},
+				Cells: map[string]updater.Cell{
+					"Overall": {
+						ID:     "Overall",
+						CellID: "id-1",
+						Result: test_status.TestStatus_PASS,
+					},
+				},
 			},
 		},
 	}
@@ -531,13 +549,13 @@ func TestQueryAfter(t *testing.T) {
 		},
 		{
 			name:  "zero",
-			query: testQuery,
+			query: queryProw,
 			when:  time.Time{},
 			want:  "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
 		},
 		{
 			name:  "basic",
-			query: testQuery,
+			query: queryProw,
 			when:  now,
 			want:  fmt.Sprintf("invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
 		},
@@ -554,7 +572,7 @@ func TestQueryAfter(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	twoDaysAgo := time.Now().AddDate(0, 0, -2)
-	testQueryAfter := queryAfter(testQuery, twoDaysAgo)
+	testQueryAfter := queryAfter(queryProw, twoDaysAgo)
 	cases := []struct {
 		name    string
 		stop    time.Time
@@ -584,11 +602,11 @@ func TestSearch(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var dlClient *downloadClient
+			var dlClient *DownloadClient
 			if tc.client != nil {
-				dlClient = &downloadClient{client: tc.client}
+				dlClient = &DownloadClient{client: tc.client}
 			}
-			got, err := search(context.Background(), logrus.WithField("case", tc.name), dlClient, tc.stop)
+			got, err := search(context.Background(), logrus.WithField("case", tc.name), dlClient, "my-project", tc.stop)
 			if err != nil && !tc.wantErr {
 				t.Errorf("search() errored: %v", err)
 			} else if err == nil && tc.wantErr {
