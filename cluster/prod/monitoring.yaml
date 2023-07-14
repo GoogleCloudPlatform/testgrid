@@ -61,3 +61,59 @@ spec:
     matchLabels:
       app: testgrid
       component: updater
+---
+# These will be consumed by GKE Managed Prometheus(GMP) services in the cluster.
+# See: https://cloud.google.com/stackdriver/docs/managed-prometheus.
+apiVersion: monitoring.gke.io/v1alpha1
+kind: PodMonitoring
+metadata:
+  labels:
+    app: testgrid-metrics
+    component: config-merger
+  name: config-merger
+  namespace: testgrid
+spec:
+  endpoints:
+  - interval: 30s
+    port: metrics
+    scheme: http
+  selector:
+    matchLabels:
+      app: testgrid
+      component: config-merger
+---
+apiVersion: monitoring.gke.io/v1alpha1
+kind: PodMonitoring
+metadata:
+  labels:
+    app: testgrid-metrics
+    component: summarizer
+  name: summarizer
+  namespace: testgrid
+spec:
+  endpoints:
+  - interval: 30s
+    port: metrics
+    scheme: http
+  selector:
+    matchLabels:
+      app: testgrid
+      component: summarizer
+---
+apiVersion: monitoring.gke.io/v1alpha1
+kind: PodMonitoring
+metadata:
+  labels:
+    app: testgrid-metrics
+    component: updater
+  name: updater
+  namespace: testgrid
+spec:
+  endpoints:
+  - interval: 30s
+    port: metrics
+    scheme: http
+  selector:
+    matchLabels:
+      app: testgrid
+      component: updater
