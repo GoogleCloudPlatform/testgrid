@@ -167,8 +167,8 @@ func TestResultStoreColumnReader(t *testing.T) {
 			want: []updater.InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Build:   fmt.Sprintf("%v", oneDayAgo.Unix()),
-						Name:    fmt.Sprintf("%v", oneDayAgo.Unix()),
+						Build:   "id-1",
+						Name:    "id-1",
 						Started: float64(oneDayAgo.Unix() * 1000),
 						Hint:    timeMustText(oneDayAgo.Truncate(time.Second)),
 					},
@@ -178,8 +178,8 @@ func TestResultStoreColumnReader(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Build:   fmt.Sprintf("%v", twoDaysAgo.Unix()),
-						Name:    fmt.Sprintf("%v", twoDaysAgo.Unix()),
+						Build:   "id-2",
+						Name:    "id-2",
 						Started: float64(twoDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(twoDaysAgo.Truncate(time.Second)),
 					},
@@ -189,8 +189,8 @@ func TestResultStoreColumnReader(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Build:   fmt.Sprintf("%v", threeDaysAgo.Unix()),
-						Name:    fmt.Sprintf("%v", threeDaysAgo.Unix()),
+						Build:   "id-3",
+						Name:    "id-3",
 						Started: float64(threeDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(threeDaysAgo.Truncate(time.Second)),
 					},
@@ -309,8 +309,8 @@ func TestResultStoreColumnReader(t *testing.T) {
 			want: []updater.InflatedColumn{
 				{
 					Column: &statepb.Column{
-						Build:   fmt.Sprintf("%v", oneDayAgo.Unix()),
-						Name:    fmt.Sprintf("%v", oneDayAgo.Unix()),
+						Build:   "id-1",
+						Name:    "id-1",
 						Started: float64(oneDayAgo.Unix() * 1000),
 						Hint:    timeMustText(oneDayAgo.Truncate(time.Second)),
 					},
@@ -320,8 +320,8 @@ func TestResultStoreColumnReader(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Build:   fmt.Sprintf("%v", twoDaysAgo.Unix()),
-						Name:    fmt.Sprintf("%v", twoDaysAgo.Unix()),
+						Build:   "id-2",
+						Name:    "id-2",
 						Started: float64(twoDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(twoDaysAgo.Truncate(time.Second)),
 					},
@@ -331,8 +331,8 @@ func TestResultStoreColumnReader(t *testing.T) {
 				},
 				{
 					Column: &statepb.Column{
-						Build:   fmt.Sprintf("%v", threeDaysAgo.Unix()),
-						Name:    fmt.Sprintf("%v", threeDaysAgo.Unix()),
+						Build:   "id-3",
+						Name:    "id-3",
 						Started: float64(threeDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(threeDaysAgo.Truncate(time.Second)),
 					},
@@ -411,14 +411,292 @@ func TestTimestampMilliseconds(t *testing.T) {
 	}
 }
 
-func TestProcessGroup(t *testing.T) {
-	// Invocation        *resultstore.Invocation
-	// Actions           []*resultstore.Action
-	// ConfiguredTargets []*resultstore.ConfiguredTarget
-	// Targets           []*resultstore.Target
+func TestProcessRawResult(t *testing.T) {
 	cases := []struct {
 		name   string
 		result *fetchResult
+		want   *processedResult
+	}{
+		{
+			name: "just invocation",
+			result: &fetchResult{
+				Invocation: &resultstore.Invocation{
+					Name: invocationName("Best invocation"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "uuid-222",
+					},
+				},
+			},
+			want: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("Best invocation"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "uuid-222",
+					},
+				},
+				TargetResults: make(map[string][]*singleActionResult),
+			},
+		},
+		{
+			name: "invocation + targets + configured targets",
+			result: &fetchResult{
+				Invocation: &resultstore.Invocation{
+					Name: invocationName("Best invocation"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "uuid-222",
+					},
+				},
+				Targets: []*resultstore.Target{
+					{
+						Name: targetName("updater", "uuid-222"),
+						Id: &resultstore.Target_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-1",
+						},
+					},
+					{
+						Name: targetName("tabulator", "uuid-222"),
+						Id: &resultstore.Target_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-2",
+						},
+					},
+				},
+				ConfiguredTargets: []*resultstore.ConfiguredTarget{
+					{
+						Name: targetName("updater", "uuid-222"),
+						Id: &resultstore.ConfiguredTarget_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-1",
+						},
+					},
+					{
+						Name: targetName("tabulator", "uuid-222"),
+						Id: &resultstore.ConfiguredTarget_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-2",
+						},
+					},
+				},
+			},
+			want: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("Best invocation"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "uuid-222",
+					},
+				},
+				TargetResults: map[string][]*singleActionResult{
+					"tgt-uuid-1": {
+						{
+							TargetProto: &resultstore.Target{
+								Name: targetName("updater", "uuid-222"),
+								Id: &resultstore.Target_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-1",
+								},
+							},
+							ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+								Name: targetName("updater", "uuid-222"),
+								Id: &resultstore.ConfiguredTarget_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-1",
+								},
+							},
+						},
+					},
+					"tgt-uuid-2": {
+						{
+							TargetProto: &resultstore.Target{
+								Name: targetName("tabulator", "uuid-222"),
+								Id: &resultstore.Target_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+								},
+							},
+							ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+								Name: targetName("tabulator", "uuid-222"),
+								Id: &resultstore.ConfiguredTarget_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "all together + extra actions",
+			result: &fetchResult{
+				Invocation: &resultstore.Invocation{
+					Name: invocationName("Best invocation"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "uuid-222",
+					},
+				},
+				Targets: []*resultstore.Target{
+					{
+						Name: "/testgrid/backend:updater",
+						Id: &resultstore.Target_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-1",
+						},
+					},
+					{
+						Name: "/testgrid/backend:tabulator",
+						Id: &resultstore.Target_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-2",
+						},
+					},
+				},
+				ConfiguredTargets: []*resultstore.ConfiguredTarget{
+					{
+						Name: "/testgrid/backend:updater",
+						Id: &resultstore.ConfiguredTarget_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-1",
+						},
+					},
+					{
+						Name: "/testgrid/backend:tabulator",
+						Id: &resultstore.ConfiguredTarget_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-2",
+						},
+					},
+				},
+				Actions: []*resultstore.Action{
+					{
+						Name: "/testgrid/backend:updater",
+						Id: &resultstore.Action_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-1",
+							ActionId:     "flying",
+						},
+					},
+					{
+						Name: "/testgrid/backend:tabulator",
+						Id: &resultstore.Action_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-2",
+							ActionId:     "walking",
+						},
+					},
+					{
+						Name: "/testgrid/backend:tabulator",
+						Id: &resultstore.Action_Id{
+							InvocationId: "uuid-222",
+							TargetId:     "tgt-uuid-2",
+							ActionId:     "flying",
+						},
+					},
+				},
+			},
+			want: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("Best invocation"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "uuid-222",
+					},
+				},
+				TargetResults: map[string][]*singleActionResult{
+					"tgt-uuid-1": {
+						{
+							TargetProto: &resultstore.Target{
+								Name: "/testgrid/backend:updater",
+								Id: &resultstore.Target_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-1",
+								},
+							},
+							ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+								Name: "/testgrid/backend:updater",
+								Id: &resultstore.ConfiguredTarget_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-1",
+								},
+							},
+							ActionProto: &resultstore.Action{
+								Name: "/testgrid/backend:updater",
+								Id: &resultstore.Action_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-1",
+									ActionId:     "flying",
+								},
+							},
+						},
+					},
+					"tgt-uuid-2": {
+						{
+							TargetProto: &resultstore.Target{
+								Name: "/testgrid/backend:tabulator",
+								Id: &resultstore.Target_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+								},
+							},
+							ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+								Name: "/testgrid/backend:tabulator",
+								Id: &resultstore.ConfiguredTarget_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+								},
+							},
+							ActionProto: &resultstore.Action{
+								Name: "/testgrid/backend:tabulator",
+								Id: &resultstore.Action_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+									ActionId:     "walking",
+								},
+							},
+						}, {
+							TargetProto: &resultstore.Target{
+								Name: "/testgrid/backend:tabulator",
+								Id: &resultstore.Target_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+								},
+							},
+							ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+								Name: "/testgrid/backend:tabulator",
+								Id: &resultstore.ConfiguredTarget_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+								},
+							},
+							ActionProto: &resultstore.Action{
+								Name: "/testgrid/backend:tabulator",
+								Id: &resultstore.Action_Id{
+									InvocationId: "uuid-222",
+									TargetId:     "tgt-uuid-2",
+									ActionId:     "flying",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := processRawResult(logrus.WithField("case", tc.name), tc.result)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("processRawResult(...) differed (-want, +got): %s", diff)
+			}
+		})
+	}
+
+}
+func TestProcessGroup(t *testing.T) {
+
+	cases := []struct {
+		name   string
+		result *processedResult
 		want   *updater.InflatedColumn
 	}{
 		{
@@ -427,13 +705,13 @@ func TestProcessGroup(t *testing.T) {
 		},
 		{
 			name:   "empty",
-			result: &fetchResult{},
+			result: &processedResult{},
 			want:   nil,
 		},
 		{
 			name: "basic",
-			result: &fetchResult{
-				Invocation: &resultstore.Invocation{
+			result: &processedResult{
+				InvocationProto: &resultstore.Invocation{
 					Id: &resultstore.Invocation_Id{
 						InvocationId: "id-1",
 					},
@@ -444,31 +722,39 @@ func TestProcessGroup(t *testing.T) {
 						},
 					},
 				},
-				Targets: []*resultstore.Target{
-					{
-						Name: targetName("id-1", "target-pass"),
-						Id: &resultstore.Target_Id{
-							TargetId: "target-pass",
-						},
-						StatusAttributes: &resultstore.StatusAttributes{
-							Status: resultstore.Status_PASSED,
+				TargetResults: map[string][]*singleActionResult{
+					"tgt-id-1": {
+						{
+							TargetProto: &resultstore.Target{
+								Name: targetName("tgt-id-1", "id-1"),
+								Id: &resultstore.Target_Id{
+									TargetId: "tgt-id-1",
+								},
+								StatusAttributes: &resultstore.StatusAttributes{
+									Status: resultstore.Status_PASSED,
+								},
+							},
 						},
 					},
-					{
-						Name: targetName("id-1", "target-fail"),
-						Id: &resultstore.Target_Id{
-							TargetId: "target-fail",
-						},
-						StatusAttributes: &resultstore.StatusAttributes{
-							Status: resultstore.Status_FAILED,
+					"tgt-id-2": {
+						{
+							TargetProto: &resultstore.Target{
+								Name: targetName("tgt-id-2", "id-1"),
+								Id: &resultstore.Target_Id{
+									TargetId: "tgt-id-2",
+								},
+								StatusAttributes: &resultstore.StatusAttributes{
+									Status: resultstore.Status_FAILED,
+								},
+							},
 						},
 					},
 				},
 			},
 			want: &updater.InflatedColumn{
 				Column: &statepb.Column{
-					Name:    "1234",
-					Build:   "1234",
+					Name:    "id-1",
+					Build:   "id-1",
 					Started: 1234000,
 					Hint:    "1970-01-01T00:20:34Z",
 				},
@@ -477,13 +763,13 @@ func TestProcessGroup(t *testing.T) {
 						ID:     "Overall",
 						CellID: "id-1",
 					},
-					"target-pass": {
-						ID:     "target-pass",
+					"tgt-id-1": {
+						ID:     "tgt-id-1",
 						CellID: "id-1",
 						Result: test_status.TestStatus_PASS,
 					},
-					"target-fail": {
-						ID:     "target-fail",
+					"tgt-id-2": {
+						ID:     "tgt-id-2",
 						CellID: "id-1",
 						Result: test_status.TestStatus_FAIL,
 					},
@@ -492,8 +778,8 @@ func TestProcessGroup(t *testing.T) {
 		},
 		{
 			name: "invocation without targets",
-			result: &fetchResult{
-				Invocation: &resultstore.Invocation{
+			result: &processedResult{
+				InvocationProto: &resultstore.Invocation{
 					Id: &resultstore.Invocation_Id{
 						InvocationId: "id-1",
 					},
@@ -510,8 +796,8 @@ func TestProcessGroup(t *testing.T) {
 			},
 			want: &updater.InflatedColumn{
 				Column: &statepb.Column{
-					Name:    "1234",
-					Build:   "1234",
+					Name:    "id-1",
+					Build:   "id-1",
 					Started: 1234000,
 					Hint:    "1970-01-01T00:20:34Z",
 				},
