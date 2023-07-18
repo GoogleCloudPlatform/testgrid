@@ -64,7 +64,7 @@ spec:
 ---
 # These will be consumed by GKE Managed Prometheus(GMP) services in the cluster.
 # See: https://cloud.google.com/stackdriver/docs/managed-prometheus.
-apiVersion: monitoring.gke.io/v1alpha1
+apiVersion: monitoring.googleapis.com/v1
 kind: PodMonitoring
 metadata:
   labels:
@@ -82,7 +82,7 @@ spec:
       app: testgrid
       component: config-merger
 ---
-apiVersion: monitoring.gke.io/v1alpha1
+apiVersion: monitoring.googleapis.com/v1
 kind: PodMonitoring
 metadata:
   labels:
@@ -100,7 +100,7 @@ spec:
       app: testgrid
       component: summarizer
 ---
-apiVersion: monitoring.gke.io/v1alpha1
+apiVersion: monitoring.googleapis.com/v1
 kind: PodMonitoring
 metadata:
   labels:
