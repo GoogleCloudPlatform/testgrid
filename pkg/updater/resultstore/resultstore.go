@@ -53,6 +53,23 @@ func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeo
 	}
 }
 
+type singleActionResult struct {
+	TargetProto           *resultstorepb.Target
+	ConfiguredTargetProto *resultstorepb.ConfiguredTarget
+	ActionProto           *resultstorepb.Action
+}
+
+type multiActionResult struct {
+	TargetProto           *resultstorepb.Target
+	ConfiguredTargetProto *resultstorepb.ConfiguredTarget
+	ActionProtos          []*resultstorepb.Action
+}
+
+type processedResult struct {
+	InvocationProto *resultstorepb.Invocation
+	TargetResults   map[string][]*singleActionResult
+}
+
 // ResultStoreColumnReader fetches results since last update from ResultStore and translates them into columns.
 func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) updater.ColumnReader {
 	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []updater.InflatedColumn, defaultStop time.Time, receivers chan<- updater.InflatedColumn) error {
@@ -72,19 +89,101 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 			results = append(results, result)
 		}
 
+		processedResults := processRawResults(log, results)
+
 		// Reverse-sort invocations by start time.
-		sort.SliceStable(results, func(i, j int) bool {
-			return results[i].Invocation.GetTiming().GetStartTime().GetSeconds() > results[j].Invocation.GetTiming().GetStartTime().GetSeconds()
+		sort.SliceStable(processedResults, func(i, j int) bool {
+			return processedResults[i].InvocationProto.GetTiming().GetStartTime().GetSeconds() > processedResults[j].InvocationProto.GetTiming().GetStartTime().GetSeconds()
 		})
-		for _, result := range results {
+
+		for _, pr := range processedResults {
 			// TODO: Make group ID something other than start time.
-			inflatedCol := processGroup(result)
+			inflatedCol := processGroup(pr)
 			receivers <- *inflatedCol
 		}
 		return nil
 	}
 }
 
+func processRawResults(log logrus.FieldLogger, results []*fetchResult) []*processedResult {
+	var processedResults []*processedResult
+	for _, result := range results {
+		pr := processRawResult(log, result)
+		processedResults = append(processedResults, pr)
+	}
+	return processedResults
+}
+
+// processRawResult converts raw fetchResults to processedResults with single action/target result/configured target result per targetID
+// Will skip processing any entries without Target or ConfiguredTarget
+func processRawResult(log logrus.FieldLogger, result *fetchResult) *processedResult {
+
+	multiActionResults := collateRawResults(log, result)
+	singleActionResults := isolateActions(log, multiActionResults)
+
+	return &processedResult{result.Invocation, singleActionResults}
+}
+
+// collateRawResults collates targets, configured targets and multiple actions into a single structure using targetID as a key
+func collateRawResults(log logrus.FieldLogger, result *fetchResult) map[string]*multiActionResult {
+	multiActionResults := make(map[string]*multiActionResult)
+	for _, target := range result.Targets {
+		trID := target.GetId().GetTargetId()
+		tr, ok := multiActionResults[trID]
+		if !ok {
+			tr = &multiActionResult{}
+			multiActionResults[trID] = tr
+		} else if tr.TargetProto != nil {
+			logrus.WithField("id", trID).Debug("Found duplicate target where not expected.")
+		}
+		tr.TargetProto = target
+	}
+	for _, configuredTarget := range result.ConfiguredTargets {
+		trID := configuredTarget.GetId().GetTargetId()
+		tr, ok := multiActionResults[trID]
+		if !ok {
+			tr = &multiActionResult{}
+			multiActionResults[trID] = tr
+			logrus.WithField("id", trID).Debug("Configured target doesn't have corresponding target?")
+		} else if tr.ConfiguredTargetProto != nil {
+			logrus.WithField("id", trID).Debug("Found duplicate configured target where not expected.")
+		}
+		tr.ConfiguredTargetProto = configuredTarget
+	}
+	for _, action := range result.Actions {
+		trID := action.GetId().GetTargetId()
+		tr, ok := multiActionResults[trID]
+		if !ok {
+			tr = &multiActionResult{}
+			multiActionResults[trID] = tr
+			logrus.WithField("id", trID).Debug("Action doesn't have corresponding target or configured target?")
+		}
+		tr.ActionProtos = append(tr.ActionProtos, action)
+	}
+	return multiActionResults
+}
+
+// isolateActions splits multiActionResults into one per action
+// Any entries without Target or ConfiguredTarget will be skipped
+func isolateActions(log logrus.FieldLogger, multiActionResults map[string]*multiActionResult) map[string][]*singleActionResult {
+	singleActionResults := make(map[string][]*singleActionResult)
+	for trID, multitr := range multiActionResults {
+		if multitr == nil || multitr.TargetProto == nil || multitr.ConfiguredTargetProto == nil {
+			logrus.WithField("id", trID).WithField("rawTargetResult", multitr).Debug("Missing something from rawTargetResult entry.")
+			continue
+		}
+		// no actions for some reason
+		if multitr.ActionProtos == nil {
+			tr := &singleActionResult{multitr.TargetProto, multitr.ConfiguredTargetProto, nil}
+			singleActionResults[trID] = append(singleActionResults[trID], tr)
+		}
+		for _, action := range multitr.ActionProtos {
+			tr := &singleActionResult{multitr.TargetProto, multitr.ConfiguredTargetProto, action}
+			singleActionResults[trID] = append(singleActionResults[trID], tr)
+		}
+	}
+	return singleActionResults
+}
 func timestampMilliseconds(t *timestamppb.Timestamp) float64 {
 	return float64(t.GetSeconds())*1000.0 + float64(t.GetNanos())/1000.0
 }
@@ -106,12 +205,13 @@ var convertStatus = map[resultstorepb.Status]statuspb.TestStatus{
 	resultstorepb.Status_SKIPPED:            statuspb.TestStatus_PASS_WITH_SKIPS,
 }
 
-func processGroup(result *fetchResult) *updater.InflatedColumn {
-	if result == nil || result.Invocation == nil {
+func processGroup(result *processedResult) *updater.InflatedColumn {
+	if result == nil || result.InvocationProto == nil {
 		return nil
 	}
-	started := result.Invocation.GetTiming().GetStartTime()
-	groupID := fmt.Sprintf("%d", started.GetSeconds())
+
+	started := result.InvocationProto.GetTiming().GetStartTime()
+	groupID := result.InvocationProto.GetId().GetInvocationId()
 	hint, err := started.AsTime().MarshalText()
 	if err != nil {
 		hint = []byte{}
@@ -123,25 +223,29 @@ func processGroup(result *fetchResult) *updater.InflatedColumn {
 		Hint:    string(hint),
 	}
 	cells := make(map[string]updater.Cell)
-	for _, target := range result.Targets {
-		status, ok := convertStatus[target.GetStatusAttributes().GetStatus()]
-		if !ok {
-			status = statuspb.TestStatus_UNKNOWN
-		}
-		cells[target.GetId().GetTargetId()] = updater.Cell{
-			Result: status,
-			ID:     target.GetId().GetTargetId(),
-			CellID: result.Invocation.GetId().GetInvocationId(),
+
+	for _, targetResults := range result.TargetResults {
+		for _, satr := range targetResults {
+			status, ok := convertStatus[satr.TargetProto.GetStatusAttributes().GetStatus()]
+			if !ok {
+				status = statuspb.TestStatus_UNKNOWN
+			}
+			cells[satr.TargetProto.GetId().GetTargetId()] = updater.Cell{
+				Result: status,
+				ID:     satr.TargetProto.GetId().GetTargetId(),
+				CellID: result.InvocationProto.GetId().GetInvocationId(),
+			}
 		}
 	}
-	invStatus, ok := convertStatus[result.Invocation.GetStatusAttributes().GetStatus()]
+
+	invStatus, ok := convertStatus[result.InvocationProto.GetStatusAttributes().GetStatus()]
 	if !ok {
 		invStatus = statuspb.TestStatus_UNKNOWN
 	}
 	cells["Overall"] = updater.Cell{
 		Result: invStatus,
 		ID:     "Overall",
-		CellID: result.Invocation.GetId().GetInvocationId(),
+		CellID: result.InvocationProto.GetId().GetInvocationId(),
 	}
 	return &updater.InflatedColumn{
 		Column: col,
