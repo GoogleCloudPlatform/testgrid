@@ -98,7 +98,7 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 
 		for _, pr := range processedResults {
 			// TODO: Make group ID something other than start time.
-			inflatedCol := processGroup(pr)
+			inflatedCol := processGroup(tg, pr)
 			receivers <- *inflatedCol
 		}
 		return nil
@@ -184,6 +184,7 @@ func isolateActions(log logrus.FieldLogger, multiActionResults map[string]*multi
 	}
 	return singleActionResults
 }
+
 func timestampMilliseconds(t *timestamppb.Timestamp) float64 {
 	return float64(t.GetSeconds())*1000.0 + float64(t.GetNanos())/1000.0
 }
@@ -205,19 +206,25 @@ var convertStatus = map[resultstorepb.Status]statuspb.TestStatus{
 	resultstorepb.Status_SKIPPED:            statuspb.TestStatus_PASS_WITH_SKIPS,
 }
 
-func processGroup(result *processedResult) *updater.InflatedColumn {
+// processGroup will convert grouped invocations into columns
+func processGroup(tg *configpb.TestGroup, result *processedResult) *updater.InflatedColumn {
 	if result == nil || result.InvocationProto == nil {
 		return nil
 	}
 
 	started := result.InvocationProto.GetTiming().GetStartTime()
 	groupID := result.InvocationProto.GetId().GetInvocationId()
+	build := identifyBuild(tg, result)
+	// override build by invocation ID
+	if build == "" {
+		build = groupID
+	}
 	hint, err := started.AsTime().MarshalText()
 	if err != nil {
 		hint = []byte{}
 	}
 	col := &statepb.Column{
-		Build:   groupID,
+		Build:   build,
 		Name:    groupID,
 		Started: timestampMilliseconds(started),
 		Hint:    string(hint),
@@ -250,6 +257,29 @@ func processGroup(result *processedResult) *updater.InflatedColumn {
 	return &updater.InflatedColumn{
 		Column: col,
 		Cells:  cells,
+	}
+}
+
+// identifyBuild applies build override configurations and assigns a build
+// Returns an empty string if no configurations are present or no configs are correctly set.
+// i.e. no key is found in properties.
+func identifyBuild(tg *configpb.TestGroup, pr *processedResult) string {
+	switch {
+	case tg.GetBuildOverrideConfigurationValue() != "":
+		key := tg.GetBuildOverrideConfigurationValue()
+		for _, property := range pr.InvocationProto.GetProperties() {
+			if property.GetKey() == key {
+				return property.GetValue()
+			}
+		}
+		return ""
+	case tg.GetBuildOverrideStrftime() != "":
+		layout := updater.FormatStrftime(tg.BuildOverrideStrftime)
+		timing := pr.InvocationProto.GetTiming().GetStartTime()
+		startTime := time.Unix(timing.Seconds, int64(timing.Nanos)).UTC()
+		return startTime.Format(layout)
+	default:
+		return ""
 	}
 }
 

@@ -870,10 +870,10 @@ func deletedColumn(latestColumn InflatedColumn) []InflatedColumn {
 	}
 }
 
-// formatStrftime replaces python codes with what go expects.
+// FormatStrftime replaces python codes with what go expects.
 //
 // aka %Y-%m-%d becomes 2006-01-02
-func formatStrftime(in string) string {
+func FormatStrftime(in string) string {
 	replacements := map[string]string{
 		"%p": "PM",
 		"%Y": "2006",
@@ -898,7 +898,7 @@ func overrideBuild(tg *configpb.TestGroup, cols []InflatedColumn) {
 	if fmt == "" {
 		return
 	}
-	fmt = formatStrftime(fmt)
+	fmt = FormatStrftime(fmt)
 	for _, col := range cols {
 		started := int64(col.Column.Started)
 		when := time.Unix(started/1000, (started%1000)*int64(time.Millisecond/time.Nanosecond))

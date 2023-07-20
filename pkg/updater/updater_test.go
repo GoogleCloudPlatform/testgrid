@@ -2149,7 +2149,7 @@ func TestFormatStrftime(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := formatStrftime(tc.name); got != tc.want {
+			if got := FormatStrftime(tc.name); got != tc.want {
 				t.Errorf("formatStrftime(%q) got %q want %q", tc.name, got, tc.want)
 			}
 		})

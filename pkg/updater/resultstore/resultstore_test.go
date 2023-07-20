@@ -813,7 +813,7 @@ func TestProcessGroup(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := processGroup(tc.result)
+			got := processGroup(nil, tc.result)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("processGroup() differed (-want, +got): %s", diff)
 			}
@@ -1073,6 +1073,97 @@ func TestUpdateStop(t *testing.T) {
 			got := updateStop(logrus.WithField("testcase", tc.name), tc.tg, now, tc.cols, tc.defaultStop, tc.reprocess)
 			if !tc.want.Equal(got) {
 				t.Errorf("updateStop() differed; got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIdentifyBuild(t *testing.T) {
+	cases := []struct {
+		name   string
+		result *processedResult
+		tg     *configpb.TestGroup
+		want   string
+	}{
+		{
+			name: "no override configurations",
+			result: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("id-123"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-123",
+					},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "override by non-existent property key",
+			result: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("id-1234"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-1234",
+					},
+					Properties: []*resultstore.Property{
+						{Key: "Luigi", Value: "Peaches"},
+						{Key: "Bowser", Value: "Pingui"},
+					},
+				},
+			},
+			tg: &configpb.TestGroup{
+				BuildOverrideConfigurationValue: "Mario",
+			},
+			want: "",
+		},
+		{
+			name: "override by existent property key",
+			result: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("id-1234"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-1234",
+					},
+					Properties: []*resultstore.Property{
+						{Key: "Luigi", Value: "Peaches"},
+						{Key: "Bowser", Value: "Pingui"},
+						{Key: "Waluigi", Value: "Wapeaches"},
+					},
+				},
+			},
+			tg: &configpb.TestGroup{
+				BuildOverrideConfigurationValue: "Waluigi",
+			},
+			want: "Wapeaches",
+		},
+		{
+			name: "override by build time strf",
+			result: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Name: invocationName("id-1234"),
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-1234",
+					},
+					Timing: &resultstore.Timing{
+						StartTime: &timestamppb.Timestamp{
+							Seconds: 1689881216,
+							Nanos:   27847,
+						},
+					},
+				},
+			},
+			tg: &configpb.TestGroup{
+				BuildOverrideStrftime: "%Y-%m-%d-%H",
+			},
+			want: "2023-07-20-19",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := identifyBuild(tc.tg, tc.result)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("queryAfter(...) differed (-want, +got): %s", diff)
 			}
 		})
 	}
