@@ -70,6 +70,20 @@ type processedResult struct {
 	TargetResults   map[string][]*singleActionResult
 }
 
+// extractGroupID extracts grouping ID for a results based on the testgroup grouping configuration
+// Returns an empty string for no config or incorrect config
+func extractGroupID(tg *configpb.TestGroup, result *processedResult) string {
+	switch {
+	// P - build info
+	case result == nil:
+		return ""
+	case tg.GetPrimaryGrouping() == configpb.TestGroup_PRIMARY_GROUPING_BUILD:
+		return identifyBuild(tg, result)
+	default:
+		return result.InvocationProto.GetId().GetInvocationId()
+	}
+}
+
 // ResultStoreColumnReader fetches results since last update from ResultStore and translates them into columns.
 func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) updater.ColumnReader {
 	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []updater.InflatedColumn, defaultStop time.Time, receivers chan<- updater.InflatedColumn) error {
@@ -97,7 +111,6 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 		})
 
 		for _, pr := range processedResults {
-			// TODO: Make group ID something other than start time.
 			inflatedCol := processGroup(tg, pr)
 			receivers <- *inflatedCol
 		}
