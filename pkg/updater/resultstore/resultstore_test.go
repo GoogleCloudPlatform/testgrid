@@ -1168,3 +1168,88 @@ func TestIdentifyBuild(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractGroupID(t *testing.T) {
+	cases := []struct {
+		name string
+		tg   *configpb.TestGroup
+		pr   *processedResult
+		want string
+	}{
+		{
+			name: "primary grouping by build - override configuration value",
+			tg: &configpb.TestGroup{
+				BuildOverrideConfigurationValue: "test-key-1",
+				PrimaryGrouping:                 configpb.TestGroup_PRIMARY_GROUPING_BUILD,
+			},
+			pr: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-1",
+					},
+					Properties: []*resultstore.Property{
+						{
+							Key:   "test-key-1",
+							Value: "test-val-1",
+						},
+					},
+					Name: invocationName("id-1"),
+					Timing: &resultstore.Timing{
+						StartTime: &timestamppb.Timestamp{
+							Seconds: 1234,
+						},
+					},
+				},
+			},
+			want: "test-val-1",
+		},
+		{
+			name: "fallback grouping - defaults to invocationID",
+			tg: &configpb.TestGroup{
+				FallbackGrouping: configpb.TestGroup_FALLBACK_GROUPING_DATE,
+			},
+			pr: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-1",
+					},
+					Name: invocationName("id-1"),
+					Timing: &resultstore.Timing{
+						StartTime: &timestamppb.Timestamp{
+							Seconds: 1234,
+						},
+					},
+				},
+			},
+			want: "id-1",
+		},
+		{
+			name: "no grouping specified - defaults to invocationID",
+			tg: &configpb.TestGroup{
+				FallbackGrouping: configpb.TestGroup_FALLBACK_GROUPING_DATE,
+			},
+			pr: &processedResult{
+				InvocationProto: &resultstore.Invocation{
+					Id: &resultstore.Invocation_Id{
+						InvocationId: "id-1",
+					},
+					Name: invocationName("id-1"),
+					Timing: &resultstore.Timing{
+						StartTime: &timestamppb.Timestamp{
+							Seconds: 1234,
+						},
+					},
+				},
+			},
+			want: "id-1",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractGroupID(tc.tg, tc.pr)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("extractGroupID() differed (-want, +got): %s", diff)
+			}
+		})
+	}
+}

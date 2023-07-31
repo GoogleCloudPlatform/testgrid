@@ -105,6 +105,16 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 	}
 }
 
+// extractGroupID extracts grouping ID for a result based on the testgroup grouping configuration
+func extractGroupID(tg *configpb.TestGroup, result *processedResult) string {
+	switch {
+	case tg.GetPrimaryGrouping() == configpb.TestGroup_PRIMARY_GROUPING_BUILD:
+		return identifyBuild(tg, result)
+	default:
+		return result.InvocationProto.GetId().GetInvocationId()
+	}
+}
+
 func processRawResults(log logrus.FieldLogger, results []*fetchResult) []*processedResult {
 	var processedResults []*processedResult
 	for _, result := range results {
