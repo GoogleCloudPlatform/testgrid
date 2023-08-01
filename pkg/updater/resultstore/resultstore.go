@@ -206,6 +206,24 @@ var convertStatus = map[resultstorepb.Status]statuspb.TestStatus{
 	resultstorepb.Status_SKIPPED:            statuspb.TestStatus_PASS_WITH_SKIPS,
 }
 
+// includeStatus determines if the single action result should be included based on config
+func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
+	status := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
+	if status == statuspb.TestStatus_NO_RESULT {
+		return false
+	}
+	if status == statuspb.TestStatus_BUILD_PASSED && tg.IgnoreBuilt {
+		return false
+	}
+	if status == statuspb.TestStatus_RUNNING && tg.IgnorePending {
+		return false
+	}
+	if status == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
+		return false
+	}
+	return true
+}
+
 // processGroup will convert grouped invocations into columns
 func processGroup(tg *configpb.TestGroup, result *processedResult) *updater.InflatedColumn {
 	if result == nil || result.InvocationProto == nil {
