@@ -1168,3 +1168,117 @@ func TestIdentifyBuild(t *testing.T) {
 		})
 	}
 }
+
+func TestIncludeStatus(t *testing.T) {
+	cases := []struct {
+		name string
+		tg   *configpb.TestGroup
+		sar  *singleActionResult
+		want bool
+	}{
+		{
+			name: "unspecifies status - not included",
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_STATUS_UNSPECIFIED,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "built status and ignored - not included",
+			tg: &configpb.TestGroup{
+				IgnoreBuilt: true,
+			},
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_BUILT,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "built status and not ignored - included",
+			tg: &configpb.TestGroup{
+				IgnoreSkip: true,
+			},
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_BUILT,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "running status and ignored - not included",
+			tg: &configpb.TestGroup{
+				IgnorePending: true,
+			},
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_TESTING,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "running status and not ignored - included",
+			tg: &configpb.TestGroup{
+				IgnoreSkip: true,
+			},
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_TESTING,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "skipped status and ignored - not included",
+			tg: &configpb.TestGroup{
+				IgnoreSkip: true,
+			},
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_SKIPPED,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "other status - included",
+			tg: &configpb.TestGroup{
+				IgnoreSkip: true,
+			},
+			sar: &singleActionResult{
+				TargetProto: &resultstore.Target{
+					StatusAttributes: &resultstore.StatusAttributes{
+						Status: resultstore.Status_FAILED,
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := includeStatus(tc.tg, tc.sar)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("includeStatus(...) differed (-want, +got): %s", diff)
+			}
+		})
+	}
+}
