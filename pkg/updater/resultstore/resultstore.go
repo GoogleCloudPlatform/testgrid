@@ -65,22 +65,24 @@ type multiActionResult struct {
 	ActionProtos          []*resultstorepb.Action
 }
 
-type processedResult struct {
+// invocation is an internal invocation representation which contains
+// actual invocation data and results for each target
+type invocation struct {
 	InvocationProto *resultstorepb.Invocation
 	TargetResults   map[string][]*singleActionResult
 }
 
 // extractGroupID extracts grouping ID for a results based on the testgroup grouping configuration
 // Returns an empty string for no config or incorrect config
-func extractGroupID(tg *configpb.TestGroup, result *processedResult) string {
+func extractGroupID(tg *configpb.TestGroup, inv *invocation) string {
 	switch {
 	// P - build info
-	case result == nil:
+	case inv == nil:
 		return ""
 	case tg.GetPrimaryGrouping() == configpb.TestGroup_PRIMARY_GROUPING_BUILD:
-		return identifyBuild(tg, result)
+		return identifyBuild(tg, inv)
 	default:
-		return result.InvocationProto.GetId().GetInvocationId()
+		return inv.InvocationProto.GetId().GetInvocationId()
 	}
 }
 
@@ -103,38 +105,77 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 			results = append(results, result)
 		}
 
-		processedResults := processRawResults(log, results)
+		invocations := processRawResults(log, results)
 
 		// Reverse-sort invocations by start time.
-		sort.SliceStable(processedResults, func(i, j int) bool {
-			return processedResults[i].InvocationProto.GetTiming().GetStartTime().GetSeconds() > processedResults[j].InvocationProto.GetTiming().GetStartTime().GetSeconds()
+		sort.SliceStable(invocations, func(i, j int) bool {
+			return invocations[i].InvocationProto.GetTiming().GetStartTime().GetSeconds() > invocations[j].InvocationProto.GetTiming().GetStartTime().GetSeconds()
 		})
 
-		for _, pr := range processedResults {
-			inflatedCol := processGroup(tg, pr)
+		for _, inv := range invocations {
+			inflatedCol := processGroup(tg, inv)
 			receivers <- *inflatedCol
 		}
 		return nil
 	}
 }
 
-func processRawResults(log logrus.FieldLogger, results []*fetchResult) []*processedResult {
-	var processedResults []*processedResult
-	for _, result := range results {
-		pr := processRawResult(log, result)
-		processedResults = append(processedResults, pr)
-	}
-	return processedResults
+// invocationGroup will contain info on the groupId and all invocations for that group
+// a group will correspond to a column after transformation
+type invocationGroup struct {
+	GroupId     string
+	Invocations []*invocation
 }
 
-// processRawResult converts raw fetchResults to processedResults with single action/target result/configured target result per targetID
+// groupInvocations will group the invocations according to the grouping strategy in the config.
+// groups will be reverse sorted by their latest invocation start time
+// [inv1,inv2,inv3,inv4] -> [[inv1,inv2,inv3], [inv4]]
+func groupInvocations(log logrus.FieldLogger, tg *configpb.TestGroup, invocations []*invocation) []*invocationGroup {
+	groupedInvocations := make(map[string]*invocationGroup)
+
+	var sortedGroups []*invocationGroup
+
+	for _, invocation := range invocations {
+		groupIdentifier := extractGroupID(tg, invocation)
+		group, ok := groupedInvocations[groupIdentifier]
+		if !ok {
+			group = &invocationGroup{
+				GroupId: groupIdentifier,
+			}
+			groupedInvocations[groupIdentifier] = group
+		}
+		group.Invocations = append(group.Invocations, invocation)
+	}
+
+	for _, group := range groupedInvocations {
+		sortedGroups = append(sortedGroups, group)
+	}
+
+	// reverse sort groups by invocation time
+	sort.SliceStable(sortedGroups, func(i, j int) bool {
+		return sortedGroups[i].Invocations[0].InvocationProto.GetTiming().GetStartTime().GetSeconds() > sortedGroups[j].Invocations[0].InvocationProto.GetTiming().GetStartTime().GetSeconds()
+	})
+
+	return sortedGroups
+}
+
+func processRawResults(log logrus.FieldLogger, results []*fetchResult) []*invocation {
+	var invs []*invocation
+	for _, result := range results {
+		inv := processRawResult(log, result)
+		invs = append(invs, inv)
+	}
+	return invs
+}
+
+// processRawResult converts raw fetchResult to invocation with single action/target result/configured target result per targetID
 // Will skip processing any entries without Target or ConfiguredTarget
-func processRawResult(log logrus.FieldLogger, result *fetchResult) *processedResult {
+func processRawResult(log logrus.FieldLogger, result *fetchResult) *invocation {
 
 	multiActionResults := collateRawResults(log, result)
 	singleActionResults := isolateActions(log, multiActionResults)
 
-	return &processedResult{result.Invocation, singleActionResults}
+	return &invocation{result.Invocation, singleActionResults}
 }
 
 // collateRawResults collates targets, configured targets and multiple actions into a single structure using targetID as a key
@@ -238,14 +279,14 @@ func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
 }
 
 // processGroup will convert grouped invocations into columns
-func processGroup(tg *configpb.TestGroup, result *processedResult) *updater.InflatedColumn {
-	if result == nil || result.InvocationProto == nil {
+func processGroup(tg *configpb.TestGroup, inv *invocation) *updater.InflatedColumn {
+	if inv == nil || inv.InvocationProto == nil {
 		return nil
 	}
 
-	started := result.InvocationProto.GetTiming().GetStartTime()
-	groupID := result.InvocationProto.GetId().GetInvocationId()
-	build := identifyBuild(tg, result)
+	started := inv.InvocationProto.GetTiming().GetStartTime()
+	groupID := inv.InvocationProto.GetId().GetInvocationId()
+	build := identifyBuild(tg, inv)
 	// override build by invocation ID
 	if build == "" {
 		build = groupID
@@ -262,7 +303,7 @@ func processGroup(tg *configpb.TestGroup, result *processedResult) *updater.Infl
 	}
 	cells := make(map[string]updater.Cell)
 
-	for _, targetResults := range result.TargetResults {
+	for _, targetResults := range inv.TargetResults {
 		for _, satr := range targetResults {
 			status, ok := convertStatus[satr.TargetProto.GetStatusAttributes().GetStatus()]
 			if !ok {
@@ -271,19 +312,19 @@ func processGroup(tg *configpb.TestGroup, result *processedResult) *updater.Infl
 			cells[satr.TargetProto.GetId().GetTargetId()] = updater.Cell{
 				Result: status,
 				ID:     satr.TargetProto.GetId().GetTargetId(),
-				CellID: result.InvocationProto.GetId().GetInvocationId(),
+				CellID: inv.InvocationProto.GetId().GetInvocationId(),
 			}
 		}
 	}
 
-	invStatus, ok := convertStatus[result.InvocationProto.GetStatusAttributes().GetStatus()]
+	invStatus, ok := convertStatus[inv.InvocationProto.GetStatusAttributes().GetStatus()]
 	if !ok {
 		invStatus = statuspb.TestStatus_UNKNOWN
 	}
 	cells["Overall"] = updater.Cell{
 		Result: invStatus,
 		ID:     "Overall",
-		CellID: result.InvocationProto.GetId().GetInvocationId(),
+		CellID: inv.InvocationProto.GetId().GetInvocationId(),
 	}
 	return &updater.InflatedColumn{
 		Column: col,
@@ -294,11 +335,11 @@ func processGroup(tg *configpb.TestGroup, result *processedResult) *updater.Infl
 // identifyBuild applies build override configurations and assigns a build
 // Returns an empty string if no configurations are present or no configs are correctly set.
 // i.e. no key is found in properties.
-func identifyBuild(tg *configpb.TestGroup, pr *processedResult) string {
+func identifyBuild(tg *configpb.TestGroup, inv *invocation) string {
 	switch {
 	case tg.GetBuildOverrideConfigurationValue() != "":
 		key := tg.GetBuildOverrideConfigurationValue()
-		for _, property := range pr.InvocationProto.GetProperties() {
+		for _, property := range inv.InvocationProto.GetProperties() {
 			if property.GetKey() == key {
 				return property.GetValue()
 			}
@@ -306,7 +347,7 @@ func identifyBuild(tg *configpb.TestGroup, pr *processedResult) string {
 		return ""
 	case tg.GetBuildOverrideStrftime() != "":
 		layout := updater.FormatStrftime(tg.BuildOverrideStrftime)
-		timing := pr.InvocationProto.GetTiming().GetStartTime()
+		timing := inv.InvocationProto.GetTiming().GetStartTime()
 		startTime := time.Unix(timing.Seconds, int64(timing.Nanos)).UTC()
 		return startTime.Format(layout)
 	default:
