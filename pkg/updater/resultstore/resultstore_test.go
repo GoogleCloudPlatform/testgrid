@@ -186,18 +186,23 @@ func TestResultStoreColumnReader(t *testing.T) {
 	cases := []struct {
 		name    string
 		client  *fakeClient
+		tg      *configpb.TestGroup
 		want    []updater.InflatedColumn
 		wantErr bool
 	}{
 		{
 			name:    "empty",
+			tg:      oneMonthConfig,
 			wantErr: true,
 		},
 		{
 			name: "basic",
+			tg: &configpb.TestGroup{
+				DaysOfResults: 30,
+			},
 			client: &fakeClient{
 				searches: map[string][]string{
-					testQueryAfter: {"id-1", "id-2", "id-3"},
+					testQueryAfter: {"id-1", "id-2"},
 				},
 				invocations: map[string]fetchResult{
 					invocationName("id-1"): {
@@ -209,6 +214,31 @@ func TestResultStoreColumnReader(t *testing.T) {
 							Timing: &resultstore.Timing{
 								StartTime: &timestamppb.Timestamp{
 									Seconds: oneDayAgo.Unix(),
+								},
+							},
+						},
+						Targets: []*resultstore.Target{
+							{
+								Id: &resultstore.Target_Id{
+									TargetId: "tgt-id-1",
+								},
+								StatusAttributes: &resultstore.StatusAttributes{
+									Status: resultstore.Status_PASSED,
+								},
+							},
+						},
+						ConfiguredTargets: []*resultstore.ConfiguredTarget{
+							{
+								Id: &resultstore.ConfiguredTarget_Id{
+									TargetId: "tgt-id-1",
+								},
+							},
+						},
+						Actions: []*resultstore.Action{
+							{
+								Id: &resultstore.Action_Id{
+									TargetId: "tgt-id-1",
+									ActionId: "build",
 								},
 							},
 						},
@@ -225,16 +255,28 @@ func TestResultStoreColumnReader(t *testing.T) {
 								},
 							},
 						},
-					},
-					invocationName("id-3"): {
-						Invocation: &resultstore.Invocation{
-							Id: &resultstore.Invocation_Id{
-								InvocationId: "id-3",
+						Targets: []*resultstore.Target{
+							{
+								Id: &resultstore.Target_Id{
+									TargetId: "tgt-id-1",
+								},
+								StatusAttributes: &resultstore.StatusAttributes{
+									Status: resultstore.Status_FAILED,
+								},
 							},
-							Name: invocationName("id-3"),
-							Timing: &resultstore.Timing{
-								StartTime: &timestamppb.Timestamp{
-									Seconds: threeDaysAgo.Unix(),
+						},
+						ConfiguredTargets: []*resultstore.ConfiguredTarget{
+							{
+								Id: &resultstore.ConfiguredTarget_Id{
+									TargetId: "tgt-id-1",
+								},
+							},
+						},
+						Actions: []*resultstore.Action{
+							{
+								Id: &resultstore.Action_Id{
+									TargetId: "tgt-id-1",
+									ActionId: "build",
 								},
 							},
 						},
@@ -247,10 +289,14 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Build:   "id-1",
 						Name:    "id-1",
 						Started: float64(oneDayAgo.Unix() * 1000),
-						Hint:    timeMustText(oneDayAgo.Truncate(time.Second)),
+						Hint:    timeMustText(oneDayAgo.Local().Truncate(time.Second)),
 					},
 					Cells: map[string]updater.Cell{
-						"Overall": {ID: "Overall", CellID: "id-1"},
+						"tgt-id-1": {
+							ID:     "tgt-id-1",
+							CellID: "id-1",
+							Result: test_status.TestStatus_PASS,
+						},
 					},
 				},
 				{
@@ -261,24 +307,18 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Hint:    timeMustText(twoDaysAgo.Truncate(time.Second)),
 					},
 					Cells: map[string]updater.Cell{
-						"Overall": {ID: "Overall", CellID: "id-2"},
-					},
-				},
-				{
-					Column: &statepb.Column{
-						Build:   "id-3",
-						Name:    "id-3",
-						Started: float64(threeDaysAgo.Unix() * 1000),
-						Hint:    timeMustText(threeDaysAgo.Truncate(time.Second)),
-					},
-					Cells: map[string]updater.Cell{
-						"Overall": {ID: "Overall", CellID: "id-3"},
+						"tgt-id-1": {
+							ID:     "tgt-id-1",
+							CellID: "id-2",
+							Result: test_status.TestStatus_FAIL,
+						},
 					},
 				},
 			},
 		},
 		{
 			name: "no results from query",
+			tg:   oneMonthConfig,
 			client: &fakeClient{
 				searches: map[string][]string{},
 				invocations: map[string]fetchResult{
@@ -391,9 +431,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(oneDayAgo.Unix() * 1000),
 						Hint:    timeMustText(oneDayAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{
-						"Overall": {ID: "Overall", CellID: "id-1"},
-					},
+					Cells: map[string]updater.Cell{},
 				},
 				{
 					Column: &statepb.Column{
@@ -402,9 +440,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(twoDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(twoDaysAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{
-						"Overall": {ID: "Overall", CellID: "id-2"},
-					},
+					Cells: map[string]updater.Cell{},
 				},
 				{
 					Column: &statepb.Column{
@@ -413,9 +449,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 						Started: float64(threeDaysAgo.Unix() * 1000),
 						Hint:    timeMustText(threeDaysAgo.Truncate(time.Second)),
 					},
-					Cells: map[string]updater.Cell{
-						"Overall": {ID: "Overall", CellID: "id-3"},
-					},
+					Cells: map[string]updater.Cell{},
 				},
 			},
 		},
@@ -772,56 +806,60 @@ func TestProcessRawResult(t *testing.T) {
 func TestProcessGroup(t *testing.T) {
 
 	cases := []struct {
-		name   string
-		result *invocation
-		want   *updater.InflatedColumn
+		name  string
+		tg    *configpb.TestGroup
+		group *invocationGroup
+		want  *updater.InflatedColumn
 	}{
 		{
 			name: "nil",
 			want: nil,
 		},
 		{
-			name:   "empty",
-			result: &invocation{},
-			want:   nil,
+			name:  "empty",
+			group: &invocationGroup{},
+			want:  nil,
 		},
 		{
-			name: "basic",
-			result: &invocation{
-				InvocationProto: &resultstore.Invocation{
-					Id: &resultstore.Invocation_Id{
-						InvocationId: "id-1",
-					},
-					Name: invocationName("id-1"),
-					Timing: &resultstore.Timing{
-						StartTime: &timestamppb.Timestamp{
-							Seconds: 1234,
-						},
-					},
-				},
-				TargetResults: map[string][]*singleActionResult{
-					"tgt-id-1": {
-						{
-							TargetProto: &resultstore.Target{
-								Name: targetName("tgt-id-1", "id-1"),
-								Id: &resultstore.Target_Id{
-									TargetId: "tgt-id-1",
-								},
-								StatusAttributes: &resultstore.StatusAttributes{
-									Status: resultstore.Status_PASSED,
+			name: "basic invocation group",
+			group: &invocationGroup{
+				GroupId: "uuid-123",
+				Invocations: []*invocation{
+					{
+						InvocationProto: &resultstore.Invocation{
+							Name: invocationName("uuid-123"),
+							Id: &resultstore.Invocation_Id{
+								InvocationId: "uuid-123",
+							},
+							Timing: &resultstore.Timing{
+								StartTime: &timestamppb.Timestamp{
+									Seconds: 1234,
 								},
 							},
 						},
-					},
-					"tgt-id-2": {
-						{
-							TargetProto: &resultstore.Target{
-								Name: targetName("tgt-id-2", "id-1"),
-								Id: &resultstore.Target_Id{
-									TargetId: "tgt-id-2",
+						TargetResults: map[string][]*singleActionResult{
+							"tgt-id-1": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-1",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_PASSED,
+										},
+									},
 								},
-								StatusAttributes: &resultstore.StatusAttributes{
-									Status: resultstore.Status_FAILED,
+							},
+							"tgt-id-2": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-2",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_FAILED,
+										},
+									},
 								},
 							},
 						},
@@ -830,59 +868,152 @@ func TestProcessGroup(t *testing.T) {
 			},
 			want: &updater.InflatedColumn{
 				Column: &statepb.Column{
-					Name:    "id-1",
-					Build:   "id-1",
+					Name:    "uuid-123",
+					Build:   "uuid-123",
 					Started: 1234000,
 					Hint:    "1970-01-01T00:20:34Z",
 				},
 				Cells: map[string]updater.Cell{
-					"Overall": {
-						ID:     "Overall",
-						CellID: "id-1",
-					},
 					"tgt-id-1": {
 						ID:     "tgt-id-1",
-						CellID: "id-1",
+						CellID: "uuid-123",
 						Result: test_status.TestStatus_PASS,
 					},
 					"tgt-id-2": {
 						ID:     "tgt-id-2",
-						CellID: "id-1",
+						CellID: "uuid-123",
 						Result: test_status.TestStatus_FAIL,
 					},
 				},
 			},
 		},
 		{
-			name: "invocation without targets",
-			result: &invocation{
-				InvocationProto: &resultstore.Invocation{
-					Id: &resultstore.Invocation_Id{
-						InvocationId: "id-1",
-					},
-					Name: invocationName("id-1"),
-					Timing: &resultstore.Timing{
-						StartTime: &timestamppb.Timestamp{
-							Seconds: 1234,
+			name: "advanced invocation group with several invocations and repeated targets",
+			tg: &configpb.TestGroup{
+				BuildOverrideConfigurationValue: "pi-key-chu",
+			},
+			group: &invocationGroup{
+				GroupId: "snorlax",
+				Invocations: []*invocation{
+					{
+						InvocationProto: &resultstore.Invocation{
+							Name: invocationName("uuid-123"),
+							Id: &resultstore.Invocation_Id{
+								InvocationId: "uuid-123",
+							},
+							Timing: &resultstore.Timing{
+								StartTime: &timestamppb.Timestamp{
+									Seconds: 1234,
+								},
+							},
+							Properties: []*resultstore.Property{
+								{
+									Key:   "pi-key-chu",
+									Value: "snorlax",
+								},
+							},
+						},
+						TargetResults: map[string][]*singleActionResult{
+							"tgt-id-1": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-1",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_PASSED,
+										},
+									},
+								},
+							},
+							"tgt-id-2": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-2",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_FAILED,
+										},
+									},
+								},
+							},
 						},
 					},
-					StatusAttributes: &resultstore.StatusAttributes{
-						Status: resultstore.Status_PASSED,
+					{
+						InvocationProto: &resultstore.Invocation{
+							Name: invocationName("uuid-124"),
+							Id: &resultstore.Invocation_Id{
+								InvocationId: "uuid-124",
+							},
+							Timing: &resultstore.Timing{
+								StartTime: &timestamppb.Timestamp{
+									Seconds: 1334,
+								},
+							},
+							Properties: []*resultstore.Property{
+								{
+									Key:   "pi-key-chu",
+									Value: "snorlax",
+								},
+							},
+						},
+						TargetResults: map[string][]*singleActionResult{
+							"tgt-id-1": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-1",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_PASSED,
+										},
+									},
+								},
+							},
+							"tgt-id-2": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-2",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_FAILED,
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
 			want: &updater.InflatedColumn{
 				Column: &statepb.Column{
-					Name:    "id-1",
-					Build:   "id-1",
+					Name:    "snorlax",
+					Build:   "snorlax",
 					Started: 1234000,
-					Hint:    "1970-01-01T00:20:34Z",
+					Hint:    "1970-01-01T00:22:14Z",
 				},
 				Cells: map[string]updater.Cell{
-					"Overall": {
-						ID:     "Overall",
-						CellID: "id-1",
+					"tgt-id-1": {
+						ID:     "tgt-id-1",
+						CellID: "uuid-123",
 						Result: test_status.TestStatus_PASS,
+					},
+					"tgt-id-2": {
+						ID:     "tgt-id-2",
+						CellID: "uuid-123",
+						Result: test_status.TestStatus_FAIL,
+					},
+					"tgt-id-1 [1]": {
+						ID:     "tgt-id-1",
+						CellID: "uuid-124",
+						Result: test_status.TestStatus_PASS,
+					},
+					"tgt-id-2 [1]": {
+						ID:     "tgt-id-2",
+						CellID: "uuid-124",
+						Result: test_status.TestStatus_FAIL,
 					},
 				},
 			},
@@ -890,7 +1021,7 @@ func TestProcessGroup(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := processGroup(nil, tc.result)
+			got := processGroup(tc.tg, tc.group)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("processGroup() differed (-want, +got): %s", diff)
 			}
