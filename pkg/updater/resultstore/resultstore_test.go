@@ -97,7 +97,7 @@ func TestExtractGroupID(t *testing.T) {
 	cases := []struct {
 		name string
 		tg   *configpb.TestGroup
-		pr   *processedResult
+		pr   *invocation
 		want string
 	}{
 		{
@@ -110,7 +110,7 @@ func TestExtractGroupID(t *testing.T) {
 				BuildOverrideConfigurationValue: "test-key-1",
 				PrimaryGrouping:                 configpb.TestGroup_PRIMARY_GROUPING_BUILD,
 			},
-			pr: &processedResult{
+			pr: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Id: &resultstore.Invocation_Id{
 						InvocationId: "id-1",
@@ -138,7 +138,7 @@ func TestExtractGroupID(t *testing.T) {
 				BuildOverrideConfigurationValue: "test-key-1",
 				FallbackGrouping:                configpb.TestGroup_FALLBACK_GROUPING_BUILD,
 			},
-			pr: &processedResult{
+			pr: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Id: &resultstore.Invocation_Id{
 						InvocationId: "id-1",
@@ -492,7 +492,7 @@ func TestProcessRawResult(t *testing.T) {
 	cases := []struct {
 		name   string
 		result *fetchResult
-		want   *processedResult
+		want   *invocation
 	}{
 		{
 			name: "just invocation",
@@ -504,7 +504,7 @@ func TestProcessRawResult(t *testing.T) {
 					},
 				},
 			},
-			want: &processedResult{
+			want: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("Best invocation"),
 					Id: &resultstore.Invocation_Id{
@@ -556,7 +556,7 @@ func TestProcessRawResult(t *testing.T) {
 					},
 				},
 			},
-			want: &processedResult{
+			want: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("Best invocation"),
 					Id: &resultstore.Invocation_Id{
@@ -671,7 +671,7 @@ func TestProcessRawResult(t *testing.T) {
 					},
 				},
 			},
-			want: &processedResult{
+			want: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("Best invocation"),
 					Id: &resultstore.Invocation_Id{
@@ -773,7 +773,7 @@ func TestProcessGroup(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		result *processedResult
+		result *invocation
 		want   *updater.InflatedColumn
 	}{
 		{
@@ -782,12 +782,12 @@ func TestProcessGroup(t *testing.T) {
 		},
 		{
 			name:   "empty",
-			result: &processedResult{},
+			result: &invocation{},
 			want:   nil,
 		},
 		{
 			name: "basic",
-			result: &processedResult{
+			result: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Id: &resultstore.Invocation_Id{
 						InvocationId: "id-1",
@@ -855,7 +855,7 @@ func TestProcessGroup(t *testing.T) {
 		},
 		{
 			name: "invocation without targets",
-			result: &processedResult{
+			result: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Id: &resultstore.Invocation_Id{
 						InvocationId: "id-1",
@@ -1158,13 +1158,13 @@ func TestUpdateStop(t *testing.T) {
 func TestIdentifyBuild(t *testing.T) {
 	cases := []struct {
 		name   string
-		result *processedResult
+		result *invocation
 		tg     *configpb.TestGroup
 		want   string
 	}{
 		{
 			name: "no override configurations",
-			result: &processedResult{
+			result: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("id-123"),
 					Id: &resultstore.Invocation_Id{
@@ -1176,7 +1176,7 @@ func TestIdentifyBuild(t *testing.T) {
 		},
 		{
 			name: "override by non-existent property key",
-			result: &processedResult{
+			result: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("id-1234"),
 					Id: &resultstore.Invocation_Id{
@@ -1195,7 +1195,7 @@ func TestIdentifyBuild(t *testing.T) {
 		},
 		{
 			name: "override by existent property key",
-			result: &processedResult{
+			result: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("id-1234"),
 					Id: &resultstore.Invocation_Id{
@@ -1215,7 +1215,7 @@ func TestIdentifyBuild(t *testing.T) {
 		},
 		{
 			name: "override by build time strf",
-			result: &processedResult{
+			result: &invocation{
 				InvocationProto: &resultstore.Invocation{
 					Name: invocationName("id-1234"),
 					Id: &resultstore.Invocation_Id{
@@ -1355,6 +1355,171 @@ func TestIncludeStatus(t *testing.T) {
 			got := includeStatus(tc.tg, tc.sar)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("includeStatus(...) differed (-want, +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestGroupInvocations(t *testing.T) {
+	cases := []struct {
+		name        string
+		tg          *configpb.TestGroup
+		invocations []*invocation
+		want        []*invocationGroup
+	}{
+		{
+			name: "grouping by build - build override by configuration value",
+			tg: &configpb.TestGroup{
+				PrimaryGrouping:                 configpb.TestGroup_PRIMARY_GROUPING_BUILD,
+				BuildOverrideConfigurationValue: "my-property",
+			},
+			invocations: []*invocation{
+				{
+					InvocationProto: &resultstore.Invocation{
+						Name: invocationName("uuid-123"),
+						Id: &resultstore.Invocation_Id{
+							InvocationId: "uuid-123",
+						},
+						Properties: []*resultstore.Property{
+							{
+								Key:   "my-property",
+								Value: "my-value-1",
+							},
+						},
+						Timing: &resultstore.Timing{
+							StartTime: &timestamppb.Timestamp{
+								Seconds: 1234,
+							},
+						},
+					},
+				},
+				{
+					InvocationProto: &resultstore.Invocation{
+						Name: invocationName("uuid-321"),
+						Id: &resultstore.Invocation_Id{
+							InvocationId: "uuid-321",
+						},
+						Properties: []*resultstore.Property{
+							{
+								Key:   "my-property",
+								Value: "my-value-2",
+							},
+						},
+					},
+				},
+			},
+			want: []*invocationGroup{
+				{
+					GroupId: "my-value-1",
+					Invocations: []*invocation{
+						{
+							InvocationProto: &resultstore.Invocation{
+								Name: invocationName("uuid-123"),
+								Id: &resultstore.Invocation_Id{
+									InvocationId: "uuid-123",
+								},
+								Properties: []*resultstore.Property{
+									{
+										Key:   "my-property",
+										Value: "my-value-1",
+									},
+								},
+								Timing: &resultstore.Timing{
+									StartTime: &timestamppb.Timestamp{
+										Seconds: 1234,
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					GroupId: "my-value-2",
+					Invocations: []*invocation{
+						{
+							InvocationProto: &resultstore.Invocation{
+								Name: invocationName("uuid-321"),
+								Id: &resultstore.Invocation_Id{
+									InvocationId: "uuid-321",
+								},
+								Properties: []*resultstore.Property{
+									{
+										Key:   "my-property",
+										Value: "my-value-2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "grouping by invocation id",
+			invocations: []*invocation{
+				{
+					InvocationProto: &resultstore.Invocation{
+						Name: invocationName("uuid-123"),
+						Id: &resultstore.Invocation_Id{
+							InvocationId: "uuid-123",
+						},
+						Timing: &resultstore.Timing{
+							StartTime: &timestamppb.Timestamp{
+								Seconds: 1234,
+							},
+						},
+					},
+				},
+				{
+					InvocationProto: &resultstore.Invocation{
+						Name: invocationName("uuid-321"),
+						Id: &resultstore.Invocation_Id{
+							InvocationId: "uuid-321",
+						},
+					},
+				},
+			},
+			want: []*invocationGroup{
+				{
+					GroupId: "uuid-123",
+					Invocations: []*invocation{
+						{
+							InvocationProto: &resultstore.Invocation{
+								Name: invocationName("uuid-123"),
+								Id: &resultstore.Invocation_Id{
+									InvocationId: "uuid-123",
+								},
+								Timing: &resultstore.Timing{
+									StartTime: &timestamppb.Timestamp{
+										Seconds: 1234,
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					GroupId: "uuid-321",
+					Invocations: []*invocation{
+						{
+							InvocationProto: &resultstore.Invocation{
+								Name: invocationName("uuid-321"),
+								Id: &resultstore.Invocation_Id{
+									InvocationId: "uuid-321",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := groupInvocations(logrus.WithField("case", tc.name), tc.tg, tc.invocations)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("groupInvocations(...) differed (-want, +got): %s", diff)
 			}
 		})
 	}
