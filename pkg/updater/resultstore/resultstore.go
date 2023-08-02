@@ -112,8 +112,9 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 			return invocations[i].InvocationProto.GetTiming().GetStartTime().GetSeconds() > invocations[j].InvocationProto.GetTiming().GetStartTime().GetSeconds()
 		})
 
-		for _, inv := range invocations {
-			inflatedCol := processGroup(tg, inv)
+		groups := groupInvocations(log, tg, invocations)
+		for _, group := range groups {
+			inflatedCol := processGroup(tg, group)
 			receivers <- *inflatedCol
 		}
 		return nil
@@ -279,57 +280,75 @@ func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
 }
 
 // processGroup will convert grouped invocations into columns
-func processGroup(tg *configpb.TestGroup, inv *invocation) *updater.InflatedColumn {
-	if inv == nil || inv.InvocationProto == nil {
+func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.InflatedColumn {
+	if group == nil || group.Invocations == nil {
 		return nil
 	}
 
-	started := inv.InvocationProto.GetTiming().GetStartTime()
-	groupID := inv.InvocationProto.GetId().GetInvocationId()
-	build := identifyBuild(tg, inv)
-	// override build by invocation ID
-	if build == "" {
-		build = groupID
+	col := &updater.InflatedColumn{
+		Column: &statepb.Column{
+			Name: group.GroupId,
+		},
+		Cells: map[string]updater.Cell{},
 	}
-	hint, err := started.AsTime().MarshalText()
-	if err != nil {
-		hint = []byte{}
-	}
-	col := &statepb.Column{
-		Build:   build,
-		Name:    groupID,
-		Started: timestampMilliseconds(started),
-		Hint:    string(hint),
-	}
-	cells := make(map[string]updater.Cell)
 
-	for _, targetResults := range inv.TargetResults {
-		for _, satr := range targetResults {
-			status, ok := convertStatus[satr.TargetProto.GetStatusAttributes().GetStatus()]
-			if !ok {
-				status = statuspb.TestStatus_UNKNOWN
+	groupedCells := make(map[string][]updater.Cell)
+
+	hintTime := time.Unix(0, 0)
+
+	// extract info from underlying invocations and target results
+	for _, invocation := range group.Invocations {
+
+		if build := identifyBuild(tg, invocation); build != "" {
+			col.Column.Build = build
+		} else {
+			col.Column.Build = group.GroupId
+		}
+
+		started := invocation.InvocationProto.GetTiming().GetStartTime()
+		resultStartTime := timestampMilliseconds(started)
+		if col.Column.Started == 0 || resultStartTime < col.Column.Started {
+			col.Column.Started = resultStartTime
+		}
+
+		if started.AsTime().After(hintTime) {
+			hintTime = started.AsTime()
+		}
+
+		for targetID, singleActionResults := range invocation.TargetResults {
+			for _, sar := range singleActionResults {
+				// TODO(sultan-duisenbay): sanitize build target and apply naming config
+				var cell updater.Cell
+
+				cell.CellID = invocation.InvocationProto.GetId().GetInvocationId()
+				cell.ID = targetID
+
+				status, ok := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
+				if !ok {
+					status = statuspb.TestStatus_UNKNOWN
+				}
+
+				cell.Result = status
+				groupedCells[targetID] = append(groupedCells[targetID], cell)
 			}
-			cells[satr.TargetProto.GetId().GetTargetId()] = updater.Cell{
-				Result: status,
-				ID:     satr.TargetProto.GetId().GetTargetId(),
-				CellID: inv.InvocationProto.GetId().GetInvocationId(),
+		}
+
+		for name, cells := range groupedCells {
+			split := updater.SplitCells(name, cells...)
+			for outName, outCell := range split {
+				col.Cells[outName] = outCell
 			}
 		}
 	}
 
-	invStatus, ok := convertStatus[inv.InvocationProto.GetStatusAttributes().GetStatus()]
-	if !ok {
-		invStatus = statuspb.TestStatus_UNKNOWN
+	hint, err := hintTime.MarshalText()
+	if err != nil {
+		hint = []byte{}
 	}
-	cells["Overall"] = updater.Cell{
-		Result: invStatus,
-		ID:     "Overall",
-		CellID: inv.InvocationProto.GetId().GetInvocationId(),
-	}
-	return &updater.InflatedColumn{
-		Column: col,
-		Cells:  cells,
-	}
+
+	col.Column.Hint = string(hint)
+
+	return col
 }
 
 // identifyBuild applies build override configurations and assigns a build
