@@ -306,7 +306,6 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 		unmatchMethods, unmatchMethodsErr = regexp.Compile(um)
 	}
 
-
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
 			Name: group.GroupId,
@@ -319,16 +318,16 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	if err := matchMethodsErr; err != nil {
 		groupedCells["test_method_match_regex"] = []updater.Cell{
 			{
-					Result:  statuspb.TestStatus_TOOL_FAIL,
-					Message: err.Error(),
+				Result:  statuspb.TestStatus_TOOL_FAIL,
+				Message: err.Error(),
 			},
 		}
 	}
 	if err := unmatchMethodsErr; err != nil {
 		groupedCells["test_method_unmatch_regex"] = []updater.Cell{
 			{
-					Result:  statuspb.TestStatus_TOOL_FAIL,
-					Message: err.Error(),
+				Result:  statuspb.TestStatus_TOOL_FAIL,
+				Message: err.Error(),
 			},
 		}
 	}
