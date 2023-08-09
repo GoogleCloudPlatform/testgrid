@@ -285,6 +285,15 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 		return nil
 	}
 
+	var testMethodLimit int
+	if tg.EnableTestMethods {
+		testMethodLimit = int(tg.MaxTestMethodsPerTest)
+		if testMethodLimit == 0 {
+			const defaultTestMethodLimit = 20
+			testMethodLimit = defaultTestMethodLimit
+		}
+	}
+
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
 			Name: group.GroupId,
