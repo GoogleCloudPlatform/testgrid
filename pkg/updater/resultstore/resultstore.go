@@ -20,6 +20,7 @@ package resultstore
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
@@ -285,6 +286,26 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 		return nil
 	}
 
+	var testMethodLimit int
+	if tg.EnableTestMethods {
+		testMethodLimit = int(tg.MaxTestMethodsPerTest)
+		if testMethodLimit == 0 {
+			const defaultTestMethodLimit = 20
+			testMethodLimit = defaultTestMethodLimit
+		}
+	}
+
+	var matchMethods, unmatchMethods *regexp.Regexp
+	var matchMethodsErr, unmatchMethodsErr error
+
+	if m := tg.TestMethodMatchRegex; m != "" {
+		matchMethods, matchMethodsErr = regexp.Compile(m)
+	}
+
+	if um := tg.TestMethodUnmatchRegex; um != "" {
+		unmatchMethods, unmatchMethodsErr = regexp.Compile(um)
+	}
+
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
 			Name: group.GroupId,
@@ -293,6 +314,23 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	}
 
 	groupedCells := make(map[string][]updater.Cell)
+
+	if err := matchMethodsErr; err != nil {
+		groupedCells["test_method_match_regex"] = []updater.Cell{
+			{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					Message: err.Error(),
+			},
+		}
+	}
+	if err := unmatchMethodsErr; err != nil {
+		groupedCells["test_method_unmatch_regex"] = []updater.Cell{
+			{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					Message: err.Error(),
+			},
+		}
+	}
 
 	hintTime := time.Unix(0, 0)
 
@@ -328,8 +366,16 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 					status = statuspb.TestStatus_UNKNOWN
 				}
 
+				testResults := sar.ActionProto.GetTestAction().TestSuite.Tests
+				testResults, filtered := filterResults(testResults, tg.TestMethodProperties, matchMethods, unmatchMethods)
+				addChildren := len(testResults) <= testMethodLimit
 				cell.Result = status
-				groupedCells[targetID] = append(groupedCells[targetID], cell)
+				if addChildren {
+					groupedCells[targetID] = append(groupedCells[targetID], cell)
+				}
+				if filtered && len(testResults) == 0 {
+					continue
+				}
 			}
 		}
 
@@ -349,6 +395,107 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	col.Column.Hint = string(hint)
 
 	return col
+}
+
+// appendProperties from result and its children into a map, optionally filtering to specific matching keys.
+func appendProperties(properties map[string][]string, result *resultstorepb.Test, match map[string]bool) {
+	if result == nil {
+		return
+	}
+
+	for _, p := range result.GetTestCase().Properties {
+		key := p.Key
+		if match != nil && !match[key] {
+			continue
+		}
+		properties[key] = append(properties[key], p.Value)
+	}
+	appendProperties(properties, result, match)
+}
+
+// fillProperties reduces the appendProperties result to the single value for each key or "*" if a key has multiple values.
+func fillProperties(properties map[string]string, result *resultstorepb.Test, match map[string]bool) {
+	if result == nil {
+		return
+	}
+	multiProps := map[string][]string{}
+
+	appendProperties(multiProps, result, match)
+
+	for key, values := range multiProps {
+		if len(values) > 1 {
+			var diff bool
+			for _, v := range values {
+				if v != values[0] {
+					properties[key] = "*"
+					diff = true
+					break
+				}
+			}
+			if diff {
+				continue
+			}
+		}
+		properties[key] = values[0]
+	}
+}
+
+// filterProperties returns the subset of results containing all the specified properties.
+func filterProperties(results []*resultstorepb.Test, properties []*configpb.TestGroup_KeyValue) []*resultstorepb.Test {
+	if len(properties) == 0 {
+		return results
+	}
+
+	var out []*resultstorepb.Test
+
+	match := make(map[string]bool, len(properties))
+
+	for _, p := range properties {
+		match[p.Key] = true
+	}
+
+	for _, r := range results {
+		found := map[string]string{}
+		fillProperties(found, r, match)
+		var miss bool
+		for _, p := range properties {
+			if found[p.Key] != p.Value {
+				miss = true
+				break
+			}
+		}
+		if miss {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// matchResults returns the subset of results with matching / without unmatching names.
+func matchResults(results []*resultstorepb.Test, match, unmatch *regexp.Regexp) []*resultstorepb.Test {
+	if match == nil && unmatch == nil {
+		return results
+	}
+	var out []*resultstorepb.Test
+	for _, r := range results {
+		if match != nil && !match.MatchString(r.GetTestSuite().SuiteName) {
+			continue
+		}
+		if unmatch != nil && unmatch.MatchString(r.GetTestSuite().SuiteName) {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// filterResults returns the subset of results and whether or not filtering was applied.
+func filterResults(results []*resultstorepb.Test, properties []*configpb.TestGroup_KeyValue, match, unmatch *regexp.Regexp) ([]*resultstorepb.Test, bool) {
+	results = filterProperties(results, properties)
+	results = matchResults(results, match, unmatch)
+	filtered := len(properties) > 0 || match != nil || unmatch != nil
+	return results, filtered
 }
 
 // identifyBuild applies build override configurations and assigns a build
