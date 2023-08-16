@@ -24,6 +24,7 @@ import (
 	"time"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	"github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
@@ -1014,6 +1015,108 @@ func TestProcessGroup(t *testing.T) {
 						ID:     "tgt-id-2",
 						CellID: "uuid-124",
 						Result: test_status.TestStatus_FAIL,
+					},
+				},
+			},
+		},
+		{
+			name: "invocation group with ignored statuses and custom target status evaluator",
+			tg: &configpb.TestGroup{
+				IgnorePending: true,
+				CustomEvaluatorRuleSet: &custom_evaluator.RuleSet{
+					Rules: []*custom_evaluator.Rule{
+						{
+							ComputedStatus: test_status.TestStatus_CATEGORIZED_ABORT,
+							TestResultComparisons: []*custom_evaluator.TestResultComparison{
+								{
+									TestResultInfo: &custom_evaluator.TestResultComparison_TargetStatus{
+										TargetStatus: true,
+									},
+									Comparison: &custom_evaluator.Comparison{
+										Op: custom_evaluator.Comparison_OP_EQ,
+										ComparisonValue: &custom_evaluator.Comparison_TargetStatusValue{
+											TargetStatusValue: test_status.TestStatus_TIMED_OUT,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			group: &invocationGroup{
+				GroupId: "uuid-123",
+				Invocations: []*invocation{
+					{
+						InvocationProto: &resultstore.Invocation{
+							Name: invocationName("uuid-123"),
+							Id: &resultstore.Invocation_Id{
+								InvocationId: "uuid-123",
+							},
+							Timing: &resultstore.Timing{
+								StartTime: &timestamppb.Timestamp{
+									Seconds: 1234,
+								},
+							},
+						},
+						TargetResults: map[string][]*singleActionResult{
+							"tgt-id-1": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-1",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_PASSED,
+										},
+									},
+								},
+							},
+							"tgt-id-2": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-2",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_TESTING,
+										},
+									},
+								},
+							},
+							"tgt-id-3": {
+								{
+									TargetProto: &resultstore.Target{
+										Id: &resultstore.Target_Id{
+											TargetId: "tgt-id-3",
+										},
+										StatusAttributes: &resultstore.StatusAttributes{
+											Status: resultstore.Status_TIMED_OUT,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: &updater.InflatedColumn{
+				Column: &statepb.Column{
+					Name:    "uuid-123",
+					Build:   "uuid-123",
+					Started: 1234000,
+					Hint:    "1970-01-01T00:20:34Z",
+				},
+				Cells: map[string]updater.Cell{
+					"tgt-id-1": {
+						ID:     "tgt-id-1",
+						CellID: "uuid-123",
+						Result: test_status.TestStatus_PASS,
+					},
+					"tgt-id-3": {
+						ID:     "tgt-id-3",
+						CellID: "uuid-123",
+						Result: test_status.TestStatus_CATEGORIZED_ABORT,
 					},
 				},
 			},
