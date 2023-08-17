@@ -366,7 +366,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 					status = statuspb.TestStatus_UNKNOWN
 				}
 
-				testResults := sar.ActionProto.GetTestAction().TestSuite.Tests
+				testResults := sar.ActionProto.GetTestAction().GetTestSuite().GetTests()
 				testResults, filtered := filterResults(testResults, tg.TestMethodProperties, matchMethods, unmatchMethods)
 				addChildren := len(testResults) <= testMethodLimit
 
