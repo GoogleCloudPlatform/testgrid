@@ -29,11 +29,15 @@ import (
 	"github.com/sirupsen/logrus"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	cepb "github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	resultstorepb "google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 )
+
+// check if interface is implemented correctly
+var _ updater.TargetResult = &singleActionResult{}
 
 // Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
 func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeout time.Duration, write bool) updater.GroupUpdater {
@@ -58,6 +62,12 @@ type singleActionResult struct {
 	TargetProto           *resultstorepb.Target
 	ConfiguredTargetProto *resultstorepb.ConfiguredTarget
 	ActionProto           *resultstorepb.Action
+}
+
+// make singleActionResult satisfy TargetResult interface
+func (sar *singleActionResult) TargetStatus() statuspb.TestStatus {
+	status := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
+	return status
 }
 
 type multiActionResult struct {
@@ -262,6 +272,11 @@ var convertStatus = map[resultstorepb.Status]statuspb.TestStatus{
 	resultstorepb.Status_SKIPPED:            statuspb.TestStatus_PASS_WITH_SKIPS,
 }
 
+// customTargetStatus will determine the overridden status based on custom evaluator rule set
+func customTargetStatus(ruleSet *cepb.RuleSet, sar *singleActionResult) *statuspb.TestStatus {
+	return updater.CustomTargetStatus(ruleSet.GetRules(), sar)
+}
+
 // includeStatus determines if the single action result should be included based on config
 func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
 	status := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
@@ -355,22 +370,28 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 
 		for targetID, singleActionResults := range invocation.TargetResults {
 			for _, sar := range singleActionResults {
+				if !includeStatus(tg, sar) {
+					continue
+				}
 				// TODO(sultan-duisenbay): sanitize build target and apply naming config
 				var cell updater.Cell
 
 				cell.CellID = invocation.InvocationProto.GetId().GetInvocationId()
 				cell.ID = targetID
 
+				// assign status
 				status, ok := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
 				if !ok {
 					status = statuspb.TestStatus_UNKNOWN
 				}
-
 				testResults := sar.ActionProto.GetTestAction().GetTestSuite().GetTests()
 				testResults, filtered := filterResults(testResults, tg.TestMethodProperties, matchMethods, unmatchMethods)
 				addChildren := len(testResults) <= testMethodLimit
 
 				cell.Result = status
+        if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
+					cell.Result = *cr
+				}
 				if addChildren {
 					groupedCells[targetID] = append(groupedCells[targetID], cell)
 				}

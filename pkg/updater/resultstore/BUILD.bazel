@@ -10,6 +10,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pb/config:go_default_library",
+        "//pb/custom_evaluator:go_default_library",
         "//pb/state:go_default_library",
         "//pb/test_status:go_default_library",
         "//pkg/updater:go_default_library",
@@ -30,6 +31,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//pb/config:go_default_library",
+        "//pb/custom_evaluator:go_default_library",
         "//pb/state:go_default_library",
         "//pb/test_status:go_default_library",
         "//pkg/updater:go_default_library",
