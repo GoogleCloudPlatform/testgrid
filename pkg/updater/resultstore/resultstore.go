@@ -317,10 +317,6 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 		matchMethods, matchMethodsErr = regexp.Compile(m)
 	}
 
-	if um := tg.TestMethodUnmatchRegex; um != "" {
-		unmatchMethods, unmatchMethodsErr = regexp.Compile(um)
-	}
-
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
 			Name: group.GroupId,
