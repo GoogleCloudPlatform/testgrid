@@ -1132,6 +1132,106 @@ func TestProcessGroup(t *testing.T) {
 	}
 }
 
+
+func TestLeafNodes(t *testing.T) {
+	cases := []struct {
+		name string
+		testsuite *resultstore.TestSuite
+		want []*resultstore.TestCase
+	}{
+		{
+			name: "all tests",
+			testsuite: &resultstore.TestSuite{
+				SuiteName: "AllTests",
+				Tests: []*resultstore.Test{
+					{
+						TestType: &resultstore.Test_TestSuite{
+							TestSuite: &resultstore.TestSuite{
+								SuiteName: "TestDetectJSError",
+								Tests: []*resultstore.Test{
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Main",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Summary",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/DashboardGroup_Overview",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Dashboard",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Render_Main",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Render_Summary",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []*resultstore.TestCase{
+				{
+					CaseName: "TestDetectJSError/Main",
+				},
+				{
+					CaseName: "TestDetectJSError/Summary",
+				},
+				{
+					CaseName: "TestDetectJSError/DashboardGroup_Overview",
+				},
+				{
+					CaseName: "TestDetectJSError/Dashboard",
+				},
+				{
+					CaseName: "TestDetectJSError/Render_Main",
+				},
+				{
+					CaseName: "TestDetectJSError/Render_Summary",
+				},
+			},
+		},
+	};
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := getTestResults(tc.testsuite)
+			for i, node := range got {
+				if diff := cmp.Diff(tc.want[i].CaseName, node.GetTestCase().CaseName); diff != "" {
+					t.Errorf("TEST: %s", node.GetTestCase().CaseName)
+					t.Errorf("getTestResults() differed (-want, +node): %s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestQueryAfter(t *testing.T) {
 	now := time.Now()
 	cases := []struct {

@@ -380,12 +380,12 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				if !ok {
 					status = statuspb.TestStatus_UNKNOWN
 				}
-				testResults := sar.ActionProto.GetTestAction().GetTestSuite().GetTests()
+				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
 				testResults, filtered := filterResults(testResults, tg.TestMethodProperties, matchMethods, unmatchMethods)
 				addChildren := len(testResults) <= testMethodLimit
 
 				cell.Result = status
-        if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
+				if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
 					cell.Result = *cr
 				}
 				if addChildren {
@@ -415,46 +415,36 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	return col
 }
 
-func appendProperties(properties map[string][]string, result *resultstorepb.Test, match map[string]bool) {
-	if result == nil {
-		return
+func getTestResults(testsuite *resultstorepb.TestSuite) []*resultstorepb.Test {
+	if testsuite == nil {
+		return []*resultstorepb.Test{}
 	}
-
-	for _, p := range result.GetTestCase().Properties {
-		key := p.Key
-		if match != nil && !match[key] {
-			continue
-		}
-		properties[key] = append(properties[key], p.Value)
-	}
-	appendProperties(properties, result, match)
+	t := []*resultstorepb.Test{}
+	traverseTestSuite(testsuite, t)
+	return t
 }
 
-// fillProperties reduces the appendProperties result to the single value for each key or "*" if a key has multiple values.
-func fillProperties(properties map[string]string, result *resultstorepb.Test, match map[string]bool) {
-	if result == nil {
-		return
-	}
-	multiProps := map[string][]string{}
-
-	appendProperties(multiProps, result, match)
-
-	for key, values := range multiProps {
-		if len(values) > 1 {
-			var diff bool
-			for _, v := range values {
-				if v != values[0] {
-					properties[key] = "*"
-					diff = true
-					break
-				}
+func traverseTestSuite(testsuite *resultstorepb.TestSuite, t []*resultstorepb.Test) {
+	for i:=0; i < len(testsuite.Tests); i++ {
+		if testsuite.Tests[i].GetTestCase() != nil {
+			test := resultstorepb.Test{
+				TestType: &resultstorepb.Test_TestCase{
+					TestCase: testsuite.Tests[i].GetTestCase(),
+				},
 			}
-			if diff {
-				continue
-			}
+			t = append(t, &test)
+		} else {
+			t = append(t, getTestResults(testsuite.Tests[i].GetTestSuite())...)
 		}
-		properties[key] = values[0]
 	}
+}
+
+// filterResults returns the subset of results and whether or not filtering was applied.
+func filterResults(results []*resultstorepb.Test, properties []*configpb.TestGroup_KeyValue, match, unmatch *regexp.Regexp) ([]*resultstorepb.Test, bool) {
+	results = filterProperties(results, properties)
+	results = matchResults(results, match, unmatch)
+	filtered := len(properties) > 0 || match != nil || unmatch != nil
+	return results, filtered
 }
 
 // filterProperties returns the subset of results containing all the specified properties.
@@ -507,12 +497,46 @@ func matchResults(results []*resultstorepb.Test, match, unmatch *regexp.Regexp) 
 	return out
 }
 
-// filterResults returns the subset of results and whether or not filtering was applied.
-func filterResults(results []*resultstorepb.Test, properties []*configpb.TestGroup_KeyValue, match, unmatch *regexp.Regexp) ([]*resultstorepb.Test, bool) {
-	results = filterProperties(results, properties)
-	results = matchResults(results, match, unmatch)
-	filtered := len(properties) > 0 || match != nil || unmatch != nil
-	return results, filtered
+// fillProperties reduces the appendProperties result to the single value for each key or "*" if a key has multiple values.
+func fillProperties(properties map[string]string, result *resultstorepb.Test, match map[string]bool) {
+	if result == nil {
+		return
+	}
+	multiProps := map[string][]string{}
+
+	appendProperties(multiProps, result, match)
+
+	for key, values := range multiProps {
+		if len(values) > 1 {
+			var diff bool
+			for _, v := range values {
+				if v != values[0] {
+					properties[key] = "*"
+					diff = true
+					break
+				}
+			}
+			if diff {
+				continue
+			}
+		}
+		properties[key] = values[0]
+	}
+}
+
+func appendProperties(properties map[string][]string, result *resultstorepb.Test, match map[string]bool) {
+	if result == nil {
+		return
+	}
+
+	for _, p := range result.GetTestCase().Properties {
+		key := p.Key
+		if match != nil && !match[key] {
+			continue
+		}
+		properties[key] = append(properties[key], p.Value)
+	}
+	appendProperties(properties, result, match)
 }
 
 // identifyBuild applies build override configurations and assigns a build
