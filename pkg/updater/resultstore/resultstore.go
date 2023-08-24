@@ -398,7 +398,7 @@ func getTestResults(testsuite *resultstorepb.TestSuite) []*resultstorepb.Test {
 }
 
 func traverseTestSuite(testsuite *resultstorepb.TestSuite, t []*resultstorepb.Test) {
-	for i:=0; i < len(testsuite.Tests); i++ {
+	for i := 0; i < len(testsuite.Tests); i++ {
 		if testsuite.Tests[i].GetTestCase() != nil {
 			test := resultstorepb.Test{
 				TestType: &resultstorepb.Test_TestCase{

@@ -1132,12 +1132,11 @@ func TestProcessGroup(t *testing.T) {
 	}
 }
 
-
 func TestLeafNodes(t *testing.T) {
 	cases := []struct {
-		name string
+		name      string
 		testsuite *resultstore.TestSuite
-		want []*resultstore.TestCase
+		want      []*resultstore.TestCase
 	}{
 		{
 			name: "all tests",
@@ -1218,7 +1217,7 @@ func TestLeafNodes(t *testing.T) {
 				},
 			},
 		},
-	};
+	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := getTestResults(tc.testsuite)
