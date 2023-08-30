@@ -1132,7 +1132,7 @@ func TestProcessGroup(t *testing.T) {
 	}
 }
 
-func TestLeafNodes(t *testing.T) {
+func TestGetTestResults(t *testing.T) {
 	cases := []struct {
 		name      string
 		testsuite *resultstore.TestSuite

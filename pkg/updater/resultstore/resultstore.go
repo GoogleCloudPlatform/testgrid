@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
@@ -296,7 +297,9 @@ func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
 
 // processGroup will convert grouped invocations into columns
 func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.InflatedColumn {
-	if group == nil || group.Invocations == nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if group == nil || group.Invocations == nil || tg == nil {
 		return nil
 	}
 
@@ -320,6 +323,8 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 
 	hintTime := time.Unix(0, 0)
 
+	receivers := make(chan updater.InflatedColumn)
+	var sent int
 	// extract info from underlying invocations and target results
 	for _, invocation := range group.Invocations {
 
@@ -344,25 +349,64 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				if !includeStatus(tg, sar) {
 					continue
 				}
-				// TODO(sultan-duisenbay): sanitize build target and apply naming config
-				var cell updater.Cell
-
-				cell.CellID = invocation.InvocationProto.GetId().GetInvocationId()
-				cell.ID = targetID
 
 				// assign status
 				status, ok := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
 				if !ok {
 					status = statuspb.TestStatus_UNKNOWN
 				}
-				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
-
+				// TODO(sultan-duisenbay): sanitize build target and apply naming config
+				var cell updater.Cell
+				cell.CellID = invocation.InvocationProto.GetId().GetInvocationId()
+				cell.ID = targetID
 				cell.Result = status
-				if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
-					cell.Result = *cr
-				}
-				if len(testResults) <= testMethodLimit {
-					groupedCells[targetID] = append(groupedCells[targetID], cell)
+
+				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
+				for _, testResult := range testResults {
+					// TODO(bryanlou) targetID + "@TESTGRID@"
+					var methodName string
+					if testResult.GetTestCase() == nil {
+						methodName = testResult.GetTestCase().GetCaseName()
+					} else {
+						methodName = testResult.GetTestSuite().GetSuiteName()
+					}
+
+					if tg.UseFullMethodNames {
+						parts := strings.Split(testResult.GetTestCase().GetClassName(), ".")
+						className := parts[len(parts)-1]
+						methodName = className + "." + methodName
+					}
+
+					methodName = targetID + "@TESTGRID@" + methodName
+
+					if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
+						cell.Result = *cr
+					} else {
+						res := testResult.GetTestCase().GetResult()
+						switch {
+						case strings.HasPrefix(methodName, "DISABLED_"):
+							cell.Result = statuspb.TestStatus_PASS_WITH_SKIPS
+						case res == resultstorepb.TestCase_SKIPPED:
+							cell.Result = statuspb.TestStatus_PASS_WITH_SKIPS
+						case res == resultstorepb.TestCase_SUPPRESSED:
+							cell.Result = statuspb.TestStatus_PASS_WITH_SKIPS
+						case res == resultstorepb.TestCase_CANCELLED:
+							cell.Result = statuspb.TestStatus_PASS_WITH_SKIPS
+						case res == resultstorepb.TestCase_CANCELLED:
+							cell.Result = statuspb.TestStatus_CANCEL
+						case len(testResult.GetTestCase().GetFailures()) > 0 || len(testResult.GetTestCase().GetErrors()) > 0:
+							cell.Result = statuspb.TestStatus_FAIL
+						default:
+							cell.Result = statuspb.TestStatus_PASS
+						}
+					}
+					if cell.Result == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
+						continue
+					}
+					if len(testResults) <= testMethodLimit {
+						tcName := testResult.GetTestCase().GetCaseName()
+						groupedCells[tcName] = append(groupedCells[tcName], cell)
+					}
 				}
 				if len(testResults) == 0 {
 					continue
@@ -376,6 +420,12 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				col.Cells[outName] = outCell
 			}
 		}
+		select {
+		case <-ctx.Done():
+			return col
+		case receivers <- *col:
+			sent++
+		}
 	}
 
 	hint, err := hintTime.MarshalText()
@@ -388,28 +438,29 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	return col
 }
 
-func getTestResults(testsuite *resultstorepb.TestSuite) []*resultstorepb.Test {
-	if testsuite == nil {
-		return []*resultstorepb.Test{}
-	}
-	t := []*resultstorepb.Test{}
-	traverseTestSuite(testsuite, t)
-	return t
-}
+func getTestResults(testSuite *resultstorepb.TestSuite) []*resultstorepb.Test {
 
-func traverseTestSuite(testsuite *resultstorepb.TestSuite, t []*resultstorepb.Test) {
-	for i := 0; i < len(testsuite.Tests); i++ {
-		if testsuite.Tests[i].GetTestCase() != nil {
-			test := resultstorepb.Test{
-				TestType: &resultstorepb.Test_TestCase{
-					TestCase: testsuite.Tests[i].GetTestCase(),
-				},
-			}
-			t = append(t, &test)
-		} else {
-			t = append(t, getTestResults(testsuite.Tests[i].GetTestSuite())...)
+	if testSuite == nil {
+		return nil
+	}
+
+	if len(testSuite.GetTests()) == 0 {
+		return []*resultstorepb.Test{
+			{
+				TestType: &resultstorepb.Test_TestSuite{TestSuite: testSuite},
+			},
 		}
 	}
+
+	var tests []*resultstorepb.Test
+	for _, test := range testSuite.GetTests() {
+		if test.GetTestCase() != nil {
+			tests = append(tests, test)
+		} else {
+			tests = append(tests, getTestResults(test.GetTestSuite())...)
+		}
+	}
+	return tests
 }
 
 // identifyBuild applies build override configurations and assigns a build
