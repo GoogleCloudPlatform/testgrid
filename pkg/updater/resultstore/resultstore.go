@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
@@ -69,6 +70,25 @@ func (sar *singleActionResult) TargetStatus() statuspb.TestStatus {
 	return status
 }
 
+func (sar *singleActionResult) extractHeaders(headerConf *configpb.TestGroup_ColumnHeader) []string {
+	if sar == nil {
+		return nil
+	}
+
+	var headers []string
+
+	if key := headerConf.GetProperty(); key != "" {
+		tr := &testResult{sar.ActionProto.GetTestAction().GetTestSuite(), nil}
+		for _, p := range tr.properties() {
+			if p.GetKey() == key {
+				headers = append(headers, p.GetValue())
+			}
+		}
+	}
+
+	return headers
+}
+
 type multiActionResult struct {
 	TargetProto           *resultstorepb.Target
 	ConfiguredTargetProto *resultstorepb.ConfiguredTarget
@@ -80,6 +100,29 @@ type multiActionResult struct {
 type invocation struct {
 	InvocationProto *resultstorepb.Invocation
 	TargetResults   map[string][]*singleActionResult
+}
+
+func (inv *invocation) extractHeaders(headerConf *configpb.TestGroup_ColumnHeader) []string {
+	if inv == nil {
+		return nil
+	}
+
+	var headers []string
+
+	if key := headerConf.GetConfigurationValue(); key != "" {
+		for _, prop := range inv.InvocationProto.GetProperties() {
+			if prop.GetKey() == key {
+				headers = append(headers, prop.GetValue())
+			}
+		}
+	} else if prefix := headerConf.GetLabel(); prefix != "" {
+		for _, label := range inv.InvocationProto.GetInvocationAttributes().GetLabels() {
+			if strings.HasPrefix(label, prefix) {
+				headers = append(headers, label[len(prefix):])
+			}
+		}
+	}
+	return headers
 }
 
 // extractGroupID extracts grouping ID for a results based on the testgroup grouping configuration
@@ -294,6 +337,30 @@ func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
 	return true
 }
 
+// testResult is a convenient representation of resultstore Test proto
+// only one of those fields are set at any time for a testResult instance
+type testResult struct {
+	suiteProto *resultstorepb.TestSuite
+	caseProto  *resultstorepb.TestCase
+}
+
+// properties return the recursive list of properties for a particular testResult
+func (t *testResult) properties() []*resultstorepb.Property {
+	var properties []*resultstorepb.Property
+	for _, p := range t.suiteProto.GetProperties() {
+		properties = append(properties, p)
+	}
+	for _, p := range t.caseProto.GetProperties() {
+		properties = append(properties, p)
+	}
+
+	for _, t := range t.suiteProto.GetTests() {
+		newTestResult := &testResult{t.GetTestSuite(), t.GetTestCase()}
+		properties = append(properties, newTestResult.properties()...)
+	}
+	return properties
+}
+
 // processGroup will convert grouped invocations into columns
 func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.InflatedColumn {
 	if group == nil || group.Invocations == nil {
@@ -310,6 +377,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	groupedCells := make(map[string][]updater.Cell)
 
 	hintTime := time.Unix(0, 0)
+	headers := make([][]string, len(tg.GetColumnHeader()))
 
 	// extract info from underlying invocations and target results
 	for _, invocation := range group.Invocations {
@@ -328,6 +396,12 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 
 		if started.AsTime().After(hintTime) {
 			hintTime = started.AsTime()
+		}
+
+		for i, headerConf := range tg.GetColumnHeader() {
+			if invHeaders := invocation.extractHeaders(headerConf); invHeaders != nil {
+				headers[i] = append(headers[i], invHeaders...)
+			}
 		}
 
 		for targetID, singleActionResults := range invocation.TargetResults {
@@ -351,6 +425,12 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 					cell.Result = *cr
 				}
 				groupedCells[targetID] = append(groupedCells[targetID], cell)
+
+				for i, headerConf := range tg.GetColumnHeader() {
+					if targetHeaders := sar.extractHeaders(headerConf); targetHeaders != nil {
+						headers[i] = append(headers[i], targetHeaders...)
+					}
+				}
 			}
 		}
 
@@ -368,8 +448,37 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	}
 
 	col.Column.Hint = string(hint)
+	col.Column.Extra = compileHeaders(tg.GetColumnHeader(), headers)
 
 	return col
+}
+
+// compileHeaders reduces all seen header values down to the final string value.
+// Separates multiple values with || when configured, otherwise the value becomes *
+func compileHeaders(columnHeader []*configpb.TestGroup_ColumnHeader, headers [][]string) []string {
+	if len(columnHeader) == 0 {
+		return nil
+	}
+
+	var compiledHeaders []string
+	for i, headerList := range headers {
+		switch {
+		case len(headerList) == 0:
+			compiledHeaders = append(compiledHeaders, "")
+		case len(headerList) == 1:
+			compiledHeaders = append(compiledHeaders, headerList[0])
+		case columnHeader[i].GetListAllValues():
+			var values []string
+			for _, value := range headerList {
+				values = append(values, value)
+			}
+			sort.Strings(values)
+			compiledHeaders = append(compiledHeaders, strings.Join(values, "||"))
+		default:
+			compiledHeaders = append(compiledHeaders, "*")
+		}
+	}
+	return compiledHeaders
 }
 
 // identifyBuild applies build override configurations and assigns a build

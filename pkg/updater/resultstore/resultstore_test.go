@@ -1758,3 +1758,192 @@ func TestGroupInvocations(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractHeaders(t *testing.T) {
+	cases := []struct {
+		name       string
+		isInv      bool
+		inv        *invocation
+		sar        *singleActionResult
+		headerConf *configpb.TestGroup_ColumnHeader
+		want       []string
+	}{
+		{
+			name:  "empty invocation",
+			isInv: true,
+			want:  nil,
+		},
+		{
+			name:  "empty target results",
+			isInv: false,
+			want:  nil,
+		},
+		{
+			name:  "invocation has a config value present",
+			isInv: true,
+			inv: &invocation{
+				InvocationProto: &resultstore.Invocation{
+					Properties: []*resultstore.Property{
+						{Key: "field", Value: "green"},
+						{Key: "os", Value: "linux"},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				ConfigurationValue: "os",
+			},
+			want: []string{"linux"},
+		},
+		{
+			name:  "invocation doesn't have a config value present",
+			isInv: true,
+			inv: &invocation{
+				InvocationProto: &resultstore.Invocation{
+					Properties: []*resultstore.Property{
+						{Key: "radio", Value: "head"},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				ConfigurationValue: "rainbows",
+			},
+			want: nil,
+		},
+		{
+			name:  "invocation has labels with prefixes",
+			isInv: true,
+			inv: &invocation{
+				InvocationProto: &resultstore.Invocation{
+					InvocationAttributes: &resultstore.InvocationAttributes{
+						Labels: []string{"os=linux", "env=prod", "test=fast", "test=hermetic"},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				Label: "test=",
+			},
+			want: []string{"fast", "hermetic"},
+		},
+		{
+			name: "target result has existing properties",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{
+					ActionType: &resultstore.Action_TestAction{
+						TestAction: &resultstore.TestAction{
+							TestSuite: &resultstore.TestSuite{
+								Properties: []*resultstore.Property{
+									{Key: "test-property", Value: "fast"},
+								},
+								Tests: []*resultstore.Test{
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												Properties: []*resultstore.Property{
+													{Key: "test-property", Value: "hermetic"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				Property: "test-property",
+			},
+			want: []string{"fast", "hermetic"},
+		},
+		{
+			name: "target results doesn't have properties",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{},
+			},
+			want: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			switch {
+			case tc.isInv:
+				got = tc.inv.extractHeaders(tc.headerConf)
+			default:
+				got = tc.sar.extractHeaders(tc.headerConf)
+			}
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("extractHeaders(...) differed (-want, +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestCompileHeaders(t *testing.T) {
+	cases := []struct {
+		name          string
+		columnHeaders []*configpb.TestGroup_ColumnHeader
+		headers       [][]string
+		want          []string
+	}{
+		{
+			name: "no custom headers configured",
+			want: nil,
+		},
+		{
+			name: "single custom header set with no values fetched",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{Label: "rapid="},
+			},
+			headers: make([][]string, 1),
+			want:    []string{""},
+		},
+		{
+			name: "single custom header set with one value fetched",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{ConfigurationValue: "os"},
+			},
+			headers: [][]string{
+				{"linux"},
+			},
+			want: []string{"linux"},
+		},
+		{
+			name: "multiple custom headers set, don't list all",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{Label: "os="},
+				{ConfigurationValue: "test-duration"},
+			},
+			headers: [][]string{
+				{"linux", "ubuntu"},
+				{"30m"},
+			},
+			want: []string{"*", "30m"},
+		},
+		{
+			name: "multiple custom headers, list 'em all",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{Property: "type", ListAllValues: true},
+				{Label: "test=", ListAllValues: true},
+			},
+			headers: [][]string{
+				{"grass", "flying"},
+				{"fast", "unit", "hermetic"},
+			},
+			want: []string{
+				"flying||grass",
+				"fast||hermetic||unit",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := compileHeaders(tc.columnHeaders, tc.headers)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Fatalf("compileHeaders(...) differed (-want,+got): %s", diff)
+			}
+		})
+	}
+}
