@@ -69,7 +69,7 @@ type Suite struct {
 	TimeStamp  string      `xml:"timestamp,omitempty"`
 	Failures   int         `xml:"failures,attr"`
 	Tests      int         `xml:"tests,attr"`
-        Disabled   int         `xml:"disabled,omitempty"`
+	Disabled   int         `xml:"disabled,omitempty"`
 	Skipped    int         `xml:"skipped,omitempty"`
 	Errors     int         `xml:"errors,omitempty"`
 	Results    []Result    `xml:"testcase"`
