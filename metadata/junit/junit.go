@@ -61,16 +61,18 @@ func (s *Suites) Truncate(max int) {
 
 // Suite holds <testsuite/> results
 type Suite struct {
-	XMLName  xml.Name `xml:"testsuite"`
-	Suites   []Suite  `xml:"testsuite"`
-	Name     string   `xml:"name,attr"`
-	Time     float64  `xml:"time,attr"` // Seconds
-	Failures int      `xml:"failures,attr"`
-	Tests    int      `xml:"tests,attr"`
-	Results  []Result `xml:"testcase"`
-	/*
-	* <properties><property name="go.version" value="go1.8.3"/></properties>
-	 */
+	XMLName    xml.Name    `xml:"testsuite"`
+	Suites     []Suite     `xml:"testsuite"`
+	Name       string      `xml:"name,attr"`
+	Properties *Properties `xml:"properties,omitempty"`
+	Time       float64     `xml:"time,attr"` // Seconds
+	TimeStamp  string      `xml:"timestamp,omitempty"`
+	Failures   int         `xml:"failures,attr"`
+	Tests      int         `xml:"tests,attr"`
+  Disabled   int         `xml:"disabled,omitempty"`
+	Skipped    int         `xml:"skipped,omitempty"`
+	Errors     int         `xml:"errors,omitempty"`
+	Results    []Result    `xml:"testcase"`
 }
 
 // Truncate ensures that strings do not exceed the specified length.
@@ -104,6 +106,7 @@ type Result struct {
 	Errored    *Errored    `xml:"error,omitempty"`
 	Failure    *Failure    `xml:"failure,omitempty"`
 	Skipped    *Skipped    `xml:"skipped,omitempty"`
+	Status     string      `xml:"status,omitempty"`
 	Properties *Properties `xml:"properties,omitempty"`
 }
 
