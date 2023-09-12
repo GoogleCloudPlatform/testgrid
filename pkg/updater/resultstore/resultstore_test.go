@@ -19,6 +19,7 @@ package resultstore
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -1136,12 +1137,34 @@ func TestGetTestResults(t *testing.T) {
 	cases := []struct {
 		name      string
 		testsuite *resultstore.TestSuite
-		want      []*resultstore.TestCase
+		want      []*resultstore.Test
 	}{
 		{
-			name: "all tests",
+			name: "empty test suite",
 			testsuite: &resultstore.TestSuite{
-				SuiteName: "AllTests",
+				SuiteName: "Empty Test",
+				Tests:     []*resultstore.Test{},
+			},
+			want: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestSuite{
+						TestSuite: &resultstore.TestSuite{
+							SuiteName: "Empty Test",
+							Tests:     []*resultstore.Test{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:      "nil test suite",
+			testsuite: nil,
+			want:      nil,
+		},
+		{
+			name: "standard test suite",
+			testsuite: &resultstore.TestSuite{
+				SuiteName: "Standard test suite",
 				Tests: []*resultstore.Test{
 					{
 						TestType: &resultstore.Test_TestSuite{
@@ -1165,28 +1188,7 @@ func TestGetTestResults(t *testing.T) {
 									{
 										TestType: &resultstore.Test_TestCase{
 											TestCase: &resultstore.TestCase{
-												CaseName: "TestDetectJSError/DashboardGroup_Overview",
-											},
-										},
-									},
-									{
-										TestType: &resultstore.Test_TestCase{
-											TestCase: &resultstore.TestCase{
 												CaseName: "TestDetectJSError/Dashboard",
-											},
-										},
-									},
-									{
-										TestType: &resultstore.Test_TestCase{
-											TestCase: &resultstore.TestCase{
-												CaseName: "TestDetectJSError/Render_Main",
-											},
-										},
-									},
-									{
-										TestType: &resultstore.Test_TestCase{
-											TestCase: &resultstore.TestCase{
-												CaseName: "TestDetectJSError/Render_Summary",
 											},
 										},
 									},
@@ -1196,24 +1198,97 @@ func TestGetTestResults(t *testing.T) {
 					},
 				},
 			},
-			want: []*resultstore.TestCase{
+			want: []*resultstore.Test{
 				{
-					CaseName: "TestDetectJSError/Main",
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "TestDetectJSError/Main",
+						},
+					},
 				},
 				{
-					CaseName: "TestDetectJSError/Summary",
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "TestDetectJSError/Summary",
+						},
+					},
 				},
 				{
-					CaseName: "TestDetectJSError/DashboardGroup_Overview",
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "TestDetectJSError/Dashboard",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "nested test suite",
+			testsuite: &resultstore.TestSuite{
+				SuiteName: "Nested test suite",
+				Tests: []*resultstore.Test{
+					{
+						TestType: &resultstore.Test_TestSuite{
+							TestSuite: &resultstore.TestSuite{
+								SuiteName: "TestDetectJSError",
+								Tests: []*resultstore.Test{
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Main",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												CaseName: "TestDetectJSError/Summary",
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestSuite{
+											TestSuite: &resultstore.TestSuite{
+												SuiteName: "TestDetectJSError/Other",
+												Tests: []*resultstore.Test{
+													{
+														TestType: &resultstore.Test_TestCase{
+															TestCase: &resultstore.TestCase{
+																CaseName: "TestDetectJSError/Misc",
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "TestDetectJSError/Main",
+						},
+					},
 				},
 				{
-					CaseName: "TestDetectJSError/Dashboard",
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "TestDetectJSError/Summary",
+						},
+					},
 				},
 				{
-					CaseName: "TestDetectJSError/Render_Main",
-				},
-				{
-					CaseName: "TestDetectJSError/Render_Summary",
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "TestDetectJSError/Misc",
+						},
+					},
 				},
 			},
 		},
@@ -1221,11 +1296,8 @@ func TestGetTestResults(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := getTestResults(tc.testsuite)
-			for i, node := range got {
-				if diff := cmp.Diff(tc.want[i].CaseName, node.GetTestCase().CaseName); diff != "" {
-					t.Errorf("TEST: %s", node.GetTestCase().CaseName)
-					t.Errorf("getTestResults() differed (-want, +node): %s", diff)
-				}
+			if diff := reflect.DeepEqual(tc.want, got); diff != true {
+				t.Errorf("getTestResults() differed (-want, +got):\n [%s]\n [%s]", got, tc.want)
 			}
 		})
 	}
@@ -1853,6 +1925,195 @@ func TestGroupInvocations(t *testing.T) {
 			got := groupInvocations(logrus.WithField("case", tc.name), tc.tg, tc.invocations)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("groupInvocations(...) differed (-want, +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestExtractHeaders(t *testing.T) {
+	cases := []struct {
+		name       string
+		isInv      bool
+		inv        *invocation
+		sar        *singleActionResult
+		headerConf *configpb.TestGroup_ColumnHeader
+		want       []string
+	}{
+		{
+			name:  "empty invocation",
+			isInv: true,
+			want:  nil,
+		},
+		{
+			name:  "empty target results",
+			isInv: false,
+			want:  nil,
+		},
+		{
+			name:  "invocation has a config value present",
+			isInv: true,
+			inv: &invocation{
+				InvocationProto: &resultstore.Invocation{
+					Properties: []*resultstore.Property{
+						{Key: "field", Value: "green"},
+						{Key: "os", Value: "linux"},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				ConfigurationValue: "os",
+			},
+			want: []string{"linux"},
+		},
+		{
+			name:  "invocation doesn't have a config value present",
+			isInv: true,
+			inv: &invocation{
+				InvocationProto: &resultstore.Invocation{
+					Properties: []*resultstore.Property{
+						{Key: "radio", Value: "head"},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				ConfigurationValue: "rainbows",
+			},
+			want: nil,
+		},
+		{
+			name:  "invocation has labels with prefixes",
+			isInv: true,
+			inv: &invocation{
+				InvocationProto: &resultstore.Invocation{
+					InvocationAttributes: &resultstore.InvocationAttributes{
+						Labels: []string{"os=linux", "env=prod", "test=fast", "test=hermetic"},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				Label: "test=",
+			},
+			want: []string{"fast", "hermetic"},
+		},
+		{
+			name: "target result has existing properties",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{
+					ActionType: &resultstore.Action_TestAction{
+						TestAction: &resultstore.TestAction{
+							TestSuite: &resultstore.TestSuite{
+								Properties: []*resultstore.Property{
+									{Key: "test-property", Value: "fast"},
+								},
+								Tests: []*resultstore.Test{
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												Properties: []*resultstore.Property{
+													{Key: "test-property", Value: "hermetic"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			headerConf: &configpb.TestGroup_ColumnHeader{
+				Property: "test-property",
+			},
+			want: []string{"fast", "hermetic"},
+		},
+		{
+			name: "target results doesn't have properties",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{},
+			},
+			want: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			switch {
+			case tc.isInv:
+				got = tc.inv.extractHeaders(tc.headerConf)
+			default:
+				got = tc.sar.extractHeaders(tc.headerConf)
+			}
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("extractHeaders(...) differed (-want, +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestCompileHeaders(t *testing.T) {
+	cases := []struct {
+		name          string
+		columnHeaders []*configpb.TestGroup_ColumnHeader
+		headers       [][]string
+		want          []string
+	}{
+		{
+			name: "no custom headers configured",
+			want: nil,
+		},
+		{
+			name: "single custom header set with no values fetched",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{Label: "rapid="},
+			},
+			headers: make([][]string, 1),
+			want:    []string{""},
+		},
+		{
+			name: "single custom header set with one value fetched",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{ConfigurationValue: "os"},
+			},
+			headers: [][]string{
+				{"linux"},
+			},
+			want: []string{"linux"},
+		},
+		{
+			name: "multiple custom headers set, don't list all",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{Label: "os="},
+				{ConfigurationValue: "test-duration"},
+			},
+			headers: [][]string{
+				{"linux", "ubuntu"},
+				{"30m"},
+			},
+			want: []string{"*", "30m"},
+		},
+		{
+			name: "multiple custom headers, list 'em all",
+			columnHeaders: []*configpb.TestGroup_ColumnHeader{
+				{Property: "type", ListAllValues: true},
+				{Label: "test=", ListAllValues: true},
+			},
+			headers: [][]string{
+				{"grass", "flying"},
+				{"fast", "unit", "hermetic"},
+			},
+			want: []string{
+				"flying||grass",
+				"fast||hermetic||unit",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := compileHeaders(tc.columnHeaders, tc.headers)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Fatalf("compileHeaders(...) differed (-want,+got): %s", diff)
 			}
 		})
 	}
