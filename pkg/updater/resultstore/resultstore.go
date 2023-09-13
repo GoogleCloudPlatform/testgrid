@@ -431,6 +431,8 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 						headers[i] = append(headers[i], targetHeaders...)
 					}
 				}
+
+				cell.Metrics = calculateMetrics(sar)
 			}
 		}
 
@@ -451,6 +453,68 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	col.Column.Extra = compileHeaders(tg.GetColumnHeader(), headers)
 
 	return col
+}
+
+// calculateMetrics calculates the numeric metrics (properties) for a targetResult
+func calculateMetrics(sar *singleActionResult) map[string]float64 {
+
+	properties := map[string][]string{}
+	testResultProperties(properties, sar.ActionProto.GetTestAction().GetTestSuite())
+	numerics := updater.Means(properties)
+
+	if dur := testResultDuration(sar.ActionProto.GetTestAction().GetTestSuite()); dur > 0 {
+		numerics[updater.ElapsedKey] = float64(dur) / 60000
+	}
+
+	return numerics
+
+}
+
+// testResultProperties recursively inserts all result and its children's properties into the map.
+func testResultProperties(properties map[string][]string, suite *resultstorepb.TestSuite) {
+
+	if suite == nil {
+		return
+	}
+
+	// add parent suite properties
+	for _, p := range suite.GetProperties() {
+		properties[p.GetKey()] = append(properties[p.GetKey()], p.GetValue())
+	}
+
+	// add test case properties
+	for _, test := range suite.GetTests() {
+		if tc := test.GetTestCase(); tc != nil {
+			for _, p := range tc.GetProperties() {
+				properties[p.GetKey()] = append(properties[p.GetKey()], p.GetValue())
+			}
+		} else {
+			testResultProperties(properties, test.GetTestSuite())
+		}
+	}
+}
+
+// testResultDuration calculates the overall duration of a test suite
+// if the duration for a test suite isn't available, will return the sum of durations for its children
+func testResultDuration(suite *resultstorepb.TestSuite) int64 {
+
+	var totalDur int64
+	if suite == nil {
+		return totalDur
+	}
+
+	if dur := suite.GetTiming().GetDuration().AsDuration().Milliseconds(); dur > 0 {
+		return dur
+	}
+
+	for _, test := range suite.GetTests() {
+		if tc := test.GetTestCase(); tc != nil {
+			totalDur += tc.GetTiming().GetDuration().AsDuration().Milliseconds()
+		} else {
+			totalDur += testResultDuration(test.GetTestSuite())
+		}
+	}
+	return totalDur
 }
 
 // compileHeaders reduces all seen header values down to the final string value.

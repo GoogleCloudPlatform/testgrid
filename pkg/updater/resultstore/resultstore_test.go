@@ -35,6 +35,7 @@ import (
 	"google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type fakeClient struct {
@@ -1943,6 +1944,158 @@ func TestCompileHeaders(t *testing.T) {
 			got := compileHeaders(tc.columnHeaders, tc.headers)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Fatalf("compileHeaders(...) differed (-want,+got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestCalculateMetrics(t *testing.T) {
+	cases := []struct {
+		name string
+		sar  *singleActionResult
+		want map[string]float64
+	}{
+		{
+			name: "no numeric properties, no duration",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{
+					ActionType: &resultstore.Action_TestAction{
+						TestAction: &resultstore.TestAction{
+							TestSuite: &resultstore.TestSuite{
+								Properties: []*resultstore.Property{
+									{Key: "marco", Value: "polo"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]float64{},
+		},
+		{
+			name: "no numeric properties, suite duration",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{
+					ActionType: &resultstore.Action_TestAction{
+						TestAction: &resultstore.TestAction{
+							TestSuite: &resultstore.TestSuite{
+								Properties: []*resultstore.Property{
+									{Key: "marco", Value: "polo"},
+								},
+								Timing: &resultstore.Timing{
+									Duration: &durationpb.Duration{
+										Seconds: 120,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]float64{
+				updater.ElapsedKey: 2,
+			},
+		},
+		{
+			name: "no numeric properties, cases duration only",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{
+					ActionType: &resultstore.Action_TestAction{
+						TestAction: &resultstore.TestAction{
+							TestSuite: &resultstore.TestSuite{
+								Properties: []*resultstore.Property{
+									{Key: "marco", Value: "polo"},
+								},
+								Tests: []*resultstore.Test{
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												Timing: &resultstore.Timing{
+													Duration: &durationpb.Duration{
+														Seconds: 60,
+													},
+												},
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												Timing: &resultstore.Timing{
+													Duration: &durationpb.Duration{
+														Seconds: 60,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]float64{
+				updater.ElapsedKey: 2,
+			},
+		},
+		{
+			name: "numeric properties and durations",
+			sar: &singleActionResult{
+				ActionProto: &resultstore.Action{
+					ActionType: &resultstore.Action_TestAction{
+						TestAction: &resultstore.TestAction{
+							TestSuite: &resultstore.TestSuite{
+								Properties: []*resultstore.Property{
+									{Key: "pizza", Value: "12"},
+								},
+								Tests: []*resultstore.Test{
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												Timing: &resultstore.Timing{
+													Duration: &durationpb.Duration{
+														Seconds: 60,
+													},
+												},
+												Properties: []*resultstore.Property{
+													{Key: "pizza", Value: "6"},
+												},
+											},
+										},
+									},
+									{
+										TestType: &resultstore.Test_TestCase{
+											TestCase: &resultstore.TestCase{
+												Timing: &resultstore.Timing{
+													Duration: &durationpb.Duration{
+														Seconds: 60,
+													},
+												},
+												Properties: []*resultstore.Property{
+													{Key: "pizza", Value: "6"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: map[string]float64{
+				"pizza":            8,
+				updater.ElapsedKey: 2,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := calculateMetrics(tc.sar)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Fatalf("calculateMetrics(...) differed (-want,+got): %s", diff)
 			}
 		})
 	}
