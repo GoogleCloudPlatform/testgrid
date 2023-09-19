@@ -429,7 +429,6 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
 				processTestResults(tg, testResults, cell, targetID, sar, methodLimit, groupedCells)
 
-
 				for i, headerConf := range tg.GetColumnHeader() {
 					if targetHeaders := sar.extractHeaders(headerConf); targetHeaders != nil {
 						headers[i] = append(headers[i], targetHeaders...)
@@ -498,9 +497,10 @@ func testMethodLimit(tg *configpb.TestGroup) int {
 	return testMethodLimit
 }
 
-func testResultStatus(testResult *resultstorepb.Test) statuspb.TestStatus{
+func testResultStatus(testResult *resultstorepb.Test) statuspb.TestStatus {
 	return statuspb.TestStatus(testResult.GetTestCase().Result)
 }
+
 // processTestResults iterates through a list of test results and adds them to
 // a map of groupedcells based on the method name produced
 func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test, cell updater.Cell, targetID string, sar *singleActionResult, testMethodLimit int, groupedCells map[string][]updater.Cell) {
@@ -521,7 +521,7 @@ func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test,
 		methodName = targetID + "@TESTGRID@" + methodName
 
 		trCell := updater.Cell{
-			ID: targetID, // same targetID as the parent TargetResult
+			ID:     targetID,    // same targetID as the parent TargetResult
 			CellID: cell.CellID, // same cellID
 			Result: testResultStatus(testResult),
 		}
