@@ -425,10 +425,10 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
 					cell.Result = *cr
 				}
-
+				groupedCells[targetID] = append(groupedCells[targetID], cell)
 				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
 				processTestResults(tg, testResults, cell, targetID, sar, methodLimit, groupedCells)
-				groupedCells[targetID] = append(groupedCells[targetID], cell)
+
 
 				for i, headerConf := range tg.GetColumnHeader() {
 					if targetHeaders := sar.extractHeaders(headerConf); targetHeaders != nil {
@@ -460,7 +460,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 // getTestResults traverses through a test suite and returns a list of all tests
 // that exists inside of it.
 func getTestResults(testSuite *resultstorepb.TestSuite) []*resultstorepb.Test {
-	if testSuite == nil || testSuite.Tests == nil {
+	if testSuite == nil {
 		return nil
 	}
 
@@ -498,6 +498,9 @@ func testMethodLimit(tg *configpb.TestGroup) int {
 	return testMethodLimit
 }
 
+func testResultStatus(testResult *resultstorepb.Test) statuspb.TestStatus{
+	return statuspb.TestStatus(testResult.GetTestCase().Result)
+}
 // processTestResults iterates through a list of test results and adds them to
 // a map of groupedcells based on the method name produced
 func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test, cell updater.Cell, targetID string, sar *singleActionResult, testMethodLimit int, groupedCells map[string][]updater.Cell) {
@@ -517,11 +520,17 @@ func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test,
 
 		methodName = targetID + "@TESTGRID@" + methodName
 
-		if cell.Result == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
+		trCell := updater.Cell{
+			ID: targetID, // same targetID as the parent TargetResult
+			CellID: cell.CellID, // same cellID
+			Result: testResultStatus(testResult),
+		}
+
+		if trCell.Result == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
 			continue
 		}
 		if len(testResults) <= testMethodLimit {
-			groupedCells[methodName] = append(groupedCells[methodName], cell)
+			groupedCells[methodName] = append(groupedCells[methodName], trCell)
 		}
 	}
 }

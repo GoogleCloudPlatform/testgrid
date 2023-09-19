@@ -19,7 +19,6 @@ package resultstore
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -1143,14 +1142,12 @@ func TestGetTestResults(t *testing.T) {
 			name: "empty test suite",
 			testsuite: &resultstore.TestSuite{
 				SuiteName: "Empty Test",
-				Tests:     []*resultstore.Test{},
 			},
 			want: []*resultstore.Test{
 				{
 					TestType: &resultstore.Test_TestSuite{
 						TestSuite: &resultstore.TestSuite{
 							SuiteName: "Empty Test",
-							Tests:     []*resultstore.Test{},
 						},
 					},
 				},
@@ -1296,8 +1293,8 @@ func TestGetTestResults(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := getTestResults(tc.testsuite)
-			if diff := reflect.DeepEqual(tc.want, got); diff != true {
-				t.Errorf("getTestResults() differed (-want, +got):\n [%s]\n [%s]", got, tc.want)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("getTestResults(%+v) differed (-want, +got): [%s]", tc.testsuite, diff)
 			}
 		})
 	}
