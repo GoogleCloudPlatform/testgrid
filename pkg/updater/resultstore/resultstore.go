@@ -42,23 +42,6 @@ var _ updater.TargetResult = &singleActionResult{}
 
 type TestResultStatus int64
 
-const (
-	// TestResultUnspecified is v2.TestCase.RESULT_UNSPECIFIED.
-	TestResultUnspecified = 0
-	// TestCompleted is v2.TestCase.COMPLETED.
-	TestCompleted = 1
-	// TestInterrupted is v2.TestCase.INTERRUPTED.
-	TestInterrupted = 2
-	// TestCancelled is v2.TestCase.CANCELLED.
-	TestCancelled = 3
-	// TestFiltered is v2.TestCase.FILTERED.
-	TestFiltered = 4
-	// TestSkipped is v2.TestCase.SKIPPED.
-	TestSkipped = 5
-	// TestSuppressed is v2.TestCase.SUPPRESSED.
-	TestSuppressed = 6
-)
-
 // Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
 func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeout time.Duration, write bool) updater.GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
@@ -521,13 +504,13 @@ func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus
 	switch {
 	case strings.HasPrefix(testCase.CaseName, "DISABLED_"):
 		return statuspb.TestStatus_PASS_WITH_SKIPS
-	case res == TestSkipped:
+	case res == resultstorepb.TestCase_SKIPPED:
 		return statuspb.TestStatus_PASS_WITH_SKIPS
-	case res == TestSuppressed:
+	case res == resultstorepb.TestCase_SUPPRESSED:
 		return statuspb.TestStatus_PASS_WITH_SKIPS
-	case res == TestCancelled:
+	case res == resultstorepb.TestCase_CANCELLED:
 		return statuspb.TestStatus_CANCEL
-	case res == TestInterrupted:
+	case res == resultstorepb.TestCase_INTERRUPTED:
 		return statuspb.TestStatus_CANCEL
 	case len(testCase.Failures) > 0 || len(testCase.Errors) > 0:
 		return statuspb.TestStatus_FAIL

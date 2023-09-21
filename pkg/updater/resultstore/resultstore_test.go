@@ -1068,7 +1068,7 @@ func TestProcessGroup(t *testing.T) {
 															TestType: &resultstore.Test_TestCase{
 																TestCase: &resultstore.TestCase{
 																	CaseName: "DISABLED_case",
-																	Result:   TestSkipped,
+																	Result:   resultstore.TestCase_SKIPPED,
 																},
 															},
 														},
