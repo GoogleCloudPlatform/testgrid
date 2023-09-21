@@ -40,6 +40,25 @@ import (
 // check if interface is implemented correctly
 var _ updater.TargetResult = &singleActionResult{}
 
+type TestResultStatus int64
+
+const (
+	// TestResultUnspecified is v2.TestCase.RESULT_UNSPECIFIED.
+	TestResultUnspecified = 0
+	// TestCompleted is v2.TestCase.COMPLETED.
+	TestCompleted = 1
+	// TestInterrupted is v2.TestCase.INTERRUPTED.
+	TestInterrupted = 2
+	// TestCancelled is v2.TestCase.CANCELLED.
+	TestCancelled = 3
+	// TestFiltered is v2.TestCase.FILTERED.
+	TestFiltered = 4
+	// TestSkipped is v2.TestCase.SKIPPED.
+	TestSkipped = 5
+	// TestSuppressed is v2.TestCase.SUPPRESSED.
+	TestSuppressed = 6
+)
+
 // Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
 func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeout time.Duration, write bool) updater.GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
@@ -486,7 +505,7 @@ func testMethodLimit(tg *configpb.TestGroup) int {
 	var testMethodLimit int
 	const defaultTestMethodLimit = 20
 	if tg == nil {
-		return defaultTestMethodLimit
+		return 0
 	}
 	if tg.EnableTestMethods {
 		testMethodLimit = int(tg.MaxTestMethodsPerTest)
@@ -497,8 +516,24 @@ func testMethodLimit(tg *configpb.TestGroup) int {
 	return testMethodLimit
 }
 
-func testResultStatus(testResult *resultstorepb.Test) statuspb.TestStatus {
-	return statuspb.TestStatus(testResult.GetTestCase().Result)
+func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus {
+	res := testCase.GetResult()
+	switch {
+	case strings.HasPrefix(testCase.CaseName, "DISABLED_"):
+		return statuspb.TestStatus_PASS_WITH_SKIPS
+	case res == TestSkipped:
+		return statuspb.TestStatus_PASS_WITH_SKIPS
+	case res == TestSuppressed:
+		return statuspb.TestStatus_PASS_WITH_SKIPS
+	case res == TestCancelled:
+		return statuspb.TestStatus_CANCEL
+	case res == TestInterrupted:
+		return statuspb.TestStatus_CANCEL
+	case len(testCase.Failures) > 0 || len(testCase.Errors) > 0:
+		return statuspb.TestStatus_FAIL
+	default:
+		return statuspb.TestStatus_PASS
+	}
 }
 
 // processTestResults iterates through a list of test results and adds them to
@@ -523,7 +558,7 @@ func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test,
 		trCell := updater.Cell{
 			ID:     targetID,    // same targetID as the parent TargetResult
 			CellID: cell.CellID, // same cellID
-			Result: testResultStatus(testResult),
+			Result: mapStatusToCellResult(testResult.GetTestCase()),
 		}
 
 		if trCell.Result == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
