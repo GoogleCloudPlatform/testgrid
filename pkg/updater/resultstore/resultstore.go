@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/sirupsen/logrus"
 
+	"github.com/GoogleCloudPlatform/testgrid/pb/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	cepb "github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
@@ -38,6 +39,8 @@ import (
 
 // check if interface is implemented correctly
 var _ updater.TargetResult = &singleActionResult{}
+
+type TestResultStatus int64
 
 // Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
 func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeout time.Duration, write bool) updater.GroupUpdater {
@@ -366,6 +369,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	if group == nil || group.Invocations == nil {
 		return nil
 	}
+	methodLimit := testMethodLimit(tg)
 
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
@@ -409,22 +413,23 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				if !includeStatus(tg, sar) {
 					continue
 				}
-				// TODO(sultan-duisenbay): sanitize build target and apply naming config
-				var cell updater.Cell
-
-				cell.CellID = invocation.InvocationProto.GetId().GetInvocationId()
-				cell.ID = targetID
 
 				// assign status
 				status, ok := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
 				if !ok {
 					status = statuspb.TestStatus_UNKNOWN
 				}
+				// TODO(sultan-duisenbay): sanitize build target and apply naming config
+				var cell updater.Cell
+				cell.CellID = invocation.InvocationProto.GetId().GetInvocationId()
+				cell.ID = targetID
 				cell.Result = status
 				if cr := customTargetStatus(tg.GetCustomEvaluatorRuleSet(), sar); cr != nil {
 					cell.Result = *cr
 				}
 				groupedCells[targetID] = append(groupedCells[targetID], cell)
+				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
+				processTestResults(tg, testResults, cell, targetID, sar, methodLimit, groupedCells)
 
 				for i, headerConf := range tg.GetColumnHeader() {
 					if targetHeaders := sar.extractHeaders(headerConf); targetHeaders != nil {
@@ -451,6 +456,101 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	col.Column.Extra = compileHeaders(tg.GetColumnHeader(), headers)
 
 	return col
+}
+
+// getTestResults traverses through a test suite and returns a list of all tests
+// that exists inside of it.
+func getTestResults(testSuite *resultstorepb.TestSuite) []*resultstorepb.Test {
+	if testSuite == nil {
+		return nil
+	}
+
+	if len(testSuite.GetTests()) == 0 {
+		return []*resultstorepb.Test{
+			{
+				TestType: &resultstorepb.Test_TestSuite{TestSuite: testSuite},
+			},
+		}
+	}
+
+	var tests []*resultstorepb.Test
+	for _, test := range testSuite.GetTests() {
+		if test.GetTestCase() != nil {
+			tests = append(tests, test)
+		} else {
+			tests = append(tests, getTestResults(test.GetTestSuite())...)
+		}
+	}
+	return tests
+}
+
+func testMethodLimit(tg *configpb.TestGroup) int {
+	var testMethodLimit int
+	const defaultTestMethodLimit = 20
+	if tg == nil {
+		return 0
+	}
+	if tg.EnableTestMethods {
+		testMethodLimit = int(tg.MaxTestMethodsPerTest)
+		if testMethodLimit == 0 {
+			testMethodLimit = defaultTestMethodLimit
+		}
+	}
+	return testMethodLimit
+}
+
+func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus {
+	res := testCase.GetResult()
+	switch {
+	case strings.HasPrefix(testCase.CaseName, "DISABLED_"):
+		return statuspb.TestStatus_PASS_WITH_SKIPS
+	case res == resultstorepb.TestCase_SKIPPED:
+		return statuspb.TestStatus_PASS_WITH_SKIPS
+	case res == resultstorepb.TestCase_SUPPRESSED:
+		return statuspb.TestStatus_PASS_WITH_SKIPS
+	case res == resultstorepb.TestCase_CANCELLED:
+		return statuspb.TestStatus_CANCEL
+	case res == resultstorepb.TestCase_INTERRUPTED:
+		return statuspb.TestStatus_CANCEL
+	case len(testCase.Failures) > 0 || len(testCase.Errors) > 0:
+		return statuspb.TestStatus_FAIL
+	default:
+		return statuspb.TestStatus_PASS
+	}
+}
+
+// processTestResults iterates through a list of test results and adds them to
+// a map of groupedcells based on the method name produced
+func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test, cell updater.Cell, targetID string, sar *singleActionResult, testMethodLimit int, groupedCells map[string][]updater.Cell) {
+	for _, testResult := range testResults {
+		var methodName string
+		if testResult.GetTestCase() != nil {
+			methodName = testResult.GetTestCase().GetCaseName()
+		} else {
+			methodName = testResult.GetTestSuite().GetSuiteName()
+		}
+
+		if tg.UseFullMethodNames {
+			parts := strings.Split(testResult.GetTestCase().GetClassName(), ".")
+			className := parts[len(parts)-1]
+			methodName = className + "." + methodName
+		}
+
+		methodName = targetID + "@TESTGRID@" + methodName
+
+		trCell := updater.Cell{
+			ID:     targetID,    // same targetID as the parent TargetResult
+			CellID: cell.CellID, // same cellID
+			Result: mapStatusToCellResult(testResult.GetTestCase()),
+		}
+
+		if trCell.Result == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
+			continue
+		}
+		if len(testResults) <= testMethodLimit {
+			groupedCells[methodName] = append(groupedCells[methodName], trCell)
+		}
+	}
 }
 
 // compileHeaders reduces all seen header values down to the final string value.
