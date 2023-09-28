@@ -106,7 +106,7 @@ type Result struct {
         Errored    *Errored    `xml:"error,omitempty"`
         Failure    *Failure    `xml:"failure,omitempty"`
         Skipped    *Skipped    `xml:"skipped,omitempty"`
-        Status     string      `xml:"status,omitempty"`
+        Status     string      `xml:"status,attr"`
         Properties *Properties `xml:"properties,omitempty"`
 }
 
