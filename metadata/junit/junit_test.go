@@ -207,7 +207,10 @@ func TestParse(t *testing.T) {
 			buf: []byte(`
                         <testsuites>
                             <testsuite name="fun">
-                                <testsuite name="knee">
+                                <testsuite name="knee" tests="10" disabled="1" skipped="2" errors="3" failures="4" time="100.1" timestamp="2023-08-28T17:15:04">
+				    <properties>
+                                        <property name="SuiteSucceeded" value="true"></property>
+                                    </properties>
                                     <testcase name="bone" time="6" />
                                     <testcase name="head" time="3" >
 										<failure type="failure" message="failure message attribute"> failure message body </failure>
@@ -230,6 +233,18 @@ func TestParse(t *testing.T) {
 							{
 								XMLName: xml.Name{Local: "testsuite"},
 								Name:    "knee",
+								Failures: 4,
+								Test: 10,
+								Disabled: 1,
+								Skipped: 2,
+								Errors: 3,
+								TimeStamp: "2023-08-28T17:15:04",
+								Properties: []Property{
+									{
+										Name: "SuiteSucceeded",
+										Value: "true",
+										},
+								},
 								Results: []Result{
 									{
 										Name: "bone",
