@@ -206,8 +206,11 @@ func TestParse(t *testing.T) {
 			name: "parse testsuites correctly",
 			buf: []byte(`
                         <testsuites>
-                            <testsuite name="fun">
+                            <testsuite name="fun" tests="10" disabled="1" skipped="2" errors="3" failures="4" time="100.1" timestamp="2023-08-28T17:15:04">
                                 <testsuite name="knee">
+				    <properties>
+					<property name="SuiteSucceeded" value="true"></property>
+                                    </properties>
                                     <testcase name="bone" time="6" />
                                     <testcase name="head" time="3" >
 										<failure type="failure" message="failure message attribute"> failure message body </failure>
@@ -216,7 +219,7 @@ func TestParse(t *testing.T) {
 										<error type="error" message="error message attribute"> error message body </error>
 									</testcase>
                                 </testsuite>
-                                <testcase name="word" time="7" />
+				<testcase name="word"  classname="E2E Suite" status="skipped" time="7"></testcase>
                             </testsuite>
                         </testsuites>
                         `),
@@ -224,12 +227,27 @@ func TestParse(t *testing.T) {
 				XMLName: xml.Name{Local: "testsuites"},
 				Suites: []Suite{
 					{
-						XMLName: xml.Name{Local: "testsuite"},
-						Name:    "fun",
+						XMLName:   xml.Name{Local: "testsuite"},
+						Name:      "fun",
+						Failures:  4,
+						Tests:     10,
+						Disabled:  1,
+						Skipped:   2,
+						Errors:    3,
+						Time:      100.1,
+						TimeStamp: "2023-08-28T17:15:04",
 						Suites: []Suite{
 							{
 								XMLName: xml.Name{Local: "testsuite"},
 								Name:    "knee",
+								Properties: &Properties{
+									[]Property{
+										{
+											Name:  "SuiteSucceeded",
+											Value: "true",
+										},
+									},
+								},
 								Results: []Result{
 									{
 										Name: "bone",
@@ -250,8 +268,10 @@ func TestParse(t *testing.T) {
 						},
 						Results: []Result{
 							{
-								Name: "word",
-								Time: 7,
+								Name:      "word",
+								Time:      7,
+								ClassName: "E2E Suite",
+								Status:    "skipped",
 							},
 						},
 					},
