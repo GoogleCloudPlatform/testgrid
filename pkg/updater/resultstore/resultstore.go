@@ -20,6 +20,7 @@ package resultstore
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -370,6 +371,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 		return nil
 	}
 	methodLimit := testMethodLimit(tg)
+	matchMethods, unmatchMethods, matchMethodsErr, unmatchMethodsErr := testMethodRegex(tg)
 
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
@@ -408,6 +410,22 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 			}
 		}
 
+		if err := matchMethodsErr; err != nil {
+			groupedCells["test_method_match_regex"] = append(groupedCells["test_method_match_regex"],
+				updater.Cell{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					Message: err.Error(),
+				})
+		}
+
+		if err := unmatchMethodsErr; err != nil {
+			groupedCells["test_method_unmatch_regex"] = append(groupedCells["test_method_unmatch_regex"],
+				updater.Cell{
+					Result:  statuspb.TestStatus_TOOL_FAIL,
+					Message: err.Error(),
+				})
+		}
+
 		for targetID, singleActionResults := range invocation.TargetResults {
 			for _, sar := range singleActionResults {
 				if !includeStatus(tg, sar) {
@@ -429,7 +447,11 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				}
 				groupedCells[targetID] = append(groupedCells[targetID], cell)
 				testResults := getTestResults(sar.ActionProto.GetTestAction().GetTestSuite())
-				processTestResults(tg, testResults, cell, targetID, sar, methodLimit, groupedCells)
+				testResults, filtered := filterResults(testResults, tg.GetTestMethodProperties(), matchMethods, unmatchMethods)
+				processTestResults(tg, groupedCells, testResults, sar, cell, targetID, methodLimit)
+				if filtered && len(testResults) == 0 {
+					continue
+				}
 
 				for i, headerConf := range tg.GetColumnHeader() {
 					if targetHeaders := sar.extractHeaders(headerConf); targetHeaders != nil {
@@ -456,6 +478,110 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	col.Column.Extra = compileHeaders(tg.GetColumnHeader(), headers)
 
 	return col
+}
+
+// filterProperties returns the subset of results containing all the specified properties.
+func filterProperties(results []*resultstorepb.Test, properties []*configpb.TestGroup_KeyValue) []*resultstorepb.Test {
+	if len(properties) == 0 {
+		return results
+	}
+
+	var out []*resultstorepb.Test
+
+	match := make(map[string]bool, len(properties))
+
+	for _, p := range properties {
+		match[p.Key] = true
+	}
+
+	for _, r := range results {
+		found := map[string]string{}
+		fillProperties(found, r, match)
+		var miss bool
+		for _, p := range properties {
+			if found[p.Key] != p.Value {
+				miss = true
+				break
+			}
+		}
+		if miss {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// fillProperties reduces the appendProperties result to the single value for each key or "*" if a key has multiple values.
+func fillProperties(properties map[string]string, result *resultstorepb.Test, match map[string]bool) {
+	if result == nil {
+		return
+	}
+	multiProps := map[string][]string{}
+
+	appendProperties(multiProps, result, match)
+
+	for key, values := range multiProps {
+		if len(values) > 1 {
+			var diff bool
+			for _, v := range values {
+				if v != values[0] {
+					properties[key] = "*"
+					diff = true
+					break
+				}
+			}
+			if diff {
+				continue
+			}
+		}
+		properties[key] = values[0]
+	}
+}
+
+// appendProperties from result and its children into a map, optionally filtering to specific matching keys.
+func appendProperties(properties map[string][]string, result *resultstorepb.Test, match map[string]bool) {
+	if result == nil {
+		return
+	}
+
+	for _, p := range result.GetTestCase().GetProperties() {
+		key := p.Key
+		if match != nil && !match[key] {
+			continue
+		}
+		properties[key] = append(properties[key], p.Value)
+	}
+	testResults := getTestResults(result.GetTestSuite())
+	for _, r := range testResults {
+		appendProperties(properties, r, match)
+	}
+}
+
+// matchResults returns the subset of results with matching / without unmatching names.
+func matchResults(results []*resultstorepb.Test, match, unmatch *regexp.Regexp) []*resultstorepb.Test {
+	if match == nil && unmatch == nil {
+		return results
+	}
+	var out []*resultstorepb.Test
+	for _, r := range results {
+		if match != nil && !match.MatchString(r.GetTestCase().CaseName) {
+			continue
+		}
+		if unmatch != nil && unmatch.MatchString(r.GetTestCase().CaseName) {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// filterResults returns the subset of results and whether or not filtering was applied.
+func filterResults(results []*resultstorepb.Test, properties []*config.TestGroup_KeyValue, match, unmatch *regexp.Regexp) ([]*resultstorepb.Test, bool) {
+	results = filterProperties(results, properties)
+	results = matchResults(results, match, unmatch)
+	filtered := len(properties) > 0 || match != nil || unmatch != nil
+	return results, filtered
 }
 
 // getTestResults traverses through a test suite and returns a list of all tests
@@ -499,6 +625,19 @@ func testMethodLimit(tg *configpb.TestGroup) int {
 	return testMethodLimit
 }
 
+func testMethodRegex(tg *configpb.TestGroup) (matchMethods *regexp.Regexp, unmatchMethods *regexp.Regexp, matchMethodsErr error, unmatchMethodsErr error) {
+	if tg == nil {
+		return
+	}
+	if m := tg.GetTestMethodMatchRegex(); m != "" {
+		matchMethods, matchMethodsErr = regexp.Compile(m)
+	}
+	if um := tg.GetTestMethodUnmatchRegex(); um != "" {
+		unmatchMethods, unmatchMethodsErr = regexp.Compile(um)
+	}
+	return
+}
+
 func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus {
 	res := testCase.GetResult()
 	switch {
@@ -521,7 +660,7 @@ func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus
 
 // processTestResults iterates through a list of test results and adds them to
 // a map of groupedcells based on the method name produced
-func processTestResults(tg *config.TestGroup, testResults []*resultstorepb.Test, cell updater.Cell, targetID string, sar *singleActionResult, testMethodLimit int, groupedCells map[string][]updater.Cell) {
+func processTestResults(tg *config.TestGroup, groupedCells map[string][]updater.Cell, testResults []*resultstorepb.Test, sar *singleActionResult, cell updater.Cell, targetID string, testMethodLimit int) {
 	for _, testResult := range testResults {
 		var methodName string
 		if testResult.GetTestCase() != nil {

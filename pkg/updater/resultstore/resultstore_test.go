@@ -19,6 +19,7 @@ package resultstore
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -1309,6 +1310,939 @@ func TestProcessGroup(t *testing.T) {
 	}
 }
 
+func TestFilterResults(t *testing.T) {
+	cases := []struct {
+		name       string
+		results    []*resultstore.Test
+		properties []*configpb.TestGroup_KeyValue
+		match      *string
+		unmatch    *string
+		expected   []*resultstore.Test
+		filtered   bool
+	}{
+		{
+			name: "basically works",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "thing",
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "thing",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "match nothing",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "thing",
+						},
+					},
+				},
+			},
+			match:    pstr("sandwiches"),
+			filtered: true,
+		},
+		{
+			name: "all wrong properties",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "thing",
+						},
+					},
+				},
+			},
+			properties: []*configpb.TestGroup_KeyValue{
+				{
+					Key:   "medal",
+					Value: "gold",
+				},
+			},
+			filtered: true,
+		},
+		{
+			name:       "properties flter",
+			properties: []*configpb.TestGroup_KeyValue{{}},
+			filtered:   true,
+		},
+		{
+			name:     "match filters",
+			match:    pstr(".*"),
+			filtered: true,
+		},
+		{
+			name:     "unmatch filters",
+			match:    pstr("^$"),
+			filtered: true,
+		},
+		{
+			name:    "match fruit",
+			match:   pstr("tomato|apple|orange"),
+			unmatch: pstr("tomato"),
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "steak",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "tomato",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "apple",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "orange",
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "apple",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "orange",
+						},
+					},
+				},
+			},
+			filtered: true,
+		},
+		{
+			name: "good properties",
+			properties: []*configpb.TestGroup_KeyValue{
+				{
+					Key:   "tastes",
+					Value: "good",
+				},
+			},
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "potion",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "bad",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "fruit",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "good",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "fruit",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "good",
+								},
+							},
+						},
+					},
+				},
+			},
+			filtered: true,
+		},
+		{
+			name: "both filter",
+			properties: []*configpb.TestGroup_KeyValue{
+				{
+					Key:   "tastes",
+					Value: "good",
+				},
+			},
+			unmatch: pstr("steak"),
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "potion",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "bad",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "fruit",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "good",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "steak",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "good",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "fruit",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "tastes",
+									Value: "good",
+								},
+							},
+						},
+					},
+				},
+			},
+			filtered: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var match, unmatch *regexp.Regexp
+			if tc.match != nil {
+				match = regexp.MustCompile(*tc.match)
+			}
+			if tc.unmatch != nil {
+				unmatch = regexp.MustCompile(*tc.unmatch)
+			}
+			actual, filtered := filterResults(tc.results, tc.properties, match, unmatch)
+			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("filterResults() got unexpected diff (-have, +want):\n%s", diff)
+			}
+			if filtered != tc.filtered {
+				t.Errorf("filterResults() got filtered %t, want %t", filtered, tc.filtered)
+			}
+		})
+	}
+}
+
+func TestFilterProperties(t *testing.T) {
+	cases := []struct {
+		name       string
+		results    []*resultstore.Test
+		properties []*configpb.TestGroup_KeyValue
+		expected   []*resultstore.Test
+	}{
+		{
+			name: "basically works",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "must have correct key and value",
+			properties: []*configpb.TestGroup_KeyValue{
+				{
+					Key:   "goal",
+					Value: "gold",
+				},
+			},
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "wrong-key",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "random",
+									Value: "gold",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "correct-key",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "goal",
+									Value: "gold",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "wrong-value",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "goal",
+									Value: "silver",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "multiple-key-value-pairs",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "silver",
+									Value: "medal",
+								},
+								{
+									Key:   "goal",
+									Value: "gold",
+								},
+								{
+									Key:   "critical",
+									Value: "information",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "correct-key",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "goal",
+									Value: "gold",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "multiple-key-value-pairs",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "silver",
+									Value: "medal",
+								},
+								{
+									Key:   "goal",
+									Value: "gold",
+								},
+								{
+									Key:   "critical",
+									Value: "information",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "must match all properties",
+			properties: []*configpb.TestGroup_KeyValue{
+				{
+					Key:   "medal",
+					Value: "gold",
+				},
+				{
+					Key:   "ribbon",
+					Value: "blue",
+				},
+			},
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "zero",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "wrong-medal",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "ribbon",
+									Value: "blue",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "wrong-ribbon",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "medal",
+									Value: "gold",
+								},
+							},
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "whole-deal",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "medal",
+									Value: "gold",
+								},
+								{
+									Key:   "ribbon",
+									Value: "blue",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "whole-deal",
+							Properties: []*resultstore.Property{
+								{
+									Key:   "medal",
+									Value: "gold",
+								},
+								{
+									Key:   "ribbon",
+									Value: "blue",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := filterProperties(tc.results, tc.properties)
+			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("filterProperties() got unexpected diff (-have, +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFillProperties(t *testing.T) {
+	cases := []struct {
+		name       string
+		properties map[string]string
+		result     *resultstore.Test
+		match      map[string]bool
+		want       map[string]string
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name:   "still basically works",
+			result: &resultstore.Test{},
+		},
+		{
+			name: "simple case no match",
+			properties: map[string]string{
+				"spongebob": "yellow",
+				"patrick":   "pink",
+			},
+			result: &resultstore.Test{
+				TestType: &resultstore.Test_TestCase{
+					TestCase: &resultstore.TestCase{
+						Properties: []*resultstore.Property{
+							{Key: "squidward", Value: "green"},
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"spongebob": "yellow",
+				"patrick":   "pink",
+				"squidward": "green",
+			},
+		},
+		{
+			name: "simple case with match",
+			properties: map[string]string{
+				"spongebob": "yellow",
+				"mrkrabs":   "red",
+			},
+			result: &resultstore.Test{
+				TestType: &resultstore.Test_TestCase{
+					TestCase: &resultstore.TestCase{
+						Properties: []*resultstore.Property{
+							{Key: "squidward", Value: "blue"},
+						},
+					},
+				},
+			},
+			match: map[string]bool{
+				"squidward": true,
+			},
+			want: map[string]string{
+				"spongebob": "yellow",
+				"mrkrabs":   "red",
+				"squidward": "blue",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fillProperties(tc.properties, tc.result, tc.match)
+			if diff := cmp.Diff(tc.want, tc.properties, protocmp.Transform()); diff != "" {
+				t.Errorf("fillProperties() differed (-want, +got): [%s]", diff)
+			}
+		})
+	}
+}
+
+func pstr(s string) *string { return &s }
+
+func TestMatchResults(t *testing.T) {
+	cases := []struct {
+		name     string
+		results  []*resultstore.Test
+		match    *string
+		unmatch  *string
+		expected []*resultstore.Test
+	}{
+		{
+			name: "basically works",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "thing",
+						},
+					},
+				},
+			},
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "every",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "thing",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "match results",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "miss",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "yesgopher",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "gopher-yes",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "no",
+						},
+					},
+				},
+			},
+			match: pstr("gopher"),
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "yesgopher",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "gopher-yes",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "exclude results with neutral alignments",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "yesgopher",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "neutral good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful neutral",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "true neutral",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic neutral",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful evil",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "neutral evil",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic evil",
+						},
+					},
+				},
+			},
+			unmatch: pstr("neutral"),
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "yesgopher",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful evil",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic evil",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "exclude the included results",
+			results: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "neutral good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful neutral",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "true neutral",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic neutral",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful evil",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "neutral evil",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic evil",
+						},
+					},
+				},
+			},
+			match:   pstr("good"),
+			unmatch: pstr("neutral"),
+			expected: []*resultstore.Test{
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "lawful good",
+						},
+					},
+				},
+				{
+					TestType: &resultstore.Test_TestCase{
+						TestCase: &resultstore.TestCase{
+							CaseName: "chaotic good",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var match, unmatch *regexp.Regexp
+			if tc.match != nil {
+				match = regexp.MustCompile(*tc.match)
+			}
+			if tc.unmatch != nil {
+				unmatch = regexp.MustCompile(*tc.unmatch)
+			}
+			actual := matchResults(tc.results, match, unmatch)
+			for i, r := range actual {
+				if diff := cmp.Diff(r, tc.expected[i], protocmp.Transform()); diff != "" {
+					t.Errorf("matchResults() got unexpected diff (-have, +want):\n%s", diff)
+				}
+			}
+
+		})
+	}
+}
+
 func TestGetTestResults(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -1472,6 +2406,70 @@ func TestGetTestResults(t *testing.T) {
 			got := getTestResults(tc.testsuite)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("getTestResults(%+v) differed (-want, +got): [%s]", tc.testsuite, diff)
+			}
+		})
+	}
+}
+
+func TestMethodRegex(t *testing.T) {
+	regexErrYes := regexp.MustCompile("yes")
+	regexErrNo := regexp.MustCompile("no")
+	type result struct {
+		matchMethods      *regexp.Regexp
+		unmatchMethods    *regexp.Regexp
+		matchMethodsErr   error
+		unmatchMethodsErr error
+	}
+	cases := []struct {
+		name string
+		tg   *configpb.TestGroup
+		want result
+	}{
+		{
+			name: "basically works",
+			tg:   &configpb.TestGroup{},
+		},
+		{
+			name: "basic test",
+			tg: &configpb.TestGroup{
+				TestMethodMatchRegex:   "yes",
+				TestMethodUnmatchRegex: "no",
+			},
+			want: result{
+				matchMethods:      regexErrYes,
+				unmatchMethods:    regexErrNo,
+				matchMethodsErr:   nil,
+				unmatchMethodsErr: nil,
+			},
+		},
+		{
+			name: "invalid regex test",
+			tg: &configpb.TestGroup{
+				TestMethodMatchRegex:   "\x8A",
+				TestMethodUnmatchRegex: "\x8A",
+			},
+			want: result{
+				matchMethods:      nil,
+				unmatchMethods:    nil,
+				matchMethodsErr:   nil,
+				unmatchMethodsErr: nil,
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mm, umm, mmErr, ummErr := testMethodRegex(tc.tg)
+			res := result{
+				matchMethods:      mm,
+				unmatchMethods:    umm,
+				matchMethodsErr:   mmErr,
+				unmatchMethodsErr: ummErr,
+			}
+			if diff := cmp.Diff(tc.want.matchMethods, res.matchMethods, protocmp.Transform(), cmp.AllowUnexported(regexp.Regexp{})); diff != "" {
+				t.Errorf("testMethodRegex(%+v) differed (-want, +got): [%s]", tc.tg, diff)
+			}
+			if diff := cmp.Diff(tc.want.unmatchMethods, res.unmatchMethods, protocmp.Transform(), cmp.AllowUnexported(regexp.Regexp{})); diff != "" {
+				t.Errorf("testMethodRegex(%+v) differed (-want, +got): [%s]", tc.tg, diff)
 			}
 		})
 	}
