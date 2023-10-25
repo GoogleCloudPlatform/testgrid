@@ -1586,20 +1586,40 @@ func TestStaleAlert(t *testing.T) {
 }
 
 func TestFailingTestSummaries(t *testing.T) {
+	defaultTemplate := &configpb.LinkTemplate{
+		Url: "http://test.com/view/<workflow-name>/<workflow-id>",
+		Options: []*configpb.LinkOptionsTemplate{
+			{
+				Key:   "test",
+				Value: "<test-name>@<test-id>",
+			},
+			{
+				Key:   "path",
+				Value: "<encode:<gcs_prefix>>",
+			},
+		},
+	}
+	defaultGcsPrefix := "my-bucket/logs/cool-job"
 	cases := []struct {
-		name     string
-		rows     []*statepb.Row
-		expected []*summarypb.FailingTestSummary
+		name      string
+		template  *configpb.LinkTemplate
+		gcsPrefix string
+		rows      []*statepb.Row
+		expected  []*summarypb.FailingTestSummary
 	}{
 		{
-			name: "do not alert by default",
+			name:      "do not alert by default",
+			template:  defaultTemplate,
+			gcsPrefix: defaultGcsPrefix,
 			rows: []*statepb.Row{
 				{},
 				{},
 			},
 		},
 		{
-			name: "alert when rows have alerts",
+			name:      "alert when rows have alerts",
+			template:  defaultTemplate,
+			gcsPrefix: defaultGcsPrefix,
 			rows: []*statepb.Row{
 				{},
 				{
@@ -1692,7 +1712,7 @@ func TestFailingTestSummaries(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := failingTestSummaries(tc.rows)
+			actual := failingTestSummaries(tc.rows, tc.template, tc.gcsPrefix)
 			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("failingTestSummaries() (-want, +got): %s", diff)
 			}
@@ -3277,6 +3297,146 @@ func TestSummaryPath(t *testing.T) {
 				if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(gcs.Path{})); diff != "" {
 					t.Errorf("summaryPath(%q, %q, %q) got unexpected diff (-want +got):\n%s", tc.path, tc.prefix, tc.dash, diff)
 				}
+			}
+		})
+	}
+}
+
+func TestTestResultLink(t *testing.T) {
+	cases := []struct {
+		name       string
+		template   *configpb.LinkTemplate
+		properties map[string]string
+		testID     string
+		target     string
+		buildID    string
+		gcsPrefix  string
+		want       string
+	}{
+		{
+			name: "nil",
+			want: "",
+		},
+		{
+			name: "empty",
+			template: &configpb.LinkTemplate{
+				Url: "https://test.com/<encode:<workflow-name>>/<workflow-id>/<test-id>/<encode:<test-name>>",
+				Options: []*configpb.LinkOptionsTemplate{
+					{
+						Key:   "prefix",
+						Value: "<gcs-prefix>",
+					},
+					{
+						Key:   "build",
+						Value: "<build-id>",
+					},
+					{
+						Key:   "prop",
+						Value: "<my-prop>",
+					},
+				},
+			},
+			properties: map[string]string{},
+			testID:     "",
+			target:     "",
+			buildID:    "",
+			gcsPrefix:  "",
+			want:       "https://test.com/%3Cencode:%3Cworkflow-name%3E%3E/%3Cworkflow-id%3E//?build=&prefix=&prop=%3Cmy-prop%3E",
+		},
+		{
+			name:     "empty template",
+			template: &configpb.LinkTemplate{},
+			properties: map[string]string{
+				"workflow-id":   "workflow-id-1",
+				"workflow-name": "//my:workflow",
+				"my-prop":       "foo",
+			},
+			testID:    "my-test-id-1",
+			target:    "//path/to:my-test",
+			buildID:   "build-1",
+			gcsPrefix: "my-bucket/has/results",
+			want:      "",
+		},
+		{
+			name: "basically works",
+			template: &configpb.LinkTemplate{
+				Url: "https://test.com/<encode:<workflow-name>>/<workflow-id>/<test-id>/<encode:<test-name>>",
+				Options: []*configpb.LinkOptionsTemplate{
+					{
+						Key:   "prefix",
+						Value: "<gcs-prefix>",
+					},
+					{
+						Key:   "build",
+						Value: "<build-id>",
+					},
+					{
+						Key:   "prop",
+						Value: "<my-prop>",
+					},
+				},
+			},
+			properties: map[string]string{
+				"workflow-id":   "workflow-id-1",
+				"workflow-name": "//my:workflow",
+				"my-prop":       "foo",
+			},
+			testID:    "my-test-id-1",
+			target:    "//path/to:my-test",
+			buildID:   "build-1",
+			gcsPrefix: "my-bucket/has/results",
+			want:      "https://test.com/%2F%2Fmy:workflow/workflow-id-1/my-test-id-1/%2F%2Fpath%2Fto:my-test?build=build-1&prefix=my-bucket%2Fhas%2Fresults&prop=foo",
+		},
+		{
+			name: "non-matching tokens",
+			template: &configpb.LinkTemplate{
+				Url: "https://test.com/<greeting>",
+				Options: []*configpb.LinkOptionsTemplate{
+					{
+						Key:   "farewell",
+						Value: "<farewell>",
+					},
+				},
+			},
+			properties: map[string]string{
+				"workflow-id":   "workflow-id-1",
+				"workflow-name": "//my:workflow",
+				"my-prop":       "foo",
+			},
+			testID:    "my-test-id-1",
+			target:    "//path/to:my-test",
+			buildID:   "build-1",
+			gcsPrefix: "my-bucket/has/results",
+			want:      "https://test.com/%3Cgreeting%3E?farewell=%3Cfarewell%3E",
+		},
+		{
+			name: "basically works, nil properties",
+			template: &configpb.LinkTemplate{
+				Url: "https://test.com/<encode:<workflow-name>>/<workflow-id>/<test-id>/<encode:<test-name>>",
+				Options: []*configpb.LinkOptionsTemplate{
+					{
+						Key:   "prefix",
+						Value: "<gcs-prefix>",
+					},
+					{
+						Key:   "build",
+						Value: "<build-id>",
+					},
+				},
+			},
+			properties: nil,
+			testID:     "my-test-id-1",
+			target:     "//path/to:my-test",
+			buildID:    "build-1",
+			gcsPrefix:  "my-bucket/has/results",
+			want:       "https://test.com/%3Cencode:%3Cworkflow-name%3E%3E/%3Cworkflow-id%3E/my-test-id-1///path/to:my-test?build=build-1&prefix=my-bucket%2Fhas%2Fresults",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := testResultLink(tc.template, tc.properties, tc.testID, tc.target, tc.buildID, tc.gcsPrefix); got != tc.want {
+				t.Errorf("testResultLink(%v, %v, %s, %s, %s, %s) = %q, want %q", tc.template, tc.properties, tc.testID, tc.target, tc.buildID, tc.gcsPrefix, got, tc.want)
 			}
 		})
 	}

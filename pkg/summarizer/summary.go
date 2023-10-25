@@ -42,6 +42,7 @@ import (
 	summarypb "github.com/GoogleCloudPlatform/testgrid/pb/summary"
 	statuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/tabulator"
+	"github.com/GoogleCloudPlatform/testgrid/util"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/metrics"
 	"github.com/golang/protobuf/proto"
@@ -720,7 +721,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab), len(grid.Rows))
-	failures := failingTestSummaries(grid.Rows)
+	failures := failingTestSummaries(grid.Rows, tab.GetOpenTestTemplate(), group.GetGcsPrefix())
 	colsCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold, features, tab.GetStatusCustomizationOptions())
 	metrics := tabMetrics(colsCells)
 	tabStatus := overallStatus(grid, recent, alert, brokenState, failures, features, colsCells, tab.GetStatusCustomizationOptions())
@@ -841,7 +842,7 @@ func staleAlert(mod, ran time.Time, stale time.Duration, rows int) string {
 }
 
 // failingTestSummaries returns details for every row with an active alert.
-func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
+func failingTestSummaries(rows []*statepb.Row, template *configpb.LinkTemplate, gcsPrefix string) []*summarypb.FailingTestSummary {
 	var failures []*summarypb.FailingTestSummary
 	for _, row := range rows {
 		if row.AlertInfo == nil {
@@ -873,6 +874,17 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 		if alert.FailTime != nil {
 			sum.FailTimestamp = float64(alert.FailTime.Seconds)
 		}
+		// Verify what the links for alerts would be with the new method.
+		failLink := testResultLink(template, alert.GetProperties(), alert.GetFailTestId(), row.GetId(), alert.GetFailBuildId(), gcsPrefix)
+		latestFailLink := testResultLink(template, alert.GetProperties(), alert.GetLatestFailTestId(), row.GetId(), alert.GetLatestFailBuildId(), gcsPrefix)
+		log := logrus.WithField("failLink", failLink).WithField("latestFailLink", latestFailLink)
+		if failLink == "" || latestFailLink == "" {
+			log.Warning("Failed to create failure link.")
+		} else if !strings.HasPrefix(failLink, "http") || !strings.HasPrefix(latestFailLink, "http") {
+			log.Warning("Failure link does not include scheme.")
+		} else {
+			log.Info("Created failure links.")
+		}
 
 		failures = append(failures, &sum)
 	}
@@ -883,6 +895,47 @@ func failingTestSummaries(rows []*statepb.Row) []*summarypb.FailingTestSummary {
 // TODO(#134): Build proper url for both internal and external jobs
 func buildFailLink(testID, target string) string {
 	return fmt.Sprintf("%s %s", url.PathEscape(testID), url.PathEscape(target))
+}
+
+func testResultLink(template *configpb.LinkTemplate, properties map[string]string, testID, target, buildID, gcsPrefix string) string {
+	// Return the result of open_test_template for the tab.
+	// This assumes that open_test_template uses a limited set of tokens (since it's not in the context of a browser).
+	// Assume that the following are valid: <gcs_prefix>, <test-name>, <workflow-id>, <workflow-name>, <test-id>, <build ID>
+	// TODO: Ensure workflow-id, workflow-name are added in alerts.
+	tokens := util.Tokens(template)
+	parameters := map[string]string{}
+	for _, token := range tokens {
+		switch token {
+		case util.GcsPrefix:
+			parameters[util.GcsPrefix] = gcsPrefix
+		case util.TestName:
+			parameters[util.TestName] = target
+		case util.WorkflowID:
+			if workflowID, ok := properties["workflow-id"]; ok {
+				parameters[util.WorkflowID] = workflowID
+			}
+		case util.WorkflowName:
+			if WorkflowName, ok := properties["workflow-name"]; ok {
+				parameters[util.WorkflowName] = WorkflowName
+			}
+		case util.TestID:
+			parameters[util.TestID] = testID
+		case util.BuildID:
+			parameters[util.BuildID] = buildID
+		default:
+			// Didn't match any simple tokens, check if it's a property.
+			trimmedToken := strings.NewReplacer("<", "", ">", "").Replace(token)
+			if v, ok := properties[trimmedToken]; ok {
+				parameters[token] = v
+			}
+		}
+	}
+	link, err := util.ExpandTemplate(template, parameters)
+	if err != nil {
+		logrus.WithError(err).WithField("template", template).WithField("parameters", parameters).Error("Error expanding link template.")
+		return ""
+	}
+	return link
 }
 
 // overallStatus determines whether the tab is stale, failing, flaky or healthy.
