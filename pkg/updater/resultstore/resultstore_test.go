@@ -488,6 +488,81 @@ func TestResultStoreColumnReader(t *testing.T) {
 	}
 }
 
+func TestCellMessageIcon(t *testing.T) {
+	cases := []struct {
+		name        string
+		annotations []*configpb.TestGroup_TestAnnotation
+		properties  map[string][]string
+		tags        []string
+		message     string
+		icon        string
+	}{
+		{
+			name: "basically works",
+		},
+		{
+			name: "find annotation from property",
+			annotations: []*configpb.TestGroup_TestAnnotation{
+				{
+					ShortText: "icon",
+					ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+						PropertyName: "props",
+					},
+				},
+			},
+			properties: map[string][]string{
+				"props": {"first", "second"},
+			},
+			message: "first",
+			icon:    "icon",
+		},
+		{
+			name: "find annotation from tag",
+			annotations: []*configpb.TestGroup_TestAnnotation{
+				{
+					ShortText: "icon",
+					ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+						PropertyName: "actually-a-tag",
+					},
+				},
+			},
+			tags:    []string{"actually-a-tag"},
+			message: "actually-a-tag",
+			icon:    "icon",
+		},
+		{
+			name: "find annotation from tag",
+			annotations: []*configpb.TestGroup_TestAnnotation{
+				{
+					ShortText: "icon",
+					ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+						PropertyName: "actually-a-tag",
+					},
+				},
+				{
+					ShortText: "icon-2",
+					ShortTextMessageSource: &configpb.TestGroup_TestAnnotation_PropertyName{
+						PropertyName: "actually-a-tag-2",
+					},
+				},
+			},
+			tags:    []string{"actually-a-tag"},
+			message: "actually-a-tag",
+			icon:    "icon",
+		},
+	}
+
+	for _, tc := range cases {
+		message, icon := cellMessageIcon(tc.annotations, tc.properties, tc.tags)
+		if tc.message != message {
+			t.Errorf("cellMessageIcon() got unexpected message %q, want %q", message, tc.message)
+		}
+		if tc.icon != icon {
+			t.Errorf("cellMessageIcon() got unexpected icon %q, want %q", icon, tc.icon)
+		}
+	}
+}
+
 func TestTimestampMilliseconds(t *testing.T) {
 	cases := []struct {
 		name      string
