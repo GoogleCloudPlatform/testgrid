@@ -178,6 +178,54 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 	}
 }
 
+// cellMessageIcon attempts to find an interesting message and icon by looking at the associated properties and tags.
+func cellMessageIcon(annotations []*configpb.TestGroup_TestAnnotation, properties map[string][]string, tags []string) (string, string) {
+	check := make(map[string]string, len(properties))
+	for k, v := range properties {
+		check[k] = v[0]
+	}
+
+	tagMap := make(map[string]string, len(annotations))
+
+	for _, a := range annotations {
+		n := a.GetPropertyName()
+		check[n] = a.ShortText
+		tagMap[n] = a.ShortText
+	}
+
+	for _, a := range annotations {
+		n := a.GetPropertyName()
+		icon, ok := check[n]
+		if !ok {
+			continue
+		}
+		values, ok := properties[n]
+		if !ok || len(values) == 0 {
+			continue
+		}
+		return values[0], icon
+	}
+
+	for _, tag := range tags {
+		if icon, ok := tagMap[tag]; ok {
+			return tag, icon
+		}
+	}
+	return "", ""
+}
+
+func numericIcon(current *string, properties map[string][]string, key string) {
+	if properties == nil || key == "" {
+		return
+	}
+	vals, ok := properties[key]
+	if !ok {
+		return
+	}
+	mean := updater.Means(map[string][]string{key: vals})[key]
+	*current = fmt.Sprintf("%f", mean)
+}
+
 // invocationGroup will contain info on the groupId and all invocations for that group
 // a group will correspond to a column after transformation
 type invocationGroup struct {
@@ -458,6 +506,13 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 						headers[i] = append(headers[i], targetHeaders...)
 					}
 				}
+
+				// TODO (@bryanlou) check if we need to include properties from the target in addition to test cases
+				properties := map[string][]string{}
+				testSuite := sar.ActionProto.GetTestAction().GetTestSuite()
+				for _, t := range testSuite.GetTests() {
+					appendProperties(properties, t, nil)
+				}
 			}
 		}
 
@@ -661,8 +716,15 @@ func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus
 // processTestResults iterates through a list of test results and adds them to
 // a map of groupedcells based on the method name produced
 func processTestResults(tg *config.TestGroup, groupedCells map[string][]updater.Cell, testResults []*resultstorepb.Test, sar *singleActionResult, cell updater.Cell, targetID string, testMethodLimit int) {
+	tags := sar.TargetProto.TargetAttributes.GetTags()
+	testSuite := sar.ActionProto.GetTestAction().GetTestSuite()
+	shortTextMetric := tg.GetShortTextMetric()
 	for _, testResult := range testResults {
 		var methodName string
+		properties := map[string][]string{}
+		for _, t := range testSuite.GetTests() {
+			appendProperties(properties, t, nil)
+		}
 		if testResult.GetTestCase() != nil {
 			methodName = testResult.GetTestCase().GetCaseName()
 		} else {
@@ -682,6 +744,9 @@ func processTestResults(tg *config.TestGroup, groupedCells map[string][]updater.
 			CellID: cell.CellID, // same cellID
 			Result: mapStatusToCellResult(testResult.GetTestCase()),
 		}
+
+		trCell.Message, trCell.Icon = cellMessageIcon(tg.TestAnnotations, properties, tags)
+		numericIcon(&trCell.Icon, properties, shortTextMetric)
 
 		if trCell.Result == statuspb.TestStatus_PASS_WITH_SKIPS && tg.IgnoreSkip {
 			continue
