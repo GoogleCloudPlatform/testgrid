@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package resultstore fetches and process results from ResultStore.
 package resultstore
 
 import (
@@ -25,9 +26,9 @@ import (
 	"time"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
-	"github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator"
+	evalpb "github.com/GoogleCloudPlatform/testgrid/pb/custom_evaluator"
 	statepb "github.com/GoogleCloudPlatform/testgrid/pb/state"
-	"github.com/GoogleCloudPlatform/testgrid/pb/test_status"
+	teststatuspb "github.com/GoogleCloudPlatform/testgrid/pb/test_status"
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
@@ -40,7 +41,7 @@ import (
 
 type fakeClient struct {
 	searches    map[string][]string
-	invocations map[string]fetchResult
+	invocations map[string]FetchResult
 }
 
 func (c *fakeClient) SearchInvocations(ctx context.Context, req *resultstore.SearchInvocationsRequest, opts ...grpc.CallOption) (*resultstore.SearchInvocationsResponse, error) {
@@ -172,7 +173,7 @@ func TestExtractGroupID(t *testing.T) {
 	}
 }
 
-func TestResultStoreColumnReader(t *testing.T) {
+func TestColumnReader(t *testing.T) {
 	// We already have functions testing 'stop' logic.
 	// Scope this test to whether the column reader fetches and returns ascending results.
 	oneMonthConfig := &configpb.TestGroup{
@@ -206,7 +207,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 				searches: map[string][]string{
 					testQueryAfter: {"id-1", "id-2"},
 				},
-				invocations: map[string]fetchResult{
+				invocations: map[string]FetchResult{
 					invocationName("id-1"): {
 						Invocation: &resultstore.Invocation{
 							Id: &resultstore.Invocation_Id{
@@ -233,6 +234,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 							{
 								Id: &resultstore.ConfiguredTarget_Id{
 									TargetId: "tgt-id-1",
+								},
+								StatusAttributes: &resultstore.StatusAttributes{
+									Status: resultstore.Status_PASSED,
 								},
 							},
 						},
@@ -272,6 +276,9 @@ func TestResultStoreColumnReader(t *testing.T) {
 								Id: &resultstore.ConfiguredTarget_Id{
 									TargetId: "tgt-id-1",
 								},
+								StatusAttributes: &resultstore.StatusAttributes{
+									Status: resultstore.Status_FAILED,
+								},
 							},
 						},
 						Actions: []*resultstore.Action{
@@ -297,7 +304,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 						"tgt-id-1": {
 							ID:     "tgt-id-1",
 							CellID: "id-1",
-							Result: test_status.TestStatus_PASS,
+							Result: teststatuspb.TestStatus_PASS,
 						},
 					},
 				},
@@ -312,7 +319,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 						"tgt-id-1": {
 							ID:     "tgt-id-1",
 							CellID: "id-2",
-							Result: test_status.TestStatus_FAIL,
+							Result: teststatuspb.TestStatus_FAIL,
 						},
 					},
 				},
@@ -323,7 +330,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 			tg:   oneMonthConfig,
 			client: &fakeClient{
 				searches: map[string][]string{},
-				invocations: map[string]fetchResult{
+				invocations: map[string]FetchResult{
 					invocationName("id-1"): {
 						Invocation: &resultstore.Invocation{
 							Id: &resultstore.Invocation_Id{
@@ -373,7 +380,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 				searches: map[string][]string{
 					testQueryAfter: {"id-2", "id-3", "id-1"},
 				},
-				invocations: map[string]fetchResult{},
+				invocations: map[string]FetchResult{},
 			},
 			want: nil,
 		},
@@ -383,7 +390,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 				searches: map[string][]string{
 					testQueryAfter: {"id-2", "id-3", "id-1"},
 				},
-				invocations: map[string]fetchResult{
+				invocations: map[string]FetchResult{
 					invocationName("id-1"): {
 						Invocation: &resultstore.Invocation{
 							Id: &resultstore.Invocation_Id{
@@ -462,7 +469,7 @@ func TestResultStoreColumnReader(t *testing.T) {
 			if tc.client != nil {
 				dlClient = &DownloadClient{client: tc.client}
 			}
-			columnReader := ResultStoreColumnReader(dlClient, 0)
+			columnReader := ColumnReader(dlClient, 0)
 			var got []updater.InflatedColumn
 			ch := make(chan updater.InflatedColumn)
 			var wg sync.WaitGroup
@@ -602,12 +609,12 @@ func TestTimestampMilliseconds(t *testing.T) {
 func TestProcessRawResult(t *testing.T) {
 	cases := []struct {
 		name   string
-		result *fetchResult
+		result *FetchResult
 		want   *invocation
 	}{
 		{
 			name: "just invocation",
-			result: &fetchResult{
+			result: &FetchResult{
 				Invocation: &resultstore.Invocation{
 					Name: invocationName("Best invocation"),
 					Id: &resultstore.Invocation_Id{
@@ -627,7 +634,7 @@ func TestProcessRawResult(t *testing.T) {
 		},
 		{
 			name: "invocation + targets + configured targets",
-			result: &fetchResult{
+			result: &FetchResult{
 				Invocation: &resultstore.Invocation{
 					Name: invocationName("Best invocation"),
 					Id: &resultstore.Invocation_Id{
@@ -716,7 +723,7 @@ func TestProcessRawResult(t *testing.T) {
 		},
 		{
 			name: "all together + extra actions",
-			result: &fetchResult{
+			result: &FetchResult{
 				Invocation: &resultstore.Invocation{
 					Name: invocationName("Best invocation"),
 					Id: &resultstore.Invocation_Id{
@@ -900,7 +907,7 @@ func TestProcessGroup(t *testing.T) {
 		{
 			name: "basic invocation group",
 			group: &invocationGroup{
-				GroupId: "uuid-123",
+				GroupID: "uuid-123",
 				Invocations: []*invocation{
 					{
 						InvocationProto: &resultstore.Invocation{
@@ -917,8 +924,8 @@ func TestProcessGroup(t *testing.T) {
 						TargetResults: map[string][]*singleActionResult{
 							"tgt-id-1": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-1",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -929,8 +936,8 @@ func TestProcessGroup(t *testing.T) {
 							},
 							"tgt-id-2": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-2",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -954,12 +961,12 @@ func TestProcessGroup(t *testing.T) {
 					"tgt-id-1": {
 						ID:     "tgt-id-1",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_PASS,
+						Result: teststatuspb.TestStatus_PASS,
 					},
 					"tgt-id-2": {
 						ID:     "tgt-id-2",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_FAIL,
+						Result: teststatuspb.TestStatus_FAIL,
 					},
 				},
 			},
@@ -970,7 +977,7 @@ func TestProcessGroup(t *testing.T) {
 				BuildOverrideConfigurationValue: "pi-key-chu",
 			},
 			group: &invocationGroup{
-				GroupId: "snorlax",
+				GroupID: "snorlax",
 				Invocations: []*invocation{
 					{
 						InvocationProto: &resultstore.Invocation{
@@ -993,8 +1000,8 @@ func TestProcessGroup(t *testing.T) {
 						TargetResults: map[string][]*singleActionResult{
 							"tgt-id-1": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-1",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1005,8 +1012,8 @@ func TestProcessGroup(t *testing.T) {
 							},
 							"tgt-id-2": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-2",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1038,8 +1045,8 @@ func TestProcessGroup(t *testing.T) {
 						TargetResults: map[string][]*singleActionResult{
 							"tgt-id-1": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-1",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1050,8 +1057,8 @@ func TestProcessGroup(t *testing.T) {
 							},
 							"tgt-id-2": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-2",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1075,22 +1082,22 @@ func TestProcessGroup(t *testing.T) {
 					"tgt-id-1": {
 						ID:     "tgt-id-1",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_PASS,
+						Result: teststatuspb.TestStatus_PASS,
 					},
 					"tgt-id-2": {
 						ID:     "tgt-id-2",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_FAIL,
+						Result: teststatuspb.TestStatus_FAIL,
 					},
 					"tgt-id-1 [1]": {
 						ID:     "tgt-id-1",
 						CellID: "uuid-124",
-						Result: test_status.TestStatus_PASS,
+						Result: teststatuspb.TestStatus_PASS,
 					},
 					"tgt-id-2 [1]": {
 						ID:     "tgt-id-2",
 						CellID: "uuid-124",
-						Result: test_status.TestStatus_FAIL,
+						Result: teststatuspb.TestStatus_FAIL,
 					},
 				},
 			},
@@ -1103,7 +1110,7 @@ func TestProcessGroup(t *testing.T) {
 				EnableTestMethods:               true,
 			},
 			group: &invocationGroup{
-				GroupId: "snorlax",
+				GroupID: "snorlax",
 				Invocations: []*invocation{
 					{
 						InvocationProto: &resultstore.Invocation{
@@ -1126,8 +1133,8 @@ func TestProcessGroup(t *testing.T) {
 						TargetResults: map[string][]*singleActionResult{
 							"tgt-id-1": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-1",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1170,10 +1177,10 @@ func TestProcessGroup(t *testing.T) {
 					"tgt-id-1": {
 						ID:     "tgt-id-1",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_PASS,
+						Result: teststatuspb.TestStatus_PASS,
 					},
 					"tgt-id-1@TESTGRID@DISABLED_case": {
-						Result: test_status.TestStatus_PASS_WITH_SKIPS,
+						Result: teststatuspb.TestStatus_PASS_WITH_SKIPS,
 						ID:     "tgt-id-1",
 						CellID: "uuid-123"},
 				},
@@ -1187,7 +1194,7 @@ func TestProcessGroup(t *testing.T) {
 				EnableTestMethods:               true,
 			},
 			group: &invocationGroup{
-				GroupId: "snorlax",
+				GroupID: "snorlax",
 				Invocations: []*invocation{
 					{
 						InvocationProto: &resultstore.Invocation{
@@ -1210,8 +1217,8 @@ func TestProcessGroup(t *testing.T) {
 						TargetResults: map[string][]*singleActionResult{
 							"tgt-id-1": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-1",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1263,10 +1270,10 @@ func TestProcessGroup(t *testing.T) {
 					"tgt-id-1": {
 						ID:     "tgt-id-1",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_PASS,
+						Result: teststatuspb.TestStatus_PASS,
 					},
 					"tgt-id-1@TESTGRID@Not_working_case": {
-						Result: test_status.TestStatus_FAIL,
+						Result: teststatuspb.TestStatus_FAIL,
 						ID:     "tgt-id-1",
 						CellID: "uuid-123"},
 				},
@@ -1276,19 +1283,19 @@ func TestProcessGroup(t *testing.T) {
 			name: "invocation group with ignored statuses and custom target status evaluator",
 			tg: &configpb.TestGroup{
 				IgnorePending: true,
-				CustomEvaluatorRuleSet: &custom_evaluator.RuleSet{
-					Rules: []*custom_evaluator.Rule{
+				CustomEvaluatorRuleSet: &evalpb.RuleSet{
+					Rules: []*evalpb.Rule{
 						{
-							ComputedStatus: test_status.TestStatus_CATEGORIZED_ABORT,
-							TestResultComparisons: []*custom_evaluator.TestResultComparison{
+							ComputedStatus: teststatuspb.TestStatus_CATEGORIZED_ABORT,
+							TestResultComparisons: []*evalpb.TestResultComparison{
 								{
-									TestResultInfo: &custom_evaluator.TestResultComparison_TargetStatus{
+									TestResultInfo: &evalpb.TestResultComparison_TargetStatus{
 										TargetStatus: true,
 									},
-									Comparison: &custom_evaluator.Comparison{
-										Op: custom_evaluator.Comparison_OP_EQ,
-										ComparisonValue: &custom_evaluator.Comparison_TargetStatusValue{
-											TargetStatusValue: test_status.TestStatus_TIMED_OUT,
+									Comparison: &evalpb.Comparison{
+										Op: evalpb.Comparison_OP_EQ,
+										ComparisonValue: &evalpb.Comparison_TargetStatusValue{
+											TargetStatusValue: teststatuspb.TestStatus_TIMED_OUT,
 										},
 									},
 								},
@@ -1298,7 +1305,7 @@ func TestProcessGroup(t *testing.T) {
 				},
 			},
 			group: &invocationGroup{
-				GroupId: "uuid-123",
+				GroupID: "uuid-123",
 				Invocations: []*invocation{
 					{
 						InvocationProto: &resultstore.Invocation{
@@ -1315,8 +1322,8 @@ func TestProcessGroup(t *testing.T) {
 						TargetResults: map[string][]*singleActionResult{
 							"tgt-id-1": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-1",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1327,8 +1334,8 @@ func TestProcessGroup(t *testing.T) {
 							},
 							"tgt-id-2": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-2",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1339,8 +1346,8 @@ func TestProcessGroup(t *testing.T) {
 							},
 							"tgt-id-3": {
 								{
-									TargetProto: &resultstore.Target{
-										Id: &resultstore.Target_Id{
+									ConfiguredTargetProto: &resultstore.ConfiguredTarget{
+										Id: &resultstore.ConfiguredTarget_Id{
 											TargetId: "tgt-id-3",
 										},
 										StatusAttributes: &resultstore.StatusAttributes{
@@ -1364,12 +1371,12 @@ func TestProcessGroup(t *testing.T) {
 					"tgt-id-1": {
 						ID:     "tgt-id-1",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_PASS,
+						Result: teststatuspb.TestStatus_PASS,
 					},
 					"tgt-id-3": {
 						ID:     "tgt-id-3",
 						CellID: "uuid-123",
-						Result: test_status.TestStatus_CATEGORIZED_ABORT,
+						Result: teststatuspb.TestStatus_CATEGORIZED_ABORT,
 					},
 				},
 			},
@@ -2908,7 +2915,7 @@ func TestIncludeStatus(t *testing.T) {
 		{
 			name: "unspecifies status - not included",
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_STATUS_UNSPECIFIED,
 					},
@@ -2922,7 +2929,7 @@ func TestIncludeStatus(t *testing.T) {
 				IgnoreBuilt: true,
 			},
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_BUILT,
 					},
@@ -2936,7 +2943,7 @@ func TestIncludeStatus(t *testing.T) {
 				IgnoreSkip: true,
 			},
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_BUILT,
 					},
@@ -2950,7 +2957,7 @@ func TestIncludeStatus(t *testing.T) {
 				IgnorePending: true,
 			},
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_TESTING,
 					},
@@ -2964,7 +2971,7 @@ func TestIncludeStatus(t *testing.T) {
 				IgnoreSkip: true,
 			},
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_TESTING,
 					},
@@ -2978,7 +2985,7 @@ func TestIncludeStatus(t *testing.T) {
 				IgnoreSkip: true,
 			},
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_SKIPPED,
 					},
@@ -2992,7 +2999,7 @@ func TestIncludeStatus(t *testing.T) {
 				IgnoreSkip: true,
 			},
 			sar: &singleActionResult{
-				TargetProto: &resultstore.Target{
+				ConfiguredTargetProto: &resultstore.ConfiguredTarget{
 					StatusAttributes: &resultstore.StatusAttributes{
 						Status: resultstore.Status_FAILED,
 					},
@@ -3062,7 +3069,7 @@ func TestGroupInvocations(t *testing.T) {
 			},
 			want: []*invocationGroup{
 				{
-					GroupId: "my-value-1",
+					GroupID: "my-value-1",
 					Invocations: []*invocation{
 						{
 							InvocationProto: &resultstore.Invocation{
@@ -3086,7 +3093,7 @@ func TestGroupInvocations(t *testing.T) {
 					},
 				},
 				{
-					GroupId: "my-value-2",
+					GroupID: "my-value-2",
 					Invocations: []*invocation{
 						{
 							InvocationProto: &resultstore.Invocation{
@@ -3133,7 +3140,7 @@ func TestGroupInvocations(t *testing.T) {
 			},
 			want: []*invocationGroup{
 				{
-					GroupId: "uuid-123",
+					GroupID: "uuid-123",
 					Invocations: []*invocation{
 						{
 							InvocationProto: &resultstore.Invocation{
@@ -3151,7 +3158,7 @@ func TestGroupInvocations(t *testing.T) {
 					},
 				},
 				{
-					GroupId: "uuid-321",
+					GroupID: "uuid-321",
 					Invocations: []*invocation{
 						{
 							InvocationProto: &resultstore.Invocation{
