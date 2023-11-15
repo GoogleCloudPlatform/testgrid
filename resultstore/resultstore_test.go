@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	durationpb "github.com/golang/protobuf/ptypes/duration"
+	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 )
 
@@ -40,23 +40,23 @@ func TestDur(t *testing.T) {
 	cases := []struct {
 		name     string
 		dur      time.Duration
-		expected *duration.Duration
+		expected *durationpb.Duration
 	}{
 		{
 			name:     "basically works",
-			expected: &duration.Duration{},
+			expected: &durationpb.Duration{},
 		},
 		{
 			name: "correct seconds",
 			dur:  time.Minute,
-			expected: &duration.Duration{
+			expected: &durationpb.Duration{
 				Seconds: 60,
 			},
 		},
 		{
 			name: "correct nanos",
 			dur:  300 * time.Nanosecond,
-			expected: &duration.Duration{
+			expected: &durationpb.Duration{
 				Nanos: 300,
 			},
 		},
@@ -75,7 +75,7 @@ func TestStamp(t *testing.T) {
 	cases := []struct {
 		name     string
 		when     time.Time
-		expected *timestamp.Timestamp
+		expected *timestamppb.Timestamp
 	}{
 		{
 			name: "basically works",
@@ -83,21 +83,21 @@ func TestStamp(t *testing.T) {
 		{
 			name: "correct when only seconds",
 			when: time.Unix(15, 0),
-			expected: &timestamp.Timestamp{
+			expected: &timestamppb.Timestamp{
 				Seconds: 15,
 			},
 		},
 		{
 			name: "correct when only nanos",
 			when: time.Unix(0, 22),
-			expected: &timestamp.Timestamp{
+			expected: &timestamppb.Timestamp{
 				Nanos: 22,
 			},
 		},
 		{
 			name: "normal",
 			when: time.Unix(33, 4444),
-			expected: &timestamp.Timestamp{
+			expected: &timestamppb.Timestamp{
 				Seconds: 33,
 				Nanos:   4444,
 			},
@@ -163,7 +163,7 @@ func TestFromTiming(t *testing.T) {
 		{
 			name: "only StartTime works",
 			t: &resultstore.Timing{
-				StartTime: &timestamp.Timestamp{
+				StartTime: &timestamppb.Timestamp{
 					Seconds: 15,
 					Nanos:   7,
 				},
@@ -173,7 +173,7 @@ func TestFromTiming(t *testing.T) {
 		{
 			name: "only Duration works",
 			t: &resultstore.Timing{
-				Duration: &duration.Duration{
+				Duration: &durationpb.Duration{
 					Seconds: 3,
 					Nanos:   4,
 				},

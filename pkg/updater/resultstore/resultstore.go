@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// resultstore fetches and process results from ResultStore.
+// Package resultstore fetches and process results from ResultStore.
 package resultstore
 
 import (
@@ -41,6 +41,7 @@ import (
 // check if interface is implemented correctly
 var _ updater.TargetResult = &singleActionResult{}
 
+// TestResultStatus represents the status of a test result.
 type TestResultStatus int64
 
 // Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
@@ -56,9 +57,9 @@ func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeo
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
 		defer cancel()
-		rsColumnReader := ResultStoreColumnReader(resultStoreClient, 0)
+		columnReader := ColumnReader(resultStoreClient, 0)
 		reprocess := 20 * time.Minute // allow 20m for prow to finish uploading artifacts
-		return updater.InflateDropAppend(ctx, log, gcsClient, tg, gridPath, write, rsColumnReader, reprocess)
+		return updater.InflateDropAppend(ctx, log, gcsClient, tg, gridPath, write, columnReader, reprocess)
 	}
 }
 
@@ -70,7 +71,7 @@ type singleActionResult struct {
 
 // make singleActionResult satisfy TargetResult interface
 func (sar *singleActionResult) TargetStatus() statuspb.TestStatus {
-	status := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
+	status := convertStatus[sar.ConfiguredTargetProto.GetStatusAttributes().GetStatus()]
 	return status
 }
 
@@ -143,8 +144,8 @@ func extractGroupID(tg *configpb.TestGroup, inv *invocation) string {
 	}
 }
 
-// ResultStoreColumnReader fetches results since last update from ResultStore and translates them into columns.
-func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) updater.ColumnReader {
+// ColumnReader fetches results since last update from ResultStore and translates them into columns.
+func ColumnReader(client *DownloadClient, reprocess time.Duration) updater.ColumnReader {
 	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []updater.InflatedColumn, defaultStop time.Time, receivers chan<- updater.InflatedColumn) error {
 		stop := updateStop(log, tg, time.Now(), oldCols, defaultStop, reprocess)
 		ids, err := search(ctx, log, client, tg.GetResultSource().GetResultstoreConfig().GetProject(), stop)
@@ -152,7 +153,7 @@ func ResultStoreColumnReader(client *DownloadClient, reprocess time.Duration) up
 			return fmt.Errorf("error searching invocations: %v", err)
 		}
 		invocationErrors := make(map[string]error)
-		var results []*fetchResult
+		var results []*FetchResult
 		for _, id := range ids {
 			result, invErr := client.FetchInvocation(ctx, log, id)
 			if invErr != nil {
@@ -229,7 +230,7 @@ func numericIcon(current *string, properties map[string][]string, key string) {
 // invocationGroup will contain info on the groupId and all invocations for that group
 // a group will correspond to a column after transformation
 type invocationGroup struct {
-	GroupId     string
+	GroupID     string
 	Invocations []*invocation
 }
 
@@ -246,7 +247,7 @@ func groupInvocations(log logrus.FieldLogger, tg *configpb.TestGroup, invocation
 		group, ok := groupedInvocations[groupIdentifier]
 		if !ok {
 			group = &invocationGroup{
-				GroupId: groupIdentifier,
+				GroupID: groupIdentifier,
 			}
 			groupedInvocations[groupIdentifier] = group
 		}
@@ -265,7 +266,7 @@ func groupInvocations(log logrus.FieldLogger, tg *configpb.TestGroup, invocation
 	return sortedGroups
 }
 
-func processRawResults(log logrus.FieldLogger, results []*fetchResult) []*invocation {
+func processRawResults(log logrus.FieldLogger, results []*FetchResult) []*invocation {
 	var invs []*invocation
 	for _, result := range results {
 		inv := processRawResult(log, result)
@@ -274,9 +275,9 @@ func processRawResults(log logrus.FieldLogger, results []*fetchResult) []*invoca
 	return invs
 }
 
-// processRawResult converts raw fetchResult to invocation with single action/target result/configured target result per targetID
+// processRawResult converts raw FetchResult to invocation with single action/target result/configured target result per targetID
 // Will skip processing any entries without Target or ConfiguredTarget
-func processRawResult(log logrus.FieldLogger, result *fetchResult) *invocation {
+func processRawResult(log logrus.FieldLogger, result *FetchResult) *invocation {
 
 	multiActionResults := collateRawResults(log, result)
 	singleActionResults := isolateActions(log, multiActionResults)
@@ -285,7 +286,7 @@ func processRawResult(log logrus.FieldLogger, result *fetchResult) *invocation {
 }
 
 // collateRawResults collates targets, configured targets and multiple actions into a single structure using targetID as a key
-func collateRawResults(log logrus.FieldLogger, result *fetchResult) map[string]*multiActionResult {
+func collateRawResults(log logrus.FieldLogger, result *FetchResult) map[string]*multiActionResult {
 	multiActionResults := make(map[string]*multiActionResult)
 	for _, target := range result.Targets {
 		trID := target.GetId().GetTargetId()
@@ -373,7 +374,7 @@ func customTargetStatus(ruleSet *cepb.RuleSet, sar *singleActionResult) *statusp
 
 // includeStatus determines if the single action result should be included based on config
 func includeStatus(tg *configpb.TestGroup, sar *singleActionResult) bool {
-	status := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
+	status := convertStatus[sar.ConfiguredTargetProto.GetStatusAttributes().GetStatus()]
 	if status == statuspb.TestStatus_NO_RESULT {
 		return false
 	}
@@ -423,7 +424,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 
 	col := &updater.InflatedColumn{
 		Column: &statepb.Column{
-			Name: group.GroupId,
+			Name: group.GroupID,
 		},
 		Cells: map[string]updater.Cell{},
 	}
@@ -439,7 +440,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 		if build := identifyBuild(tg, invocation); build != "" {
 			col.Column.Build = build
 		} else {
-			col.Column.Build = group.GroupId
+			col.Column.Build = group.GroupID
 		}
 
 		started := invocation.InvocationProto.GetTiming().GetStartTime()
@@ -481,7 +482,7 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 				}
 
 				// assign status
-				status, ok := convertStatus[sar.TargetProto.GetStatusAttributes().GetStatus()]
+				status, ok := convertStatus[sar.ConfiguredTargetProto.GetStatusAttributes().GetStatus()]
 				if !ok {
 					status = statuspb.TestStatus_UNKNOWN
 				}
@@ -716,7 +717,7 @@ func mapStatusToCellResult(testCase *resultstorepb.TestCase) statuspb.TestStatus
 // processTestResults iterates through a list of test results and adds them to
 // a map of groupedcells based on the method name produced
 func processTestResults(tg *config.TestGroup, groupedCells map[string][]updater.Cell, testResults []*resultstorepb.Test, sar *singleActionResult, cell updater.Cell, targetID string, testMethodLimit int) {
-	tags := sar.TargetProto.TargetAttributes.GetTags()
+	tags := sar.TargetProto.GetTargetAttributes().GetTags()
 	testSuite := sar.ActionProto.GetTestAction().GetTestSuite()
 	shortTextMetric := tg.GetShortTextMetric()
 	for _, testResult := range testResults {

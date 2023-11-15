@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package resultstore fetches and process results from ResultStore.
 package resultstore
 
 import (
@@ -111,7 +112,8 @@ func (c *DownloadClient) Search(ctx context.Context, log logrus.FieldLogger, que
 	return ids, nil
 }
 
-type fetchResult struct {
+// FetchResult provides a interface to store Resultstore invocation data.
+type FetchResult struct {
 	Invocation        *resultstore.Invocation
 	Actions           []*resultstore.Action
 	ConfiguredTargets []*resultstore.ConfiguredTarget
@@ -124,10 +126,10 @@ func fieldMask(ctx context.Context, fields ...string) context.Context {
 }
 
 // FetchInvocation returns all details for a given invocation.
-func (c *DownloadClient) FetchInvocation(ctx context.Context, log logrus.FieldLogger, invocationID string) (*fetchResult, error) {
+func (c *DownloadClient) FetchInvocation(ctx context.Context, log logrus.FieldLogger, invocationID string) (*FetchResult, error) {
 	name := fmt.Sprintf("invocations/%s", invocationID)
 	nextPageToken := ""
-	result := &fetchResult{}
+	result := &FetchResult{}
 	fieldMaskCtx := fieldMask(
 		ctx,
 		"next_page_token",

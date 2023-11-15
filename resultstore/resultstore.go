@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package resultstore fetches and process results from ResultStore.
 package resultstore
 
 import (
@@ -21,10 +22,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/golang/protobuf/ptypes/wrappers"
-	"google.golang.org/genproto/googleapis/devtools/resultstore/v2"
+	durationpb "github.com/golang/protobuf/ptypes/duration"
+	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
+	wrapperspb "github.com/golang/protobuf/ptypes/wrappers"
+	resultstore "google.golang.org/genproto/googleapis/devtools/resultstore/v2"
 )
 
 // Invocation represents a flatted ResultStore invocation
@@ -99,28 +100,28 @@ func (i Invocation) To() *resultstore.Invocation {
 
 // Timing
 
-func dur(d time.Duration) *duration.Duration {
-	return &duration.Duration{
+func dur(d time.Duration) *durationpb.Duration {
+	return &durationpb.Duration{
 		Seconds: int64(d / time.Second),
 		Nanos:   int32(d % time.Second),
 	}
 }
 
-func stamp(when time.Time) *timestamp.Timestamp {
+func stamp(when time.Time) *timestamppb.Timestamp {
 	if when.IsZero() {
 		return nil
 	}
-	return &timestamp.Timestamp{
+	return &timestamppb.Timestamp{
 		Seconds: when.Unix(),
 		Nanos:   int32(when.UnixNano() % int64(time.Second)),
 	}
 }
 
-func protoTimeToGoTime(t *timestamp.Timestamp) time.Time {
+func protoTimeToGoTime(t *timestamppb.Timestamp) time.Time {
 	return time.Unix(t.Seconds, int64(t.Nanos))
 }
 
-func protoDurationToGoDuration(d *duration.Duration) time.Duration {
+func protoDurationToGoDuration(d *durationpb.Duration) time.Duration {
 	return time.Duration(d.Seconds)*time.Second + time.Duration(d.Nanos)*time.Nanosecond
 }
 
@@ -322,14 +323,14 @@ type File struct {
 	URL string
 }
 
-func wrap64(v int64) *wrappers.Int64Value {
+func wrap64(v int64) *wrapperspb.Int64Value {
 	if v == 0 {
 		return nil
 	}
-	return &wrappers.Int64Value{Value: v}
+	return &wrapperspb.Int64Value{Value: v}
 }
 
-func unwrap64(w *wrappers.Int64Value) int64 {
+func unwrap64(w *wrapperspb.Int64Value) int64 {
 	if w == nil {
 		return 0
 	}
