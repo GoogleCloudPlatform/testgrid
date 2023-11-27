@@ -508,6 +508,8 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 					}
 				}
 
+				cell.Metrics = calculateMetrics(sar)
+
 				// TODO (@bryanlou) check if we need to include properties from the target in addition to test cases
 				properties := map[string][]string{}
 				testSuite := sar.ActionProto.GetTestAction().GetTestSuite()
@@ -534,6 +536,69 @@ func processGroup(tg *configpb.TestGroup, group *invocationGroup) *updater.Infla
 	col.Column.Extra = compileHeaders(tg.GetColumnHeader(), headers)
 
 	return col
+}
+
+// calculateMetrics calculates the numeric metrics (properties), test results
+// and a target for singleActionResult and stores the duration in a map
+func calculateMetrics(sar *singleActionResult) map[string]float64 {
+	properties := map[string][]string{}
+	testResultProperties(properties, sar.ActionProto.GetTestAction().GetTestSuite())
+	numerics := updater.Means(properties)
+	targetElapsed := sar.TargetProto.GetTiming().GetDuration().AsDuration()
+	if targetElapsed > 0 {
+		numerics[updater.ElapsedKey] = targetElapsed.Minutes()
+	}
+
+	if dur := testResultDuration(sar.ActionProto.GetTestAction().GetTestSuite()); dur > 0 {
+		numerics[updater.TestMethodsElapsedKey] = dur.Minutes()
+	}
+
+	return numerics
+}
+
+// testResultProperties recursively inserts all result and its children's properties into the map.
+func testResultProperties(properties map[string][]string, suite *resultstorepb.TestSuite) {
+
+	if suite == nil {
+		return
+	}
+
+	// add parent suite properties
+	for _, p := range suite.GetProperties() {
+		properties[p.GetKey()] = append(properties[p.GetKey()], p.GetValue())
+	}
+
+	// add test case properties
+	for _, test := range suite.GetTests() {
+		if tc := test.GetTestCase(); tc != nil {
+			for _, p := range tc.GetProperties() {
+				properties[p.GetKey()] = append(properties[p.GetKey()], p.GetValue())
+			}
+		} else {
+			testResultProperties(properties, test.GetTestSuite())
+		}
+	}
+}
+
+// testResultDuration calculates the overall duration of test results.
+func testResultDuration(suite *resultstorepb.TestSuite) time.Duration {
+	var totalDur time.Duration
+	if suite == nil {
+		return totalDur
+	}
+
+	if dur := suite.GetTiming().GetDuration().AsDuration(); dur > 0 {
+		return dur
+	}
+
+	for _, test := range suite.GetTests() {
+		if tc := test.GetTestCase(); tc != nil {
+			totalDur += tc.GetTiming().GetDuration().AsDuration()
+		} else {
+			totalDur += testResultDuration(test.GetTestSuite())
+		}
+	}
+	return totalDur
 }
 
 // filterProperties returns the subset of results containing all the specified properties.
