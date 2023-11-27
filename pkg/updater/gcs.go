@@ -526,8 +526,11 @@ func overallCell(result gcsResult) Cell {
 	return c
 }
 
-// ElapsedKey is the key for the test duration metric.
+// ElapsedKey is the key for the target duration metric.
 const ElapsedKey = "test-duration-minutes"
+
+// TestMethodsElapsedKey is the key for the test results duration metric.
+const TestMethodsElapsedKey = "test-methods-duration-minutes"
 
 // setElapsed inserts the seconds-elapsed metric.
 func setElapsed(metrics map[string]float64, seconds float64) map[string]float64 {
