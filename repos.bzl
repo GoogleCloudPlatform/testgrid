@@ -1227,6 +1227,14 @@ def go_repositories():
         sum = "h1:K1Xf3bKttbF+koVGaX5xngRIZ5bVjbmPnaxE/dR08uY=",
         version = "v0.0.0-20201230142125-a7e3863a1245",
     )
+    go_repository(
+        name = "com_github_sethvargo_go_retry",
+        build_file_generation = "on",
+        build_file_proto_mode = "disable",
+        importpath = "github.com/sethvargo/go-retry",
+        sum = "h1:T+jHEQy/zKJf5s95UkguisicE0zuF9y7+/vgz08Ocec=",
+        version = "v0.2.4",
+    )
 
     go_repository(
         name = "com_github_sirupsen_logrus",

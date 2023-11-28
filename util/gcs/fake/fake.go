@@ -259,16 +259,32 @@ func (u Upload) Attrs(path gcs.Path) *storage.ObjectAttrs {
 }
 
 // Opener opens given paths.
-type Opener map[gcs.Path]Object
+type Opener struct {
+	Paths map[gcs.Path]Object
+	Lock  *sync.RWMutex
+}
 
 // Open returns a handle for a given path.
 func (fo Opener) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, *storage.ReaderObjectAttrs, error) {
-	o, ok := fo[path]
+	if fo.Lock != nil {
+		fo.Lock.Lock()
+		defer fo.Lock.Unlock()
+	}
+	o, ok := fo.Paths[path]
 	if !ok {
 		return nil, nil, storage.ErrObjectNotExist
 	}
 	if o.OpenErr != nil {
-		return nil, nil, o.OpenErr
+		// Only error is OpenErr is specified.
+		if !o.OpenOnRetry {
+			return nil, nil, o.OpenErr
+		}
+		// If retry is also specified, only error the first time.
+		if !o.OpenHasErred {
+			o.OpenHasErred = true
+			fo.Paths[path] = o
+			return nil, nil, o.OpenErr
+		} // else o.OpenOnRetry + o.OpenHasErred, so continue.
 	}
 	return &Reader{
 		Buf:      bytes.NewBufferString(o.Data),
@@ -279,11 +295,13 @@ func (fo Opener) Open(ctx context.Context, path gcs.Path) (io.ReadCloser, *stora
 
 // Object holds data for an object.
 type Object struct {
-	Data     string
-	Attrs    *storage.ReaderObjectAttrs
-	OpenErr  error
-	ReadErr  error
-	CloseErr error
+	Data         string
+	Attrs        *storage.ReaderObjectAttrs
+	OpenOnRetry  bool // If true and OpenErr != nil, only error the first time Open() is called.
+	OpenHasErred bool
+	OpenErr      error
+	ReadErr      error
+	CloseErr     error
 }
 
 // A Reader reads a file.
