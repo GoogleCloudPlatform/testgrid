@@ -73,7 +73,7 @@ func TestObserve_OnInit(t *testing.T) {
 			defer cancel()
 
 			client := fakeClient()
-			client.Opener[*path] = fake.Object{
+			client.Opener.Paths[*path] = fake.Object{
 				Data: string(mustMarshalConfig(test.config)),
 				Attrs: &storage.ReaderObjectAttrs{
 					Generation: test.configGeneration,
@@ -102,6 +102,87 @@ func TestObserve_OnInit(t *testing.T) {
 					t.Errorf("got dashboard %v, expected %v", result, test.expectInitial)
 				}
 			case <-time.After(5 * time.Second):
+				t.Error("expected an initial snapshot, but got none")
+			}
+		})
+	}
+}
+
+func TestObserve_OnInitRetry(t *testing.T) {
+	tests := []struct {
+		name             string
+		config           *configpb.Configuration
+		configGeneration int64
+		openErr          error
+		openOnRetry      bool
+		expectInitial    *configpb.Dashboard
+		expectError      bool
+	}{
+		{
+			name: "Reads config on retry",
+			config: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard",
+					},
+				},
+			},
+			openErr:     errors.New("fake error"),
+			openOnRetry: true,
+			expectInitial: &configpb.Dashboard{
+				Name: "dashboard",
+			},
+		},
+		{
+			name:        "Returns error if config isn't present on retry",
+			openErr:     errors.New("fake error"),
+			expectError: true,
+		},
+	}
+
+	path, err := gcs.NewPath("gs://config/example")
+	if err != nil {
+		t.Fatal("could not path")
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			client := fakeClient()
+			client.Opener.Paths[*path] = fake.Object{
+				Data: string(mustMarshalConfig(test.config)),
+				Attrs: &storage.ReaderObjectAttrs{
+					Generation: 1,
+				},
+				OpenErr:     test.openErr,
+				OpenOnRetry: test.openOnRetry,
+			}
+			client.Stater[*path] = fake.Stat{
+				Attrs: storage.ObjectAttrs{
+					Generation: 1,
+				},
+			}
+
+			snaps, err := Observe(ctx, nil, client, *path, nil)
+
+			if !test.expectError && err != nil {
+				t.Errorf("Observe() got unexpected error: %v", err)
+			} else if test.expectError && err == nil {
+				t.Errorf("Observe() did not error as expected.")
+			}
+
+			if test.expectInitial == nil {
+				return
+			}
+
+			select {
+			case cs := <-snaps:
+				if result := cs.Dashboards["dashboard"]; !proto.Equal(result, test.expectInitial) {
+					t.Errorf("got dashboard %v, expected %v", result, test.expectInitial)
+				}
+			case <-time.After(30 * time.Second):
 				t.Error("expected an initial snapshot, but got none")
 			}
 		})
@@ -169,7 +250,7 @@ func TestObserve_OnTick(t *testing.T) {
 			defer cancel()
 
 			client := fakeClient()
-			client.Opener[*path] = fake.Object{
+			client.Opener.Paths[*path] = fake.Object{
 				Data: string(mustMarshalConfig(initialConfig)),
 				Attrs: &storage.ReaderObjectAttrs{
 					Generation: 1,
@@ -190,7 +271,7 @@ func TestObserve_OnTick(t *testing.T) {
 			<-snaps
 
 			// Change the config
-			client.Opener[*path] = fake.Object{
+			client.Opener.Paths[*path] = fake.Object{
 				Data: string(mustMarshalConfig(test.config)),
 				Attrs: &storage.ReaderObjectAttrs{
 					Generation: test.configGeneration,
@@ -350,7 +431,7 @@ func TestObserve_Data(t *testing.T) {
 			defer cancel()
 
 			client := fakeClient()
-			client.Opener[*path] = fake.Object{
+			client.Opener.Paths[*path] = fake.Object{
 				Data: string(mustMarshalConfig(test.config)),
 				Attrs: &storage.ReaderObjectAttrs{
 					Generation: 1,
@@ -394,7 +475,10 @@ func fakeClient() *fake.ConditionalClient {
 			Uploader: fake.Uploader{},
 			Client: fake.Client{
 				Lister: fake.Lister{},
-				Opener: fake.Opener{},
+				Opener: fake.Opener{
+					Paths: map[gcs.Path]fake.Object{},
+					Lock:  &sync.RWMutex{},
+				},
 			},
 			Stater: fake.Stater{},
 		},

@@ -389,13 +389,15 @@ func TestUpdate(t *testing.T) {
 					Uploader: fakeUploader{},
 					Client: fakeClient{
 						Lister: fakeLister{},
-						Opener: fakeOpener{},
+						Opener: fakeOpener{
+							Paths: map[gcs.Path]fake.Object{},
+						},
 					},
 				},
 				Lock: &sync.RWMutex{},
 			}
 
-			client.Opener[configPath] = fakeObject{
+			client.Opener.Paths[configPath] = fakeObject{
 				Data: func() string {
 					b, err := config.MarshalBytes(tc.config)
 					if err != nil {
@@ -2028,13 +2030,15 @@ func TestInflateDropAppend(t *testing.T) {
 					Uploader: fakeUploader{},
 					Client: fakeClient{
 						Lister: fakeLister{},
-						Opener: fakeOpener{},
+						Opener: fakeOpener{
+							Paths: map[gcs.Path]fake.Object{},
+						},
 					},
 				},
 			}
 
 			if tc.current != nil {
-				client.Opener[uploadPath] = *tc.current
+				client.Opener.Paths[uploadPath] = *tc.current
 			}
 
 			buildsPath := newPathOrDie("gs://" + tc.group.GcsPrefix)
@@ -2079,13 +2083,15 @@ func TestInflateDropAppend(t *testing.T) {
 				}
 				t.Logf("InflateDropAppend() generated a binary diff (-want +got):\n%s", diff)
 				fakeDownloader := fakeOpener{
-					uploadPath: {Data: string(actual[uploadPath].Buf)},
+					Paths: map[gcs.Path]fake.Object{
+						uploadPath: {Data: string(actual[uploadPath].Buf)},
+					},
 				}
 				actualGrid, _, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
 					t.Errorf("actual gcs.DownloadGrid() got unexpected error: %v", err)
 				}
-				fakeDownloader[uploadPath] = fakeObject{Data: string(tc.expected.Buf)}
+				fakeDownloader.Paths[uploadPath] = fakeObject{Data: string(tc.expected.Buf)}
 				expectedGrid, _, err := gcs.DownloadGrid(ctx, fakeDownloader, uploadPath)
 				if err != nil {
 					t.Errorf("expected gcs.DownloadGrid() got unexpected error: %v", err)

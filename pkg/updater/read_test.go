@@ -1178,7 +1178,10 @@ func TestReadColumns(t *testing.T) {
 			defer cancel()
 			client := fakeClient{
 				Lister: fake.Lister{},
-				Opener: fake.Opener{},
+				Opener: fake.Opener{
+					Paths: map[gcs.Path]fake.Object{},
+					Lock:  &sync.RWMutex{},
+				},
 			}
 
 			builds := addBuilds(&client, path, tc.builds...)
@@ -1668,7 +1671,10 @@ func TestReadResult(t *testing.T) {
 			defer cancel()
 			client := fakeClient{
 				Lister: fake.Lister{},
-				Opener: fake.Opener{},
+				Opener: fake.Opener{
+					Paths: map[gcs.Path]fake.Object{},
+					Lock:  &sync.RWMutex{},
+				},
 			}
 
 			fi := fakeIterator{}
@@ -1680,7 +1686,7 @@ func TestReadResult(t *testing.T) {
 				fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 					Name: p.Object(),
 				})
-				client.Opener[*p] = fo
+				client.Opener.Paths[*p] = fo
 			}
 			client.Lister[path] = fi
 
@@ -1850,7 +1856,9 @@ func TestReadSuites(t *testing.T) {
 			defer cancel()
 			client := fakeClient{
 				Lister: fake.Lister{},
-				Opener: fake.Opener{},
+				Opener: fake.Opener{
+					Paths: map[gcs.Path]fake.Object{},
+				},
 			}
 
 			fi := fakeIterator{
@@ -1864,7 +1872,7 @@ func TestReadSuites(t *testing.T) {
 				fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 					Name: p.Object(),
 				})
-				client.Opener[*p] = fo
+				client.Opener.Paths[*p] = fo
 			}
 			client.Lister[path] = fi
 
@@ -1898,6 +1906,10 @@ func TestReadSuites(t *testing.T) {
 }
 
 func addBuilds(fc *fake.Client, path gcs.Path, s ...fakeBuild) []gcs.Build {
+	if fc.Opener.Lock != nil {
+		fc.Opener.Lock.Lock()
+		defer fc.Opener.Lock.Unlock()
+	}
 	var builds []gcs.Build
 	for _, build := range s {
 		buildPath := resolveOrDie(&path, build.id+"/")
@@ -1909,25 +1921,25 @@ func addBuilds(fc *fake.Client, path gcs.Path, s ...fakeBuild) []gcs.Build {
 			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.Opener[*p] = *build.podInfo
+			fc.Opener.Paths[*p] = *build.podInfo
 		}
 		if build.started != nil {
 			p := resolveOrDie(buildPath, "started.json")
 			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.Opener[*p] = *build.started
+			fc.Opener.Paths[*p] = *build.started
 		}
 		if build.finished != nil {
 			p := resolveOrDie(buildPath, "finished.json")
 			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.Opener[*p] = *build.finished
+			fc.Opener.Paths[*p] = *build.finished
 		}
 		if len(build.passed)+len(build.failed) > 0 {
 			p := resolveOrDie(buildPath, "junit_automatic.xml")
-			fc.Opener[*p] = fake.Object{Data: makeJunit(build.passed, build.failed)}
+			fc.Opener.Paths[*p] = fake.Object{Data: makeJunit(build.passed, build.failed)}
 			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
@@ -1937,7 +1949,7 @@ func addBuilds(fc *fake.Client, path gcs.Path, s ...fakeBuild) []gcs.Build {
 			fi.Objects = append(fi.Objects, storage.ObjectAttrs{
 				Name: p.Object(),
 			})
-			fc.Opener[*p] = fo
+			fc.Opener.Paths[*p] = fo
 		}
 		fc.Lister[*buildPath] = fi
 	}

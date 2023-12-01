@@ -223,7 +223,9 @@ func TestFixPersistent(t *testing.T) {
 				Uploader: fake.Uploader{},
 				Client: fake.Client{
 					Opener: fake.Opener{
-						*path: tc.currently,
+						Paths: map[gcs.Path]fake.Object{
+							*path: tc.currently,
+						},
 					},
 				},
 			}

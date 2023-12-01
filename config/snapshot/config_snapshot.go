@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
+	"github.com/sethvargo/go-retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -119,6 +120,22 @@ func updateHash(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*C
 }
 
 func fetchConfig(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
+	backoff := retry.WithMaxRetries(2, retry.NewExponential(5*time.Second))
+
+	var cfg *configpb.Configuration
+	var attrs *storage.ReaderObjectAttrs
+	err := retry.Do(ctx, backoff, func(innerCtx context.Context) error {
+		var onceErr error
+		cfg, attrs, onceErr = fetchConfigOnce(innerCtx, client, configPath)
+		if onceErr != nil {
+			return retry.RetryableError(onceErr)
+		}
+		return nil
+	})
+	return cfg, attrs, err
+}
+
+func fetchConfigOnce(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*configpb.Configuration, *storage.ReaderObjectAttrs, error) {
 	r, attrs, err := client.Open(ctx, configPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open: %w", err)

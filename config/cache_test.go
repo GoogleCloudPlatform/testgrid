@@ -100,14 +100,16 @@ func Test_ReadGCS(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			cache = test.currentCache
 			client := fake.Client{
-				Opener: fake.Opener{},
+				Opener: fake.Opener{
+					Paths: map[gcs.Path]fake.Object{},
+				},
 			}
 			expectedAttrs := &storage.ReaderObjectAttrs{
 				LastModified: test.remoteLastModified,
 				Generation:   test.remoteGeneration,
 			}
 
-			client.Opener[mustPath("gs://example")] = fake.Object{
+			client.Opener.Paths[mustPath("gs://example")] = fake.Object{
 				Data:  string(test.remoteData),
 				Attrs: expectedAttrs,
 			}

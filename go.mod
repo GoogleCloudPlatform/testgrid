@@ -17,6 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/client_model v0.3.0
+	github.com/sethvargo/go-retry v0.2.4
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/api v0.134.0
 	google.golang.org/genproto v0.0.0-20230731193218-e0aa005b6bdf
