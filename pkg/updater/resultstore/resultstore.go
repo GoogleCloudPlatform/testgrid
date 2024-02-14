@@ -44,15 +44,23 @@ var _ updater.TargetResult = &singleActionResult{}
 // TestResultStatus represents the status of a test result.
 type TestResultStatus int64
 
+// shouldUpdate returns whether the ResultStore updater should update this test group.
+func shouldUpdate(log logrus.FieldLogger, tg *configpb.TestGroup, client *DownloadClient) bool {
+	if tg.GetResultSource().GetResultstoreConfig() == nil {
+		log.Debug("Skipping non-ResultStore group.")
+		return false
+	}
+	if client == nil {
+		log.WithField("name", tg.GetName()).Error("ResultStore update requested, but no client found.")
+		return false
+	}
+	return true
+}
+
 // Updater returns a ResultStore-based GroupUpdater, which knows how to process result data stored in ResultStore.
 func Updater(resultStoreClient *DownloadClient, gcsClient gcs.Client, groupTimeout time.Duration, write bool) updater.GroupUpdater {
 	return func(parent context.Context, log logrus.FieldLogger, client gcs.Client, tg *configpb.TestGroup, gridPath gcs.Path) (bool, error) {
-		if !tg.UseKubernetesClient && (tg.ResultSource == nil || tg.ResultSource.GetGcsConfig() == nil) {
-			log.Debug("Skipping non-kubernetes client group")
-			return false, nil
-		}
-		if resultStoreClient == nil {
-			log.WithField("name", tg.GetName()).Warn("ResultStore update requested, but no client found.")
+		if !shouldUpdate(log, tg, resultStoreClient) {
 			return false, nil
 		}
 		ctx, cancel := context.WithTimeout(parent, groupTimeout)
