@@ -83,7 +83,7 @@ func mapTasks(cfg *snapshot.Config) map[string][]writeTask {
 // Fixer should adjust the queue until the context expires.
 type Fixer func(context.Context, *config.TestGroupQueue) error
 
-//UpdateOptions aggregates the Update function parameter into a single structure.
+// UpdateOptions aggregates the Update function parameter into a single structure.
 type UpdateOptions struct {
 	ConfigPath          gcs.Path
 	ReadConcurrency     int
@@ -402,13 +402,13 @@ func tabulate(ctx context.Context, log logrus.FieldLogger, grid *statepb.Grid, t
 		}
 		inflatedGrid = mergeGrids(existingInflatedGrid, inflatedGrid)
 	}
-	grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold)
+	grid = updater.ConstructGrid(log, inflatedGrid, issues, alert, unalert, usesK8sClient, groupCfg.GetUserProperty(), brokenThreshold, groupCfg.GetColumnHeader())
 	return grid, nil
 }
 
 // mergeGrids merges two sorted, inflated grids together.
 // Precondition: "addition" is an output of an Updater with an "unknown" column last.
-//    This final column will be dropped and replaced with existing results.
+// This final column will be dropped and replaced with existing results.
 func mergeGrids(existing, addition []updater.InflatedColumn) []updater.InflatedColumn {
 	if len(addition) == 0 {
 		return existing

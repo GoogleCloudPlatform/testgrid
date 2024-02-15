@@ -1027,7 +1027,7 @@ func days(d float64) time.Duration {
 // ConstructGrid will append all the inflatedColumns into the returned Grid.
 //
 // The returned Grid has correctly compressed row values.
-func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[string][]string, failuresToAlert, passesToDisableAlert int, useCommitAsBuildID bool, userProperty string, brokenThreshold float32) *statepb.Grid {
+func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[string][]string, failuresToAlert, passesToDisableAlert int, useCommitAsBuildID bool, userProperty string, brokenThreshold float32, columnHeader []*configpb.TestGroup_ColumnHeader) *statepb.Grid {
 	// Add the columns into a grid message
 	var grid statepb.Grid
 	rows := map[string]*statepb.Row{} // For fast target => row lookup
@@ -1060,7 +1060,7 @@ func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[str
 		})
 	}
 
-	alertRows(grid.Columns, grid.Rows, failuresToAlert, passesToDisableAlert, useCommitAsBuildID, userProperty)
+	alertRows(grid.Columns, grid.Rows, failuresToAlert, passesToDisableAlert, useCommitAsBuildID, userProperty, columnHeader)
 	sort.SliceStable(grid.Rows, func(i, j int) bool {
 		return sortorder.NaturalLess(grid.Rows[i].Name, grid.Rows[j].Name)
 	})
@@ -1091,7 +1091,7 @@ func ConstructGrid(log logrus.FieldLogger, cols []InflatedColumn, issues map[str
 // The returned Grid has correctly compressed row values.
 func constructGridFromGroupConfig(log logrus.FieldLogger, group *configpb.TestGroup, cols []InflatedColumn, issues map[string][]string) *statepb.Grid {
 	usesK8sClient := group.UseKubernetesClient || (group.GetResultSource().GetGcsConfig() != nil)
-	return ConstructGrid(log, cols, issues, int(group.GetNumFailuresToAlert()), int(group.GetNumPassesToDisableAlert()), usesK8sClient, group.GetUserProperty(), 0.0)
+	return ConstructGrid(log, cols, issues, int(group.GetNumFailuresToAlert()), int(group.GetNumPassesToDisableAlert()), usesK8sClient, group.GetUserProperty(), 0.0, group.GetColumnHeader())
 }
 
 func dropEmptyRows(log logrus.FieldLogger, grid *statepb.Grid, rows map[string]*statepb.Row) {
@@ -1271,14 +1271,14 @@ func AppendColumn(grid *statepb.Grid, rows map[string]*statepb.Row, inflated Inf
 }
 
 // alertRows configures the alert for every row that has one.
-func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int, useCommitAsBuildID bool, userProperty string) {
+func alertRows(cols []*statepb.Column, rows []*statepb.Row, openFailures, closePasses int, useCommitAsBuildID bool, userProperty string, columnHeader []*configpb.TestGroup_ColumnHeader) {
 	for _, r := range rows {
-		r.AlertInfo = alertRow(cols, r, openFailures, closePasses, useCommitAsBuildID, userProperty)
+		r.AlertInfo = alertRow(cols, r, openFailures, closePasses, useCommitAsBuildID, userProperty, columnHeader)
 	}
 }
 
 // alertRow returns an AlertInfo proto if there have been failuresToOpen consecutive failures more recently than passesToClose.
-func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int, useCommitAsBuildID bool, userPropertyName string) *statepb.AlertInfo {
+func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesToClose int, useCommitAsBuildID bool, userPropertyName string, columnHeader []*configpb.TestGroup_ColumnHeader) *statepb.AlertInfo {
 	if failuresToOpen == 0 {
 		return nil
 	}
@@ -1292,6 +1292,7 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 	var latestPass *statepb.Column
 	var failIdx int
 	var latestFailIdx int
+	customColumnHeaders := make(map[string]string)
 	// find the first number of consecutive passesToClose (no alert)
 	// or else failuresToOpen (alert).
 	for _, col := range cols {
@@ -1339,6 +1340,16 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 			concurrentFailures = 0
 		}
 		compressedIdx++
+
+		for i := 0; i < len(columnHeader); i++ {
+			if columnHeader[i].Label != "" {
+				customColumnHeaders[columnHeader[i].Label] = col.Extra[i]
+			} else if columnHeader[i].Property != "" {
+				customColumnHeaders[columnHeader[i].Property] = col.Extra[i]
+			} else {
+				customColumnHeaders[columnHeader[i].ConfigurationValue] = col.Extra[i]
+			}
+		}
 	}
 	if concurrentFailures < failuresToOpen {
 		return nil
@@ -1356,24 +1367,26 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 			userPropertyName: row.UserProperty[latestFailIdx],
 		}
 	}
-	return alertInfo(totalFailures, msg, id, latestID, userProperties, firstFail, latestFail, latestPass, useCommitAsBuildID)
+
+	return alertInfo(totalFailures, msg, id, latestID, userProperties, firstFail, latestFail, latestPass, useCommitAsBuildID, customColumnHeaders)
 }
 
 // alertInfo returns an alert proto with the configured fields
-func alertInfo(failures int32, msg, cellID, latestCellID string, userProperties map[string]string, fail, latestFail, pass *statepb.Column, useCommitAsBuildID bool) *statepb.AlertInfo {
+func alertInfo(failures int32, msg, cellID, latestCellID string, userProperties map[string]string, fail, latestFail, pass *statepb.Column, useCommitAsBuildID bool, customColumnHeaders map[string]string) *statepb.AlertInfo {
 	return &statepb.AlertInfo{
-		FailCount:         failures,
-		FailBuildId:       buildID(fail, useCommitAsBuildID),
-		LatestFailBuildId: buildID(latestFail, useCommitAsBuildID),
-		FailTime:          stamp(fail),
-		FailTestId:        cellID,
-		LatestFailTestId:  latestCellID,
-		FailureMessage:    msg,
-		PassTime:          stamp(pass),
-		PassBuildId:       buildID(pass, useCommitAsBuildID),
-		EmailAddresses:    emailAddresses(fail),
-		HotlistIds:        hotlistIDs(fail),
-		Properties:        userProperties,
+		FailCount:           failures,
+		FailBuildId:         buildID(fail, useCommitAsBuildID),
+		LatestFailBuildId:   buildID(latestFail, useCommitAsBuildID),
+		FailTime:            stamp(fail),
+		FailTestId:          cellID,
+		LatestFailTestId:    latestCellID,
+		FailureMessage:      msg,
+		PassTime:            stamp(pass),
+		PassBuildId:         buildID(pass, useCommitAsBuildID),
+		EmailAddresses:      emailAddresses(fail),
+		HotlistIds:          hotlistIDs(fail),
+		Properties:          userProperties,
+		CustomColumnHeaders: customColumnHeaders,
 	}
 }
 

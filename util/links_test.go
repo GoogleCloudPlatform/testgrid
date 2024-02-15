@@ -57,9 +57,13 @@ func TestTokens(t *testing.T) {
 						Key:   "prop",
 						Value: "<my-prop>",
 					},
+					{
+						Key:   "foo",
+						Value: "<custom-0>",
+					},
 				},
 			},
-			want: []string{WorkflowName, WorkflowID, TestID, TestName, GcsPrefix, BuildID, "<my-prop>"},
+			want: []string{WorkflowName, WorkflowID, TestID, TestName, GcsPrefix, BuildID, "<my-prop>", "<custom-0>"},
 		},
 		{
 			name: "duplicate tokens",
@@ -137,10 +141,14 @@ func TestExpandTemplate(t *testing.T) {
 						Key:   "prop",
 						Value: "<my-prop>",
 					},
+					{
+						Key:   "foo",
+						Value: "<custom-0>",
+					},
 				},
 			},
 			parameters: nil,
-			want:       "https://test.com/%3Cworkflow-name%3E/%3Cworkflow-id%3E/%3Ctest-id%3E/%3Ctest-name%3E?build=%3Cbuild-id%3E&prefix=%3Cgcs-prefix%3E&prop=%3Cmy-prop%3E",
+			want:       "https://test.com/%3Cworkflow-name%3E/%3Cworkflow-id%3E/%3Ctest-id%3E/%3Ctest-name%3E?build=%3Cbuild-id%3E&foo=%3Ccustom-0%3E&prefix=%3Cgcs-prefix%3E&prop=%3Cmy-prop%3E",
 		},
 		{
 			name:       "empty",
@@ -165,6 +173,10 @@ func TestExpandTemplate(t *testing.T) {
 						Key:   "prop",
 						Value: "<my-prop>",
 					},
+					{
+						Key:   "foo",
+						Value: "<custom-0>",
+					},
 				},
 			},
 			parameters: map[string]string{
@@ -175,8 +187,9 @@ func TestExpandTemplate(t *testing.T) {
 				GcsPrefix:    "my-bucket/has/results",
 				BuildID:      "build-1",
 				"<my-prop>":  "foo",
+				"<custom-0>": "bar",
 			},
-			want: "https://test.com///my-workflow/workflow-id-1/test-id-1///path/to:my-test?build=build-1&prefix=my-bucket%2Fhas%2Fresults&prop=foo",
+			want: "https://test.com///my-workflow/workflow-id-1/test-id-1///path/to:my-test?build=build-1&foo=bar&prefix=my-bucket%2Fhas%2Fresults&prop=foo",
 		},
 		{
 			name: "invalid url",
@@ -285,15 +298,16 @@ func TestExpandTemplateString(t *testing.T) {
 		},
 		{
 			name:        "basically works",
-			templateStr: "https://test.com/<workflow-name>/<workflow-id>/<test-id>/<test-name>/<my-prop>",
+			templateStr: "https://test.com/<workflow-name>/<workflow-id>/<test-id>/<test-name>/<my-prop>/<custom-0>",
 			parameters: map[string]string{
 				WorkflowName: "//my-workflow",
 				WorkflowID:   "workflow-id-1",
 				TestID:       "test-id-1",
 				TestName:     "//path/to:my-test",
 				"<my-prop>":  "foo",
+				"<custom-0>": "magic",
 			},
-			want: "https://test.com///my-workflow/workflow-id-1/test-id-1///path/to:my-test/foo",
+			want: "https://test.com///my-workflow/workflow-id-1/test-id-1///path/to:my-test/foo/magic",
 		},
 		{
 			name:        "duplicate tokens",

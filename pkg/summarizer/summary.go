@@ -28,6 +28,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -97,7 +98,7 @@ func lockDashboard(ctx context.Context, client gcs.ConditionalClient, path gcs.P
 // Fixer should adjust the dashboard queue until the context expires.
 type Fixer func(context.Context, *config.DashboardQueue) error
 
-//UpdateOptions aggregates the Update function parameter into a single structure.
+// UpdateOptions aggregates the Update function parameter into a single structure.
 type UpdateOptions struct {
 	ConfigPath        gcs.Path
 	Concurrency       int
@@ -721,7 +722,7 @@ func updateTab(ctx context.Context, tab *configpb.DashboardTab, group *configpb.
 
 	latest, latestSeconds := latestRun(grid.Columns)
 	alert := staleAlert(mod, latest, staleHours(tab), len(grid.Rows))
-	failures := failingTestSummaries(grid.Rows, tab.GetOpenTestTemplate(), group.GetGcsPrefix())
+	failures := failingTestSummaries(grid.Rows, tab.GetOpenTestTemplate(), group.GetGcsPrefix(), group.GetColumnHeader())
 	colsCells, brokenState := gridMetrics(len(grid.Columns), grid.Rows, recent, tab.BrokenColumnThreshold, features, tab.GetStatusCustomizationOptions())
 	metrics := tabMetrics(colsCells)
 	tabStatus := overallStatus(grid, recent, alert, brokenState, failures, features, colsCells, tab.GetStatusCustomizationOptions())
@@ -842,7 +843,7 @@ func staleAlert(mod, ran time.Time, stale time.Duration, rows int) string {
 }
 
 // failingTestSummaries returns details for every row with an active alert.
-func failingTestSummaries(rows []*statepb.Row, template *configpb.LinkTemplate, gcsPrefix string) []*summarypb.FailingTestSummary {
+func failingTestSummaries(rows []*statepb.Row, template *configpb.LinkTemplate, gcsPrefix string, columnHeader []*configpb.TestGroup_ColumnHeader) []*summarypb.FailingTestSummary {
 	var failures []*summarypb.FailingTestSummary
 	for _, row := range rows {
 		if row.AlertInfo == nil {
@@ -858,15 +859,16 @@ func failingTestSummaries(rows []*statepb.Row, template *configpb.LinkTemplate, 
 			FailureMessage:    alert.FailureMessage,
 			PassBuildId:       alert.PassBuildId,
 			// TODO(fejta): better build info
-			BuildLink:          alert.BuildLink,
-			BuildLinkText:      alert.BuildLinkText,
-			BuildUrlText:       alert.BuildUrlText,
-			LinkedBugs:         row.Issues,
-			FailTestLink:       buildFailLink(alert.FailTestId, row.Id),
-			LatestFailTestLink: buildFailLink(alert.LatestFailTestId, row.Id),
-			Properties:         alert.Properties,
-			HotlistIds:         alert.HotlistIds,
-			EmailAddresses:     alert.EmailAddresses,
+			BuildLink:           alert.BuildLink,
+			BuildLinkText:       alert.BuildLinkText,
+			BuildUrlText:        alert.BuildUrlText,
+			LinkedBugs:          row.Issues,
+			FailTestLink:        buildFailLink(alert.FailTestId, row.Id),
+			LatestFailTestLink:  buildFailLink(alert.LatestFailTestId, row.Id),
+			Properties:          alert.Properties,
+			CustomColumnHeaders: alert.CustomColumnHeaders,
+			HotlistIds:          alert.HotlistIds,
+			EmailAddresses:      alert.EmailAddresses,
 		}
 		if alert.PassTime != nil {
 			sum.PassTimestamp = float64(alert.PassTime.Seconds)
@@ -874,9 +876,21 @@ func failingTestSummaries(rows []*statepb.Row, template *configpb.LinkTemplate, 
 		if alert.FailTime != nil {
 			sum.FailTimestamp = float64(alert.FailTime.Seconds)
 		}
+
+		propertyToColumnHeader := make(map[string]string)
+		for i := 0; i < len(columnHeader); i++ {
+			if columnHeader[i].Label != "" {
+				propertyToColumnHeader["<custom-"+strconv.Itoa(i)+">"] = columnHeader[i].Label
+			} else if columnHeader[i].Property != "" {
+				propertyToColumnHeader["<custom-"+strconv.Itoa(i)+">"] = columnHeader[i].Property
+			} else {
+				propertyToColumnHeader["<custom-"+strconv.Itoa(i)+">"] = columnHeader[i].ConfigurationValue
+			}
+		}
+
 		// Verify what the links for alerts would be with the new method.
-		failLink := testResultLink(template, alert.GetProperties(), alert.GetFailTestId(), row.GetId(), alert.GetFailBuildId(), gcsPrefix)
-		latestFailLink := testResultLink(template, alert.GetProperties(), alert.GetLatestFailTestId(), row.GetId(), alert.GetLatestFailBuildId(), gcsPrefix)
+		failLink := testResultLink(template, alert.GetProperties(), alert.GetFailTestId(), row.GetId(), alert.GetFailBuildId(), gcsPrefix, propertyToColumnHeader, alert.CustomColumnHeaders)
+		latestFailLink := testResultLink(template, alert.GetProperties(), alert.GetLatestFailTestId(), row.GetId(), alert.GetLatestFailBuildId(), gcsPrefix, propertyToColumnHeader, alert.CustomColumnHeaders)
 		log := logrus.WithField("failLink", failLink).WithField("latestFailLink", latestFailLink)
 		if failLink == "" || latestFailLink == "" {
 			log.Warning("Failed to create failure link.")
@@ -897,7 +911,7 @@ func buildFailLink(testID, target string) string {
 	return fmt.Sprintf("%s %s", url.PathEscape(testID), url.PathEscape(target))
 }
 
-func testResultLink(template *configpb.LinkTemplate, properties map[string]string, testID, target, buildID, gcsPrefix string) string {
+func testResultLink(template *configpb.LinkTemplate, properties map[string]string, testID, target, buildID, gcsPrefix string, propertyToColumnHeader map[string]string, customColumnHeaders map[string]string) string {
 	// Return the result of open_test_template for the tab.
 	// This assumes that open_test_template uses a limited set of tokens (since it's not in the context of a browser).
 	// Assume that the following are valid: <gcs_prefix>, <test-name>, <workflow-id>, <workflow-name>, <test-id>, <build ID>
@@ -922,6 +936,10 @@ func testResultLink(template *configpb.LinkTemplate, properties map[string]strin
 			parameters[util.TestID] = testID
 		case util.BuildID:
 			parameters[util.BuildID] = buildID
+		case util.CustomColumnRe.FindString(token):
+			if v, ok := customColumnHeaders[propertyToColumnHeader[token]]; ok {
+				parameters[token] = v
+			}
 		default:
 			// Didn't match any simple tokens, check if it's a property.
 			trimmedToken := strings.NewReplacer("<", "", ">", "").Replace(token)
