@@ -256,6 +256,46 @@ func validateEmails(addresses string) error {
 	return nil
 }
 
+func validateResultStoreSource(tg *configpb.TestGroup) error {
+	if rs := tg.GetResultSource().GetResultstoreConfig(); rs != nil {
+		// Can't define other sources if ResultStore source is used.
+		if tg.GetGcsPrefix() != "" {
+			return errors.New("cannot define both resultstore_config and gcs_prefix")
+		}
+		if tg.GetUseKubernetesClient() {
+			return errors.New("cannot define both resultstore_config and use_kubernetes_client")
+		}
+		// Can't leave project ID blank.
+		if rs.GetProject() == "" {
+			return errors.New("project ID in resultstore_config cannot be empty")
+		}
+	}
+	return nil
+}
+
+func validateGCSSource(tg *configpb.TestGroup) error {
+	if rs := tg.GetResultSource().GetGcsConfig(); rs != nil {
+		// Can't define other sources if GCS source is used.
+		if tg.GetGcsPrefix() != "" {
+			return errors.New("cannot define both resultstore_config and gcs_prefix")
+		}
+		if tg.GetUseKubernetesClient() {
+			return errors.New("cannot define both resultstore_config and use_kubernetes_client")
+		}
+		// Can't leave the source's GCS prefix blank.
+		if rs.GetGcsPrefix() == "" {
+			return errors.New("gcs_prefix in gcs_config cannot be empty")
+		}
+		// Pubsub project and subscription must both be empty or filled.
+		proj := rs.GetPubsubProject()
+		sub := rs.GetPubsubSubscription()
+		if (proj == "" && sub != "") || (proj != "" && sub == "") {
+			return fmt.Errorf("pubsub project and subscription must both be empty or filled; got project %q and subscription %q", proj, sub)
+		}
+	}
+	return nil
+}
+
 func validateTestGroup(tg *configpb.TestGroup) error {
 	var mErr error
 	if tg == nil {
@@ -270,6 +310,14 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 	}
 	if tg.GetNumColumnsRecent() <= 0 {
 		mErr = multierror.Append(mErr, errors.New("num_columns_recent should be positive"))
+	}
+
+	// Result source should be valid.
+	if err := validateResultStoreSource(tg); err != nil {
+		mErr = multierror.Append(mErr, fmt.Errorf("error in ResultStore result source: %v", err))
+	}
+	if err := validateGCSSource(tg); err != nil {
+		mErr = multierror.Append(mErr, fmt.Errorf("error in GCS result source: %v", err))
 	}
 
 	// Regexes should be valid.
