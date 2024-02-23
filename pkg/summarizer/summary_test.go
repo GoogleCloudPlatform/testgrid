@@ -1600,17 +1600,27 @@ func TestFailingTestSummaries(t *testing.T) {
 		},
 	}
 	defaultGcsPrefix := "my-bucket/logs/cool-job"
+	defaultColumnHeader := []*configpb.TestGroup_ColumnHeader{
+		{
+			Property: "foo",
+		},
+		{
+			Label: "hello",
+		},
+	}
 	cases := []struct {
-		name      string
-		template  *configpb.LinkTemplate
-		gcsPrefix string
-		rows      []*statepb.Row
-		expected  []*summarypb.FailingTestSummary
+		name         string
+		template     *configpb.LinkTemplate
+		gcsPrefix    string
+		columnHeader []*configpb.TestGroup_ColumnHeader
+		rows         []*statepb.Row
+		expected     []*summarypb.FailingTestSummary
 	}{
 		{
-			name:      "do not alert by default",
-			template:  defaultTemplate,
-			gcsPrefix: defaultGcsPrefix,
+			name:         "do not alert by default",
+			template:     defaultTemplate,
+			gcsPrefix:    defaultGcsPrefix,
+			columnHeader: defaultColumnHeader,
 			rows: []*statepb.Row{
 				{},
 				{},
@@ -1620,6 +1630,11 @@ func TestFailingTestSummaries(t *testing.T) {
 			name:      "alert when rows have alerts",
 			template:  defaultTemplate,
 			gcsPrefix: defaultGcsPrefix,
+			columnHeader: []*configpb.TestGroup_ColumnHeader{
+				{
+					Property: "foo",
+				},
+			},
 			rows: []*statepb.Row{
 				{},
 				{
@@ -1637,6 +1652,9 @@ func TestFailingTestSummaries(t *testing.T) {
 						FailureMessage:    "pop tart",
 						Properties: map[string]string{
 							"ham": "eggs",
+						},
+						CustomColumnHeaders: map[string]string{
+							"foo": "bar",
 						},
 						HotlistIds: []string{},
 					},
@@ -1661,6 +1679,9 @@ func TestFailingTestSummaries(t *testing.T) {
 							"foo":   "bar",
 							"hello": "lots",
 						},
+						CustomColumnHeaders: map[string]string{
+							"foo": "notbar",
+						},
 						HotlistIds: []string{"111", "222"},
 					},
 				},
@@ -1684,6 +1705,9 @@ func TestFailingTestSummaries(t *testing.T) {
 					Properties: map[string]string{
 						"ham": "eggs",
 					},
+					CustomColumnHeaders: map[string]string{
+						"foo": "bar",
+					},
 					HotlistIds: []string{},
 				},
 				{
@@ -1704,6 +1728,9 @@ func TestFailingTestSummaries(t *testing.T) {
 						"foo":   "bar",
 						"hello": "lots",
 					},
+					CustomColumnHeaders: map[string]string{
+						"foo": "notbar",
+					},
 					HotlistIds: []string{"111", "222"},
 				},
 			},
@@ -1712,7 +1739,7 @@ func TestFailingTestSummaries(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := failingTestSummaries(tc.rows, tc.template, tc.gcsPrefix)
+			actual := failingTestSummaries(tc.rows, tc.template, tc.gcsPrefix, tc.columnHeader)
 			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("failingTestSummaries() (-want, +got): %s", diff)
 			}
@@ -3304,14 +3331,16 @@ func TestSummaryPath(t *testing.T) {
 
 func TestTestResultLink(t *testing.T) {
 	cases := []struct {
-		name       string
-		template   *configpb.LinkTemplate
-		properties map[string]string
-		testID     string
-		target     string
-		buildID    string
-		gcsPrefix  string
-		want       string
+		name                   string
+		template               *configpb.LinkTemplate
+		properties             map[string]string
+		testID                 string
+		target                 string
+		buildID                string
+		gcsPrefix              string
+		propertyToColumnHeader map[string]string
+		customColumnHeaders    map[string]string
+		want                   string
 	}{
 		{
 			name: "nil",
@@ -3334,14 +3363,20 @@ func TestTestResultLink(t *testing.T) {
 						Key:   "prop",
 						Value: "<my-prop>",
 					},
+					{
+						Key:   "foo",
+						Value: "<custom-0>",
+					},
 				},
 			},
-			properties: map[string]string{},
-			testID:     "",
-			target:     "",
-			buildID:    "",
-			gcsPrefix:  "",
-			want:       "https://test.com/%3Cencode:%3Cworkflow-name%3E%3E/%3Cworkflow-id%3E//?build=&prefix=&prop=%3Cmy-prop%3E",
+			properties:             map[string]string{},
+			testID:                 "",
+			target:                 "",
+			buildID:                "",
+			gcsPrefix:              "",
+			propertyToColumnHeader: map[string]string{},
+			customColumnHeaders:    map[string]string{},
+			want:                   "https://test.com/%3Cencode:%3Cworkflow-name%3E%3E/%3Cworkflow-id%3E//?build=&foo=%3Ccustom-0%3E&prefix=&prop=%3Cmy-prop%3E",
 		},
 		{
 			name:     "empty template",
@@ -3355,7 +3390,13 @@ func TestTestResultLink(t *testing.T) {
 			target:    "//path/to:my-test",
 			buildID:   "build-1",
 			gcsPrefix: "my-bucket/has/results",
-			want:      "",
+			propertyToColumnHeader: map[string]string{
+				"<custom-0>": "apple",
+			},
+			customColumnHeaders: map[string]string{
+				"apple": "fruit",
+			},
+			want: "",
 		},
 		{
 			name: "basically works",
@@ -3374,27 +3415,13 @@ func TestTestResultLink(t *testing.T) {
 						Key:   "prop",
 						Value: "<my-prop>",
 					},
-				},
-			},
-			properties: map[string]string{
-				"workflow-id":   "workflow-id-1",
-				"workflow-name": "//my:workflow",
-				"my-prop":       "foo",
-			},
-			testID:    "my-test-id-1",
-			target:    "//path/to:my-test",
-			buildID:   "build-1",
-			gcsPrefix: "my-bucket/has/results",
-			want:      "https://test.com/%2F%2Fmy:workflow/workflow-id-1/my-test-id-1/%2F%2Fpath%2Fto:my-test?build=build-1&prefix=my-bucket%2Fhas%2Fresults&prop=foo",
-		},
-		{
-			name: "non-matching tokens",
-			template: &configpb.LinkTemplate{
-				Url: "https://test.com/<greeting>",
-				Options: []*configpb.LinkOptionsTemplate{
 					{
-						Key:   "farewell",
-						Value: "<farewell>",
+						Key:   "foo",
+						Value: "<custom-0>",
+					},
+					{
+						Key:   "hello",
+						Value: "<custom-1>",
 					},
 				},
 			},
@@ -3407,7 +3434,47 @@ func TestTestResultLink(t *testing.T) {
 			target:    "//path/to:my-test",
 			buildID:   "build-1",
 			gcsPrefix: "my-bucket/has/results",
-			want:      "https://test.com/%3Cgreeting%3E?farewell=%3Cfarewell%3E",
+			propertyToColumnHeader: map[string]string{
+				"<custom-0>": "foo",
+				"<custom-1>": "hello",
+			},
+			customColumnHeaders: map[string]string{
+				"foo":   "bar",
+				"hello": "world",
+			},
+			want: "https://test.com/%2F%2Fmy:workflow/workflow-id-1/my-test-id-1/%2F%2Fpath%2Fto:my-test?build=build-1&foo=bar&hello=world&prefix=my-bucket%2Fhas%2Fresults&prop=foo",
+		},
+		{
+			name: "non-matching tokens",
+			template: &configpb.LinkTemplate{
+				Url: "https://test.com/<greeting>",
+				Options: []*configpb.LinkOptionsTemplate{
+					{
+						Key:   "farewell",
+						Value: "<farewell>",
+					},
+					{
+						Key:   "bye",
+						Value: "<custom-0>",
+					},
+				},
+			},
+			properties: map[string]string{
+				"workflow-id":   "workflow-id-1",
+				"workflow-name": "//my:workflow",
+				"my-prop":       "foo",
+			},
+			propertyToColumnHeader: map[string]string{
+				"<custom-0>": "bye",
+			},
+			customColumnHeaders: map[string]string{
+				"foo": "bar",
+			},
+			testID:    "my-test-id-1",
+			target:    "//path/to:my-test",
+			buildID:   "build-1",
+			gcsPrefix: "my-bucket/has/results",
+			want:      "https://test.com/%3Cgreeting%3E?bye=%3Ccustom-0%3E&farewell=%3Cfarewell%3E",
 		},
 		{
 			name: "basically works, nil properties",
@@ -3435,8 +3502,8 @@ func TestTestResultLink(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := testResultLink(tc.template, tc.properties, tc.testID, tc.target, tc.buildID, tc.gcsPrefix); got != tc.want {
-				t.Errorf("testResultLink(%v, %v, %s, %s, %s, %s) = %q, want %q", tc.template, tc.properties, tc.testID, tc.target, tc.buildID, tc.gcsPrefix, got, tc.want)
+			if got := testResultLink(tc.template, tc.properties, tc.testID, tc.target, tc.buildID, tc.gcsPrefix, tc.propertyToColumnHeader, tc.customColumnHeaders); got != tc.want {
+				t.Errorf("testResultLink(%v, %v, %s, %s, %s, %s, %s, %s) = %q, want %q", tc.template, tc.properties, tc.testID, tc.target, tc.buildID, tc.gcsPrefix, tc.propertyToColumnHeader, tc.customColumnHeaders, got, tc.want)
 			}
 		})
 	}

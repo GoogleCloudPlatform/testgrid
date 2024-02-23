@@ -66,6 +66,9 @@ message FailingTestSummary {
   // Dynamic email list, route email alerts to these instead of the configured
   // defaults.
   repeated string email_addresses = 18;
+
+  // map of custom column headers
+  map<string,string> custom_column_headers = 19;
 }
 
 // Metrics about a specific test, i.e. passes, fails, total runs, etc.

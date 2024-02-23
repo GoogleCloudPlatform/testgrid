@@ -3549,6 +3549,16 @@ func TestColumnStats(t *testing.T) {
 }
 
 func TestConstructGrid(t *testing.T) {
+	defaultCustomColumnHeaders := []*configpb.TestGroup_ColumnHeader{
+		{
+			Property:           "hello",
+			ConfigurationValue: "world!",
+		},
+		{
+			Property:           "foo",
+			ConfigurationValue: "bar",
+		},
+	}
 	cases := []struct {
 		name                    string
 		cols                    []inflatedColumn
@@ -3556,6 +3566,7 @@ func TestConstructGrid(t *testing.T) {
 		numPassesToDisableAlert int
 		issues                  map[string][]string
 		brokenThreshold         float32
+		columnHeader            []*configpb.TestGroup_ColumnHeader
 		expected                *statepb.Grid
 	}{
 		{
@@ -3563,7 +3574,8 @@ func TestConstructGrid(t *testing.T) {
 			expected: &statepb.Grid{},
 		},
 		{
-			name: "multiple columns",
+			name:         "multiple columns",
+			columnHeader: defaultCustomColumnHeaders,
 			cols: []inflatedColumn{
 				{
 					Column: &statepb.Column{Build: "15"},
@@ -3667,6 +3679,7 @@ func TestConstructGrid(t *testing.T) {
 		},
 		{
 			name:            "multiple columns with threshold",
+			columnHeader:    defaultCustomColumnHeaders,
 			brokenThreshold: 0.3,
 			cols: []inflatedColumn{
 				{
@@ -4021,8 +4034,8 @@ func TestConstructGrid(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.cols, tc.issues, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty", tc.brokenThreshold)
-			alertRows(tc.expected.Columns, tc.expected.Rows, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty")
+			actual := ConstructGrid(logrus.WithField("name", tc.name), tc.cols, tc.issues, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty", tc.brokenThreshold, tc.columnHeader)
+			alertRows(tc.expected.Columns, tc.expected.Rows, tc.numFailuresToAlert, tc.numPassesToDisableAlert, true, "userProperty", tc.columnHeader)
 			for _, row := range tc.expected.Rows {
 				sort.SliceStable(row.Metric, func(i, j int) bool {
 					return sortorder.NaturalLess(row.Metric[i], row.Metric[j])
@@ -4636,6 +4649,7 @@ func TestAppendColumn(t *testing.T) {
 func TestDynamicEmails(t *testing.T) {
 	columnWithEmails := statepb.Column{Build: "columnWithEmail", Started: 100 - float64(0), EmailAddresses: []string{"email1@", "email2@"}}
 	anotherColumnWithEmails := statepb.Column{Build: "anotherColumnWithEmails", Started: 100 - float64(1), EmailAddresses: []string{"email3@", "email2@"}}
+	customColumnHeaders := map[string]string{}
 	cases := []struct {
 		name     string
 		row      *statepb.Row
@@ -4652,7 +4666,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails},
-			expected: alertInfo(1, "", "", "", nil, &columnWithEmails, &columnWithEmails, nil, false),
+			expected: alertInfo(1, "", "", "", nil, &columnWithEmails, &columnWithEmails, nil, false, customColumnHeaders),
 		},
 		{
 			name: "two column with dynamic emails, we get only the first one",
@@ -4664,7 +4678,7 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&anotherColumnWithEmails, &columnWithEmails},
-			expected: alertInfo(2, "", "", "", nil, &columnWithEmails, &anotherColumnWithEmails, nil, false),
+			expected: alertInfo(2, "", "", "", nil, &columnWithEmails, &anotherColumnWithEmails, nil, false, customColumnHeaders),
 		},
 		{
 			name: "first column don't have results, second column emails on the alert",
@@ -4677,11 +4691,12 @@ func TestDynamicEmails(t *testing.T) {
 				CellIds:  []string{"", ""},
 			},
 			columns:  []*statepb.Column{&columnWithEmails, &anotherColumnWithEmails},
-			expected: alertInfo(1, "", "", "", nil, &anotherColumnWithEmails, &anotherColumnWithEmails, nil, false),
+			expected: alertInfo(1, "", "", "", nil, &anotherColumnWithEmails, &anotherColumnWithEmails, nil, false, customColumnHeaders),
 		},
 	}
 	for _, tc := range cases {
-		actual := alertRow(tc.columns, tc.row, 1, 1, false, "")
+		defaultColumnHeaders := []*configpb.TestGroup_ColumnHeader{}
+		actual := alertRow(tc.columns, tc.row, 1, 1, false, "", defaultColumnHeaders)
 		if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 			t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 		}
@@ -4694,15 +4709,32 @@ func TestAlertRow(t *testing.T) {
 		columns = append(columns, &statepb.Column{
 			Build:   id,
 			Started: 100 - float64(i),
+			Extra: []string{
+				"world",
+				"bar",
+			},
 		})
 	}
+	defaultColumnHeaders := []*configpb.TestGroup_ColumnHeader{
+		{
+			Property: "hello",
+		},
+		{
+			Property: "foo",
+		},
+	}
+	customColumnHeaders := map[string]string{
+		"hello": "world",
+		"foo":   "bar",
+	}
 	cases := []struct {
-		name      string
-		row       *statepb.Row
-		failOpen  int
-		passClose int
-		property  string
-		expected  *statepb.AlertInfo
+		name         string
+		row          *statepb.Row
+		failOpen     int
+		passClose    int
+		property     string
+		columnHeader []*configpb.TestGroup_ColumnHeader
+		expected     *statepb.AlertInfo
 	}{
 		{
 			name: "never alert by default",
@@ -4743,7 +4775,8 @@ func TestAlertRow(t *testing.T) {
 			failOpen: 3,
 		},
 		{
-			name: "new failures alert",
+			name:         "new failures alert",
+			columnHeader: defaultColumnHeaders,
 			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FAIL), 3,
@@ -4753,7 +4786,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "very wrong", "no", nil, columns[2], columns[0], columns[3], false),
+			expected: alertInfo(3, "no", "very wrong", "no", nil, columns[2], columns[0], columns[3], false, customColumnHeaders),
 		},
 		{
 			name: "rows without cell IDs can alert",
@@ -4765,10 +4798,11 @@ func TestAlertRow(t *testing.T) {
 				Messages: []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
 			},
 			failOpen: 3,
-			expected: alertInfo(3, "no", "", "", nil, columns[2], columns[0], columns[3], false),
+			expected: alertInfo(3, "no", "", "", nil, columns[2], columns[0], columns[3], false, nil),
 		},
 		{
-			name: "too few passes do not close",
+			name:         "too few passes do not close",
+			columnHeader: defaultColumnHeaders,
 			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 2,
@@ -4779,10 +4813,11 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  1,
 			passClose: 3,
-			expected:  alertInfo(4, "yay", "hello", "yep", nil, columns[5], columns[2], nil, false),
+			expected:  alertInfo(4, "yay", "hello", "yep", nil, columns[5], columns[2], nil, false, customColumnHeaders),
 		},
 		{
-			name: "flakes do not close",
+			name:         "flakes do not close",
+			columnHeader: defaultColumnHeaders,
 			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_FLAKY), 2,
@@ -4792,7 +4827,7 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "no", "yep", "very wrong", "hi", "hello"},
 			},
 			failOpen: 1,
-			expected: alertInfo(4, "yay", "hello", "yep", nil, columns[5], columns[2], nil, false),
+			expected: alertInfo(4, "yay", "hello", "yep", nil, columns[5], columns[2], nil, false, customColumnHeaders),
 		},
 		{
 			name: "failures after insufficient passes",
@@ -4809,7 +4844,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(4, "newest-fail", "f5", "f0", nil, columns[5], columns[0], nil, false),
+			expected:  alertInfo(4, "newest-fail", "f5", "f0", nil, columns[5], columns[0], nil, false, nil),
 		},
 		{
 			name: "close alert",
@@ -4834,7 +4869,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  5,
 			passClose: 2,
-			expected:  alertInfo(5, "yay", "nada", "yay-cell", nil, columns[5], columns[0], nil, false),
+			expected:  alertInfo(5, "yay", "nada", "yay-cell", nil, columns[5], columns[0], nil, false, nil),
 		},
 		{
 			name: "track passes through empty results",
@@ -4860,10 +4895,11 @@ func TestAlertRow(t *testing.T) {
 				CellIds:  []string{"wrong", "yep", "no2", "no3", "no4", "no5"},
 			},
 			failOpen: 1,
-			expected: alertInfo(5, "fail1-expected", "no5", "yep", nil, columns[5], columns[1], nil, false),
+			expected: alertInfo(5, "fail1-expected", "no5", "yep", nil, columns[5], columns[1], nil, false, nil),
 		},
 		{
-			name: "complex",
+			name:         "complex",
+			columnHeader: defaultColumnHeaders,
 			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 1,
@@ -4877,7 +4913,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen:  2,
 			passClose: 2,
-			expected:  alertInfo(3, "latest fail", "yes-f4", "no-f1", nil, columns[4], columns[1], columns[5], false),
+			expected:  alertInfo(3, "latest fail", "yes-f4", "no-f1", nil, columns[4], columns[1], columns[5], false, customColumnHeaders),
 		},
 		{
 			name: "alert consecutive failures only",
@@ -4908,10 +4944,11 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen: 3,
 			property: "some-prop",
-			expected: alertInfo(3, "no", "very wrong", "no", map[string]string{"some-prop": "prop0"}, columns[2], columns[0], columns[3], false),
+			expected: alertInfo(3, "no", "very wrong", "no", map[string]string{"some-prop": "prop0"}, columns[2], columns[0], columns[3], false, nil),
 		},
 		{
-			name: "properties after passes",
+			name:         "properties after passes",
+			columnHeader: defaultColumnHeaders,
 			row: &statepb.Row{
 				Results: []int32{
 					int32(statuspb.TestStatus_PASS), 2,
@@ -4925,7 +4962,7 @@ func TestAlertRow(t *testing.T) {
 			failOpen:  3,
 			passClose: 3,
 			property:  "some-prop",
-			expected:  alertInfo(3, "very wrong", "hi", "very wrong", map[string]string{"some-prop": "prop2"}, columns[4], columns[2], columns[5], false),
+			expected:  alertInfo(3, "very wrong", "hi", "very wrong", map[string]string{"some-prop": "prop2"}, columns[4], columns[2], columns[5], false, customColumnHeaders),
 		},
 		{
 			name: "empty properties",
@@ -4940,7 +4977,7 @@ func TestAlertRow(t *testing.T) {
 			},
 			failOpen: 3,
 			property: "some-prop",
-			expected: alertInfo(3, "no", "very wrong", "no", nil, columns[2], columns[0], columns[3], false),
+			expected: alertInfo(3, "no", "very wrong", "no", nil, columns[2], columns[0], columns[3], false, nil),
 		},
 		{
 			name: "insufficient properties",
@@ -4956,13 +4993,13 @@ func TestAlertRow(t *testing.T) {
 			failOpen:  3,
 			passClose: 3,
 			property:  "some-prop",
-			expected:  alertInfo(4, "very wrong", "hello", "very wrong", nil, columns[5], columns[2], nil, false),
+			expected:  alertInfo(4, "very wrong", "hello", "very wrong", nil, columns[5], columns[2], nil, false, nil),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false, tc.property)
+			actual := alertRow(columns, tc.row, tc.failOpen, tc.passClose, false, tc.property, tc.columnHeader)
 			if diff := cmp.Diff(tc.expected, actual, protocmp.Transform()); diff != "" {
 				t.Errorf("alertRow() not as expected (-want, +got): %s", diff)
 			}
