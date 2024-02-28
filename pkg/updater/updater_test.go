@@ -4995,6 +4995,28 @@ func TestAlertRow(t *testing.T) {
 			property:  "some-prop",
 			expected:  alertInfo(4, "very wrong", "hello", "very wrong", nil, columns[5], columns[2], nil, false, nil),
 		},
+		{
+			name: "insufficient column header values",
+			columnHeader: append(
+				defaultColumnHeaders,
+				&configpb.TestGroup_ColumnHeader{
+					Property: "extra-key",
+				},
+			),
+			row: &statepb.Row{
+				Results: []int32{
+					int32(statuspb.TestStatus_PASS), 2,
+					int32(statuspb.TestStatus_FAIL), 4,
+				},
+				Messages:     []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				CellIds:      []string{"no", "no again", "very wrong", "yes", "hi", "hello"},
+				UserProperty: []string{"prop0"},
+			},
+			failOpen:  3,
+			passClose: 3,
+			property:  "some-prop",
+			expected:  alertInfo(4, "very wrong", "hello", "very wrong", nil, columns[5], columns[2], nil, false, customColumnHeaders),
+		},
 	}
 
 	for _, tc := range cases {
