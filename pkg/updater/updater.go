@@ -1342,6 +1342,13 @@ func alertRow(cols []*statepb.Column, row *statepb.Row, failuresToOpen, passesTo
 		compressedIdx++
 
 		for i := 0; i < len(columnHeader); i++ {
+			if i >= len(col.Extra) {
+				logrus.WithFields(logrus.Fields{
+					"started":                 time.Unix(0, int64(col.GetStarted()*float64(time.Millisecond))),
+					"additionalColumnHeaders": col.GetExtra(),
+				}).Trace("Insufficient column header values to record.")
+				break
+			}
 			if columnHeader[i].Label != "" {
 				customColumnHeaders[columnHeader[i].Label] = col.Extra[i]
 			} else if columnHeader[i].Property != "" {
