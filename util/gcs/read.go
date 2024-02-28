@@ -44,9 +44,9 @@ type PodInfo struct {
 
 const (
 	// MissingPodInfo appears when builds complete without a podinfo.json report.
-	MissingPodInfo = "podinfo.json not found, please install prow's GCS reporter"
+	MissingPodInfo = "podinfo.json not found in job artifacts (has not uploaded, or Prow's GCS reporter is not enabled)."
 	// NoPodUtils appears when builds run without decoration.
-	NoPodUtils = "not using decoration, please set decorate: true on prowjob"
+	NoPodUtils = "Decoration is not enabled; set `decorate: true` on Prowjob."
 )
 
 func truncate(s string, max int) string {
