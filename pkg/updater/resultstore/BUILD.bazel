@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "client.go",
+        "query.go",
         "resultstore.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/testgrid/pkg/updater/resultstore",
@@ -27,7 +28,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["resultstore_test.go"],
+    srcs = [
+        "query_test.go",
+        "resultstore_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//pb/config:go_default_library",

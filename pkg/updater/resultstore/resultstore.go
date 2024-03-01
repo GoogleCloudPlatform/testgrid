@@ -148,7 +148,7 @@ func extractGroupID(tg *configpb.TestGroup, inv *invocation) string {
 func ColumnReader(client *DownloadClient, reprocess time.Duration) updater.ColumnReader {
 	return func(ctx context.Context, log logrus.FieldLogger, tg *configpb.TestGroup, oldCols []updater.InflatedColumn, defaultStop time.Time, receivers chan<- updater.InflatedColumn) error {
 		stop := updateStop(log, tg, time.Now(), oldCols, defaultStop, reprocess)
-		ids, err := search(ctx, log, client, tg.GetResultSource().GetResultstoreConfig().GetProject(), stop)
+		ids, err := search(ctx, log, client, tg.GetResultSource().GetResultstoreConfig(), stop)
 		if err != nil {
 			return fmt.Errorf("error searching invocations: %v", err)
 		}
@@ -881,21 +881,35 @@ func queryAfter(query string, when time.Time) string {
 	return fmt.Sprintf("%s timing.start_time>=\"%s\"", query, when.UTC().Format(time.RFC3339))
 }
 
-// TODO: Replace these hardcoded values with adjustable ones.
 const (
-	queryProw = "invocation_attributes.labels:\"prow\""
+	prowLabel = `invocation_attributes.labels:"prow"`
 )
 
-func search(ctx context.Context, log logrus.FieldLogger, client *DownloadClient, projectID string, stop time.Time) ([]string, error) {
+func queryProw(baseQuery string, stop time.Time) (string, error) {
+	// TODO: ResultStore use is assumed to be Prow-only at the moment. Make this more flexible in future.
+	if baseQuery == "" {
+		return queryAfter(prowLabel, stop), nil
+	}
+	query, err := translateQuery(baseQuery)
+	if err != nil {
+		return "", err
+	}
+	return queryAfter(fmt.Sprintf("%s %s", query, prowLabel), stop), nil
+}
+
+func search(ctx context.Context, log logrus.FieldLogger, client *DownloadClient, rsConfig *configpb.ResultStoreConfig, stop time.Time) ([]string, error) {
 	if client == nil {
 		return nil, fmt.Errorf("no ResultStore client provided")
 	}
-	query := queryAfter(queryProw, stop)
+	query, err := queryProw(rsConfig.GetQuery(), stop)
+	if err != nil {
+		return nil, fmt.Errorf("queryProw() failed to create query: %v", err)
+	}
 	log.WithField("query", query).Debug("Searching ResultStore.")
 	// Quit if search goes over 5 minutes.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	ids, err := client.Search(ctx, log, query, projectID)
+	ids, err := client.Search(ctx, log, query, rsConfig.GetProject())
 	log.WithField("ids", len(ids)).WithError(err).Debug("Searched ResultStore.")
 	return ids, err
 }
