@@ -2041,7 +2041,7 @@ func TestPodInfoCell(t *testing.T) {
 			},
 			expected: func() Cell {
 				c := podInfoMissingCell
-				c.Result = statuspb.TestStatus_UNKNOWN
+				c.Result = statuspb.TestStatus_PASS_WITH_SKIPS
 				return c
 			}(),
 		},
@@ -2059,7 +2059,7 @@ func TestPodInfoCell(t *testing.T) {
 			},
 			expected: func() Cell {
 				c := podInfoMissingCell
-				c.Result = statuspb.TestStatus_UNKNOWN
+				c.Result = statuspb.TestStatus_PASS_WITH_SKIPS
 				return c
 			}(),
 		},
