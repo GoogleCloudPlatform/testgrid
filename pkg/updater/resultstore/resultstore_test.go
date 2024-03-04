@@ -3540,3 +3540,68 @@ func TestCalculateMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldUpdate(t *testing.T) {
+	cases := []struct {
+		name         string
+		tg           *configpb.TestGroup
+		clientExists bool
+		want         bool
+	}{
+		{
+			name: "nil",
+			want: false,
+		},
+		{
+			name: "test group config only",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{},
+				},
+			},
+			clientExists: false,
+			want:         false,
+		},
+		{
+			name:         "client only",
+			clientExists: true,
+			want:         false,
+		},
+		{
+			name: "client and non-ResultStore config",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_GcsConfig{},
+				},
+			},
+			clientExists: false,
+			want:         false,
+		},
+		{
+			name: "basically works",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+						ResultstoreConfig: &configpb.ResultStoreConfig{
+							Project: "my-gcp-project",
+						},
+					},
+				},
+			},
+			clientExists: true,
+			want:         true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a fake client if specified.
+			var dlClient *DownloadClient
+			if tc.clientExists {
+				dlClient = &DownloadClient{client: &fakeClient{}}
+			}
+			if got := shouldUpdate(logrus.WithField("name", tc.name), tc.tg, dlClient); tc.want != got {
+				t.Errorf("shouldUpdate(%v, clientExists = %t) got %t, want %t", tc.tg, tc.clientExists, got, tc.want)
+			}
+		})
+	}
+}
