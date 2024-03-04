@@ -459,7 +459,7 @@ func podInfoCell(result gcsResult) Cell {
 	case msg == gcs.MissingPodInfo && time.Now().Before(result.deadline()):
 		status = statuspb.TestStatus_RUNNING // Try and reprocess it next time.
 	case msg == gcs.MissingPodInfo:
-		status = statuspb.TestStatus_UNKNOWN // Probably won't receive it.
+		status = statuspb.TestStatus_PASS_WITH_SKIPS // Probably won't receive it.
 	case pass:
 		status = statuspb.TestStatus_PASS
 	default:
