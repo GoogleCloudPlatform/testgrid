@@ -148,7 +148,9 @@ func (c *DownloadClient) FetchInvocation(ctx context.Context, log logrus.FieldLo
 		"actions.status_attributes",
 		"actions.test_action",
 		"configured_targets.id",
+		"configured_targets.status_attributes",
 		"configured_targets.test_attributes",
+		"configured_targets.timing",
 	)
 	for {
 		req := &resultstore.ExportInvocationRequest{
