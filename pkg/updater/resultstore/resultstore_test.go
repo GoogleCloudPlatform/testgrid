@@ -186,7 +186,7 @@ func TestColumnReader(t *testing.T) {
 	twoDaysAgo := now.AddDate(0, 0, -2)
 	threeDaysAgo := now.AddDate(0, 0, -3)
 	oneMonthAgo := now.AddDate(0, 0, -30)
-	testQueryAfter := queryAfter(queryProw, oneMonthAgo)
+	testQueryAfter := queryAfter(prowLabel, oneMonthAgo)
 	cases := []struct {
 		name    string
 		client  *fakeClient
@@ -2572,13 +2572,48 @@ func TestQueryAfter(t *testing.T) {
 		},
 		{
 			name:  "zero",
-			query: queryProw,
+			query: prowLabel,
 			when:  time.Time{},
 			want:  "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
 		},
 		{
 			name:  "basic",
-			query: queryProw,
+			query: prowLabel,
+			when:  now,
+			want:  fmt.Sprintf("invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := queryAfter(tc.query, tc.when)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("queryAfter(%q, %v) differed (-want, +got): %s", tc.query, tc.when, diff)
+			}
+		})
+	}
+}
+
+func TestQueryProw(t *testing.T) {
+	now := time.Now()
+	cases := []struct {
+		name  string
+		query string
+		when  time.Time
+		want  string
+	}{
+		{
+			name: "empty",
+			want: "",
+		},
+		{
+			name:  "zero",
+			query: prowLabel,
+			when:  time.Time{},
+			want:  "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
+		},
+		{
+			name:  "basic",
+			query: prowLabel,
 			when:  now,
 			want:  fmt.Sprintf("invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
 		},
@@ -2595,25 +2630,39 @@ func TestQueryAfter(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	twoDaysAgo := time.Now().AddDate(0, 0, -2)
-	testQueryAfter := queryAfter(queryProw, twoDaysAgo)
+	testQueryAfter := queryAfter(prowLabel, twoDaysAgo)
+	testTargetQueryAfter, _ := queryProw(`target:"my-job"`, twoDaysAgo)
 	cases := []struct {
-		name    string
-		stop    time.Time
-		client  *fakeClient
-		want    []string
-		wantErr bool
+		name     string
+		stop     time.Time
+		client   *fakeClient
+		rsConfig *configpb.ResultStoreConfig
+		want     []string
+		wantErr  bool
 	}{
 		{
 			name:    "nil",
 			wantErr: true,
 		},
 		{
-			name:    "empty",
+			name:     "empty",
+			rsConfig: &configpb.ResultStoreConfig{},
+			client:   &fakeClient{},
+			wantErr:  true,
+		},
+		{
+			name: "no results",
+			rsConfig: &configpb.ResultStoreConfig{
+				Project: "my-project",
+			},
 			client:  &fakeClient{},
 			wantErr: true,
 		},
 		{
 			name: "basic",
+			rsConfig: &configpb.ResultStoreConfig{
+				Project: "my-project",
+			},
 			client: &fakeClient{
 				searches: map[string][]string{
 					testQueryAfter: {"id-1", "id-2", "id-3"},
@@ -2622,6 +2671,36 @@ func TestSearch(t *testing.T) {
 			stop: twoDaysAgo,
 			want: []string{"id-1", "id-2", "id-3"},
 		},
+		{
+			name: "target",
+			rsConfig: &configpb.ResultStoreConfig{
+				Project: "my-project",
+				Query:   `target:"my-job"`,
+			},
+			client: &fakeClient{
+				searches: map[string][]string{
+					testQueryAfter:       {"id-1", "id-2", "id-3"},
+					testTargetQueryAfter: {"id-1", "id-3"},
+				},
+			},
+			stop: twoDaysAgo,
+			want: []string{"id-1", "id-3"},
+		},
+		{
+			name: "invalid query",
+			rsConfig: &configpb.ResultStoreConfig{
+				Project: "my-project",
+				Query:   "label:foo bar",
+			},
+			client: &fakeClient{
+				searches: map[string][]string{
+					testQueryAfter:       {"id-1", "id-2", "id-3"},
+					testTargetQueryAfter: {"id-1", "id-3"},
+				},
+			},
+			stop:    twoDaysAgo,
+			wantErr: true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2629,7 +2708,7 @@ func TestSearch(t *testing.T) {
 			if tc.client != nil {
 				dlClient = &DownloadClient{client: tc.client}
 			}
-			got, err := search(context.Background(), logrus.WithField("case", tc.name), dlClient, "my-project", tc.stop)
+			got, err := search(context.Background(), logrus.WithField("case", tc.name), dlClient, tc.rsConfig, tc.stop)
 			if err != nil && !tc.wantErr {
 				t.Errorf("search() errored: %v", err)
 			} else if err == nil && tc.wantErr {

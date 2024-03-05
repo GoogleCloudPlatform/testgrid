@@ -364,6 +364,9 @@ message GCSConfig {
 message ResultStoreConfig {
   // Google Cloud Platform project ID where ResultStore results are stored.
   string project = 1;
+  // A simple query to filter for particular results.
+  // Currently, only allows a query in the form of `target:"<target>"`.
+  string query = 2; 
 }
 
 // Options for where to gather linked issues from.
