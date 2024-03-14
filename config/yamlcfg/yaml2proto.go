@@ -88,31 +88,29 @@ func pathDefault(path string, defaultFiles map[string]DefaultConfiguration, defa
 // 		 after applying defaults from defaultPath.
 // Optionally, defaultPath points to default setting YAML
 // Returns a configuration proto containing the data from all of those sources
-func ReadConfig(paths []string, defaultpath string, strict bool) (config.Configuration, error) {
-
-	var result config.Configuration
-
+func ReadConfig(paths []string, defaultpath string, strict bool) (*config.Configuration, error) {
 	// Get the overall default file, if specified.
 	var defaults DefaultConfiguration
 	if defaultpath != "" {
 		b, err := ioutil.ReadFile(defaultpath)
 		if err != nil {
-			return result, fmt.Errorf("failed to read default at %s: %v", defaultpath, err)
+			return nil, fmt.Errorf("failed to read default at %s: %v", defaultpath, err)
 		}
 		defaults, err = LoadDefaults(b)
 		if err != nil {
-			return result, fmt.Errorf("failed to deserialize default at %s: %v", defaultpath, err)
+			return nil, fmt.Errorf("failed to deserialize default at %s: %v", defaultpath, err)
 		}
 	}
 
 	// Find all default files, map their directory to their contents.
 	defaultFiles, err := seekDefaults(paths)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	// Gather configuration from each YAML file, applying the config's default.yaml if
 	// one exists in its directory, or the overall default otherwise.
+	var result *config.Configuration
 	err = SeekYAMLFiles(paths, func(path string, info os.FileInfo) error {
 		if filepath.Base(path) == "default.yaml" || filepath.Base(path) == "default.yml" {
 			return nil
@@ -123,13 +121,13 @@ func ReadConfig(paths []string, defaultpath string, strict bool) (config.Configu
 			return fmt.Errorf("failed to read %s: %v", path, err)
 		}
 		localDefaults := pathDefault(path, defaultFiles, defaults)
-		if err = Update(&result, b, &localDefaults, strict); err != nil {
+		if result, err = Update(result, b, &localDefaults, strict); err != nil {
 			return fmt.Errorf("failed to merge %s into config: %v", path, err)
 		}
 		return nil
 	})
 	if err != nil {
-		return result, fmt.Errorf("SeekYAMLFiles(%v), gathering config: %v", paths, err)
+		return nil, fmt.Errorf("SeekYAMLFiles(%v), gathering config: %v", paths, err)
 	}
 
 	return result, err
@@ -137,16 +135,15 @@ func ReadConfig(paths []string, defaultpath string, strict bool) (config.Configu
 
 // Update reads the config in yamlData and updates the config in c.
 // If reconcile is non-nil, it will pad out new entries with those default settings
-func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfiguration, strict bool) error {
-
+func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfiguration, strict bool) (*config.Configuration, error) {
 	newConfig := &config.Configuration{}
 	if strict {
 		if err := yaml.UnmarshalStrict(yamlData, newConfig); err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		if err := yaml.Unmarshal(yamlData, newConfig); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -174,7 +171,7 @@ func Update(cfg *config.Configuration, yamlData []byte, reconcile *DefaultConfig
 		cfg.DashboardGroups = append(cfg.DashboardGroups, dashboardGroup)
 	}
 
-	return nil
+	return cfg, nil
 }
 
 // MarshalYAML returns a YAML file representing the parsed configuration.

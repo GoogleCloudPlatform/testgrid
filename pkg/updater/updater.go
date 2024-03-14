@@ -413,7 +413,6 @@ func Update(parent context.Context, client gcs.ConditionalClient, mets *Metrics,
 			var delay time.Duration
 			if opts.Freq > 0 {
 				delay = opts.Freq/4 + time.Duration(rand.Int63n(int64(opts.Freq/4))) // Int63n() panics if freq <= 0
-				log = log.WithField("delay", delay.Seconds())
 				q.Fix(tg.Name, time.Now().Add(delay), true)
 			}
 			return
@@ -863,7 +862,7 @@ func deletedColumn(latestColumn InflatedColumn) []InflatedColumn {
 				truncatedRowName: {
 					Result:  statuspb.TestStatus_UNKNOWN,
 					ID:      truncatedRowName,
-					Message: fmt.Sprintf("The grid is too large to update. Split this testgroup into multiple testgroups."),
+					Message: "The grid is too large to update. Split this testgroup into multiple testgroups.",
 				},
 			},
 		},
