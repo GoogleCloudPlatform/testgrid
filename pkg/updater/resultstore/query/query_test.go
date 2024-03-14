@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resultstore
+package query
 
 import (
 	"testing"
@@ -135,7 +135,7 @@ func TestTranslateQuery(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := translateQuery(tc.query)
+			got, err := TranslateQuery(tc.query)
 			if tc.want != got {
 				t.Errorf("translateQuery(%q) differed; got %q, want %q", tc.query, got, tc.want)
 			}

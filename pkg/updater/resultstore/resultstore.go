@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/testgrid/pkg/updater"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/updater/resultstore/query"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/sirupsen/logrus"
 
@@ -890,7 +891,10 @@ func queryAfter(query string, when time.Time) string {
 }
 
 const (
+	// Use this when searching invocations, e.g. if query does not search for a target.
 	prowLabel = `invocation_attributes.labels:"prow"`
+	// Use this when searching for a configured target, e.g. if query contains `target:"<target>"`.
+	prowTargetLabel = `invocation.invocation_attributes.labels:"prow"`
 )
 
 func queryProw(baseQuery string, stop time.Time) (string, error) {
@@ -898,11 +902,11 @@ func queryProw(baseQuery string, stop time.Time) (string, error) {
 	if baseQuery == "" {
 		return queryAfter(prowLabel, stop), nil
 	}
-	query, err := translateQuery(baseQuery)
+	query, err := query.TranslateQuery(baseQuery)
 	if err != nil {
 		return "", err
 	}
-	return queryAfter(fmt.Sprintf("%s %s", query, prowLabel), stop), nil
+	return queryAfter(fmt.Sprintf("%s %s", query, prowTargetLabel), stop), nil
 }
 
 func search(ctx context.Context, log logrus.FieldLogger, client *DownloadClient, rsConfig *configpb.ResultStoreConfig, stop time.Time) ([]string, error) {
