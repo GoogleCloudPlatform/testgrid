@@ -263,7 +263,7 @@ func evalTargetProperties(rule *evalpb.Rule, targetResult TargetResult) *tspb.Te
 			return nil
 		}
 		// Only target_status is supported
-		if f := cmp.GetTargetStatus(); f == true {
+		if cmp.GetTargetStatus() {
 			getSts := targetResult.TargetStatus
 			stscmp := targetStatusEQ
 			stsval := cmp.Comparison.GetTargetStatusValue()
