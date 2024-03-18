@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resultstore
+package query
 
 import (
 	"fmt"
@@ -47,7 +47,7 @@ var (
 	queryRe = regexp.MustCompile(`^target:".*"$`)
 )
 
-func translateQuery(simpleQuery string) (string, error) {
+func TranslateQuery(simpleQuery string) (string, error) {
 	if simpleQuery == "" {
 		return "", nil
 	}

@@ -499,6 +499,47 @@ func TestValidateResultStoreSource(t *testing.T) {
 			err: false,
 		},
 		{
+			name: "valid query",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+						ResultstoreConfig: &configpb.ResultStoreConfig{
+							Project: "my-project",
+							Query:   `target:"my-job"`,
+						},
+					},
+				},
+			},
+			err: false,
+		},
+		{
+			name: "invalid query",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+						ResultstoreConfig: &configpb.ResultStoreConfig{
+							Project: "my-project",
+							Query:   `label:foo bar`,
+						},
+					},
+				},
+			},
+			err: true,
+		},
+		{
+			name: "query without project",
+			tg: &configpb.TestGroup{
+				ResultSource: &configpb.TestGroup_ResultSource{
+					ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+						ResultstoreConfig: &configpb.ResultStoreConfig{
+							Query: `target:"my-job"`,
+						},
+					},
+				},
+			},
+			err: true,
+		},
+		{
 			name: "gcs_prefix and ResultStore defined",
 			tg: &configpb.TestGroup{
 				GcsPrefix: "/my-bucket/logs",

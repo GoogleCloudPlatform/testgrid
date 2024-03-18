@@ -33,6 +33,7 @@ import (
 
 type resultStoreClient interface {
 	SearchInvocations(context.Context, *resultstore.SearchInvocationsRequest, ...grpc.CallOption) (*resultstore.SearchInvocationsResponse, error)
+	SearchConfiguredTargets(context.Context, *resultstore.SearchConfiguredTargetsRequest, ...grpc.CallOption) (*resultstore.SearchConfiguredTargetsResponse, error)
 	ExportInvocation(context.Context, *resultstore.ExportInvocationRequest, ...grpc.CallOption) (*resultstore.ExportInvocationResponse, error)
 }
 
@@ -81,35 +82,76 @@ func Connect(ctx context.Context, serviceAccountPath string) (*grpc.ClientConn, 
 }
 
 // Search finds all the invocations that satisfies the query condition within a project.
-func (c *DownloadClient) Search(ctx context.Context, log logrus.FieldLogger, query, projectID string, fields ...string) ([]string, error) {
-	var ids []string
+func (c *DownloadClient) Search(ctx context.Context, log logrus.FieldLogger, query, projectID string) ([]string, error) {
+	var invIDs []string
 	nextPageToken := ""
+	searchTargets := strings.Contains(query, "id.target_id=")
+	for {
+		var ids []string
+		var err error
+		if searchTargets {
+			ids, nextPageToken, err = c.targetSearch(ctx, log, query, projectID, nextPageToken)
+		} else {
+			ids, nextPageToken, err = c.invocationSearch(ctx, log, query, projectID, nextPageToken)
+		}
+		if err != nil {
+			return nil, err
+		}
+		invIDs = append(invIDs, ids...)
+		if nextPageToken == "" {
+			break
+		}
+	}
+	return invIDs, nil
+}
+
+func (c *DownloadClient) invocationSearch(ctx context.Context, log logrus.FieldLogger, query, projectID, nextPageToken string) ([]string, string, error) {
 	fieldMaskCtx := fieldMask(
 		ctx,
 		"next_page_token",
 		"invocations.id",
 	)
-	for {
-		req := &resultstore.SearchInvocationsRequest{
-			Query:     query,
-			ProjectId: projectID,
-			PageStart: &resultstore.SearchInvocationsRequest_PageToken{
-				PageToken: nextPageToken,
-			},
-		}
-		resp, err := c.client.SearchInvocations(fieldMaskCtx, req)
-		if err != nil {
-			return nil, err
-		}
-		for _, inv := range resp.GetInvocations() {
-			ids = append(ids, inv.Id.GetInvocationId())
-		}
-		if resp.GetNextPageToken() == "" {
-			break
-		}
-		nextPageToken = resp.GetNextPageToken()
+	req := &resultstore.SearchInvocationsRequest{
+		Query:     query,
+		ProjectId: projectID,
+		PageStart: &resultstore.SearchInvocationsRequest_PageToken{
+			PageToken: nextPageToken,
+		},
 	}
-	return ids, nil
+	resp, err := c.client.SearchInvocations(fieldMaskCtx, req)
+	if err != nil {
+		return nil, "", err
+	}
+	var ids []string
+	for _, inv := range resp.GetInvocations() {
+		ids = append(ids, inv.GetId().GetInvocationId())
+	}
+	return ids, resp.GetNextPageToken(), err
+}
+
+func (c *DownloadClient) targetSearch(ctx context.Context, log logrus.FieldLogger, query, projectID, nextPageToken string) ([]string, string, error) {
+	fieldMaskCtx := fieldMask(
+		ctx,
+		"next_page_token",
+		"configured_targets.id",
+	)
+	req := &resultstore.SearchConfiguredTargetsRequest{
+		Query:     query,
+		ProjectId: projectID,
+		Parent:    "invocations/-/targets/-",
+		PageStart: &resultstore.SearchConfiguredTargetsRequest_PageToken{
+			PageToken: nextPageToken,
+		},
+	}
+	resp, err := c.client.SearchConfiguredTargets(fieldMaskCtx, req)
+	if err != nil {
+		return nil, "", err
+	}
+	var ids []string
+	for _, target := range resp.GetConfiguredTargets() {
+		ids = append(ids, target.GetId().GetInvocationId())
+	}
+	return ids, resp.GetNextPageToken(), err
 }
 
 // FetchResult provides a interface to store Resultstore invocation data.

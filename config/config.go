@@ -28,6 +28,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/GoogleCloudPlatform/testgrid/pkg/updater/resultstore/query"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -268,6 +269,9 @@ func validateResultStoreSource(tg *configpb.TestGroup) error {
 		// Can't leave project ID blank.
 		if rs.GetProject() == "" {
 			return errors.New("project ID in resultstore_config cannot be empty")
+		}
+		if _, err := query.TranslateQuery(rs.GetQuery()); err != nil {
+			return fmt.Errorf("invalid ResultStore query %q: %v", rs.GetQuery(), err)
 		}
 	}
 	return nil

@@ -45,14 +45,22 @@ type fakeClient struct {
 	invocations map[string]FetchResult
 }
 
-func (c *fakeClient) SearchInvocations(ctx context.Context, req *resultstore.SearchInvocationsRequest, opts ...grpc.CallOption) (*resultstore.SearchInvocationsResponse, error) {
-	notFound := fmt.Errorf("no results found for %q", req.GetQuery())
+func (c *fakeClient) search(query string) ([]string, error) {
+	notFound := fmt.Errorf("no results found for %q", query)
 	if c.searches == nil {
 		return nil, notFound
 	}
-	invocationIDs, ok := c.searches[req.GetQuery()]
+	invocationIDs, ok := c.searches[query]
 	if !ok {
 		return nil, notFound
+	}
+	return invocationIDs, nil
+}
+
+func (c *fakeClient) SearchInvocations(ctx context.Context, req *resultstore.SearchInvocationsRequest, opts ...grpc.CallOption) (*resultstore.SearchInvocationsResponse, error) {
+	invocationIDs, err := c.search(req.GetQuery())
+	if err != nil {
+		return nil, err
 	}
 	var invocations []*resultstore.Invocation
 	for _, invocationID := range invocationIDs {
@@ -62,6 +70,21 @@ func (c *fakeClient) SearchInvocations(ctx context.Context, req *resultstore.Sea
 		invocations = append(invocations, invoc)
 	}
 	return &resultstore.SearchInvocationsResponse{Invocations: invocations}, nil
+}
+
+func (c *fakeClient) SearchConfiguredTargets(ctx context.Context, req *resultstore.SearchConfiguredTargetsRequest, opts ...grpc.CallOption) (*resultstore.SearchConfiguredTargetsResponse, error) {
+	invocationIDs, err := c.search(req.GetQuery())
+	if err != nil {
+		return nil, err
+	}
+	var configuredTargets []*resultstore.ConfiguredTarget
+	for _, invocationID := range invocationIDs {
+		configuredTarget := &resultstore.ConfiguredTarget{
+			Id: &resultstore.ConfiguredTarget_Id{InvocationId: invocationID},
+		}
+		configuredTargets = append(configuredTargets, configuredTarget)
+	}
+	return &resultstore.SearchConfiguredTargetsResponse{ConfiguredTargets: configuredTargets}, nil
 }
 
 func (c *fakeClient) ExportInvocation(ctx context.Context, req *resultstore.ExportInvocationRequest, opts ...grpc.CallOption) (*resultstore.ExportInvocationResponse, error) {
@@ -2596,33 +2619,51 @@ func TestQueryAfter(t *testing.T) {
 func TestQueryProw(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
-		name  string
-		query string
-		when  time.Time
-		want  string
+		name      string
+		query     string
+		when      time.Time
+		want      string
+		wantError bool
 	}{
 		{
 			name: "empty",
-			want: "",
+			want: "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
 		},
 		{
 			name:  "zero",
-			query: prowLabel,
+			query: "",
 			when:  time.Time{},
 			want:  "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
 		},
 		{
 			name:  "basic",
-			query: prowLabel,
+			query: "",
 			when:  now,
 			want:  fmt.Sprintf("invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
+		},
+		{
+			name:  "target",
+			query: `target:"my-job"`,
+			when:  now,
+			want:  fmt.Sprintf("id.target_id=\"my-job\" invocation.invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
+		},
+		{
+			name:      "invalid query",
+			query:     `label:foo bar`,
+			when:      now,
+			wantError: true,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := queryAfter(tc.query, tc.when)
+			got, err := queryProw(tc.query, tc.when)
+			if !tc.wantError && err != nil {
+				t.Errorf("queryProw(%q, %v) errored: %v", tc.query, tc.when, err)
+			} else if tc.wantError && err == nil {
+				t.Errorf("queryProw(%q, %v) did not error as expected", tc.query, tc.when)
+			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("queryAfter(%q, %v) differed (-want, +got): %s", tc.query, tc.when, diff)
+				t.Errorf("queryProw(%q, %v) differed (-want, +got): %s", tc.query, tc.when, diff)
 			}
 		})
 	}
