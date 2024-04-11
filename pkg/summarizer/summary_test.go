@@ -3260,7 +3260,7 @@ func TestResultIter(t *testing.T) {
 			for {
 				val, ok := iter()
 				if !ok {
-					return
+					break
 				}
 				idx++
 				actual = append(actual, val)

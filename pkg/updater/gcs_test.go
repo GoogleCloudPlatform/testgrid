@@ -861,7 +861,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "missing property",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"random", "thing"},
+													{Name: "random", Value: "thing"},
 												},
 											},
 										},
@@ -869,7 +869,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "not a number",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "tasty"},
+													{Name: "food", Value: "tasty"},
 												},
 											},
 										},
@@ -877,7 +877,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "short number",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "123"},
+													{Name: "food", Value: "123"},
 												},
 											},
 										},
@@ -885,7 +885,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "large number",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "123456789"},
+													{Name: "food", Value: "123456789"},
 												},
 											},
 										},
@@ -893,7 +893,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "many digits",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "1.567890"},
+													{Name: "food", Value: "1.567890"},
 												},
 											},
 										},
@@ -901,10 +901,10 @@ func TestConvertResult(t *testing.T) {
 											Name: "multiple values",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "1"},
-													{"food", "2"},
-													{"food", "3"},
-													{"food", "4"},
+													{Name: "food", Value: "1"},
+													{Name: "food", Value: "2"},
+													{Name: "food", Value: "3"},
+													{Name: "food", Value: "4"},
 												},
 											},
 										},
@@ -912,7 +912,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "preceds failure message",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "1"},
+													{Name: "food", Value: "1"},
 												},
 											},
 											Failure: &junit.Failure{Value: *pstr("boom")},
@@ -921,7 +921,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "preceds skip message",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"food", "1"},
+													{Name: "food", Value: "1"},
 												},
 											},
 											Skipped: &junit.Skipped{Value: *pstr("tl;dr")},
@@ -1039,7 +1039,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "missing property",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"random", "thing"},
+													{Name: "random", Value: "thing"},
 												},
 											},
 										},
@@ -1047,7 +1047,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "present",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "irrelevant"},
+													{Name: "fries", Value: "irrelevant"},
 												},
 											},
 										},
@@ -1055,7 +1055,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "empty",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", ""},
+													{Name: "fries", Value: ""},
 												},
 											},
 										},
@@ -1063,8 +1063,8 @@ func TestConvertResult(t *testing.T) {
 											Name: "multiple",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "shoestring"},
-													{"fries", "curly"},
+													{Name: "fries", Value: "shoestring"},
+													{Name: "fries", Value: "curly"},
 												},
 											},
 										},
@@ -1073,7 +1073,7 @@ func TestConvertResult(t *testing.T) {
 											Failure: &junit.Failure{Value: *pstr("boom")},
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "irrelevant"},
+													{Name: "fries", Value: "irrelevant"},
 												},
 											},
 										},
@@ -1082,7 +1082,7 @@ func TestConvertResult(t *testing.T) {
 											Errored: &junit.Errored{Value: *pstr("boom")},
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "irrelevant"},
+													{Name: "fries", Value: "irrelevant"},
 												},
 											},
 										},
@@ -1091,7 +1091,7 @@ func TestConvertResult(t *testing.T) {
 											Skipped: &junit.Skipped{Value: *pstr("boom")},
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "irrelevant"},
+													{Name: "fries", Value: "irrelevant"},
 												},
 											},
 										},
@@ -1181,7 +1181,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "missing property",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"random", "thing"},
+													{Name: "random", Value: "thing"},
 												},
 											},
 										},
@@ -1189,7 +1189,7 @@ func TestConvertResult(t *testing.T) {
 											Name: "present",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "curly"},
+													{Name: "fries", Value: "curly"},
 												},
 											},
 										},
@@ -1197,8 +1197,8 @@ func TestConvertResult(t *testing.T) {
 											Name: "choose first",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"fries", "shoestring"},
-													{"fries", "curly"},
+													{Name: "fries", Value: "shoestring"},
+													{Name: "fries", Value: "curly"},
 												},
 											},
 										},
@@ -1263,8 +1263,8 @@ func TestConvertResult(t *testing.T) {
 											Name: "elapsed",
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
-													{"property", "good-property"},
-													{"ignore", "me"},
+													{Name: "property", Value: "good-property"},
+													{Name: "ignore", Value: "me"},
 												},
 											},
 										},
@@ -1287,7 +1287,7 @@ func TestConvertResult(t *testing.T) {
 											Properties: &junit.Properties{
 												PropertyList: []junit.Property{
 													// "property" missing
-													{"ignore", "me"},
+													{Name: "ignore", Value: "me"},
 												},
 											},
 										},

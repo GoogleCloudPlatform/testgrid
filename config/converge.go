@@ -38,7 +38,7 @@ var insert void
 // The output protobuf will pass config.Validate if all its inputs pass config.Validate
 func Converge(shards map[string]*configpb.Configuration) (*configpb.Configuration, error) {
 	if len(shards) == 0 {
-		return nil, fmt.Errorf("No configurations to converge")
+		return nil, fmt.Errorf("no configurations to converge")
 	}
 
 	result := configpb.Configuration{}
@@ -111,7 +111,7 @@ func negotiateConversions(prefix string, original, new map[string]void) map[stri
 		if _, exists := original[key]; exists {
 			candidate := fmt.Sprintf("%s-%s", prefix, key)
 			attempt := 1
-			for true {
+			for {
 				_, existInOld := original[candidate]
 				_, existInNew := new[candidate]
 				if !existInOld && !existInNew {
