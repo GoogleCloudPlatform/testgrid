@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-// PodMetadata holds the started.json values of the build.
+// PodMetadata holds the podinfo.json values of the result.
 type PodMetadata struct {
 	Metadata Metadata `json:"metadata,omitempty"`
 }
