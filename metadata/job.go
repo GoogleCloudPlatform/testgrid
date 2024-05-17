@@ -20,6 +20,11 @@ import (
 	"strings"
 )
 
+// PodMetadata holds the started.json values of the build.
+type PodMetadata struct {
+	Metadata Metadata `json:"metadata,omitempty"`
+}
+
 // Started holds the started.json values of the build.
 type Started struct {
 	// Timestamp is UTC epoch seconds when the job started.
