@@ -214,12 +214,10 @@ func (q *Queue) sleep(d time.Duration) {
 		log.Debug("Sleeping...")
 	}
 	sleep := time.NewTimer(d)
+	defer sleep.Stop()
 	start := time.Now()
 	select {
 	case <-q.signal:
-		if !sleep.Stop() {
-			<-sleep.C
-		}
 		dur := time.Now().Sub(start)
 		log := log.WithField("after", dur.Round(time.Millisecond))
 		switch {

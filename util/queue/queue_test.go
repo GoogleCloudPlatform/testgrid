@@ -622,3 +622,60 @@ func TestPriorityQueue(t *testing.T) {
 		})
 	}
 }
+
+func TestSleep(t *testing.T) {
+	cases := []struct {
+		name       string
+		sleep      time.Duration
+		rouseAfter time.Duration // if specified, rouse after this time
+		wantRouse  bool
+	}{
+		{
+			name:      "basic",
+			sleep:     100 * time.Millisecond,
+			wantRouse: false,
+		},
+		{
+			name:       "rouse during sleep",
+			sleep:      1 * time.Minute,
+			rouseAfter: 100 * time.Millisecond,
+			wantRouse:  true,
+		},
+		{
+			name:       "rouse after sleep",
+			sleep:      100 * time.Millisecond,
+			rouseAfter: 1 * time.Second,
+			wantRouse:  false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var q Queue
+			q.Init(logrus.WithField("name", tc.name), []string{"hi", "there"}, time.Now())
+
+			var slept, roused bool
+			var lock sync.Mutex
+			go func(rouseAfter time.Duration) {
+				if rouseAfter == 0 {
+					return
+				}
+				time.Sleep(rouseAfter)
+				q.rouse()
+				lock.Lock()
+				if !slept {
+					roused = true
+				}
+				lock.Unlock()
+			}(tc.rouseAfter)
+
+			q.sleep(tc.sleep)
+			lock.Lock()
+			slept = true
+			lock.Unlock()
+
+			if tc.wantRouse != roused {
+				t.Errorf("sleep() roused incorrectly (with sleep %q and rouse after %q): want rouse = %t, got %t", tc.sleep, tc.rouseAfter, tc.wantRouse, roused)
+			}
+		})
+	}
+}
