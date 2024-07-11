@@ -21,7 +21,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -354,8 +353,7 @@ func TestCompare(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			if diffed, _, _ := compare(ctx, tc.first, tc.second, tc.diffRatioOK, 5); diffed != tc.diffed {
+			if diffed, _, _ := compare(tc.first, tc.second, tc.diffRatioOK, 5); diffed != tc.diffed {
 				t.Errorf("compare(%s, %s) not as expected; got %t, want %t", tc.first, tc.second, diffed, tc.diffed)
 			}
 		})
