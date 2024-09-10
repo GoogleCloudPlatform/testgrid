@@ -26,7 +26,7 @@
     "@material/mwc-tab-bar": "^0.27.0",
     "@protobuf-ts/plugin": "^2.8.3",
     "@web/test-runner-playwright": "^0.9.0",
-    "json-server": "^0.17.3",
+    "json-server": "^1.0.0-beta.2",
     "lit": "^2.7.0"
   },
   "devDependencies": {
