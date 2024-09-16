@@ -215,7 +215,7 @@ func main() {
 
 	mets := updater.CreateMetrics(prometheus.NewFactory())
 
-	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(opt.creds))
+	pubsubClient, err := gpubsub.NewClient(ctx, gpubsub.DetectProjectID, option.WithCredentialsFile(opt.creds))
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create pubsub client")
 	}

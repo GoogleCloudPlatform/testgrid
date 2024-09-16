@@ -96,7 +96,7 @@ func gcsFixer(ctx context.Context, projectSub string, configPath gcs.Path, tabPr
 		return nil, errors.New("malformed project/subscription")
 	}
 	projID, subID := parts[0], parts[1]
-	pubsubClient, err := gpubsub.NewClient(ctx, "", option.WithCredentialsFile(credPath))
+	pubsubClient, err := gpubsub.NewClient(ctx, gpubsub.DetectProjectID, option.WithCredentialsFile(credPath))
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create pubsub client")
 	}
