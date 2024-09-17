@@ -24,10 +24,10 @@ goog_buckets=(
 
 goog_topic=projects/k8s-testgrid/topics/prow-updates
 
-k8s_topic=projects/kubernetes-jenkins/topics/prow-updates
+k8s_topic=projects/k8s-infra-prow/topics/kubernetes-ci-logs-updates
 
 k8s_buckets=(
-    gs://kubernetes-jenkins
+    gs://kubernetes-ci-logs
 )
 
 dir=$(dirname "$0")
@@ -75,7 +75,7 @@ while getopts "lst" flag; do
     case "$flag" in
         s)
             apply-subscription "$goog_topic" k8s-testgrid testgrid testgrid-canary
-            apply-subscription "$k8s_topic" kubernetes-jenkins testgrid testgrid-canary
+            apply-subscription "$k8s_topic" k8s-testgrid testgrid-kubernetes-ci-logs testgrid-canary-kubernetes-ci-logs
             something=yes
             ;;
         t)

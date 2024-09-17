@@ -46,6 +46,7 @@ spec:
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid
         - --subscribe=oss-prow=k8s-testgrid/testgrid
         - --subscribe=istio-prow=k8s-testgrid/testgrid
+        - --subscribe=kubernetes-ci-logs=k8s-testgrid/testgrid-kubernetes-ci-logs
         - --wait=2h
         resources:
           requests:

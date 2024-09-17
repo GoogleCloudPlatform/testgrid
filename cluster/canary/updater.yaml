@@ -46,6 +46,7 @@ spec:
         - --subscribe=kubernetes-jenkins=kubernetes-jenkins/testgrid-canary
         - --subscribe=oss-prow=k8s-testgrid/testgrid-canary
         - --subscribe=istio-prow=k8s-testgrid/testgrid-canary
+        - --subscribe=kubernetes-ci-logs=k8s-testgrid/testgrid-canary-kubernetes-ci-logs
         - --wait=4h
         resources:
           requests:
