@@ -33,8 +33,8 @@ log() {
 apply() {
     log "$create_topic" -t "$topic" -p '' "$bucket"
 
-    log "$create_sub" -t "$topic" -b "$bot" -p "$project" -f "$group_prefix" "$group_sub"
-    log "$create_sub" -t "$topic" -b "$bot" -p "$project" -f "$tab_prefix" "$tab_sub"
+    log "$create_sub" -t "$topic" -b "$bot" -p "$project" -f "hasPrefix(attributes.name, \"$group_prefix\")" "$group_sub"
+    log "$create_sub" -t "$topic" -b "$bot" -p "$project" -f "hasPrefix(attributes.name, \"$tab_prefix\")" "$tab_sub"
 }
 
 project=k8s-testgrid
@@ -43,8 +43,8 @@ bucket=gs://k8s-testgrid
 topic="projects/$project/topics/testgrid"
 group_sub=test-group-updates
 tab_sub=tab-updates
-group_prefix=""
-tab_prefix=""
+group_prefix="grid/"
+tab_prefix="tabs/"
 bot=serviceAccount:updater@k8s-testgrid.iam.gserviceaccount.com
 apply
 
