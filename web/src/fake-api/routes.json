@@ -1,9 +1,0 @@
-{
-  "/api/v1/dashboards/*/tabs/:tab/rows": "/:tab-rows",
-  "/api/v1/dashboards/*/tabs/:tab/headers": "/:tab-headers",
-  "/api/v1/dashboards/:dashboard/tabs": "/:dashboard-tabs",
-  "/api/v1/dashboards/:dashboard/tab-summaries": "/:dashboard-tab-summaries",
-  "/api/v1/dashboard-groups/:group": "/:group-dashboards",
-  "/api/v1/dashboard-groups/:group/dashboard-summaries": "/:group-dashboard-summaries",
-  "/api/v1/dashboards/:dashboard": "/:dashboard"
-}
