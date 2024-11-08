@@ -22,63 +22,54 @@ import (
 
 func TestTranslateAtom(t *testing.T) {
 	cases := []struct {
-		name      string
-		atom      string
-		want      string
-		wantError bool
+		name        string
+		atom        keyValue
+		queryTarget bool
+		want        string
+		wantError   bool
 	}{
 		{
 			name: "empty",
-			atom: "",
+			atom: keyValue{"", ""},
 			want: "",
 		},
 		{
 			name: "basic",
-			atom: `target:"//my-target"`,
+			atom: keyValue{"target", "//my-target"},
 			want: `id.target_id="//my-target"`,
 		},
 		{
-			name:      "case-sensitive key",
-			atom:      `TARGET:"//MY-TARGET"`,
-			wantError: true,
+			name: "case-sensitive key",
+			atom: keyValue{"TARGET", "//MY-TARGET"},
+			want: "",
 		},
 		{
 			name: "multiple colons",
-			atom: `target:"//path/to:my-target"`,
+			atom: keyValue{"target", "//path/to:my-target"},
 			want: `id.target_id="//path/to:my-target"`,
 		},
 		{
-			name: "unquoted",
-			atom: `target://my-target`,
-			want: `id.target_id="//my-target"`,
+			name: "missing key",
+			atom: keyValue{"", "//path/to:my-target"},
+			want: "",
 		},
 		{
-			name: "partial quotes",
-			atom: `target://my-target"`,
-			want: `id.target_id="//my-target"`,
+			name: "missing value",
+			atom: keyValue{"target", ""},
+			want: "",
 		},
 		{
-			name:      "not enough parts",
-			atom:      "target",
-			wantError: true,
-		},
-		{
-			name:      "unknown atom",
-			atom:      "label:foo",
-			wantError: true,
+			name: "unknown atom",
+			atom: keyValue{"custom-property", "foo"},
+			want: "",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := translateAtom(tc.atom)
+			got := translateAtom(tc.atom, tc.queryTarget)
 			if tc.want != got {
-				t.Errorf("translateAtom(%q) differed; got %q, want %q", tc.atom, got, tc.want)
-			}
-			if err == nil && tc.wantError {
-				t.Errorf("translateAtom(%q) did not error as expected", tc.atom)
-			} else if err != nil && !tc.wantError {
-				t.Errorf("translateAtom(%q) errored unexpectedly: %v", tc.atom, err)
+				t.Errorf("translateAtom(%q, %t) differed; got %q, want %q", tc.atom, tc.queryTarget, got, tc.want)
 			}
 		})
 	}
