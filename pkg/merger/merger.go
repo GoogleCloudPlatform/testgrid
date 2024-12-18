@@ -26,7 +26,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	yaml "sigs.k8s.io/yaml/goyaml.v2"
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
