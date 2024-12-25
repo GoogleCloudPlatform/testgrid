@@ -140,10 +140,10 @@ func TestFields(t *testing.T) {
 									BetaAutobugComponent: 1,
 									HotlistIdsFromSource: []*configpb.HotlistIdFromSource{
 										{
-											HotlistIdSource: &configpb.HotlistIdFromSource_Label{"foo"},
+											HotlistIdSource: &configpb.HotlistIdFromSource_Label{Label: "foo"},
 										},
 										{
-											HotlistIdSource: &configpb.HotlistIdFromSource_Value{1},
+											HotlistIdSource: &configpb.HotlistIdFromSource_Value{Value: 1},
 										},
 									},
 								},
@@ -157,10 +157,10 @@ func TestFields(t *testing.T) {
 							BetaAutobugComponent: 1,
 							HotlistIdsFromSource: []*configpb.HotlistIdFromSource{
 								{
-									HotlistIdSource: &configpb.HotlistIdFromSource_Value{2},
+									HotlistIdSource: &configpb.HotlistIdFromSource_Value{Value: 2},
 								},
 								{
-									HotlistIdSource: &configpb.HotlistIdFromSource_Value{3},
+									HotlistIdSource: &configpb.HotlistIdFromSource_Value{Value: 3},
 								},
 							},
 						},

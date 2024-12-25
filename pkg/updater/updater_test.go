@@ -47,10 +47,7 @@ import (
 )
 
 type fakeUpload = fake.Upload
-type fakeStater = fake.Stater
-type fakeStat = fake.Stat
 type fakeUploader = fake.Uploader
-type fakeUploadClient = fake.UploadClient
 type fakeLister = fake.Lister
 type fakeOpener = fake.Opener
 
