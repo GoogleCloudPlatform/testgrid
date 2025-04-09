@@ -203,30 +203,32 @@ func TestColumnReader(t *testing.T) {
 	oneMonthConfig := &configpb.TestGroup{
 		Name:          "a-test-group",
 		DaysOfResults: 30,
+		ResultSource: &configpb.TestGroup_ResultSource{
+			ResultSourceConfig: &configpb.TestGroup_ResultSource_ResultstoreConfig{
+				ResultstoreConfig: &configpb.ResultStoreConfig{
+					Query: `label:"foo"`,
+				},
+			},
+		},
 	}
 	now := time.Now()
 	oneDayAgo := now.AddDate(0, 0, -1)
 	twoDaysAgo := now.AddDate(0, 0, -2)
 	threeDaysAgo := now.AddDate(0, 0, -3)
 	oneMonthAgo := now.AddDate(0, 0, -30)
-	testQueryAfter := queryAfter(prowLabel, oneMonthAgo)
+	testQueryAfter := queryAfter(`invocation_attributes.labels:"foo"`, oneMonthAgo)
 	cases := []struct {
 		name    string
 		client  *fakeClient
-		tg      *configpb.TestGroup
 		want    []updater.InflatedColumn
 		wantErr bool
 	}{
 		{
 			name:    "empty",
-			tg:      oneMonthConfig,
 			wantErr: true,
 		},
 		{
 			name: "basic",
-			tg: &configpb.TestGroup{
-				DaysOfResults: 30,
-			},
 			client: &fakeClient{
 				searches: map[string][]string{
 					testQueryAfter: {"id-1", "id-2"},
@@ -351,7 +353,6 @@ func TestColumnReader(t *testing.T) {
 		},
 		{
 			name: "no results from query",
-			tg:   oneMonthConfig,
 			client: &fakeClient{
 				searches: map[string][]string{},
 				invocations: map[string]FetchResult{
@@ -2595,15 +2596,15 @@ func TestQueryAfter(t *testing.T) {
 		},
 		{
 			name:  "zero",
-			query: prowLabel,
+			query: `invocation_attributes.labels:"foo"`,
 			when:  time.Time{},
-			want:  "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
+			want:  `invocation_attributes.labels:"foo" timing.start_time>="0001-01-01T00:00:00Z"`,
 		},
 		{
 			name:  "basic",
-			query: prowLabel,
+			query: `invocation_attributes.labels:"foo"`,
 			when:  now,
-			want:  fmt.Sprintf("invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
+			want:  fmt.Sprintf(`invocation_attributes.labels:"foo" timing.start_time>="%s"`, now.UTC().Format(time.RFC3339)),
 		},
 	}
 	for _, tc := range cases {
@@ -2616,63 +2617,10 @@ func TestQueryAfter(t *testing.T) {
 	}
 }
 
-func TestQueryProw(t *testing.T) {
-	now := time.Now()
-	cases := []struct {
-		name      string
-		query     string
-		when      time.Time
-		want      string
-		wantError bool
-	}{
-		{
-			name: "empty",
-			want: "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
-		},
-		{
-			name:  "zero",
-			query: "",
-			when:  time.Time{},
-			want:  "invocation_attributes.labels:\"prow\" timing.start_time>=\"0001-01-01T00:00:00Z\"",
-		},
-		{
-			name:  "basic",
-			query: "",
-			when:  now,
-			want:  fmt.Sprintf("invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
-		},
-		{
-			name:  "target",
-			query: `target:"my-job"`,
-			when:  now,
-			want:  fmt.Sprintf("id.target_id=\"my-job\" invocation.invocation_attributes.labels:\"prow\" timing.start_time>=\"%s\"", now.UTC().Format(time.RFC3339)),
-		},
-		{
-			name:      "invalid query",
-			query:     `label:foo bar`,
-			when:      now,
-			wantError: true,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := queryProw(tc.query, tc.when)
-			if !tc.wantError && err != nil {
-				t.Errorf("queryProw(%q, %v) errored: %v", tc.query, tc.when, err)
-			} else if tc.wantError && err == nil {
-				t.Errorf("queryProw(%q, %v) did not error as expected", tc.query, tc.when)
-			}
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("queryProw(%q, %v) differed (-want, +got): %s", tc.query, tc.when, diff)
-			}
-		})
-	}
-}
-
 func TestSearch(t *testing.T) {
 	twoDaysAgo := time.Now().AddDate(0, 0, -2)
-	testQueryAfter := queryAfter(prowLabel, twoDaysAgo)
-	testTargetQueryAfter, _ := queryProw(`target:"my-job"`, twoDaysAgo)
+	testQueryAfter := queryAfter(`invocation_attributes.labels:"foo"`, twoDaysAgo)
+	testTargetQueryAfter := queryAfter(`id.target_id="my-job"`, twoDaysAgo)
 	cases := []struct {
 		name     string
 		stop     time.Time
@@ -2695,6 +2643,7 @@ func TestSearch(t *testing.T) {
 			name: "no results",
 			rsConfig: &configpb.ResultStoreConfig{
 				Project: "my-project",
+				Query:   `label:foo`,
 			},
 			client:  &fakeClient{},
 			wantErr: true,
@@ -2703,6 +2652,7 @@ func TestSearch(t *testing.T) {
 			name: "basic",
 			rsConfig: &configpb.ResultStoreConfig{
 				Project: "my-project",
+				Query:   `label:"foo"`,
 			},
 			client: &fakeClient{
 				searches: map[string][]string{
