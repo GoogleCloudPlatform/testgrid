@@ -34,6 +34,12 @@ on https://testgrid.k8s.io, see [Testgrid Configuration](config.md).
 
 Updates to the config are automatically tested and pushed to production.
 
+## Frontend
+
+There are two TestGrid frontends:
+- Open-source: In-development at https://github.com/kubernetes-sigs/testgrid.
+- Closed-source: The frontend that currently backs the testgrid.k8s.io instance.
+
 ## Using the client
 
 Here are some quick tips and clarifications for using the TestGrid site!
