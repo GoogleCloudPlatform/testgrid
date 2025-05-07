@@ -20,11 +20,11 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestYaml2Proto_IsExternal_And_UseKuberClient_False(t *testing.T) {
@@ -42,9 +42,8 @@ dashboards:
 		t.Fatalf("Convert Error: %v\n Results: %v", err, defaults)
 	}
 
-	var cfg config.Configuration
-
-	if err := Update(&cfg, []byte(yaml), &defaults, false); err != nil {
+	cfg, err := Update(nil, []byte(yaml), &defaults, false)
+	if err != nil {
 		t.Errorf("Convert Error: %v\n", err)
 	}
 
@@ -176,13 +175,13 @@ test_groups:
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var cfg config.Configuration
 			defaults, err := LoadDefaults([]byte(defaultYaml))
 			if err != nil {
 				t.Fatalf("Unexpected error with default yaml: %v", err)
 			}
 
-			if err := Update(&cfg, []byte(test.yaml), &defaults, test.strict); err != nil {
+			cfg, err := Update(nil, []byte(test.yaml), &defaults, test.strict)
+			if err != nil {
 				t.Fatalf("Unexpected error with Update: %v", err)
 			}
 
@@ -242,8 +241,7 @@ test_groups:
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var cfg config.Configuration
-			if err := Update(&cfg, []byte(test.yaml), nil, test.strict); err == nil {
+			if _, err := Update(nil, []byte(test.yaml), nil, test.strict); err == nil {
 				t.Fatalf("expected an error")
 			}
 		})
@@ -649,7 +647,7 @@ func Test_ReadConfig(t *testing.T) {
 		name          string
 		files         map[string]string
 		useDir        bool
-		expected      config.Configuration
+		expected      *config.Configuration
 		expectFailure bool
 	}{
 		{
@@ -657,7 +655,7 @@ func Test_ReadConfig(t *testing.T) {
 			files: map[string]string{
 				"1*.yaml": "dashboards:\n- name: Foo\n",
 			},
-			expected: config.Configuration{
+			expected: &config.Configuration{
 				Dashboards: []*config.Dashboard{
 					{Name: "Foo"},
 				},
@@ -670,7 +668,7 @@ func Test_ReadConfig(t *testing.T) {
 				"2*.yaml": "dashboards:\n- name: Bar\n",
 			},
 			useDir: true,
-			expected: config.Configuration{
+			expected: &config.Configuration{
 				Dashboards: []*config.Dashboard{
 					{Name: "Foo"},
 					{Name: "Bar"},
@@ -690,7 +688,7 @@ func Test_ReadConfig(t *testing.T) {
 				"1*.yml": "dashboards:\n- name: Foo\n",
 				"2*.txt": "dashboards:\n- name: Bar\n",
 			},
-			expected: config.Configuration{
+			expected: &config.Configuration{
 				Dashboards: []*config.Dashboard{
 					{Name: "Foo"},
 				},
@@ -721,7 +719,7 @@ func Test_ReadConfig(t *testing.T) {
 				}
 			}
 
-			var result config.Configuration
+			var result *config.Configuration
 			var readErr error
 			if test.useDir {
 				result, readErr = ReadConfig([]string{directory}, "", false)
@@ -735,8 +733,8 @@ func Test_ReadConfig(t *testing.T) {
 			if !test.expectFailure && readErr != nil {
 				t.Errorf("Unexpected error: %v", readErr)
 			}
-			if !test.expectFailure && !reflect.DeepEqual(result, test.expected) {
-				t.Errorf("Mismatched results: got %v, expected %v", result, test.expected)
+			if diff := cmp.Diff(test.expected, result, protocmp.Transform()); !test.expectFailure && diff != "" {
+				t.Errorf("Results differed (-want, +got): %s", diff)
 			}
 		})
 	}

@@ -98,7 +98,7 @@ func gatherOptions() options {
 var tgDupRegEx = regexp.MustCompile(` \<TESTGRID:\d+\>`)
 var dupRegEx = regexp.MustCompile(` \[\d+\]`)
 
-func rowsAndColumns(ctx context.Context, grid *statepb.Grid, numColumnsRecent int32) (map[string]int, map[string]int, map[string]int) {
+func rowsAndColumns(grid *statepb.Grid, numColumnsRecent int32) (map[string]int, map[string]int, map[string]int) {
 	rows := make(map[string]int)
 	issues := make(map[string]int)
 	for _, row := range grid.GetRows() {
@@ -214,10 +214,10 @@ func reportDiff(first, second map[string]int, identifier string, diffRatioOK flo
 	return
 }
 
-func compare(ctx context.Context, first, second *statepb.Grid, diffRatioOK float64, numColumnsRecent int32) (diffed bool, rowDiffReasons, colDiffReasons diffReasons) {
+func compare(first, second *statepb.Grid, diffRatioOK float64, numColumnsRecent int32) (diffed bool, rowDiffReasons, colDiffReasons diffReasons) {
 	logrus.Tracef("*****************************")
-	firstRows, firstColumns, _ := rowsAndColumns(ctx, first, numColumnsRecent)
-	secondRows, secondColumns, _ := rowsAndColumns(ctx, second, numColumnsRecent)
+	firstRows, firstColumns, _ := rowsAndColumns(first, numColumnsRecent)
+	secondRows, secondColumns, _ := rowsAndColumns(second, numColumnsRecent)
 	// both grids have no results, ignore
 	if (len(firstRows) == 0 && len(secondRows) == 0) || (len(firstColumns) == 0 && len(secondColumns) == 0) {
 		return
@@ -336,7 +336,7 @@ func main() {
 			continue
 		}
 
-		if diffed, rowReasons, colReasons := compare(ctx, firstGrid, secondGrid, opt.diffRatioOK, tg.GetNumColumnsRecent()); diffed {
+		if diffed, rowReasons, colReasons := compare(firstGrid, secondGrid, opt.diffRatioOK, tg.GetNumColumnsRecent()); diffed {
 			msg := fmt.Sprintf("%q vs. %q", firstP, secondP)
 			if opt.testGroupURL != "" {
 				parts := strings.Split(firstP, "/")

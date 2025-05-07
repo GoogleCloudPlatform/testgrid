@@ -17,12 +17,12 @@ limitations under the License.
 package config
 
 import (
-	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -97,8 +97,8 @@ func TestValidateUnique(t *testing.T) {
 				}
 
 				if mErr, ok := err.(*multierror.Error); ok {
-					if !reflect.DeepEqual(test.expectedErrs, mErr.Errors) {
-						t.Fatalf("Expected %v, but got: %v", test.expectedErrs, mErr.Errors)
+					if diff := cmp.Diff(test.expectedErrs, mErr.Errors, cmpopts.EquateErrors()); diff != "" {
+						t.Fatalf("Errors differed (-want, +got): %s", diff)
 					}
 				} else {
 					t.Fatalf("Expected %v, but got: %v", test.expectedErrs, err)
@@ -224,7 +224,7 @@ func TestValidateReferencesExist(t *testing.T) {
 		{
 			name:         "reject nil config.Configuration",
 			input:        nil,
-			expectedErrs: []error{errors.New("got an empty config.Configuration")},
+			expectedErrs: []error{MissingConfigError{}},
 		},
 		{
 			name: "Dashboard Tabs must reference an existing Test Group",
@@ -353,8 +353,8 @@ func TestValidateReferencesExist(t *testing.T) {
 				}
 
 				if mErr, ok := err.(*multierror.Error); ok {
-					if !reflect.DeepEqual(test.expectedErrs, mErr.Errors) {
-						t.Fatalf("Expected %v, but got: %v", test.expectedErrs, mErr.Errors)
+					if diff := cmp.Diff(test.expectedErrs, mErr.Errors, cmpopts.EquateErrors()); diff != "" {
+						t.Fatalf("Errors differed (-want, +got): %s", diff)
 					}
 				} else {
 					t.Fatalf("Expected %v, but got: %v", test.expectedErrs, err)
@@ -1302,7 +1302,7 @@ func TestUpdate_Validate(t *testing.T) {
 		{
 			name:         "Nil input; returns error",
 			input:        nil,
-			expectedErrs: []error{errors.New("got an empty config.Configuration")},
+			expectedErrs: []error{MissingConfigError{}},
 		},
 		{
 			name: "Dashboard Only; returns error",
@@ -1566,8 +1566,8 @@ func TestUpdate_Validate(t *testing.T) {
 				}
 
 				if mErr, ok := err.(*multierror.Error); ok {
-					if !reflect.DeepEqual(test.expectedErrs, mErr.Errors) {
-						t.Fatalf("Expected %v, but got: %v", test.expectedErrs, mErr.Errors)
+					if diff := cmp.Diff(test.expectedErrs, mErr.Errors); diff != "" {
+						t.Fatalf("Errors differed (-want, +got): %s", diff)
 					}
 				} else {
 					t.Fatalf("Expected %v, but got: %v", test.expectedErrs, err)
