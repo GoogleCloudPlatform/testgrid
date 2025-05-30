@@ -1963,7 +1963,6 @@ type fakeBuild struct {
 	finished  *fakeObject
 	podInfo   *fakeObject
 	artifacts map[string]fakeObject
-	rawJunit  *fakeObject
 	passed    []string
 	failed    []string
 }

@@ -69,6 +69,13 @@ type ValidationError struct {
 	Message string
 }
 
+// MissingConfigError is an error for missing configuration.
+type MissingConfigError struct{}
+
+func (e MissingConfigError) Error() string {
+	return "got an empty config.Configuration"
+}
+
 func (e ValidationError) Error() string {
 	return fmt.Sprintf("configuration error for (%s) %s: %s", e.Entity, e.Name, e.Message)
 }
@@ -104,7 +111,7 @@ func validateUnique(items []string, entity string) error {
 func validateAllUnique(c *configpb.Configuration) error {
 	var mErr error
 	if c == nil {
-		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+		return multierror.Append(mErr, MissingConfigError{})
 	}
 	var tgNames []string
 	for _, tg := range c.GetTestGroups() {
@@ -164,7 +171,7 @@ func validateAllUnique(c *configpb.Configuration) error {
 func validateReferencesExist(c *configpb.Configuration) error {
 	var mErr error
 	if c == nil {
-		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+		return multierror.Append(mErr, MissingConfigError{})
 	}
 
 	tgNames := map[string]bool{}
@@ -382,7 +389,7 @@ func validateTestGroup(tg *configpb.TestGroup) error {
 		} else if cv != "" && (p != "" || l != "") || p != "" && (cv != "" || l != "") {
 			mErr = multierror.Append(
 				mErr,
-				fmt.Errorf("Column Header %d must only set one value, got configuration_value: %q, property: %q, label: %q", idx, cv, p, l),
+				fmt.Errorf("column header %d must only set one value, got configuration_value: %q, property: %q, label: %q", idx, cv, p, l),
 			)
 		}
 
@@ -477,7 +484,7 @@ func validateDashboardTab(dt *configpb.DashboardTab) error {
 func validateEntityConfigs(c *configpb.Configuration) error {
 	var mErr error
 	if c == nil {
-		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+		return multierror.Append(mErr, MissingConfigError{})
 	}
 
 	// At the moment, don't need to further validate Dashboards or DashboardGroups.
@@ -502,7 +509,7 @@ func validateEntityConfigs(c *configpb.Configuration) error {
 func Validate(c *configpb.Configuration) error {
 	var mErr error
 	if c == nil {
-		return multierror.Append(mErr, errors.New("got an empty config.Configuration"))
+		return multierror.Append(mErr, MissingConfigError{})
 	}
 
 	// TestGrid requires at least 1 TestGroup and 1 Dashboard in order to do anything.
@@ -557,7 +564,7 @@ func Unmarshal(r io.Reader) (*configpb.Configuration, error) {
 // Returns an error if config is invalid or writing failed.
 func MarshalText(c *configpb.Configuration, w io.Writer) error {
 	if c == nil {
-		return errors.New("got an empty config.Configuration")
+		return MissingConfigError{}
 	}
 	if err := Validate(c); err != nil {
 		return err
@@ -569,7 +576,7 @@ func MarshalText(c *configpb.Configuration, w io.Writer) error {
 // Returns an error if config is invalid or encoding failed.
 func MarshalBytes(c *configpb.Configuration) ([]byte, error) {
 	if c == nil {
-		return nil, errors.New("got an empty config.Configuration")
+		return nil, MissingConfigError{}
 	}
 	if err := Validate(c); err != nil {
 		return nil, err

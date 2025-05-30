@@ -826,12 +826,12 @@ func TestInflateMetric(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var actual []*float64
-			metric := statepb.Metric{
+			metric := &statepb.Metric{
 				Name:    tc.name,
 				Indices: tc.indices,
 				Values:  tc.values,
 			}
-			nextMetric := inflateMetric(&metric)
+			nextMetric := inflateMetric(metric)
 			for val, ok := nextMetric(); ok; val, ok = nextMetric() {
 				actual = append(actual, val)
 			}
