@@ -17,47 +17,76 @@ limitations under the License.
 package query
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 )
 
-func translateAtom(simpleAtom string) (string, error) {
-	if simpleAtom == "" {
-		return "", nil
-	}
-	// For now, we expect an atom with the exact form `target:"<target>"`
-	// Split the `key:value` atom.
-	parts := strings.SplitN(simpleAtom, ":", 2)
-	if len(parts) != 2 {
-		return "", fmt.Errorf("unrecognized atom %q", simpleAtom)
-	}
-	key := strings.TrimSpace(parts[0])
-	val := strings.Trim(strings.TrimSpace(parts[1]), `"`)
+type keyValue struct {
+	key   string
+	value string
+}
 
+func translateAtom(simpleAtom keyValue, queryTarget bool) (string, error) {
+	if simpleAtom.key == "" {
+		return "", errors.New("missing key")
+	}
+	if simpleAtom.value == "" {
+		return "", errors.New("missing value")
+	}
 	switch {
-	case key == "target":
-		return fmt.Sprintf(`id.target_id="%s"`, val), nil
+	case simpleAtom.key == "label" && queryTarget:
+		return fmt.Sprintf(`invocation.invocation_attributes.labels:"%s"`, simpleAtom.value), nil
+	case simpleAtom.key == "label":
+		return fmt.Sprintf(`invocation_attributes.labels:"%s"`, simpleAtom.value), nil
+	case simpleAtom.key == "target":
+		return fmt.Sprintf(`id.target_id="%s"`, simpleAtom.value), nil
 	default:
-		return "", fmt.Errorf("unrecognized atom key %q", key)
+		return "", fmt.Errorf("unknown type of atom %q", simpleAtom.key)
 	}
 }
 
 var (
-	queryRe = regexp.MustCompile(`^target:".*"$`)
+	// Captures any atoms of the form `label:"<label>"` or `target:"<target>"`.
+	atomReStr = `(?P<atom>(?P<key>label|target):"(?P<value>.+?)")`
+	atomRe    = regexp.MustCompile(atomReStr)
+	// A query can only have atoms (above), separated by spaces.
+	queryRe = regexp.MustCompile(`^(` + atomReStr + ` *)+$`)
 )
 
+// TranslateQuery translates a simple query (similar to the syntax of searching invocations in the
+// UI) to a query for searching via API.
+// More at https://github.com/googleapis/googleapis/blob/master/google/devtools/resultstore/v2/resultstore_download.proto.
+//
+// This expects a query consisting of any number of space-separated `label:"<label>"` or
+// `target:"<target>"` atoms.
 func TranslateQuery(simpleQuery string) (string, error) {
 	if simpleQuery == "" {
 		return "", nil
 	}
-	// For now, we expect a query with a single atom, with the exact form `target:"<target>"`
 	if !queryRe.MatchString(simpleQuery) {
-		return "", fmt.Errorf("invalid query %q: must match %q", simpleQuery, queryRe.String())
+		return "", fmt.Errorf("query must consist of only space-separated `label:\"<label>\"` or `target:\"<target>\"` atoms")
 	}
-	query, err := translateAtom(simpleQuery)
-	if err != nil {
-		return "", fmt.Errorf("invalid query %q: %v", simpleQuery, err)
+	var simpleAtoms []keyValue
+	var queryTarget bool
+	matches := atomRe.FindAllStringSubmatch(simpleQuery, -1)
+	for _, match := range matches {
+		if len(match) != 4 {
+			return "", fmt.Errorf("atom %v: want 4 submatches (full match, atom, key, value), but got %d", match, len(match))
+		}
+		simpleAtoms = append(simpleAtoms, keyValue{match[2], match[3]})
+		if match[2] == "target" {
+			queryTarget = true
+		}
 	}
-	return query, nil
+	var atoms []string
+	for _, simpleAtom := range simpleAtoms {
+		atom, err := translateAtom(simpleAtom, queryTarget)
+		if err != nil {
+			return "", fmt.Errorf("atom %v: %v", simpleAtom, err)
+		}
+		atoms = append(atoms, atom)
+	}
+	return strings.Join(atoms, " "), nil
 }
