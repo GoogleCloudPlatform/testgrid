@@ -81,6 +81,7 @@ type Client struct {
 	down  resultstore.ResultStoreDownloadClient
 	ctx   context.Context
 	token string
+	invID string
 }
 
 // NewClient uses the specified gRPC connection to connect to ResultStore.
@@ -101,6 +102,12 @@ func (c *Client) WithContext(ctx context.Context) *Client {
 // WithSecret applies the specified secret to all requests.
 func (c *Client) WithSecret(authorizationToken Secret) *Client {
 	c.token = string(authorizationToken)
+	return c
+}
+
+// WithInvocationID applies the specified invocation ID to all requests.
+func (c *Client) WithInvocationID(invocationID string) *Client {
+	c.invID = invocationID
 	return c
 }
 
@@ -309,6 +316,7 @@ func (a Actions) List(fields ...string) ([]Test, error) {
 // Create a new invocation (project must be specified).
 func (i Invocations) Create(inv Invocation) (string, error) {
 	resp, err := i.up.CreateInvocation(i.ctx, &resultstore.CreateInvocationRequest{
+		InvocationId:       i.invID,
 		Invocation:         inv.To(),
 		AuthorizationToken: i.token,
 	})
