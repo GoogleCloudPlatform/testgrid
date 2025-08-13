@@ -213,6 +213,19 @@ func (t Targets) Create(id string, target Target) (string, error) {
 	return tgt.Name, nil
 }
 
+// Update a pre-existing target.
+func (t Targets) Update(name, id string, target Target, fields ...string) error {
+	targetProto := target.To()
+	targetProto.Id = &resultstore.Target_Id{InvocationId: t.invID, TargetId: id}
+	targetProto.Name = name
+	_, err := t.up.UpdateTarget(t.ctx, &resultstore.UpdateTargetRequest{
+		Target:             targetProto,
+		UpdateMask:         &field_mask.FieldMask{Paths: fields},
+		AuthorizationToken: t.token,
+	})
+	return err
+}
+
 // List requested fields in targets, does not currently handle paging.
 func (t Targets) List(fields ...string) ([]Target, error) {
 	resp, err := t.down.ListTargets(listMask(t.ctx, fields...), &resultstore.ListTargetsRequest{
