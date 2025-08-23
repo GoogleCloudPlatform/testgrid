@@ -887,36 +887,23 @@ func queryAfter(query string, when time.Time) string {
 	if query == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s timing.start_time>=\"%s\"", query, when.UTC().Format(time.RFC3339))
-}
-
-const (
-	// Use this when searching invocations, e.g. if query does not search for a target.
-	prowLabel = `invocation_attributes.labels:"prow"`
-	// Use this when searching for a configured target, e.g. if query contains `target:"<target>"`.
-	prowTargetLabel = `invocation.invocation_attributes.labels:"prow"`
-)
-
-func queryProw(baseQuery string, stop time.Time) (string, error) {
-	// TODO: ResultStore use is assumed to be Prow-only at the moment. Make this more flexible in future.
-	if baseQuery == "" {
-		return queryAfter(prowLabel, stop), nil
+	// Note: time arguments are different for invocation vs. configured target searches.
+	timeAtom := fmt.Sprintf(`timing.start_time>="%s"`, when.UTC().Format(time.RFC3339))
+	if strings.Contains(query, "id.target_id=") {
+		timeAtom = fmt.Sprintf(`invocation.timing.start_time>="%s"`, when.UTC().Format(time.RFC3339))
 	}
-	query, err := query.TranslateQuery(baseQuery)
-	if err != nil {
-		return "", err
-	}
-	return queryAfter(fmt.Sprintf("%s %s", query, prowTargetLabel), stop), nil
+	return fmt.Sprintf(`%s %s`, query, timeAtom)
 }
 
 func search(ctx context.Context, log logrus.FieldLogger, client *DownloadClient, rsConfig *configpb.ResultStoreConfig, stop time.Time) ([]string, error) {
 	if client == nil {
 		return nil, fmt.Errorf("no ResultStore client provided")
 	}
-	query, err := queryProw(rsConfig.GetQuery(), stop)
+	translatedQuery, err := query.TranslateQuery(rsConfig.GetQuery())
 	if err != nil {
-		return nil, fmt.Errorf("queryProw() failed to create query: %v", err)
+		return nil, fmt.Errorf("query.TranslateQuery(%s): %v", rsConfig.GetQuery(), err)
 	}
+	query := queryAfter(translatedQuery, stop)
 	log.WithField("query", query).Debug("Searching ResultStore.")
 	// Quit if search goes over 5 minutes.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
