@@ -27,6 +27,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/testgrid/config"
 	apipb "github.com/GoogleCloudPlatform/testgrid/pb/api/v1"
+	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 )
 
 const scopeParam = "scope"
@@ -108,6 +109,173 @@ func (s *Server) GetDashboardGroup(ctx context.Context, req *apipb.GetDashboardG
 	}
 
 	return nil, fmt.Errorf("Dashboard group %q not found", req.GetDashboardGroup())
+}
+
+// Translates link template options from the config proto to the api proto.
+func apiLinkOptionsTemplates(options []*configpb.LinkOptionsTemplate) []*apipb.LinkOptionsTemplate {
+	result := []*apipb.LinkOptionsTemplate{}
+	for _, opt := range options {
+		result = append(result, &apipb.LinkOptionsTemplate{
+			Key:   opt.GetKey(),
+			Value: opt.GetValue(),
+		})
+	}
+	return result
+}
+
+func apiResultSource(resultSource *configpb.TestGroup_ResultSource, gcsPrefix string) *apipb.ResultSource {
+	result := &apipb.ResultSource{}
+	switch resultSource.GetResultSourceConfig().(type) {
+	case *configpb.TestGroup_ResultSource_GcsConfig:
+		result.ResultSourceConfig = &apipb.ResultSource_GcsConfig{
+			GcsConfig: &apipb.GCSConfig{
+				GcsPrefix:          resultSource.GetGcsConfig().GetGcsPrefix(),
+				PubsubProject:      resultSource.GetGcsConfig().GetPubsubProject(),
+				PubsubSubscription: resultSource.GetGcsConfig().GetPubsubSubscription(),
+			},
+		}
+	case *configpb.TestGroup_ResultSource_ResultstoreConfig:
+		result.ResultSourceConfig = &apipb.ResultSource_ResultstoreConfig{
+			ResultstoreConfig: &apipb.ResultStoreConfig{
+				Project: resultSource.GetResultstoreConfig().GetProject(),
+				Query:   resultSource.GetResultstoreConfig().GetQuery(),
+			},
+		}
+	default:
+		// No result source was specified; use the value from gcsPrefix instead.
+		result.ResultSourceConfig = &apipb.ResultSource_GcsConfig{
+			GcsConfig: &apipb.GCSConfig{
+				GcsPrefix: gcsPrefix,
+			},
+		}
+	}
+	return result
+}
+
+func tabMenuTemplates(tab *configpb.DashboardTab) []*apipb.LinkTemplate {
+	var templates []*apipb.LinkTemplate
+	if tab.GetResultsUrlTemplate() != nil {
+		templates = append(templates, &apipb.LinkTemplate{
+			Text:    tab.GetResultsText(),
+			Url:     tab.GetResultsUrlTemplate().GetUrl(),
+			Options: apiLinkOptionsTemplates(tab.GetResultsUrlTemplate().GetOptions()),
+		})
+	}
+	if tab.GetAboutDashboardUrl() != "" {
+		templates = append(templates, &apipb.LinkTemplate{
+			Text: "About this tab",
+			Url:  tab.GetAboutDashboardUrl(),
+		})
+	}
+	return templates
+}
+
+func cellMenuTemplates(tab *configpb.DashboardTab) []*apipb.LinkTemplate {
+	var templates []*apipb.LinkTemplate
+	if tab.GetOpenTestTemplate() != nil {
+		templates = append(templates, &apipb.LinkTemplate{
+			Text:    "Open Test",
+			Url:     tab.GetOpenTestTemplate().GetUrl(),
+			Options: apiLinkOptionsTemplates(tab.GetOpenTestTemplate().GetOptions()),
+		})
+	}
+	if tab.GetFileBugTemplate() != nil {
+		templates = append(templates, &apipb.LinkTemplate{
+			Text:    "File a Bug",
+			Url:     tab.GetFileBugTemplate().GetUrl(),
+			Options: apiLinkOptionsTemplates(tab.GetFileBugTemplate().GetOptions()),
+		})
+	}
+	if tab.GetAttachBugTemplate() != nil {
+		templates = append(templates, &apipb.LinkTemplate{
+			Text:    "Attach to Bug",
+			Url:     tab.GetAttachBugTemplate().GetUrl(),
+			Options: apiLinkOptionsTemplates(tab.GetAttachBugTemplate().GetOptions()),
+		})
+	}
+	return templates
+}
+
+func columnDiffMenuTemplates(tab *configpb.DashboardTab) []*apipb.LinkTemplate {
+	var templates []*apipb.LinkTemplate
+	if tab.GetCodeSearchUrlTemplate() != nil {
+		templates = append(templates, &apipb.LinkTemplate{
+			Text:    "Search for Changes",
+			Url:     tab.GetCodeSearchUrlTemplate().GetUrl(),
+			Options: apiLinkOptionsTemplates(tab.GetCodeSearchUrlTemplate().GetOptions()),
+		})
+	}
+	if len(tab.GetColumnDiffLinkTemplates()) != 0 {
+		for _, diffTemplate := range tab.GetColumnDiffLinkTemplates() {
+			templates = append(templates, &apipb.LinkTemplate{
+				Text:    diffTemplate.GetName(),
+				Url:     diffTemplate.GetUrl(),
+				Options: apiLinkOptionsTemplates(diffTemplate.GetOptions()),
+			})
+		}
+	}
+	return templates
+}
+
+// GetDashboardTab returns the configuration for a given dashboard tab.
+func (s *Server) GetDashboardTab(ctx context.Context, req *apipb.GetDashboardTabRequest) (*apipb.GetDashboardTabResponse, error) {
+	c, err := s.getConfig(ctx, logrus.WithContext(ctx), req.GetScope())
+	if err != nil {
+		return nil, err
+	}
+	c.Mutex.RLock()
+	defer c.Mutex.RUnlock()
+
+	dashboardName := c.NormalDashboard[config.Normalize(req.GetDashboard())]
+	dashboard := c.Config.Dashboards[dashboardName]
+	tabName := c.NormalDashboardTab[config.Normalize(req.GetDashboard())][config.Normalize(req.GetTab())]
+
+	for _, tab := range dashboard.GetDashboardTab() {
+		if tab.GetName() == tabName {
+			testGroupName := c.NormalTestGroup[config.Normalize(tab.GetTestGroupName())]
+			testGroup := c.Config.Groups[testGroupName]
+			if testGroup == nil {
+				return nil, fmt.Errorf("test group %q backing dashboard tab %q/%q not found", tab.GetTestGroupName(), req.GetDashboard(), req.GetTab())
+			}
+
+			return &apipb.GetDashboardTabResponse{
+				Name:                tab.GetName(),
+				TestGroupName:       tab.GetTestGroupName(),
+				Description:         tab.GetDescription(),
+				ResultSource:        apiResultSource(testGroup.GetResultSource(), testGroup.GetGcsPrefix()),
+				TabMenuTemplates:    tabMenuTemplates(tab),
+				CellMenuTemplates:   cellMenuTemplates(tab),
+				ColumnDiffTemplates: columnDiffMenuTemplates(tab),
+				AlertOptions: &apipb.AlertOptions{
+					NumColumnsRecent:        tab.GetNumColumnsRecent(),
+					AlertStaleResultsHours:  tab.GetAlertOptions().GetAlertStaleResultsHours(),
+					NumFailuresToAlert:      tab.GetAlertOptions().GetNumFailuresToAlert(),
+					NumPassesToDisableAlert: tab.GetAlertOptions().GetNumPassesToDisableAlert(),
+				},
+				BaseOptions:       tab.GetBaseOptions(),
+				DisplayLocalTime:  tab.GetDisplayLocalTime(),
+				TabularNamesRegex: tab.GetTabularNamesRegex(),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("dashboard tab %q/%q not found", req.GetDashboard(), req.GetTab())
+}
+
+// GetDashboardTabHTTP returns a given dashboard tab
+// Response json: GetDashboardTabResponse
+func (s Server) GetDashboardTabHTTP(w http.ResponseWriter, r *http.Request) {
+	req := apipb.GetDashboardTabRequest{
+		Scope:     r.URL.Query().Get(scopeParam),
+		Dashboard: chi.URLParam(r, "dashboard"),
+		Tab:       chi.URLParam(r, "tab"),
+	}
+	resp, err := s.GetDashboardTab(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	s.writeJSON(w, resp)
 }
 
 // GetDashboardGroupHTTP returns a given dashboard group

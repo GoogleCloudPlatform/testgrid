@@ -24,6 +24,12 @@ service TestGridData {
   rpc ListDashboardTabs(ListDashboardTabsRequest)
       returns (ListDashboardTabsResponse) {}
 
+  // GET /dashboards/{dashboard}/tabs/{tab}
+  // Returns a Dashboard Tab config's metadata (including all relevant
+  // configuration from either the Dashboard Tab or its backing Test Group).
+  rpc GetDashboardTab(GetDashboardTabRequest)
+      returns (GetDashboardTabResponse) {}
+
   // GET /dashboards/{dashboard}
   // Returns a Dashboard config's metadata
   // Excludes subtabs, accessed through the /tabs list method instead
@@ -44,32 +50,150 @@ service TestGridData {
 
   // GET /dashboards/{dashboard}/tab-summaries
   // Returns the list of tab summaries for dashboard.
-  rpc ListTabSummaries(ListTabSummariesRequest) returns (ListTabSummariesResponse){}
+  rpc ListTabSummaries(ListTabSummariesRequest)
+      returns (ListTabSummariesResponse) {}
 
   // GET /dashboards/{dashboard}/tab-summaries/{tab}
-  rpc GetTabSummary(GetTabSummaryRequest) returns (GetTabSummaryResponse){}
+  rpc GetTabSummary(GetTabSummaryRequest) returns (GetTabSummaryResponse) {}
 
   // GET /dashboard-groups/{dashboard-group}/dashboard-summaries
-  rpc ListDashboardSummaries(ListDashboardSummariesRequest) returns (ListDashboardSummariesResponse){}
+  rpc ListDashboardSummaries(ListDashboardSummariesRequest)
+      returns (ListDashboardSummariesResponse) {}
 
   // GET /dashboards/{dashboard}/summary
-  rpc GetDashboardSummary(GetDashboardSummaryRequest) returns (GetDashboardSummaryResponse){}
+  rpc GetDashboardSummary(GetDashboardSummaryRequest)
+      returns (GetDashboardSummaryResponse) {}
 }
 
-message ListDashboardsRequest { string scope = 1; }
+message ListDashboardsRequest {
+  string scope = 1;
+}
 
-message ListDashboardsResponse { repeated DashboardResource dashboards = 1; }
+message ListDashboardsResponse {
+  repeated DashboardResource dashboards = 1;
+}
 
-message ListDashboardGroupsRequest { string scope = 1; }
+message ListDashboardGroupsRequest {
+  string scope = 1;
+}
 
-message ListDashboardGroupsResponse { repeated Resource dashboard_groups = 1; }
+message ListDashboardGroupsResponse {
+  repeated Resource dashboard_groups = 1;
+}
 
 message ListDashboardTabsRequest {
   string scope = 1;
   string dashboard = 2;
 }
 
-message ListDashboardTabsResponse { repeated Resource dashboard_tabs = 1; }
+message ListDashboardTabsResponse {
+  repeated Resource dashboard_tabs = 1;
+}
+
+message GetDashboardTabRequest {
+  string scope = 1;
+  string dashboard = 2;
+  string tab = 3;
+}
+
+// A simple key/value pair for link options.
+message LinkOptionsTemplate {
+  // The key for the option. This is not expanded.
+  string key = 1;
+
+  // The value for the option. This is expanded the same as the LinkTemplate.
+  string value = 2;
+}
+
+message LinkTemplate {
+  // The display text for the link.
+  string text = 1;
+  // The URL template.
+  string url = 2;
+  // The options templates.
+  repeated LinkOptionsTemplate options = 3;
+}
+
+// GCSConfig specifies results stored in GCS, typically created by prow.
+//
+// Each invocation is stored in a GCS path, containing json metadata files
+// as well as junit and other artifacts specifying the result of the run.
+//
+// More info:
+// https://github.com/GoogleCloudPlatform/testgrid/tree/main/metadata
+message GCSConfig {
+  // Path to the test result stored in gcs (some-bucket/some/optional/path).
+  string gcs_prefix = 1;
+
+  // The GCP project where GCS sends notifications for the above prefix (e.g.
+  // 'my-project').
+  string pubsub_project = 2;
+  // The ID of the pubsub subscription (e.g. 'my-subscription').
+  string pubsub_subscription = 3;
+}
+
+// ResultStoreConfig specifies results stored in ResultStore.
+message ResultStoreConfig {
+  // Google Cloud Platform project ID where ResultStore results are stored.
+  string project = 1;
+  // A simple query to filter for particular results.
+  // Currently, only allows a query in the form of `target:"<target>"`.
+  string query = 2;
+}
+
+message ResultSource {
+  oneof result_source_config {
+    // GCS buckets holding junit and json results, typically created by prow.
+    GCSConfig gcs_config = 2;
+    // Invocations stored in ResultStore.
+    ResultStoreConfig resultstore_config = 6;
+  }
+}
+
+message AlertOptions {
+  // Consider a row stale if it has no results for many columns.
+  int32 num_columns_recent = 1;
+  // If not zero, consider a tab stale and raise an alert for the tab if there
+  // are no results within this many hours.
+  int32 alert_stale_results_hours = 2;
+  // If not zero, open an alert when this many failures have occurred for a row.
+  int32 num_failures_to_alert = 3;
+  // Close an alert if this many passes have occurred for a row.
+  int32 num_passes_to_disable_alert = 4;
+}
+
+message GetDashboardTabResponse {
+  // Name of the tab.
+  string name = 1;
+  // Name of the test group backing this tab.
+  string test_group_name = 2;
+  // Description of the tab.
+  string description = 3;
+  // Where/how to pull test results.
+  ResultSource result_source = 4;
+  // (includes about_dashboard_url link, results link (results_text and
+  // results_url_template), )
+  // Links for the 'Overall' menu.
+  repeated LinkTemplate tab_menu_templates = 5;
+  // (includes column_diff_link_templates; listed in the context menu in order)
+  // (also open_test_template, open_bug_template, file_bug_template,
+  // attach_bug_template)
+  // Links for the context menu on an individual cell.
+  repeated LinkTemplate cell_menu_templates = 6;
+  // (build from code_search_path and code_search_url_template)
+  // Links for the context menu shown when comparing two columns.
+  repeated LinkTemplate column_diff_templates = 7;
+  // Options that affect what counts as an alert (continuous failure).
+  // (build from num_columns_recent, alert_options,
+  // status_customization_options, broken_column_threshold)
+  AlertOptions alert_options = 8;
+  // Default display options.
+  string base_options = 9;
+  // If true, display the local time by default (as opposed to Pacific Time).
+  bool display_local_time = 10;
+  // If set, display the row name as a table of info.
+  string tabular_names_regex = 11;
+}
 
 message GetDashboardRequest {
   string scope = 1;
@@ -98,7 +222,9 @@ message GetDashboardGroupRequest {
   string dashboard_group = 2;
 }
 
-message GetDashboardGroupResponse { repeated Resource dashboards = 1; }
+message GetDashboardGroupResponse {
+  repeated Resource dashboards = 1;
+}
 
 message ListHeadersRequest {
   string scope = 1;
@@ -170,7 +296,8 @@ message Resource {
 }
 
 // A DashboardResource is a REST resource for a dashboard
-// It includes the name of the resource, a link, and a dashboard group to which it belongs
+// It includes the name of the resource, a link, and a dashboard group to which
+// it belongs
 message DashboardResource {
   string name = 1;
   string link = 2;
@@ -192,7 +319,7 @@ message ListTabSummariesResponse {
   repeated TabSummary tab_summaries = 1;
 }
 
-message GetTabSummaryRequest{
+message GetTabSummaryRequest {
   // Scope defines the GCS bucket to read the results from.
   string scope = 1;
 
@@ -203,12 +330,12 @@ message GetTabSummaryRequest{
   string tab = 3;
 }
 
-message GetTabSummaryResponse{
+message GetTabSummaryResponse {
   // Summary for the tab
   TabSummary tab_summary = 1;
 }
 
-message ListDashboardSummariesRequest{
+message ListDashboardSummariesRequest {
   // Scope defines the GCS bucket to read the results from.
   string scope = 1;
 
@@ -216,12 +343,12 @@ message ListDashboardSummariesRequest{
   string dashboard_group = 2;
 }
 
-message ListDashboardSummariesResponse{
+message ListDashboardSummariesResponse {
   // List of dashboard summaries.
   repeated DashboardSummary dashboard_summaries = 1;
 }
 
-message GetDashboardSummaryRequest{
+message GetDashboardSummaryRequest {
   // Scope defines the GCS bucket to read the results from.
   string scope = 1;
 
@@ -229,7 +356,7 @@ message GetDashboardSummaryRequest{
   string dashboard = 2;
 }
 
-message GetDashboardSummaryResponse{
+message GetDashboardSummaryResponse {
   // Summary for the dashboard.
   DashboardSummary dashboard_summary = 1;
 }
@@ -259,17 +386,17 @@ message TabSummary {
   string latest_passing_build = 7;
 
   // Summarized info on the failing tests.
-  // In this case, any test which raised an alert and did not suppress it is considered failing.
+  // In this case, any test which raised an alert and did not suppress it is
+  // considered failing.
   FailuresSummary failures_summary = 8;
 
-  //Summarized info on the tab's healthiness.
+  // Summarized info on the tab's healthiness.
   HealthinessSummary healthiness_summary = 9;
 }
 
 // Summarized representation of data from failing test summaries.
 // Will be rendered in failures summary component within tab summary.
 message FailuresSummary {
-
   // Top failing tests by fail count.
   repeated FailingTestInfo top_failing_tests = 1;
 
@@ -279,7 +406,6 @@ message FailuresSummary {
 
 // Subset of data from FailingTestSummary defined in summary.proto.
 message FailingTestInfo {
-
   // Name of the failing test.
   string display_name = 1;
 
@@ -295,7 +421,6 @@ message FailingTestInfo {
 
 // Aggregate stats across all failing tests.
 message FailureStats {
-
   // Number of failing tests for the tab.
   int32 num_failing_tests = 1;
 }
@@ -303,7 +428,6 @@ message FailureStats {
 // Summarized representation of data from tab's HealthinessInfo.
 // Will be rendered in healthiness summary component within tab summary.
 message HealthinessSummary {
-
   // Top flaky tests (with flakiness > 0) by the current flakiness %.
   repeated FlakyTestInfo top_flaky_tests = 1;
 
@@ -313,7 +437,6 @@ message HealthinessSummary {
 
 // Subset of data from HealthinessInfo.TestInfo defined in summary.proto.
 message FlakyTestInfo {
-
   // Name of the flaky test.
   string display_name = 1;
 
@@ -327,7 +450,6 @@ message FlakyTestInfo {
 
 // Aggregated healthiness stats across the tab.
 message HealthinessStats {
-
   // The start of the time frame that the analysis was run for.
   google.protobuf.Timestamp start = 1;
 
@@ -345,9 +467,9 @@ message HealthinessStats {
 }
 
 // Summary for a particular dashboard.
-// Contains the info required to render dashboard summary in UI (done in the dashboard group view).
-message DashboardSummary{
-
+// Contains the info required to render dashboard summary in UI (done in the
+// dashboard group view).
+message DashboardSummary {
   // Name of the dashboard.
   string name = 1;
 
