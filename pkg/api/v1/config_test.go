@@ -323,6 +323,362 @@ func Test_GetDashboard(t *testing.T) {
 	}
 }
 
+func Test_GetDashboardTab(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   map[string]*configpb.Configuration
+		req      *apipb.GetDashboardTabRequest
+		expected *apipb.GetDashboardTabResponse
+	}{
+		{
+			name: "Returns from an empty tab",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Dashboard1",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "Tab1",
+									TestGroupName: "TestGroup1",
+								},
+							},
+						},
+					},
+					TestGroups: []*configpb.TestGroup{
+						{Name: "TestGroup1"},
+					},
+				},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "Tab1",
+			},
+			expected: &apipb.GetDashboardTabResponse{
+				Name:          "Tab1",
+				TestGroupName: "TestGroup1",
+				ResultSource: &apipb.ResultSource{
+					ResultSourceConfig: &apipb.ResultSource_GcsConfig{},
+				},
+				AlertOptions: &apipb.AlertOptions{},
+			},
+		},
+		{
+			name: "Returns dashboard tab info from dashboard tab",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name:       "Dashboard1",
+							DefaultTab: "defaultTab",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:              "Tab1",
+									TestGroupName:     "TestGroup1",
+									BaseOptions:       "width=20",
+									Description:       "A tab.",
+									AboutDashboardUrl: "overall-tab-link",
+									ResultsText:       "See results, somewhere",
+									ResultsUrlTemplate: &configpb.LinkTemplate{
+										Url: "results-link",
+									},
+									CodeSearchUrlTemplate: &configpb.LinkTemplate{
+										Url: "code-search-link",
+									},
+									OpenTestTemplate: &configpb.LinkTemplate{
+										Url: "open-test-link",
+									},
+									FileBugTemplate: &configpb.LinkTemplate{
+										Url: "file-bug-link",
+									},
+									OpenBugTemplate: &configpb.LinkTemplate{
+										Url: "open-bug-link",
+									},
+									AttachBugTemplate: &configpb.LinkTemplate{
+										Url: "attach-bug-link",
+									},
+									ColumnDiffLinkTemplates: []*configpb.LinkTemplate{
+										{
+											Name: "Foo Diff",
+											Url:  "diff-link/foo",
+										},
+										{
+											Name: "Bar Diff",
+											Url:  "diff-link/bar",
+										},
+									},
+									AlertOptions: &configpb.DashboardTabAlertOptions{},
+								},
+							},
+						},
+					},
+					TestGroups: []*configpb.TestGroup{
+						{
+							Name: "TestGroup1",
+							ResultSource: &configpb.TestGroup_ResultSource{
+								ResultSourceConfig: &configpb.TestGroup_ResultSource_GcsConfig{
+									GcsConfig: &configpb.GCSConfig{
+										GcsPrefix:          "my-bucket/dir",
+										PubsubProject:      "my-project",
+										PubsubSubscription: "my-subscription",
+									},
+								},
+							}},
+					},
+				},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "Tab1",
+			},
+			expected: &apipb.GetDashboardTabResponse{
+				Name:          "Tab1",
+				TestGroupName: "TestGroup1",
+				Description:   "A tab.",
+				ResultSource: &apipb.ResultSource{
+					ResultSourceConfig: &apipb.ResultSource_GcsConfig{
+						GcsConfig: &apipb.GCSConfig{
+							GcsPrefix:          "my-bucket/dir",
+							PubsubProject:      "my-project",
+							PubsubSubscription: "my-subscription",
+						},
+					},
+				},
+				TabMenuTemplates: []*apipb.LinkTemplate{
+					{
+						Text: "See results, somewhere",
+						Url:  "results-link",
+					},
+					{
+						Text: "About this tab",
+						Url:  "overall-tab-link",
+					},
+				},
+				ColumnDiffTemplates: []*apipb.LinkTemplate{
+					{
+						Text: "Search for Changes",
+						Url:  "code-search-link",
+					},
+					{
+						Text: "Foo Diff",
+						Url:  "diff-link/foo",
+					},
+					{
+						Text: "Bar Diff",
+						Url:  "diff-link/bar",
+					},
+				},
+				CellMenuTemplates: []*apipb.LinkTemplate{
+					{
+						Text: "Open Test",
+						Url:  "open-test-link",
+					},
+					{
+						Text: "File a Bug",
+						Url:  "file-bug-link",
+					},
+					{
+						Text: "Attach to Bug",
+						Url:  "attach-bug-link",
+					},
+				},
+				AlertOptions:      &apipb.AlertOptions{},
+				BaseOptions:       "width=20",
+				DisplayLocalTime:  false,
+				TabularNamesRegex: "",
+			},
+		},
+		{
+			name: "Returns dashboard tab info from dashboard tab with GCS prefix",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name:       "Dashboard1",
+							DefaultTab: "defaultTab",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "Tab1",
+									TestGroupName: "TestGroup1",
+									BaseOptions:   "width=20",
+									Description:   "A tab.",
+								},
+							},
+						},
+					},
+					TestGroups: []*configpb.TestGroup{
+						{
+							Name:      "TestGroup1",
+							GcsPrefix: "my-bucket/dir",
+						},
+					},
+				},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "Tab1",
+			},
+			expected: &apipb.GetDashboardTabResponse{
+				Name:          "Tab1",
+				TestGroupName: "TestGroup1",
+				Description:   "A tab.",
+				ResultSource: &apipb.ResultSource{
+					ResultSourceConfig: &apipb.ResultSource_GcsConfig{
+						GcsConfig: &apipb.GCSConfig{
+							GcsPrefix: "my-bucket/dir",
+						},
+					},
+				},
+				AlertOptions:     &apipb.AlertOptions{},
+				BaseOptions:      "width=20",
+				DisplayLocalTime: false,
+			},
+		},
+		{
+			name: "Reads specified configs",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name:       "wrong-dashboard",
+							DefaultTab: "wrong-dashboard defaultTab",
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "wrong-tab",
+									TestGroupName: "wrong-group",
+								},
+							},
+						},
+					},
+					TestGroups: []*configpb.TestGroup{
+						{Name: "wrong-group"},
+					},
+				},
+				"gs://example/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name:           "correct-dashboard",
+							DefaultTab:     "correct-dashboard defaultTab",
+							HighlightToday: true,
+							DashboardTab: []*configpb.DashboardTab{
+								{
+									Name:          "correct-tab",
+									TestGroupName: "correct-group",
+								},
+							},
+						},
+					},
+					TestGroups: []*configpb.TestGroup{
+						{Name: "correct-group"},
+					},
+				},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "correct-dashboard",
+				Tab:       "correct-tab",
+				Scope:     "gs://example",
+			},
+			expected: &apipb.GetDashboardTabResponse{
+				Name:          "correct-tab",
+				TestGroupName: "correct-group",
+				ResultSource: &apipb.ResultSource{
+					ResultSourceConfig: &apipb.ResultSource_GcsConfig{},
+				},
+				AlertOptions:      &apipb.AlertOptions{},
+				BaseOptions:       "",
+				DisplayLocalTime:  false,
+				TabularNamesRegex: "",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, nil, nil)
+			actual, err := server.GetDashboardTab(context.Background(), tc.req)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(actual, tc.expected, protocmp.Transform()); diff != "" {
+				t.Errorf("(-got, +want): %s", diff)
+			}
+		})
+	}
+}
+
+func Test_GetDashboardTab_Error(t *testing.T) {
+	tests := []struct {
+		name   string
+		config map[string]*configpb.Configuration
+		req    *apipb.GetDashboardTabRequest
+	}{
+		{
+			name: "Returns an error when missing config",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "Tab1",
+			},
+		},
+		{
+			name: "Returns an error when missing test group",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name: "Dashboard1",
+						},
+					},
+					TestGroups: []*configpb.TestGroup{},
+				},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "Tab1",
+			},
+		},
+		{
+			name: "Returns an error when missing tab",
+			config: map[string]*configpb.Configuration{
+				"gs://default/config": {
+					Dashboards: []*configpb.Dashboard{
+						{
+							Name:         "Dashboard1",
+							DashboardTab: []*configpb.DashboardTab{},
+						},
+					},
+					TestGroups: []*configpb.TestGroup{
+						{Name: "TestGroup1"},
+					},
+				},
+			},
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "Dashboard1",
+				Tab:       "Tab1",
+			},
+		},
+		{
+			name: "Server error with unreadable config",
+			req: &apipb.GetDashboardTabRequest{
+				Dashboard: "who",
+				Tab:       "what",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t, tc.config, nil, nil)
+			actual, err := server.GetDashboardTab(context.Background(), tc.req)
+			if err == nil {
+				t.Errorf("Expected error, but got response instead: %v", actual)
+			}
+		})
+	}
+}
+
 func Test_ListDashboardTabs(t *testing.T) {
 	tests := []struct {
 		name        string
