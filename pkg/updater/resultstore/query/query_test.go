@@ -22,63 +22,85 @@ import (
 
 func TestTranslateAtom(t *testing.T) {
 	cases := []struct {
-		name      string
-		atom      string
-		want      string
-		wantError bool
+		name       string
+		atom       keyValue
+		want       string
+		wantTarget string
 	}{
 		{
-			name: "empty",
-			atom: "",
-			want: "",
+			name:       "label atom",
+			atom:       keyValue{"label", "foo"},
+			want:       `invocation_attributes.labels:"foo"`,
+			wantTarget: `invocation.invocation_attributes.labels:"foo"`,
 		},
 		{
-			name: "basic",
-			atom: `target:"//my-target"`,
-			want: `id.target_id="//my-target"`,
-		},
-		{
-			name:      "case-sensitive key",
-			atom:      `TARGET:"//MY-TARGET"`,
-			wantError: true,
-		},
-		{
-			name: "multiple colons",
-			atom: `target:"//path/to:my-target"`,
-			want: `id.target_id="//path/to:my-target"`,
-		},
-		{
-			name: "unquoted",
-			atom: `target://my-target`,
-			want: `id.target_id="//my-target"`,
-		},
-		{
-			name: "partial quotes",
-			atom: `target://my-target"`,
-			want: `id.target_id="//my-target"`,
-		},
-		{
-			name:      "not enough parts",
-			atom:      "target",
-			wantError: true,
-		},
-		{
-			name:      "unknown atom",
-			atom:      "label:foo",
-			wantError: true,
+			name:       "target atom",
+			atom:       keyValue{"target", "//my-target"},
+			want:       `id.target_id="//my-target"`,
+			wantTarget: `id.target_id="//my-target"`,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := translateAtom(tc.atom)
-			if tc.want != got {
-				t.Errorf("translateAtom(%q) differed; got %q, want %q", tc.atom, got, tc.want)
+			// Invocation queries (queryTarget = false)
+			got, err := translateAtom(tc.atom, false)
+			if err != nil {
+				t.Fatalf("translateAtom(%q, %t) errored: %v", tc.atom, false, err)
 			}
-			if err == nil && tc.wantError {
-				t.Errorf("translateAtom(%q) did not error as expected", tc.atom)
-			} else if err != nil && !tc.wantError {
-				t.Errorf("translateAtom(%q) errored unexpectedly: %v", tc.atom, err)
+			if tc.want != got {
+				t.Errorf("translateAtom(%q, %t) differed; got %q, want %q", tc.atom, false, got, tc.want)
+			}
+			// Configured Target queries (queryTarget = true)
+			gotTarget, err := translateAtom(tc.atom, true)
+			if err != nil {
+				t.Fatalf("translateAtom(%q, %t) errored: %v", tc.atom, true, err)
+			}
+			if tc.wantTarget != gotTarget {
+				t.Errorf("translateAtom(%q, %t) differed; got %q, want %q", tc.atom, true, gotTarget, tc.wantTarget)
+			}
+		})
+	}
+}
+
+func TestTranslateAtom_Error(t *testing.T) {
+	cases := []struct {
+		name string
+		atom keyValue
+	}{
+		{
+			name: "empty",
+			atom: keyValue{"", ""},
+		},
+		{
+			name: "case-sensitive key",
+			atom: keyValue{"TARGET", "//MY-TARGET"},
+		},
+		{
+			name: "missing key",
+			atom: keyValue{"", "//path/to:my-target"},
+		},
+		{
+			name: "missing value",
+			atom: keyValue{"target", ""},
+		},
+		{
+			name: "unknown atom",
+			atom: keyValue{"custom-property", "foo"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Invocation queries (queryTarget = false)
+			_, err := translateAtom(tc.atom, false)
+			if err == nil {
+				t.Fatalf("translateAtom(%q, %t): want error but got none", tc.atom, false)
+			}
+			// Configured Target queries (queryTarget = true)
+			_, err = translateAtom(tc.atom, true)
+			if err == nil {
+				t.Fatalf("translateAtom(%q, %t): want error but got none", tc.atom, true)
 			}
 		})
 	}
@@ -86,10 +108,9 @@ func TestTranslateAtom(t *testing.T) {
 
 func TestTranslateQuery(t *testing.T) {
 	cases := []struct {
-		name      string
-		query     string
-		want      string
-		wantError bool
+		name  string
+		query string
+		want  string
 	}{
 		{
 			name:  "empty",
@@ -97,52 +118,77 @@ func TestTranslateQuery(t *testing.T) {
 			want:  "",
 		},
 		{
-			name:  "basic",
+			name:  "label",
+			query: `label:"foo"`,
+			want:  `invocation_attributes.labels:"foo"`,
+		},
+		{
+			name:  "target",
 			query: `target:"//my-target"`,
 			want:  `id.target_id="//my-target"`,
 		},
 		{
-			name:      "case-sensitive key",
-			query:     `TARGET:"//MY-TARGET"`,
-			wantError: true,
+			name:  "multiple labels",
+			query: `label:"foo" label:"bar"`,
+			want:  `invocation_attributes.labels:"foo" invocation_attributes.labels:"bar"`,
+		},
+		{
+			name:  "mixed",
+			query: `label:"foo" target:"//my-target" label:"bar"`,
+			want:  `invocation.invocation_attributes.labels:"foo" id.target_id="//my-target" invocation.invocation_attributes.labels:"bar"`,
 		},
 		{
 			name:  "multiple colons",
 			query: `target:"//path/to:my-target"`,
 			want:  `id.target_id="//path/to:my-target"`,
 		},
-		{
-			name:      "unquoted",
-			query:     `target://my-target`,
-			wantError: true,
-		},
-		{
-			name:      "partial quotes",
-			query:     `target://my-target"`,
-			wantError: true,
-		},
-		{
-			name:      "invalid query",
-			query:     `label:foo`,
-			wantError: true,
-		},
-		{
-			name:      "partial match",
-			query:     `some_target:foo`,
-			wantError: true,
-		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := TranslateQuery(tc.query)
+			if err != nil {
+				t.Fatalf("translateQuery(%q) errored: %v", tc.query, err)
+			}
 			if tc.want != got {
 				t.Errorf("translateQuery(%q) differed; got %q, want %q", tc.query, got, tc.want)
 			}
-			if tc.wantError && err == nil {
-				t.Errorf("translateQuery(%q) did not error as expected", tc.query)
-			} else if !tc.wantError && err != nil {
-				t.Errorf("translateQuery(%q) errored unexpectedly: %v", tc.query, err)
+		})
+	}
+}
+
+func TestTranslateQuery_Error(t *testing.T) {
+	cases := []struct {
+		name  string
+		query string
+	}{
+		{
+			name:  "case-sensitive key",
+			query: `TARGET:"//MY-TARGET"`,
+		},
+		{
+			name:  "unquoted",
+			query: `target://my-target`,
+		},
+		{
+			name:  "partial quotes",
+			query: `target://my-target"`,
+		},
+		{
+			name:  "invalid query",
+			query: `label:foo`,
+		},
+		{
+			name:  "partial match",
+			query: `some_target:foo`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := TranslateQuery(tc.query)
+			if err == nil {
+				t.Fatalf("translateQuery(%q): want error, got none", tc.query)
 			}
 		})
 	}
