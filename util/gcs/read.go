@@ -290,11 +290,12 @@ func dropPrefix(name string) string {
 // parseSuitesMeta returns the metadata for this junit file (nil for a non-junit file).
 //
 // Expected format: junit_context_20180102-1256_07.xml
-// Results in {
-//   "Context": "context",
-//   "Timestamp": "20180102-1256",
-//   "Thread": "07",
-// }
+//
+//	Results in {
+//	  "Context": "context",
+//	  "Timestamp": "20180102-1256",
+//	  "Thread": "07",
+//	}
 func parseSuitesMeta(name string) map[string]string {
 	mat := re.FindStringSubmatch(name)
 	if mat == nil {

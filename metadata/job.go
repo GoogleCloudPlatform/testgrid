@@ -78,7 +78,7 @@ type Finished struct {
 
 // Metadata holds the finished.json values in the metadata key.
 //
-// Metadata values can either be string or string map of strings
+// # Metadata values can either be string or string map of strings
 //
 // TODO(fejta): figure out which of these we want and document them
 // Special values: infra-commit, repos, repo, repo-commit, links, others

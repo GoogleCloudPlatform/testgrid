@@ -1,5 +1,8 @@
 # gazelle:prefix github.com/GoogleCloudPlatform/testgrid
+load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@io_k8s_repo_infra//defs:run_in_workspace.bzl", "workspace_binary")
+
+gazelle(name = "gazelle")
 
 workspace_binary(
     name = "go",
