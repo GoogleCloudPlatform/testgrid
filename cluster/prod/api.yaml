@@ -30,6 +30,13 @@ spec:
         - --allowed-origin=*
         - --scope=gs://k8s-testgrid
         - --port=8080
+        resources:
+          requests: 
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
 ---
 apiVersion: v1
 kind: ServiceAccount
