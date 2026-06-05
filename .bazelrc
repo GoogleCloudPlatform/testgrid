@@ -2,6 +2,10 @@
 build --workspace_status_command=./hack/print-workspace-status.sh
 run --workspace_status_command=./hack/print-workspace-status.sh
 
+# Force C++17 standard for compiling newer Abseil and Protobuf libraries
+build --cxxopt=-std=c++17
+build --host_cxxopt=-std=c++17
+
 # enable data race detection
 test --@io_bazel_rules_go//go/config:race --test_output=errors
 
