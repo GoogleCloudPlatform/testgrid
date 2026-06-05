@@ -1,7 +1,7 @@
 # gazelle:repository_macro repos.bzl%go_repositories
 workspace(name = "com_github_googlecloudplatform_testgrid")
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 http_archive(
     name = "io_bazel_rules_go",
@@ -118,6 +118,34 @@ http_archive(
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()  # No options
+
+http_file(
+    name = "go_puller_linux_amd64",
+    downloaded_file_path = "puller.bin",
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+)
+
+http_file(
+    name = "go_puller_darwin",
+    downloaded_file_path = "puller.bin",
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+)
+
+http_file(
+    name = "go_puller_linux_arm64",
+    downloaded_file_path = "puller.bin",
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+)
+
+http_file(
+    name = "go_puller_linux_s390x",
+    downloaded_file_path = "puller.bin",
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+)
 
 load(
     "@io_bazel_rules_docker//repositories:repositories.bzl",
