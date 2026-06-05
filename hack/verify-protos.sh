@@ -46,7 +46,7 @@ cp -a "${TESTINFRA_ROOT}/." "${_tmpdir}"
   grpc=$5
   importmap=$6
 
-  export _virtual_imports=$TEST_SRCDIR/com_google_protobuf/_virtual_imports
+  export _virtual_imports=$TEST_SRCDIR/com_google_protobuf/src/google/protobuf/_virtual_imports
   export BUILD_WORKSPACE_DIRECTORY=${_tmpdir}
   "$update_protos" "$protoc" "$plugin" "$boiler" "$grpc" "$importmap"
 )

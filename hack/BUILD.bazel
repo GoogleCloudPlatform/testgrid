@@ -130,8 +130,13 @@ test_suite(
 
 filegroup(
     name = "package-srcs",
-    srcs = glob(["**"]),
-    tags = ["automanaged"],
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "**/__pycache__/**",
+            "**/*.pyc",
+        ],
+    ),
     visibility = ["//visibility:private"],
 )
 
