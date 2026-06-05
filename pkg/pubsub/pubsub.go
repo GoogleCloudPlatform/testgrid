@@ -89,6 +89,7 @@ func (n Notification) String() string {
 // Connects to the specified subscription with optionally specified settings.
 // Receives pubsub messages from this subscription and converts it into a Notification struct.
 //   - Nacks any message it cannot parse.
+//
 // Sends the notification to the receivers channel.
 //   - Nacks messages associated with any unsent Notifications.
 //   - Acks as soon as the Notification is sent.

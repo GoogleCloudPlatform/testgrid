@@ -82,10 +82,12 @@ func pathDefault(path string, defaultFiles map[string]DefaultConfiguration, defa
 }
 
 // ReadConfig takes multiple source paths of the following form:
-//   If path is a local file, then the file will be parsed as YAML
-//   If path is a directory, then all files and directories within it will be parsed.
-//     If this directory has a default(s).yaml file, apply it to all configured entities,
-// 		 after applying defaults from defaultPath.
+//
+//	  If path is a local file, then the file will be parsed as YAML
+//	  If path is a directory, then all files and directories within it will be parsed.
+//	    If this directory has a default(s).yaml file, apply it to all configured entities,
+//			 after applying defaults from defaultPath.
+//
 // Optionally, defaultPath points to default setting YAML
 // Returns a configuration proto containing the data from all of those sources
 func ReadConfig(paths []string, defaultpath string, strict bool) (*config.Configuration, error) {

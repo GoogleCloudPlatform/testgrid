@@ -111,14 +111,55 @@ sh_test(
     tags = ["lint"],
 )
 
+sh_test(
+    name = "verify-deps",
+    srcs = ["verify-deps.sh"],
+    args = [
+        "$(location @io_k8s_repo_infra//hack:update-deps)",
+        "$(location @go_sdk//:bin/go)",
+        "$(location @io_k8s_repo_infra//hack:update-bazel)",
+        "$(location @com_github_bazelbuild_buildtools//buildifier)",
+        "$(location @bazel_gazelle//cmd/gazelle)",
+        "$(location @io_k8s_repo_infra//cmd/kazel)",
+    ],
+    data = [
+        "//:all-srcs",
+        "@bazel_gazelle//cmd/gazelle",
+        "@com_github_bazelbuild_buildtools//buildifier",
+        "@go_sdk//:bin/go",
+        "@go_sdk//:files",
+        "@io_k8s_repo_infra//cmd/kazel",
+        "@io_k8s_repo_infra//hack:update-bazel",
+        "@io_k8s_repo_infra//hack:update-deps",
+    ],
+    tags = ["lint"],
+)
+
+sh_test(
+    name = "verify-bazel",
+    srcs = ["verify-bazel.sh"],
+    args = [
+        "$(location @com_github_bazelbuild_buildtools//buildifier)",
+        "$(location @bazel_gazelle//cmd/gazelle)",
+        "$(location @io_k8s_repo_infra//cmd/kazel)",
+    ],
+    data = [
+        "//:all-srcs",
+        "@bazel_gazelle//cmd/gazelle",
+        "@com_github_bazelbuild_buildtools//buildifier",
+        "@io_k8s_repo_infra//cmd/kazel",
+    ],
+    tags = ["lint"],
+)
+
 test_suite(
     name = "verify-all",
     tests = [
         ":verify-linters",
         # "@io_k8s_repo_infra//hack:verify-all", # TODO(fejta): golangci-lint
-        "@io_k8s_repo_infra//hack:verify-bazel",
+        ":verify-bazel",
         # "@io_k8s_repo_infra//hack:verify-boilerplate", TODO(gmccloskey): make more flexible across repos
-        "@io_k8s_repo_infra//hack:verify-deps",
+        ":verify-deps",
         "@io_k8s_repo_infra//hack:verify-gofmt",
     ],
 )
@@ -130,8 +171,13 @@ test_suite(
 
 filegroup(
     name = "package-srcs",
-    srcs = glob(["**"]),
-    tags = ["automanaged"],
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "**/__pycache__/**",
+            "**/*.pyc",
+        ],
+    ),
     visibility = ["//visibility:private"],
 )
 

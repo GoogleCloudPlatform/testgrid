@@ -41,7 +41,7 @@ importmap=$5
 dest=$BUILD_WORKSPACE_DIRECTORY
 
 if [[ -z "${_virtual_imports:-}" ]]; then
-  export _virtual_imports="$0.runfiles/com_google_protobuf/_virtual_imports"
+  export _virtual_imports="$0.runfiles/com_google_protobuf/src/google/protobuf/_virtual_imports"
 fi
 
 genproto() {

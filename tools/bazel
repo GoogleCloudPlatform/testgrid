@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v bazelisk &>/dev/null; then
+  exec bazelisk "$@"
+fi
+
+if command -v bazel-6.5.0 &>/dev/null; then
+  exec bazel-6.5.0 "$@"
+fi
+
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/bazelisk"
+mkdir -p "$CACHE_DIR"
+if [[ ! -x "$CACHE_DIR/bazelisk" ]]; then
+  curl -sSL --fail "https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64" -o "$CACHE_DIR/bazelisk"
+  chmod +x "$CACHE_DIR/bazelisk"
+fi
+
+exec "$CACHE_DIR/bazelisk" "$@"
