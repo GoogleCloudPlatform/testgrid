@@ -212,7 +212,7 @@ func TestParse(t *testing.T) {
 					<property name="SuiteSucceeded" value="true"></property>
                                     </properties>
                                     <testcase name="bone" time="6" />
-                                    <testcase name="head" time="3" >
+                                    <testcase name="head" time="3" timestamp="2023-08-28T17:15:11" >
 										<failure type="failure" message="failure message attribute"> failure message body </failure>
 									</testcase>
                                     <testcase name="neck" time="2" >
@@ -254,9 +254,10 @@ func TestParse(t *testing.T) {
 										Time: 6,
 									},
 									{
-										Name:    "head",
-										Time:    3,
-										Failure: &Failure{Type: "failure", Message: "failure message attribute", Value: *pstr(" failure message body ")},
+										Name:      "head",
+										Time:      3,
+										TimeStamp: "2023-08-28T17:15:11",
+										Failure:   &Failure{Type: "failure", Message: "failure message attribute", Value: *pstr(" failure message body ")},
 									},
 									{
 										Name:    "neck",
