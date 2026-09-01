@@ -1,5 +1,7 @@
 module github.com/GoogleCloudPlatform/testgrid
 
+go 1.26.5
+
 require (
 	bitbucket.org/creachadair/stringset v0.0.11
 	cloud.google.com/go/pubsub v1.33.0
@@ -44,6 +46,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/stretchr/testify v1.8.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
@@ -63,5 +66,3 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.3.0 // indirect
 )
-
-go 1.25
