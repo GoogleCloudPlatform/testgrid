@@ -346,7 +346,7 @@ func TestExpandTemplateString(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := expandTemplateString(tc.templateStr, tc.parameters, tc.isQuery)
+			got := expandTemplateString(tc.templateStr, tc.parameters, tc.isQuery, true)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("expandTemplateString() differed (-want, +got): %s", diff)
 			}

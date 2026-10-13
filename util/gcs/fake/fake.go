@@ -57,7 +57,7 @@ func (cc *ConditionalClient) check(ctx context.Context, from, to *gcs.Path) erro
 	if to != nil && cc.write != nil {
 		attrs, err := cc.UploadClient.Stat(ctx, *to)
 		switch {
-		case err == storage.ErrObjectNotExist:
+		case errors.Is(err, storage.ErrObjectNotExist):
 			if cc.write.GenerationMatch != 0 {
 				return fmt.Errorf("bad generation: %w", &googleapi.Error{
 					Code: http.StatusPreconditionFailed,

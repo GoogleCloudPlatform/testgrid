@@ -101,6 +101,11 @@ func (g *Path) Set(v string) error {
 	return g.SetURL(u)
 }
 
+// Get the current value of the path
+func (g *Path) Get() interface{} {
+	return g
+}
+
 // SetURL updates value to the passed in gs://bucket/obj url
 func (g *Path) SetURL(u *url.URL) error {
 	switch {

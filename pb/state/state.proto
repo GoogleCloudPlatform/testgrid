@@ -89,8 +89,11 @@ message AlertInfo {
   // defaults.
   repeated string email_addresses = 15;
 
-  // Maps (custom column headers name):(custom column headers value) for arbitrary alert properties.
+  // Maps (custom column headers name):(custom column headers value) for
+  // arbitrary alert properties.
   map<string,string> custom_column_headers = 16;
+
+  reserved 17;
 }
 
 // Info on default test metadata for a dashboard tab.
