@@ -91,7 +91,7 @@ func LeastRecentlyUpdated(ctx context.Context, log logrus.FieldLogger, client St
 	for i, path := range paths {
 		attrs, err := attrs[i].Attrs, attrs[i].Err
 		switch {
-		case err == storage.ErrObjectNotExist:
+		case errors.Is(err, storage.ErrObjectNotExist):
 			generations[path] = 0
 		case err != nil:
 			log.WithError(err).WithField("path", path).Warning("Stat failed")

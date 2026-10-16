@@ -80,33 +80,39 @@ func Tokens(template *configpb.LinkTemplate) []string {
 
 // ExpandTemplate expands the given link template with given parameters.
 func ExpandTemplate(template *configpb.LinkTemplate, parameters map[string]string) (string, error) {
-	rawUrl := expandTemplateString(template.GetUrl(), parameters, false)
-	baseUrl, err := url.Parse(rawUrl)
+	rawURL := expandTemplateString(template.GetUrl(), parameters, false, true)
+	baseURL, err := url.Parse(rawURL)
 	if err != nil {
 		return "", err
 	}
 	options := url.Values{}
 	for _, optionTemplate := range template.GetOptions() {
-		k := expandTemplateString(optionTemplate.GetKey(), parameters, true)
-		v := expandTemplateString(optionTemplate.GetValue(), parameters, true)
+		k := expandTemplateString(optionTemplate.GetKey(), parameters, true, true)
+		v := expandTemplateString(optionTemplate.GetValue(), parameters, true, true)
 		options.Add(k, v)
 	}
-	baseUrl.RawQuery = options.Encode()
-	return baseUrl.String(), nil
+	baseURL.RawQuery = options.Encode()
+	return baseURL.String(), nil
 }
 
 // expandTemplateString substitutes given parameters into the given link template.
-func expandTemplateString(template string, parameters map[string]string, isQuery bool) string {
+func expandTemplateString(template string, parameters map[string]string, isQuery bool, isEscaped bool) string {
 	// TODO: Handle start/end tokens.
 	// Substitute parameters for simple tokens.
 	for token, value := range parameters {
 		template = strings.ReplaceAll(template, token, value)
 	}
+
+	if !isEscaped {
+		return template
+	}
+
 	escape := url.PathEscape
 	if isQuery {
 		// Don't encode here; options.Encode() will do that.
 		escape = func(s string) string { return s }
 	}
+
 	// Encode specified parameters.
 	return encodeTokenRe.ReplaceAllStringFunc(
 		template,
