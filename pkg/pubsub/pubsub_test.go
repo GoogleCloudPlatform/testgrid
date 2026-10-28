@@ -168,13 +168,12 @@ func TestSendToReceivers(t *testing.T) {
 					"bad-path",
 					"bad-hash-path",
 					"bad-control-path",
+					"bad-time",
+					"bad-gen",
 					"good-random-event",
 					"good-old-bar",
 				},
-				nacks: []string{
-					"bad-time",
-					"bad-gen",
-				},
+				nacks: nil,
 			},
 			want: []*Notification{
 				{

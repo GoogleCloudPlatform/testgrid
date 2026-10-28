@@ -136,7 +136,7 @@ func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send Sender, r
 				"time": msg.Attributes[keyTime],
 				"id":   msg.ID,
 			}).Error("Failed to parse time")
-			result.Nack(msg)
+			result.Ack(msg)
 			return
 		}
 		gen, err := strconv.ParseInt(msg.Attributes[keyGeneration], 10, 64)
@@ -145,7 +145,7 @@ func sendToReceivers(ctx context.Context, log logrus.FieldLogger, send Sender, r
 				"generation": msg.Attributes[keyGeneration],
 				"id":         msg.ID,
 			}).Error("Failed to parse generation")
-			result.Nack(msg)
+			result.Ack(msg)
 			return
 		}
 		notice := Notification{
