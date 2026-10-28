@@ -1,6 +1,6 @@
 module github.com/GoogleCloudPlatform/testgrid
 
-go 1.26.8
+go 1.26.9
 
 require (
 	bitbucket.org/creachadair/stringset v0.0.11
