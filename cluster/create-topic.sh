@@ -17,7 +17,7 @@
 set -o nounset
 set -o errexit
 
-# See gsutil notification --help
+# See gcloud storage buckets notifications --help
 
 args=()
 topic=
@@ -40,7 +40,7 @@ if [[ -z "$topic" || $# == 0 ]]; then
     echo "  -p PREFIX: only publish messages for objects that start with this name, such as logs/" >&2
     echo "  -t TOPIC: foo or projects/proj/topics/foo" >&2
     echo >&2
-    echo "   More info: gsutil notification --help" >&2
+    echo "   More info: gcloud storage buckets notifications --help" >&2
     exit 1
 fi
 
@@ -52,11 +52,11 @@ log() {
 }
 
 for bucket in "$@"; do
-    existing=( $(gsutil notification list "$bucket" 2>/dev/null | grep -B 1 "$topic" | grep notificationConfigs || true) )
+    existing=( $(gcloud storage buckets notifications list "$bucket" 2>/dev/null | grep -B 1 "$topic" | grep notificationConfigs || true) )
     for prefix in "${prefixes[@]}"; do
-        log gsutil notification create -f json -t "$topic" -p "$prefix" "${args[@]}" "$bucket"
+        log gcloud storage buckets notifications create --payload-format=json --topic="$topic" --object-prefix="$prefix" "${args[@]}" "$bucket"
     done
     if [[ ${#existing[@]} -gt 0 ]]; then
-        log gsutil notification delete "${existing[@]}"
+        log gcloud storage buckets notifications delete "${existing[@]}"
     fi
 done
