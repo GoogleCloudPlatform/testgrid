@@ -20,8 +20,8 @@ This directory contains terrafrom configurations for provisioning monitoring and
 This is done once before initial provisioning of monitoring and alerting stacks.
 
 ```shell
-    gsutil mb -p k8s-testgrid gs://k8s-testgrid-metrics-terraform
-    gsutil versioning set on gs://k8s-testgrid-metrics-terraform
+    gcloud storage buckets create --project k8s-testgrid gs://k8s-testgrid-metrics-terraform
+    gcloud storage buckets update --versioning gs://k8s-testgrid-metrics-terraform
 ```
 
 ### Provisioning

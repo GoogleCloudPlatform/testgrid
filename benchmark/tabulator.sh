@@ -24,6 +24,6 @@ SRC_BUCKET="gs://testgrid-canary"   # An example state to operate on
 WORK_BUCKET="/tmp/testgrid-state"  # A bucket to work in. Can be GCS or Local
 
 # Tabulator uses config and testgroup state as inputs
-gsutil -m cp ${SRC_BUCKET}/config ${WORK_BUCKET}/config
-gsutil -m rsync -r ${SRC_BUCKET}/grid ${WORK_BUCKET}/grid
+gcloud storage cp ${SRC_BUCKET}/config ${WORK_BUCKET}/config
+gcloud storage rsync --recursive ${SRC_BUCKET}/grid ${WORK_BUCKET}/grid
 go test --bench="BenchmarkTabulator" --benchmem --cpuprofile cpu.out --memprofile mem.out --config="${WORK_BUCKET}/config" --confirm

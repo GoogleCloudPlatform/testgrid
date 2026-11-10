@@ -8,10 +8,10 @@ encoded via these protocol buffers.
 Protocol buffers can be read using the proto compiler `protoc`. Be sure your
 working directory is this repository.
 
-This example uses gsutil to read a Configuration from Google Cloud Storage. Then,
+This example uses gcloud storage to read a Configuration from Google Cloud Storage. Then,
 it uses protoc to decode it.
 ```bash
-gsutil cat gs://example-bucket/config | protoc --decode=Configuration pb/config/config.proto
+gcloud storage cat gs://example-bucket/config | protoc --decode=Configuration pb/config/config.proto
 ```
 
 You need to pass protoc the proto name and file used to encode the file.
@@ -35,7 +35,7 @@ need to do one of the following:
 ### Reading an Unknown Protocol Buffer
 
 ```bash
-gsutil cat gs://example-bucket/config | protoc --decode_raw
+gcloud storage cat gs://example-bucket/config | protoc --decode_raw
 ```
 
 The result will use message numbers instead of message names. For example, `1`
