@@ -7,6 +7,7 @@ py_test(
         "coalesce.py",
         "coalesce_test.py",
     ],
+    imports =  ["."],
     python_version = "PY3",
     srcs_version = "PY3",
 )
