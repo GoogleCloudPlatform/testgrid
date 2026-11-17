@@ -17,13 +17,18 @@ limitations under the License.
 package config
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	multierror "github.com/hashicorp/go-multierror"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestNormalize(t *testing.T) {
@@ -1574,5 +1579,227 @@ func TestUpdate_Validate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+type errReader struct {
+	err error
+}
+
+func (r errReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func TestUnmarshal(t *testing.T) {
+	wantCfg := &configpb.Configuration{
+		Dashboards: []*configpb.Dashboard{
+			{
+				Name: "dash_1",
+				DashboardTab: []*configpb.DashboardTab{
+					{
+						Name:          "tab_1",
+						TestGroupName: "test_group_1",
+					},
+				},
+			},
+		},
+		TestGroups: []*configpb.TestGroup{
+			{
+				Name:             "test_group_1",
+				GcsPrefix:        "fake-bucket/logs",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+			},
+		},
+	}
+	validBytes, err := proto.Marshal(wantCfg)
+	if err != nil {
+		t.Fatalf("proto.Marshal() unexpected error: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		reader  io.Reader
+		want    *configpb.Configuration
+		wantErr bool
+	}{
+		{
+			name:   "valid_config",
+			reader: bytes.NewReader(validBytes),
+			want:   wantCfg,
+		},
+		{
+			name:   "empty_config",
+			reader: bytes.NewReader(nil),
+			want:   &configpb.Configuration{},
+		},
+		{
+			name:    "invalid_proto",
+			reader:  bytes.NewReader([]byte{0xff, 0xff, 0xff}),
+			wantErr: true,
+		},
+		{
+			name:    "read_error",
+			reader:  errReader{err: errors.New("read failed")},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Unmarshal(tc.reader)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Unmarshal() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("Unmarshal() diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestUnmarshal_SizeLimit(t *testing.T) {
+	wantCfg := &configpb.Configuration{
+		Dashboards: []*configpb.Dashboard{
+			{Name: "dash_1"},
+		},
+	}
+	validBytes, err := proto.Marshal(wantCfg)
+	if err != nil {
+		t.Fatalf("proto.Marshal() unexpected error: %v", err)
+	}
+	exactLimit := len(validBytes)
+
+	got, err := unmarshal(bytes.NewReader(validBytes), exactLimit)
+	if err != nil {
+		t.Fatalf("unmarshal() at exact limit (%d) unexpected error: %v", exactLimit, err)
+	}
+	if diff := cmp.Diff(wantCfg, got, protocmp.Transform()); diff != "" {
+		t.Errorf("unmarshal() diff (-want +got):\n%s", diff)
+	}
+
+	if _, err := unmarshal(bytes.NewReader(validBytes), exactLimit-1); !errors.Is(err, ConfigTooLargeError{}) {
+		t.Errorf("unmarshal() above limit (%d > %d) error = %v, want %v", exactLimit, exactLimit-1, err, ConfigTooLargeError{})
+	}
+}
+
+func TestMarshalBytes(t *testing.T) {
+	validCfg := &configpb.Configuration{
+		Dashboards: []*configpb.Dashboard{
+			{
+				Name: "dash_1",
+				DashboardTab: []*configpb.DashboardTab{
+					{
+						Name:          "tab_1",
+						TestGroupName: "test_group_1",
+					},
+				},
+			},
+		},
+		TestGroups: []*configpb.TestGroup{
+			{
+				Name:             "test_group_1",
+				GcsPrefix:        "fake-bucket/logs",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+			},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		cfg     *configpb.Configuration
+		wantErr bool
+	}{
+		{
+			name: "valid_config",
+			cfg:  validCfg,
+		},
+		{
+			name:    "nil_config",
+			cfg:     nil,
+			wantErr: true,
+		},
+		{
+			name:    "empty_config",
+			cfg:     &configpb.Configuration{},
+			wantErr: true,
+		},
+		{
+			name: "invalid_config",
+			cfg: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{Name: "dash_1"},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := MarshalBytes(tc.cfg)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("MarshalBytes() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			var gotCfg configpb.Configuration
+			if err := proto.Unmarshal(got, &gotCfg); err != nil {
+				t.Fatalf("proto.Unmarshal() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.cfg, &gotCfg, protocmp.Transform()); diff != "" {
+				t.Errorf("MarshalBytes() diff (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestMarshalBytes_SizeLimit(t *testing.T) {
+	cfg := &configpb.Configuration{
+		Dashboards: []*configpb.Dashboard{
+			{
+				Name: "dash_1",
+				DashboardTab: []*configpb.DashboardTab{
+					{
+						Name:          "tab_1",
+						TestGroupName: "test_group_1",
+					},
+				},
+			},
+		},
+		TestGroups: []*configpb.TestGroup{
+			{
+				Name:             "test_group_1",
+				GcsPrefix:        "fake-bucket/logs",
+				DaysOfResults:    1,
+				NumColumnsRecent: 1,
+			},
+		},
+	}
+	validBytes, err := proto.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("proto.Marshal() unexpected error: %v", err)
+	}
+	exactLimit := len(validBytes)
+
+	got, err := marshalBytes(cfg, exactLimit)
+	if err != nil {
+		t.Fatalf("marshalBytes() at exact limit (%d) unexpected error: %v", exactLimit, err)
+	}
+	var gotCfg configpb.Configuration
+	if err := proto.Unmarshal(got, &gotCfg); err != nil {
+		t.Fatalf("proto.Unmarshal() unexpected error: %v", err)
+	}
+	if diff := cmp.Diff(cfg, &gotCfg, protocmp.Transform()); diff != "" {
+		t.Errorf("marshalBytes() diff (-want +got):\n%s", diff)
+	}
+
+	if _, err := marshalBytes(cfg, exactLimit-1); !errors.Is(err, ConfigTooLargeError{}) {
+		t.Errorf("marshalBytes() above limit (%d > %d) error = %v, want %v", exactLimit, exactLimit-1, err, ConfigTooLargeError{})
 	}
 }
