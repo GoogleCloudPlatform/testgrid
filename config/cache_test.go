@@ -18,6 +18,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -47,18 +48,20 @@ func Test_ReadGCS(t *testing.T) {
 	now := time.Now()
 
 	cases := []struct {
-		name               string
-		currentCache       map[string]Config
-		remoteData         []byte
-		remoteLastModified time.Time
-		remoteGeneration   int64
+		name         string
+		currentCache map[string]Config
+		remoteData   []byte
+		remoteAttrs  *storage.ReaderObjectAttrs
+		wantErr      error
 	}{
 		{
-			name:               "read on fresh cache",
-			currentCache:       map[string]Config{},
-			remoteData:         expectedBytes,
-			remoteLastModified: now,
-			remoteGeneration:   1,
+			name:         "read on fresh cache",
+			currentCache: map[string]Config{},
+			remoteData:   expectedBytes,
+			remoteAttrs: &storage.ReaderObjectAttrs{
+				LastModified: now,
+				Generation:   1,
+			},
 		},
 		{
 			name: "don't read if too recent",
@@ -72,9 +75,11 @@ func Test_ReadGCS(t *testing.T) {
 					lastFetch: now,
 				},
 			},
-			remoteData:         []byte{1, 2, 3},
-			remoteLastModified: now,
-			remoteGeneration:   1,
+			remoteData: []byte{1, 2, 3},
+			remoteAttrs: &storage.ReaderObjectAttrs{
+				LastModified: now,
+				Generation:   1,
+			},
 		},
 		{
 			name: "read on stale cache",
@@ -83,16 +88,45 @@ func Test_ReadGCS(t *testing.T) {
 					proto: &configpb.Configuration{
 						Dashboards: []*configpb.Dashboard{
 							{
-								Name: "stale",
+								Name: "stale and bad",
 							},
 						},
 					},
 					lastFetch: now.Add(-1 * time.Hour),
 				},
 			},
-			remoteData:         expectedBytes,
-			remoteLastModified: now,
-			remoteGeneration:   1,
+			remoteData: expectedBytes,
+			remoteAttrs: &storage.ReaderObjectAttrs{
+				LastModified: now,
+				Generation:   1,
+			},
+		},
+		{
+			name:         "read with nil attrs",
+			currentCache: map[string]Config{},
+			remoteData:   expectedBytes,
+			remoteAttrs:  nil,
+		},
+		{
+			name:         "read at max config size",
+			currentCache: map[string]Config{},
+			remoteData:   expectedBytes,
+			remoteAttrs: &storage.ReaderObjectAttrs{
+				LastModified: now,
+				Generation:   1,
+				Size:         int64(MaxConfigSize),
+			},
+		},
+		{
+			name:         "error when attrs size exceeds max config size",
+			currentCache: map[string]Config{},
+			remoteData:   expectedBytes,
+			remoteAttrs: &storage.ReaderObjectAttrs{
+				LastModified: now,
+				Generation:   1,
+				Size:         int64(MaxConfigSize) + 1,
+			},
+			wantErr: ConfigTooLargeError{},
 		},
 	}
 
@@ -104,26 +138,27 @@ func Test_ReadGCS(t *testing.T) {
 					Paths: map[gcs.Path]fake.Object{},
 				},
 			}
-			expectedAttrs := &storage.ReaderObjectAttrs{
-				LastModified: test.remoteLastModified,
-				Generation:   test.remoteGeneration,
-			}
 
 			client.Opener.Paths[mustPath("gs://example")] = fake.Object{
 				Data:  string(test.remoteData),
-				Attrs: expectedAttrs,
+				Attrs: test.remoteAttrs,
 			}
 			result, attrs, err := ReadGCS(context.Background(), &client, mustPath("gs://example"))
-			if err != nil {
-				t.Errorf("Unexpected error %v", err)
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) {
+					t.Errorf("ReadGCS() error = %v, want %v", err, test.wantErr)
+				}
+				return
 			}
-			if diff := cmp.Diff(expectedAttrs, attrs, protocmp.Transform()); diff != "" {
-				t.Errorf("Attributes differed (-want, +got): %s", diff)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+			if diff := cmp.Diff(test.remoteAttrs, attrs, protocmp.Transform()); diff != "" {
+				t.Errorf("Attributes should be returned unchanged (-want, +got): %s", diff)
 			}
 			if diff := cmp.Diff(expectedConfig, result, protocmp.Transform()); diff != "" {
 				t.Errorf("Config differed (-want, +got): %s ", diff)
 			}
-
 		})
 	}
 }
