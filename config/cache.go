@@ -74,8 +74,12 @@ func ReadGCS(ctx context.Context, opener gcs.Opener, path gcs.Path) (*configpb.C
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open config: %w", err)
 	}
-	p, err := Unmarshal(r)
+
 	defer r.Close()
+	if attrs != nil && attrs.Size > int64(MaxConfigSize) {
+		return nil, nil, fmt.Errorf("%w: file is %d bytes", ConfigTooLargeError{}, attrs.Size)
+	}
+	p, err := Unmarshal(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
@@ -93,6 +97,7 @@ func ReadPath(path string) (*configpb.Configuration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open: %v", err)
 	}
+	defer f.Close()
 	return Unmarshal(f)
 }
 

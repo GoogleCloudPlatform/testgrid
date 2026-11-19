@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -78,6 +77,16 @@ func (e MissingConfigError) Error() string {
 
 func (e ValidationError) Error() string {
 	return fmt.Sprintf("configuration error for (%s) %s: %s", e.Entity, e.Name, e.Message)
+}
+
+// MaxConfigSize is the maximum allowed size (~1GiB) of a serialized Configuration.
+// TODO: Allow this to be configured with a flag.
+const MaxConfigSize int = 1 << 30
+
+type ConfigTooLargeError struct{}
+
+func (e ConfigTooLargeError) Error() string {
+	return fmt.Sprintf("config exceeded %d bytes)", MaxConfigSize)
 }
 
 // Normalize lowercases, and removes all non-alphanumeric characters from a string.
@@ -547,11 +556,18 @@ func Validate(c *configpb.Configuration) error {
 	return mErr
 }
 
-// Unmarshal reads a protocol buffer into memory
+// Unmarshal reads a protocol buffer into memory.
 func Unmarshal(r io.Reader) (*configpb.Configuration, error) {
-	buf, err := ioutil.ReadAll(r)
+	return unmarshal(r, MaxConfigSize)
+}
+
+func unmarshal(r io.Reader, maxSize int) (*configpb.Configuration, error) {
+	buf, err := io.ReadAll(io.LimitReader(r, int64(maxSize+1)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config: %v", err)
+	}
+	if len(buf) > maxSize {
+		return nil, ConfigTooLargeError{}
 	}
 	var cfg configpb.Configuration
 	if err = proto.Unmarshal(buf, &cfg); err != nil {
@@ -573,15 +589,26 @@ func MarshalText(c *configpb.Configuration, w io.Writer) error {
 }
 
 // MarshalBytes returns the wire-encoded protobuf data for the parsed configuration.
-// Returns an error if config is invalid or encoding failed.
+// Returns an error if config is invalid, too large, or encoding failed.
 func MarshalBytes(c *configpb.Configuration) ([]byte, error) {
+	return marshalBytes(c, MaxConfigSize)
+}
+
+func marshalBytes(c *configpb.Configuration, maxSize int) ([]byte, error) {
 	if c == nil {
 		return nil, MissingConfigError{}
 	}
 	if err := Validate(c); err != nil {
 		return nil, err
 	}
-	return proto.Marshal(c)
+	b, err := proto.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxSize {
+		return nil, ConfigTooLargeError{}
+	}
+	return b, nil
 }
 
 // FindTestGroup returns the configpb.TestGroup proto for a given TestGroup name.

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/testgrid/config"
 	configpb "github.com/GoogleCloudPlatform/testgrid/pb/config"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs"
 	"github.com/GoogleCloudPlatform/testgrid/util/gcs/fake"
@@ -37,6 +38,7 @@ func TestObserve_OnInit(t *testing.T) {
 		name             string
 		config           *configpb.Configuration
 		configGeneration int64
+		configSize       int64
 		gcsErr           error
 		expectInitial    *configpb.Dashboard
 		expectError      bool
@@ -56,9 +58,37 @@ func TestObserve_OnInit(t *testing.T) {
 			},
 		},
 		{
+			name: "Reads config at max size",
+			config: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard",
+					},
+				},
+			},
+			configGeneration: 1,
+			configSize:       int64(config.MaxConfigSize),
+			expectInitial: &configpb.Dashboard{
+				Name: "dashboard",
+			},
+		},
+		{
 			name:        "Returns error if config isn't present at startup",
 			gcsErr:      errors.New("file missing"),
 			expectError: true,
+		},
+		{
+			name: "Returns error if config exceeds max size",
+			config: &configpb.Configuration{
+				Dashboards: []*configpb.Dashboard{
+					{
+						Name: "dashboard",
+					},
+				},
+			},
+			configGeneration: 1,
+			configSize:       int64(config.MaxConfigSize) + 1,
+			expectError:      true,
 		},
 	}
 
@@ -77,23 +107,28 @@ func TestObserve_OnInit(t *testing.T) {
 				Data: string(mustMarshalConfig(test.config)),
 				Attrs: &storage.ReaderObjectAttrs{
 					Generation: test.configGeneration,
+					Size:       test.configSize,
 				},
 				ReadErr: test.gcsErr,
 			}
 			client.Stater[*path] = fake.Stat{
 				Attrs: storage.ObjectAttrs{
 					Generation: test.configGeneration,
+					Size:       test.configSize,
 				},
 				Err: test.gcsErr,
 			}
 
 			snaps, err := Observe(ctx, nil, client, *path, nil)
 
-			if err != nil {
-				if !test.expectError {
-					t.Errorf("got unexpected error: %v", err)
+			if test.expectError {
+				if err == nil {
+					t.Fatalf("Observe() succeeded unexpectedly, expected error")
 				}
 				return
+			}
+			if err != nil {
+				t.Fatalf("got unexpected error: %v", err)
 			}
 
 			select {
@@ -457,6 +492,78 @@ func TestObserve_Data(t *testing.T) {
 				t.Error("expected an initial snapshot, but got none")
 			}
 
+		})
+	}
+}
+
+func TestFetchConfig_SizeLimit(t *testing.T) {
+	wantCfg := &configpb.Configuration{
+		Dashboards: []*configpb.Dashboard{
+			{Name: "dashboard"},
+		},
+	}
+	data := string(mustMarshalConfig(wantCfg))
+
+	path, err := gcs.NewPath("gs://config/example")
+	if err != nil {
+		t.Fatalf("gcs.NewPath() unexpected error: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		attrs   *storage.ReaderObjectAttrs
+		wantErr error
+	}{
+		{
+			name:  "nil_attrs",
+			attrs: nil,
+		},
+		{
+			name: "at_max_config_size",
+			attrs: &storage.ReaderObjectAttrs{
+				Generation: 1,
+				Size:       int64(config.MaxConfigSize),
+			},
+		},
+		{
+			name: "exceeds_max_config_size",
+			attrs: &storage.ReaderObjectAttrs{
+				Generation: 1,
+				Size:       int64(config.MaxConfigSize) + 1,
+			},
+			wantErr: config.ConfigTooLargeError{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Use a timeout shorter than fetchConfig's 5s retry backoff to verify
+			// ConfigTooLargeError fails fast without retrying.
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			client := fakeClient()
+			client.Opener.Paths[*path] = fake.Object{
+				Data:  data,
+				Attrs: tc.attrs,
+			}
+
+			gotCfg, gotAttrs, err := fetchConfig(ctx, client, *path)
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("fetchConfig() error = %v, want %v", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("fetchConfig() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.attrs, gotAttrs); diff != "" {
+				t.Errorf("fetchConfig() attrs diff (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(wantCfg, gotCfg, protocmp.Transform()); diff != "" {
+				t.Errorf("fetchConfig() config diff (-want +got):\n%s", diff)
+			}
 		})
 	}
 }

@@ -18,6 +18,7 @@ package snapshot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -128,6 +129,10 @@ func fetchConfig(ctx context.Context, client gcs.Opener, configPath gcs.Path) (*
 		var onceErr error
 		cfg, attrs, onceErr = fetchConfigOnce(innerCtx, client, configPath)
 		if onceErr != nil {
+			// If the config is present but too large, do not retry.
+			if errors.Is(onceErr, config.ConfigTooLargeError{}) {
+				return onceErr
+			}
 			return retry.RetryableError(onceErr)
 		}
 		return nil
@@ -140,10 +145,14 @@ func fetchConfigOnce(ctx context.Context, client gcs.Opener, configPath gcs.Path
 	if err != nil {
 		return nil, nil, fmt.Errorf("open: %w", err)
 	}
+	defer r.Close()
+	if attrs != nil && (attrs.Size > int64(config.MaxConfigSize)) {
+		return nil, nil, fmt.Errorf("%w: config size is %d bytes", config.ConfigTooLargeError{}, attrs.Size)
+	}
 
 	cfg, err := config.Unmarshal(r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unmarshal: %v", err)
+		return nil, nil, fmt.Errorf("unmarshal: %w", err)
 	}
 	return cfg, attrs, nil
 }

@@ -20,6 +20,7 @@ go_test(
     srcs = ["config_snapshot_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//config:go_default_library",
         "//pb/config:go_default_library",
         "//util/gcs:go_default_library",
         "//util/gcs/fake:go_default_library",
