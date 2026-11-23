@@ -91,7 +91,7 @@ go_repositories()
 
 go_rules_dependencies()
 
-go_register_toolchains(version = "1.26.9")
+go_register_toolchains(version = "1.26.11")
 
 gazelle_dependencies()
 
